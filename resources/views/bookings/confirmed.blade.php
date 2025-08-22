@@ -513,21 +513,81 @@
                                                         @endif
                                                     @endforeach
                                                 @endif
-                                            @elseif(in_array($key, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport']))
+                                            @elseif($key === 'travel_hourly')
+                                                @if(isset($serviceData[$key]))
+                                                    @php $globalTravelHourlyCounter = 1; @endphp
+                                                    @foreach($serviceData[$key] as $travelHourlyOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                      onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})">
+                                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                                    Local-Tour Hourly {{ $globalTravelHourlyCounter }}
+                                                                </span>
+                                                                @php 
+                                                                    $actualBookingIndex++; 
+                                                                    $globalTravelHourlyCounter++;
+                                                                @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'travel_point')
+                                                @if(isset($serviceData[$key]))
+                                                    @php $globalTravelPointCounter = 1; @endphp
+                                                    @foreach($serviceData[$key] as $travelPointOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                      onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})">
+                                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                                    Local-Tour Point to Point {{ $globalTravelPointCounter }}
+                                                                </span>
+                                                                @php 
+                                                                    $actualBookingIndex++; 
+                                                                    $globalTravelPointCounter++;
+                                                                @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif($key === 'local_transport')
+                                                @if(isset($serviceData[$key]))
+                                                    @php $globalLocalTransportCounter = 1; @endphp
+                                                    @foreach($serviceData[$key] as $localTransportOrderIndex => $order)
+                                                        @php $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data; @endphp
+                                                        @if(is_array($orderData))
+                                                            @php $actualBookingIndex = 0; @endphp
+                                                            @foreach($orderData as $bookingIndex => $booking)
+                                                                @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                      onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})">
+                                                                    <i class="{{ $icons[$key] }} me-1"></i>
+                                                                    Local Transport {{ $globalLocalTransportCounter }}
+                                                                </span>
+                                                                @php 
+                                                                    $actualBookingIndex++; 
+                                                                    $globalLocalTransportCounter++;
+                                                                @endphp
+                                                            @endforeach
+                                                        @endif
+                                                    @endforeach
+                                                @endif
+                                            @elseif(in_array($key, ['entry_port', 'exit_port']))
                                                 <span class="badge bg-light text-dark border" style="cursor: pointer;" 
                                                       onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
                                                       data-debug-info="{{ json_encode($debugInfo) }}">
                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                     @if($key === 'entry_port')
-                                                        Arrival: {{ $count }}
+                                                        Arrival {{ $count }}
                                                     @elseif($key === 'exit_port')
-                                                        Departure: {{ $count }}
-                                                    @elseif($key === 'travel_hourly')
-                                                        Local-Tour Hourly: {{ $count }}
-                                                    @elseif($key === 'travel_point')
-                                                        Local-Tour Point to Point: {{ $count }}
-                                                    @elseif($key === 'local_transport')
-                                                        Local Transport: {{ $count }}
+                                                        Departure {{ $count }}
                                                     @else
                                                         {{ ucfirst($key) }}: {{ $count }}
                                                     @endif
@@ -4452,19 +4512,19 @@
                                                 <div class="d-flex gap-2">
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                                            onclick="editLocalTransportBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
+                                                            onclick="editIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
                                                     <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="approveLocalTransportBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
+                                                            onclick="approveIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                                            onclick="rejectLocalTransportBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
+                                                            onclick="rejectIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-close-line me-1"></i>Reject
                                                     </button>
@@ -8810,6 +8870,3439 @@ function validateTravelHourlyDates(bookingDate, exitPickupDate, tourStartDate, t
     return true;
 }
 
+// Individual Travel Hourly Modal Functions (following Attraction pattern)
+function openIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('🚗 Opening individual travel hourly modal for:', { tourId, travelHourlyOrderIndex, bookingIndex });
+        
+        const modalId = `individualTravelHourlyViewModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create and show the modal
+        createIndividualTravelHourlyViewModal(modalId, tourId, travelHourlyOrderIndex, bookingIndex);
+        loadIndividualTravelHourlyContent(modalId, tourId, travelHourlyOrderIndex, bookingIndex);
+        
+    } catch (error) {
+        console.error('Error opening individual travel hourly modal:', error);
+        alert('Error opening travel hourly details. Please try again.');
+    }
+}
+
+function createIndividualTravelHourlyViewModal(modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
+    const modalHtml = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-time-line me-2"></i>Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Hourly Tour Service Details</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelHourlyViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        <div id="${modalId}_content">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-3 text-muted">Loading travel hourly details...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+}
+
+function closeIndividualTravelHourlyViewModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after it's hidden
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Error closing individual travel hourly modal:', error);
+    }
+}
+
+function loadIndividualTravelHourlyContent(modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
+    console.log('🔍 Loading individual travel hourly content for:', { tourId, travelHourlyOrderIndex, bookingIndex });
+    
+    // Fetch real data from server (following attraction pattern)
+    fetch('{{ url("/booking/get-travel-hourly-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_hourly_order_index: travelHourlyOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Travel hourly data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Travel hourly data parsed', data);
+        
+        if (data.success && data.data) {
+            // Use the actual travel hourly data from backend
+            const rawData = data.data;
+            const travelHourlyDetails = rawData.travel_hourly_details || {};
+            
+            const travelHourlyBooking = {
+                vehicles_name: rawData.vehicles_name || travelHourlyDetails.vehicles_name,
+                image: travelHourlyDetails.image,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                bookingDate: rawData.booking_date || travelHourlyDetails.bookingDate,
+                entrytime: rawData.entry_time || travelHourlyDetails.entry_time,
+                selectedHours: rawData.selected_hours || travelHourlyDetails.selected_hours,
+                type: travelHourlyDetails.type || 'Standard',
+                adults: rawData.adults || '0',
+                children: rawData.children || '0',
+                entrypickup: travelHourlyDetails.entrypickup || travelHourlyDetails.pickup_point || 'N/A',
+                city: travelHourlyDetails.city || 'N/A',
+                country: travelHourlyDetails.country || 'N/A',
+                Tax: travelHourlyDetails.Tax || '0',
+                fullName: travelHourlyDetails.fullName || travelHourlyDetails.full_name || 'N/A',
+                email: travelHourlyDetails.email || 'N/A',
+                phone: travelHourlyDetails.phone || 'N/A',
+                specialRequests: travelHourlyDetails.specialRequests || travelHourlyDetails.special_requests,
+                Night_Start_Time: travelHourlyDetails.Night_Start_Time,
+                Night_End_Time: travelHourlyDetails.Night_End_Time
+            };
+            
+            console.log('✅ Travel hourly booking data prepared for display', travelHourlyBooking);
+            generateIndividualTravelHourlyContent(travelHourlyBooking, modalId, tourId, travelHourlyOrderIndex, bookingIndex);
+        } else {
+            console.error('❌ Travel hourly data fetch failed', data);
+            displayTravelHourlyErrorContent(modalId, 'Failed to load travel hourly details');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error fetching travel hourly data:', error);
+        displayTravelHourlyErrorContent(modalId, 'Error loading travel hourly details');
+    });
+}
+
+function displayTravelHourlyErrorContent(modalId, message) {
+    document.getElementById(`${modalId}_content`).innerHTML = `
+        <div class="text-center py-5">
+            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                <i class="ri-time-line ri-48px text-muted"></i>
+            </div>
+            <h4 class="text-dark mb-3">No Travel Hourly Data Available</h4>
+            <p class="text-muted mb-4">${message}</p>
+        </div>
+    `;
+}
+
+function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+
+        const content = `
+            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1 fw-bold text-white">
+                                <i class="ri-time-line me-2"></i>${travelHourlyData.vehicles_name || 'Hourly Tour Service'}
+                            </h5>
+                            <p class="mb-0 text-white opacity-75">Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} • ${travelHourlyData.type || 'Standard'} Service</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                <span class="text-success fw-bold fs-5">SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Service Schedule & Group Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-primary rounded-circle p-2 me-3">
+                                        <i class="ri-calendar-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Booking Date</small>
+                                        <div class="fw-medium">${travelHourlyData.bookingDate || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Time</small>
+                                        <div class="fw-medium">${travelHourlyData.entrytime || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Selected Hours</small>
+                                        <span class="badge bg-info">${travelHourlyData.selectedHours || 'N/A'} Hour(s)</span>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Service Type</small>
+                                        <span class="badge bg-warning">${travelHourlyData.type || 'Standard'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-group-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Adults</small>
+                                        <div class="fw-medium">${travelHourlyData.adults || 0}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Children</small>
+                                        <div class="fw-medium">${travelHourlyData.children || 0}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Total Guests</small>
+                                        <span class="badge bg-primary">${(parseInt(travelHourlyData.adults || 0) + parseInt(travelHourlyData.children || 0))}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pickup Location & Vehicle Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-map-pin-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Pickup Location</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <small class="text-muted">Pickup Point</small>
+                                        <div class="fw-medium">${travelHourlyData.entrypickup || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">City</small>
+                                        <div class="fw-medium">${travelHourlyData.city || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Country</small>
+                                        <div class="fw-medium">${travelHourlyData.country || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-warning rounded-circle p-2 me-3">
+                                        <i class="ri-car-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6 mb-2">
+                                        <small class="text-muted">Vehicle Name</small>
+                                        <div class="fw-medium">${travelHourlyData.vehicles_name || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-6 mb-2">
+                                        <small class="text-muted">Service Type</small>
+                                        <div class="fw-medium">${travelHourlyData.type || 'N/A'} Transfer</div>
+                                    </div>
+                                </div>
+                                <!-- Vehicle Image Display -->
+                                <div class="vehicle-image-container">
+                                    ${travelHourlyData.image ? `
+                                        <div class="position-relative">
+                                            <img src="${travelHourlyData.image}" 
+                                                 alt="${travelHourlyData.vehicles_name || 'Vehicle'}" 
+                                                 class="img-fluid rounded shadow-sm w-100" 
+                                                 style="height: 180px; object-fit: cover; border-radius: 12px !important; cursor: pointer;"
+                                                 onclick="openVehicleImageModal('${travelHourlyData.image}', '${travelHourlyData.vehicles_name || 'Vehicle'}')">
+                                            <div class="position-absolute top-0 end-0 m-2">
+                                                <span class="badge bg-dark bg-opacity-75 text-white">
+                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
+                                            <div class="text-center">
+                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
+                                                <div class="text-muted">No Vehicle Image</div>
+                                            </div>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing & Customer Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-warning rounded-circle p-2 me-3">
+                                        <i class="ri-money-dollar-circle-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Pricing Details</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Total Price</small>
+                                        <div class="fw-bold text-success">SGD ${travelHourlyData.totalPrice || '0'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Tax</small>
+                                        <div class="fw-medium">${travelHourlyData.Tax || '0'}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-info rounded-circle p-2 me-3">
+                                        <i class="ri-user-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        <small class="text-muted">Name</small>
+                                        <div class="fw-medium">${travelHourlyData.fullName || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <small class="text-muted">Email</small>
+                                        <div class="fw-medium">${travelHourlyData.email || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <small class="text-muted">Phone</small>
+                                        <div class="fw-medium">${travelHourlyData.phone || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${travelHourlyData.specialRequests ? `
+                        <!-- Special Requests -->
+                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-message-2-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                            </div>
+                            <p class="text-muted mb-0">${travelHourlyData.specialRequests}</p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Individual Action Buttons -->
+                    <div class="bg-white rounded p-3 shadow-sm border-top">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-settings-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                        onclick="editIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-edit-line me-1"></i>Edit
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                        onclick="rejectIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-close-line me-1"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+    } catch (error) {
+        console.error('Error generating individual travel hourly content:', error);
+        displayTravelHourlyErrorContent(modalId, 'Error generating content');
+    }
+}
+
+
+
+// Individual Travel Hourly Edit Functions (following Attraction pattern)
+function editIndividualTravelHourly(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual travel hourly edit modal for tour:', tourId, 'order:', travelHourlyOrderIndex, 'booking:', bookingIndex);
+        
+        // Close the individual view modal if open
+        const viewModalId = `individualTravelHourlyViewModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        // Wait a moment for the modal to close, then show individual edit modal
+        setTimeout(() => {
+            createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, 'edit');
+            // Load data after modal is created
+            setTimeout(() => {
+                loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingIndex);
+            }, 100);
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual travel hourly edit modal:', error);
+        alert('Error opening edit modal. Please try again.');
+    }
+}
+
+function approveIndividualTravelHourly(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual travel hourly approve modal for tour:', tourId, 'order:', travelHourlyOrderIndex, 'booking:', bookingIndex);
+        
+        // Close any open modals first
+        const viewModalId = `individualTravelHourlyViewModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        setTimeout(() => {
+            createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, 'approve');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual travel hourly approve modal:', error);
+        alert('Error opening approve modal. Please try again.');
+    }
+}
+
+function rejectIndividualTravelHourly(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual travel hourly reject modal for tour:', tourId, 'order:', travelHourlyOrderIndex, 'booking:', bookingIndex);
+        
+        // Close any open modals first
+        const viewModalId = `individualTravelHourlyViewModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        setTimeout(() => {
+            createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, 'reject');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual travel hourly reject modal:', error);
+        alert('Error opening reject modal. Please try again.');
+    }
+}
+
+function createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex, bookingIndex, action) {
+    try {
+        const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_${action}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+        
+        switch (action) {
+            case 'edit':
+                modalTitle = `Edit Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                buttonClass = 'btn-primary';
+                buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
+                onSubmit = `saveIndividualTravelHourlyChanges(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})`;
+                modalContent = generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex);
+                break;
+                
+            case 'approve':
+                modalTitle = `Approve Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                buttonClass = 'btn-success';
+                buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+                onSubmit = `confirmIndividualTravelHourlyApproval(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})`;
+                modalContent = generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex);
+                break;
+                
+            case 'reject':
+                modalTitle = `Reject Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                buttonClass = 'btn-danger';
+                buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+                onSubmit = `confirmIndividualTravelHourlyRejection(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})`;
+                modalContent = generateRejectTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex);
+                break;
+        }
+        
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
+                        <!-- Modal Header -->
+                        <div class="modal-header text-white border-0 p-0" style="background: ${modalColor}; min-height: 120px;">
+                            <div class="container-fluid p-4">
+                                <h4 class="mb-1 fw-bold text-white">
+                                    <i class="ri-time-line me-2"></i>${modalTitle}
+                                </h4>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Travel Hourly Service</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeIndividualTravelHourlyModal('${modalId}')" aria-label="Close"></button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4">
+                            ${modalContent}
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualTravelHourlyModal('${modalId}')" style="border-radius: 25px;">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modalElement = document.getElementById(modalId);
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        // Remove modal from DOM when hidden
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            modalElement.remove();
+        });
+        
+    } catch (error) {
+        console.error('Error creating individual travel hourly modal:', error);
+        alert('Error creating modal. Please try again.');
+    }
+}
+
+function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex) {
+    return `
+        <form id="editTravelHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="travel_hourly_order_index" value="${travelHourlyOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Vehicle Information with Image -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-car-line me-2 text-primary"></i>Vehicle Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <div id="edit_travel_hourly_vehicle_image_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" 
+                                         class="rounded shadow-sm" 
+                                         style="width: 80px; height: 60px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-car-line ri-24px text-muted"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 id="edit_travel_hourly_vehicle_name_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="mb-1 fw-bold text-dark">Loading...</h6>
+                                    <small class="text-muted">Hourly Tour Service</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-success bg-opacity-10 rounded px-3 py-2">
+                                <span id="edit_travel_hourly_total_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-success fw-bold">SGD 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Travel Date Constraint -->
+            <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
+                <i class="ri-information-line fs-5 me-3 text-info"></i>
+                <div>
+                    <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
+                    <small id="edit_travel_hourly_date_constraint_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-muted">Travel hourly booking must be within the tour travel period</small>
+                </div>
+            </div>
+            
+            <!-- Travel Date Ranges -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-calendar-line me-2 text-primary"></i>Travel Date Ranges
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_travel_hourly_booking_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Booking Date</label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_travel_hourly_booking_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
+                                   name="booking_date"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Select date within your travel dates</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Exit Pickup Date</label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
+                                   name="exit_pickup_date"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Select exit pickup date within your travel dates</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Entry Time -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-time-line me-2 text-primary"></i>Entry Time
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_travel_hourly_entry_time_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Entry Time</label>
+                            <input type="time" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_travel_hourly_entry_time_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
+                                   name="entry_time"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Please enter time in 24-hour format (eg: 16:00)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Booking Summary -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-file-text-line me-2 text-success"></i>Booking Summary
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Vehicle Type</h6>
+                                <div id="edit_travel_hourly_summary_vehicle_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="fw-medium text-dark">HOURLY TOUR</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Tour ID</h6>
+                                <div class="fw-medium text-dark">${tourId}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Total Amount</h6>
+                                <div id="edit_travel_hourly_summary_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="fw-bold text-success">SGD 150.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
+
+function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex) {
+    return `
+        <div class="text-center py-4">
+            <div class="bg-success rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <i class="ri-check-line ri-32px text-white"></i>
+            </div>
+            <h5 class="text-dark mb-3">Approve Travel Hourly Service</h5>
+            <p class="text-muted mb-4">Are you sure you want to approve this Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} booking?</p>
+            <div class="alert alert-success">
+                <i class="ri-information-line me-2"></i>
+                This action will mark the travel hourly service as approved and notify the relevant parties.
+            </div>
+        </div>
+    `;
+}
+
+function generateRejectTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex) {
+    return `
+        <div class="py-4">
+            <div class="text-center mb-4">
+                <div class="bg-danger rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                    <i class="ri-close-line ri-32px text-white"></i>
+                </div>
+                <h5 class="text-dark mb-3">Reject Travel Hourly Service</h5>
+                <p class="text-muted mb-4">Please provide a reason for rejecting this Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} booking.</p>
+            </div>
+            
+            <div class="mb-4">
+                <label for="reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Rejection Reason</label>
+                <textarea class="form-control" 
+                          id="reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
+                          name="reject_reason"
+                          rows="4"
+                          placeholder="Please provide a detailed reason for rejection..."
+                          required
+                          style="border-radius: 8px; border: 2px solid #e9ecef;"></textarea>
+            </div>
+            
+            <div class="alert alert-warning">
+                <i class="ri-alert-line me-2"></i>
+                This action will mark the travel hourly service as rejected and notify the relevant parties.
+            </div>
+        </div>
+    `;
+}
+
+function closeIndividualTravelHourlyModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    } catch (error) {
+        console.error('Error closing individual travel hourly modal:', error);
+    }
+}
+
+function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('Loading travel hourly data for edit:', { tourId, travelHourlyOrderIndex, bookingIndex });
+        
+        // Get tour data from the page
+        const tourData = getTourDataFromPage(tourId);
+        console.log('Tour data extracted:', tourData);
+        
+        // Fetch travel hourly data from server (following attraction pattern)
+        getTravelHourlyServiceData(tourId, travelHourlyOrderIndex, bookingIndex)
+        .then(travelHourlyData => {
+            console.log('Travel hourly data loaded:', travelHourlyData);
+            
+            // Populate vehicle information
+            const vehicleImageElement = document.getElementById(`edit_travel_hourly_vehicle_image_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const vehicleNameElement = document.getElementById(`edit_travel_hourly_vehicle_name_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const totalPriceElement = document.getElementById(`edit_travel_hourly_total_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const summaryVehicleElement = document.getElementById(`edit_travel_hourly_summary_vehicle_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const summaryPriceElement = document.getElementById(`edit_travel_hourly_summary_price_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const dateConstraintElement = document.getElementById(`edit_travel_hourly_date_constraint_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            
+            // Update vehicle image
+            if (vehicleImageElement && travelHourlyData.image) {
+                vehicleImageElement.innerHTML = `
+                    <img src="${travelHourlyData.image}" 
+                         alt="${travelHourlyData.vehicles_name || 'Vehicle'}" 
+                         class="img-fluid rounded shadow-sm" 
+                         style="width: 80px; height: 60px; object-fit: cover;">
+                `;
+            }
+            
+            // Update vehicle name
+            if (vehicleNameElement) {
+                vehicleNameElement.textContent = travelHourlyData.vehicles_name || 'Mercedes';
+            }
+            
+            // Update total price
+            if (totalPriceElement) {
+                totalPriceElement.textContent = `SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}`;
+            }
+            
+            // Update summary sections
+            if (summaryVehicleElement) {
+                summaryVehicleElement.textContent = travelHourlyData.vehicles_name || 'HOURLY TOUR';
+            }
+            if (summaryPriceElement) {
+                summaryPriceElement.textContent = `SGD ${(travelHourlyData.totalPrice || 0).toFixed(2)}`;
+            }
+            
+            // Update date constraint
+            if (dateConstraintElement) {
+                dateConstraintElement.innerHTML = `Travel hourly booking must be within the tour travel period: <strong>${tourData?.check_in_time || 'Loading...'}</strong> to <strong>${tourData?.check_out_time || 'Loading...'}</strong>`;
+            }
+            
+            // Populate form fields with real data and set date constraints
+            const bookingDateInput = document.getElementById(`edit_travel_hourly_booking_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const exitPickupDateInput = document.getElementById(`edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const entryTimeInput = document.getElementById(`edit_travel_hourly_entry_time_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            
+            if (bookingDateInput && exitPickupDateInput && entryTimeInput) {
+                // Set date constraints based on tour travel period
+                const tourStartDate = tourData?.check_in_time || "2025-09-16";
+                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                // Set min and max attributes to restrict date selection
+                bookingDateInput.setAttribute('min', tourStartDate);
+                bookingDateInput.setAttribute('max', tourEndDate);
+                exitPickupDateInput.setAttribute('min', tourStartDate);
+                exitPickupDateInput.setAttribute('max', tourEndDate);
+                
+                // Set values from real data or defaults
+                bookingDateInput.value = travelHourlyData.bookingDate ? 
+                    new Date(travelHourlyData.bookingDate).toISOString().split('T')[0] : 
+                    tourStartDate;
+                
+                exitPickupDateInput.value = travelHourlyData.exitpickupdate ? 
+                    new Date(travelHourlyData.exitpickupdate).toISOString().split('T')[0] : 
+                    tourStartDate;
+                
+                entryTimeInput.value = travelHourlyData.entrytime || "07:00";
+                
+                console.log(`Date constraints set: ${tourStartDate} to ${tourEndDate}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading travel hourly data for edit:', error);
+            // Set default values if data fetch fails
+            const bookingDateInput = document.getElementById(`edit_travel_hourly_booking_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const exitPickupDateInput = document.getElementById(`edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            const entryTimeInput = document.getElementById(`edit_travel_hourly_entry_time_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+            
+            if (bookingDateInput && exitPickupDateInput && entryTimeInput) {
+                // Set date constraints even in error case
+                const tourStartDate = tourData?.check_in_time || "2025-09-16";
+                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                bookingDateInput.setAttribute('min', tourStartDate);
+                bookingDateInput.setAttribute('max', tourEndDate);
+                exitPickupDateInput.setAttribute('min', tourStartDate);
+                exitPickupDateInput.setAttribute('max', tourEndDate);
+                
+                bookingDateInput.value = tourStartDate;
+                exitPickupDateInput.value = tourStartDate;
+                entryTimeInput.value = "07:00";
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in loadTravelHourlyDataForEdit:', error);
+    }
+}
+
+// Helper function to get travel hourly service data (following attraction pattern)
+function getTravelHourlyServiceData(tourId, travelHourlyOrderIndex, bookingIndex) {
+    return fetch('{{ url("/booking/get-travel-hourly-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_hourly_order_index: travelHourlyOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            // Map the API response to expected format
+            const rawData = data.data;
+            const travelHourlyDetails = rawData.travel_hourly_details || {};
+            
+            return {
+                vehicles_name: rawData.vehicles_name || travelHourlyDetails.vehicles_name,
+                image: travelHourlyDetails.image,
+                bookingDate: rawData.booking_date || travelHourlyDetails.bookingDate,
+                entrytime: rawData.entry_time || travelHourlyDetails.entry_time,
+                exitpickupdate: rawData.exit_pickup_date || travelHourlyDetails.exit_pickup_date,
+                selectedHours: rawData.selected_hours || travelHourlyDetails.selected_hours,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                adults: rawData.adults || '0',
+                children: rawData.children || '0'
+            };
+        } else {
+            throw new Error('Failed to fetch travel hourly data');
+        }
+    });
+}
+
+function saveIndividualTravelHourlyChanges(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        const formId = `editTravelHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`;
+        const form = document.getElementById(formId);
+        
+        if (!form) {
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const bookingDate = formData.get('booking_date');
+        const exitPickupDate = formData.get('exit_pickup_date');
+        const entryTime = formData.get('entry_time');
+        
+        if (!bookingDate || !exitPickupDate || !entryTime) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        // Validate dates are within tour travel period
+        const tourData = getTourDataFromPage(tourId);
+        const tourStartDate = new Date(tourData?.check_in_time || "2025-09-16");
+        const tourEndDate = new Date(tourData?.check_out_time || "2025-09-20");
+        const selectedBookingDate = new Date(bookingDate);
+        const selectedExitDate = new Date(exitPickupDate);
+        
+        if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
+            alert(`Booking date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
+            return;
+        }
+        
+        if (selectedExitDate < tourStartDate || selectedExitDate > tourEndDate) {
+            alert(`Exit pickup date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
+            return;
+        }
+        
+        console.log('Saving individual travel hourly changes:', {
+            tour_id: tourId,
+            travel_hourly_order_index: travelHourlyOrderIndex,
+            booking_index: bookingIndex,
+            booking_date: bookingDate,
+            exit_pickup_date: exitPickupDate,
+            entry_time: entryTime
+        });
+        
+        // Make API call to update the booking
+        fetch('{{ url("/booking/update-travel-hourly-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                travel_hourly_order_index: travelHourlyOrderIndex,
+                booking_index: bookingIndex,
+                booking_date: bookingDate,
+                exit_pickup_date: exitPickupDate,
+                entry_time: entryTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Individual travel hourly booking updated successfully:', data);
+                
+                // Close the edit modal
+                const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_edit`;
+                closeIndividualTravelHourlyModal(modalId);
+                
+                // Show success message
+                alert(data.message || 'Travel hourly booking updated successfully!');
+                
+                // Refresh the page to show updated data
+                window.location.reload();
+            } else {
+                console.error('Failed to update individual travel hourly booking:', data);
+                alert('Error updating travel hourly booking: ' + (data.message || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating individual travel hourly booking:', error);
+            alert('Error updating travel hourly booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('Error saving individual travel hourly changes:', error);
+        alert('Error saving changes. Please try again.');
+    }
+}
+
+function confirmIndividualTravelHourlyApproval(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('Confirming individual travel hourly approval:', { tourId, travelHourlyOrderIndex, bookingIndex });
+        
+        // Close the approve modal
+        const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_approve`;
+        closeIndividualTravelHourlyModal(modalId);
+        
+        // Show success message
+        alert('Travel hourly booking approved successfully!');
+        
+        // Here you can implement the actual approval API call
+        // For now, just show success message
+        
+    } catch (error) {
+        console.error('Error confirming individual travel hourly approval:', error);
+        alert('Error approving travel hourly booking. Please try again.');
+    }
+}
+
+function confirmIndividualTravelHourlyRejection(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+        const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+        
+        if (!reason) {
+            alert('Please provide a reason for rejection.');
+            return;
+        }
+        
+        console.log('Confirming individual travel hourly rejection:', { tourId, travelHourlyOrderIndex, bookingIndex, reason });
+        
+        // Close the reject modal
+        const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_reject`;
+        closeIndividualTravelHourlyModal(modalId);
+        
+        // Show success message
+        alert('Travel hourly booking rejected successfully!');
+        
+        // Here you can implement the actual rejection API call
+        // For now, just show success message
+        
+    } catch (error) {
+        console.error('Error confirming individual travel hourly rejection:', error);
+        alert('Error rejecting travel hourly booking. Please try again.');
+    }
+}
+
+// Vehicle Image Modal Function
+function openVehicleImageModal(imageUrl, vehicleName) {
+    try {
+        const modalId = 'vehicleImageModal';
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
+                        <!-- Modal Header -->
+                        <div class="modal-header border-0 p-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <h5 class="modal-title text-white fw-bold">
+                                <i class="ri-car-line me-2"></i>${vehicleName}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        
+                        <!-- Modal Body -->
+                        <div class="modal-body p-0">
+                            <div class="position-relative">
+                                <img src="${imageUrl}" 
+                                     alt="${vehicleName}" 
+                                     class="img-fluid w-100" 
+                                     style="max-height: 500px; object-fit: contain; background: #f8f9fa;">
+                                <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-50 text-white p-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-medium">${vehicleName}</span>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-light" onclick="openImageInNewTab('${imageUrl}')">
+                                                <i class="ri-external-link-line me-1"></i>Open
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById(modalId));
+        modal.show();
+        
+        // Remove modal from DOM when hidden
+        document.getElementById(modalId).addEventListener('hidden.bs.modal', function () {
+            document.getElementById(modalId).remove();
+        });
+        
+    } catch (error) {
+        console.error('Error opening vehicle image modal:', error);
+        alert('Error opening image. Please try again.');
+    }
+}
+
+function downloadVehicleImage(imageUrl, vehicleName) {
+    try {
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = `${vehicleName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_vehicle_image.jpg`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (error) {
+        console.error('Error downloading image:', error);
+        // Fallback: open in new tab
+        openImageInNewTab(imageUrl);
+    }
+}
+
+function openImageInNewTab(imageUrl) {
+    try {
+        window.open(imageUrl, '_blank');
+    } catch (error) {
+        console.error('Error opening image in new tab:', error);
+        alert('Error opening image. Please try again.');
+    }
+}
+
+// Individual Travel Point Modal Functions (following Travel Hourly pattern)
+function openIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('🚌 Opening individual travel point modal for:', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        const modalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create and show the modal
+        createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex);
+        loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex, bookingIndex);
+        
+    } catch (error) {
+        console.error('Error opening individual travel point modal:', error);
+        alert('Error opening travel point details. Please try again.');
+    }
+}
+
+function createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex) {
+    const modalHtml = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Transfer Details</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        <div id="${modalId}_content">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-3 text-muted">Loading travel point details...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+}
+
+function closeIndividualTravelPointViewModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after it's hidden
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Error closing individual travel point modal:', error);
+    }
+}
+
+function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex, bookingIndex) {
+    console.log('🔍 Loading individual travel point content for:', { tourId, travelPointOrderIndex, bookingIndex });
+    
+    // Fetch real data from server (following travel hourly pattern)
+    fetch('{{ url("/booking/get-travel-point-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_point_order_index: travelPointOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Travel point data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Travel point data parsed', data);
+        
+        if (data.success && data.data) {
+            // Use the actual travel point data from backend
+            const rawData = data.data;
+            const travelPointDetails = rawData.travel_point_details || {};
+            
+            const travelPointBooking = {
+                vehicles_name: rawData.vehicles_name || travelPointDetails.vehicles_name,
+                image: travelPointDetails.image,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                bookingDate: rawData.booking_date || travelPointDetails.bookingDate,
+                entrytime: rawData.entry_time || travelPointDetails.entry_time,
+                type: travelPointDetails.type || 'Standard',
+                adults: rawData.adults || '0',
+                children: rawData.children || '0',
+                pickupPoint: rawData.entrypickup || travelPointDetails.entrypickup || travelPointDetails.pickup_point || 'N/A',
+                dropoffPoint: rawData.entrydropoff || travelPointDetails.entrydropoff || travelPointDetails.dropoff_point || 'N/A',
+                city: travelPointDetails.city || 'N/A',
+                country: travelPointDetails.country || 'N/A',
+                Tax: travelPointDetails.Tax || '0',
+                fullName: travelPointDetails.fullName || travelPointDetails.full_name || 'N/A',
+                email: travelPointDetails.email || 'N/A',
+                phone: travelPointDetails.phone || 'N/A',
+                specialRequests: travelPointDetails.specialRequests || travelPointDetails.special_requests
+            };
+            
+            console.log('✅ Travel point booking data prepared for display', travelPointBooking);
+            generateIndividualTravelPointContent(travelPointBooking, modalId, tourId, travelPointOrderIndex, bookingIndex);
+        } else {
+            console.error('❌ Travel point data fetch failed', data);
+            displayTravelPointErrorContent(modalId, 'Failed to load travel point details');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error fetching travel point data:', error);
+        displayTravelPointErrorContent(modalId, 'Error loading travel point details');
+    });
+}
+
+function displayTravelPointErrorContent(modalId, message) {
+    document.getElementById(`${modalId}_content`).innerHTML = `
+        <div class="text-center py-5">
+            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                <i class="ri-route-line ri-48px text-muted"></i>
+            </div>
+            <h4 class="text-dark mb-3">No Travel Point Data Available</h4>
+            <p class="text-muted mb-4">${message}</p>
+        </div>
+    `;
+}
+
+function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        const content = `
+            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1 fw-bold text-white">
+                                <i class="ri-route-line me-2"></i>${travelPointData.vehicles_name || 'Point to Point Transfer'}
+                            </h5>
+                            <p class="mb-0 text-white opacity-75">Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                <span class="text-success fw-bold fs-5">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Service Schedule & Group Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-primary rounded-circle p-2 me-3">
+                                        <i class="ri-calendar-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Booking Date</small>
+                                        <div class="fw-medium">${travelPointData.bookingDate || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Time</small>
+                                        <div class="fw-medium">${travelPointData.entrytime || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Service Type</small>
+                                        <span class="badge bg-warning">${travelPointData.type || 'Standard'}</span>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Transfer Type</small>
+                                        <span class="badge bg-info">Point to Point</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-group-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Adults</small>
+                                        <div class="fw-medium">${travelPointData.adults || 0}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Children</small>
+                                        <div class="fw-medium">${travelPointData.children || 0}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Total Guests</small>
+                                        <span class="badge bg-primary">${(parseInt(travelPointData.adults || 0) + parseInt(travelPointData.children || 0))}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Route Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-route-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Route Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Pickup Point</small>
+                                        <div class="fw-medium d-flex align-items-center">
+                                            <i class="ri-map-pin-line text-success me-2"></i>
+                                            ${travelPointData.pickupPoint || 'N/A'}
+                                        </div>
+                                        <small class="text-success">Origin</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Dropoff Point</small>
+                                        <div class="fw-medium d-flex align-items-center">
+                                            <i class="ri-map-pin-2-line text-danger me-2"></i>
+                                            ${travelPointData.dropoffPoint || 'N/A'}
+                                        </div>
+                                        <small class="text-danger">Destination</small>
+                                    </div>
+                                </div>
+                                <!-- Route Direction Visual -->
+                                <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
+                                    <div class="text-center">
+                                        <span class="badge bg-success me-2">${travelPointData.pickupPoint || 'Pickup'}</span>
+                                        <i class="ri-arrow-right-line text-primary mx-2"></i>
+                                        <span class="badge bg-danger">${travelPointData.dropoffPoint || 'Dropoff'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle & Location Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-warning rounded-circle p-2 me-3">
+                                        <i class="ri-car-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6 mb-2">
+                                        <small class="text-muted">Vehicle Name</small>
+                                        <div class="fw-medium">${travelPointData.vehicles_name || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-6 mb-2">
+                                        <small class="text-muted">Service Type</small>
+                                        <div class="fw-medium">${travelPointData.type || 'N/A'} Transfer</div>
+                                    </div>
+                                </div>
+                                <!-- Vehicle Image Display -->
+                                <div class="vehicle-image-container">
+                                    ${travelPointData.image ? `
+                                        <div class="position-relative">
+                                            <img src="${travelPointData.image}" 
+                                                 alt="${travelPointData.vehicles_name || 'Vehicle'}" 
+                                                 class="img-fluid rounded shadow-sm w-100" 
+                                                 style="height: 180px; object-fit: cover; border-radius: 12px !important; cursor: pointer;"
+                                                 onclick="openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
+                                            <div class="position-absolute top-0 end-0 m-2">
+                                                <span class="badge bg-dark bg-opacity-75 text-white">
+                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
+                                            <div class="text-center">
+                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
+                                                <div class="text-muted">No Vehicle Image</div>
+                                            </div>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-info rounded-circle p-2 me-3">
+                                        <i class="ri-map-pin-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Location Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">City</small>
+                                        <div class="fw-medium">${travelPointData.city || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Country</small>
+                                        <div class="fw-medium">${travelPointData.country || 'N/A'}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Pricing Details -->
+                                <div class="mt-3">
+                                    <h6 class="fw-bold mb-2 text-dark">Pricing Details</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">Total Price</small>
+                                            <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">Tax</small>
+                                            <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-info rounded-circle p-2 me-3">
+                                        <i class="ri-user-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <small class="text-muted">Name</small>
+                                        <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <small class="text-muted">Email</small>
+                                        <div class="fw-medium">${travelPointData.email || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <small class="text-muted">Phone</small>
+                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${travelPointData.specialRequests ? `
+                        <!-- Special Requests -->
+                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-message-2-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                            </div>
+                            <p class="text-muted mb-0">${travelPointData.specialRequests}</p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Individual Action Buttons -->
+                    <div class="bg-white rounded p-3 shadow-sm border-top">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-settings-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                        onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-edit-line me-1"></i>Edit
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                        onclick="rejectIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-close-line me-1"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+    } catch (error) {
+        console.error('Error generating individual travel point content:', error);
+        displayTravelPointErrorContent(modalId, 'Error generating content');
+    }
+}
+
+// Individual Travel Point Edit Functions (following Travel Hourly pattern)
+function editIndividualTravelPoint(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual travel point edit modal for tour:', tourId, 'order:', travelPointOrderIndex, 'booking:', bookingIndex);
+        
+        // Close the individual view modal if open
+        const viewModalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        // Wait a moment for the modal to close, then show individual edit modal
+        setTimeout(() => {
+            createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, 'edit');
+            // Load data after modal is created
+            setTimeout(() => {
+                loadTravelPointDataForEdit(tourId, travelPointOrderIndex, bookingIndex);
+            }, 100);
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual travel point edit modal:', error);
+        alert('Error opening edit modal. Please try again.');
+    }
+}
+
+function approveIndividualTravelPoint(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual travel point approve modal for tour:', tourId, 'order:', travelPointOrderIndex, 'booking:', bookingIndex);
+        
+        // Close any open modals first
+        const viewModalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        setTimeout(() => {
+            createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, 'approve');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual travel point approve modal:', error);
+        alert('Error opening approve modal. Please try again.');
+    }
+}
+
+function rejectIndividualTravelPoint(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual travel point reject modal for tour:', tourId, 'order:', travelPointOrderIndex, 'booking:', bookingIndex);
+        
+        // Close any open modals first
+        const viewModalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        setTimeout(() => {
+            createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, 'reject');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual travel point reject modal:', error);
+        alert('Error opening reject modal. Please try again.');
+    }
+}
+
+function createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex, action) {
+    try {
+        const modalId = `individualTravelPointModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}_${action}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+        
+        switch (action) {
+            case 'edit':
+                modalTitle = `Edit Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                buttonClass = 'btn-primary';
+                buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
+                onSubmit = `saveIndividualTravelPointChanges(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})`;
+                modalContent = generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex);
+                break;
+                
+            case 'approve':
+                modalTitle = `Approve Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                buttonClass = 'btn-success';
+                buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+                onSubmit = `confirmIndividualTravelPointApproval(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})`;
+                modalContent = generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIndex);
+                break;
+                
+            case 'reject':
+                modalTitle = `Reject Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                buttonClass = 'btn-danger';
+                buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+                onSubmit = `confirmIndividualTravelPointRejection(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})`;
+                modalContent = generateRejectTravelPointForm(tourId, travelPointOrderIndex, bookingIndex);
+                break;
+        }
+        
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
+                        <!-- Modal Header -->
+                        <div class="modal-header text-white border-0 p-0" style="background: ${modalColor}; min-height: 120px;">
+                            <div class="container-fluid p-4">
+                                <h4 class="mb-1 fw-bold text-white">
+                                    <i class="ri-route-line me-2"></i>${modalTitle}
+                                </h4>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Transfer</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeIndividualTravelPointModal('${modalId}')" aria-label="Close"></button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4">
+                            ${modalContent}
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualTravelPointModal('${modalId}')" style="border-radius: 25px;">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modalElement = document.getElementById(modalId);
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        // Remove modal from DOM when hidden
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            modalElement.remove();
+        });
+        
+    } catch (error) {
+        console.error('Error creating individual travel point modal:', error);
+        alert('Error creating modal. Please try again.');
+    }
+}
+
+function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
+    return `
+        <form id="editTravelPointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="travel_point_order_index" value="${travelPointOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Vehicle Information with Image -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-car-line me-2 text-primary"></i>Vehicle Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <div id="edit_travel_point_vehicle_image_${tourId}_${travelPointOrderIndex}_${bookingIndex}" 
+                                         class="rounded shadow-sm" 
+                                         style="width: 80px; height: 60px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-car-line ri-24px text-muted"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 id="edit_travel_point_vehicle_name_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="mb-1 fw-bold text-dark">Loading...</h6>
+                                    <small class="text-muted">Point to Point Transfer</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-success bg-opacity-10 rounded px-3 py-2">
+                                <span id="edit_travel_point_total_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-success fw-bold">SGD 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Travel Date Constraint -->
+            <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
+                <i class="ri-information-line fs-5 me-3 text-info"></i>
+                <div>
+                    <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
+                    <small id="edit_travel_point_date_constraint_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-muted">Travel point booking must be within the tour travel period</small>
+                </div>
+            </div>
+            
+            <!-- Travel Date Ranges -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-calendar-line me-2 text-primary"></i>Travel Date Ranges
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_travel_point_booking_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Booking Date</label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_travel_point_booking_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
+                                   name="booking_date"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Select date within your travel dates</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Pickup Date</label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
+                                   name="pickup_date"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Select pickup date within your travel dates</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Entry Time -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-time-line me-2 text-primary"></i>Entry Time
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_travel_point_entry_time_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Entry Time</label>
+                            <input type="time" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_travel_point_entry_time_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
+                                   name="entry_time"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Please enter time in 24-hour format (eg: 16:00)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Booking Summary -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-file-text-line me-2 text-success"></i>Booking Summary
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Vehicle Type</h6>
+                                <div id="edit_travel_point_summary_vehicle_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="fw-medium text-dark">POINT TO POINT</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Tour ID</h6>
+                                <div class="fw-medium text-dark">${tourId}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Total Amount</h6>
+                                <div id="edit_travel_point_summary_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="fw-bold text-success">SGD 150.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
+
+function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
+    return `
+        <div class="text-center py-4">
+            <div class="bg-success rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <i class="ri-check-line ri-32px text-white"></i>
+            </div>
+            <h5 class="text-dark mb-3">Approve Travel Point Service</h5>
+            <p class="text-muted mb-4">Are you sure you want to approve this Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} booking?</p>
+            <div class="alert alert-success">
+                <i class="ri-information-line me-2"></i>
+                This action will mark the travel point service as approved and notify the relevant parties.
+            </div>
+        </div>
+    `;
+}
+
+function generateRejectTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
+    return `
+        <div class="py-4">
+            <div class="text-center mb-4">
+                <div class="bg-danger rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                    <i class="ri-close-line ri-32px text-white"></i>
+                </div>
+                <h5 class="text-dark mb-3">Reject Travel Point Service</h5>
+                <p class="text-muted mb-4">Please provide a reason for rejecting this Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} booking.</p>
+            </div>
+            
+            <div class="mb-4">
+                <label for="reject_reason_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Rejection Reason</label>
+                <textarea class="form-control" 
+                          id="reject_reason_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
+                          name="reject_reason"
+                          rows="4"
+                          placeholder="Please provide a detailed reason for rejection..."
+                          required
+                          style="border-radius: 8px; border: 2px solid #e9ecef;"></textarea>
+            </div>
+            
+            <div class="alert alert-warning">
+                <i class="ri-alert-line me-2"></i>
+                This action will mark the travel point service as rejected and notify the relevant parties.
+            </div>
+        </div>
+    `;
+}
+
+function closeIndividualTravelPointModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    } catch (error) {
+        console.error('Error closing individual travel point modal:', error);
+    }
+}
+
+function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('Loading travel point data for edit:', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        // Get tour data from the page
+        const tourData = getTourDataFromPage(tourId);
+        console.log('Tour data extracted:', tourData);
+        
+        // Fetch travel point data from server (following travel hourly pattern)
+        getTravelPointServiceData(tourId, travelPointOrderIndex, bookingIndex)
+        .then(travelPointData => {
+            console.log('Travel point data loaded:', travelPointData);
+            
+            // Populate vehicle information
+            const vehicleImageElement = document.getElementById(`edit_travel_point_vehicle_image_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const vehicleNameElement = document.getElementById(`edit_travel_point_vehicle_name_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const totalPriceElement = document.getElementById(`edit_travel_point_total_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const summaryVehicleElement = document.getElementById(`edit_travel_point_summary_vehicle_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const summaryPriceElement = document.getElementById(`edit_travel_point_summary_price_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const dateConstraintElement = document.getElementById(`edit_travel_point_date_constraint_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            
+            // Update vehicle image
+            if (vehicleImageElement && travelPointData.image) {
+                vehicleImageElement.innerHTML = `
+                    <img src="${travelPointData.image}" 
+                         alt="${travelPointData.vehicles_name || 'Vehicle'}" 
+                         class="img-fluid rounded shadow-sm" 
+                         style="width: 80px; height: 60px; object-fit: cover;">
+                `;
+            }
+            
+            // Update vehicle name
+            if (vehicleNameElement) {
+                vehicleNameElement.textContent = travelPointData.vehicles_name || 'Point to Point Transfer';
+            }
+            
+            // Update total price
+            if (totalPriceElement) {
+                totalPriceElement.textContent = `SGD ${(travelPointData.totalPrice || 0).toFixed(2)}`;
+            }
+            
+            // Update summary sections
+            if (summaryVehicleElement) {
+                summaryVehicleElement.textContent = travelPointData.vehicles_name || 'POINT TO POINT';
+            }
+            if (summaryPriceElement) {
+                summaryPriceElement.textContent = `SGD ${(travelPointData.totalPrice || 0).toFixed(2)}`;
+            }
+            
+            // Update date constraint
+            if (dateConstraintElement) {
+                dateConstraintElement.innerHTML = `Travel point booking must be within the tour travel period: <strong>${tourData?.check_in_time || 'Loading...'}</strong> to <strong>${tourData?.check_out_time || 'Loading...'}</strong>`;
+            }
+            
+            // Populate form fields with real data and set date constraints
+            const bookingDateInput = document.getElementById(`edit_travel_point_booking_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const pickupDateInput = document.getElementById(`edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const entryTimeInput = document.getElementById(`edit_travel_point_entry_time_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            
+            if (bookingDateInput && pickupDateInput && entryTimeInput) {
+                // Set date constraints based on tour travel period
+                const tourStartDate = tourData?.check_in_time || "2025-09-16";
+                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                // Set min and max attributes to restrict date selection
+                bookingDateInput.setAttribute('min', tourStartDate);
+                bookingDateInput.setAttribute('max', tourEndDate);
+                pickupDateInput.setAttribute('min', tourStartDate);
+                pickupDateInput.setAttribute('max', tourEndDate);
+                
+                // Set values from real data or defaults
+                bookingDateInput.value = travelPointData.bookingDate ? 
+                    new Date(travelPointData.bookingDate).toISOString().split('T')[0] : 
+                    tourStartDate;
+                
+                pickupDateInput.value = travelPointData.pickupDate ? 
+                    new Date(travelPointData.pickupDate).toISOString().split('T')[0] : 
+                    tourStartDate;
+                
+                entryTimeInput.value = travelPointData.entrytime || "07:00";
+                
+                console.log(`Date constraints set: ${tourStartDate} to ${tourEndDate}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading travel point data for edit:', error);
+            // Set default values if data fetch fails
+            const bookingDateInput = document.getElementById(`edit_travel_point_booking_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const pickupDateInput = document.getElementById(`edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            const entryTimeInput = document.getElementById(`edit_travel_point_entry_time_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            
+            if (bookingDateInput && pickupDateInput && entryTimeInput) {
+                // Set date constraints even in error case
+                const tourStartDate = tourData?.check_in_time || "2025-09-16";
+                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                bookingDateInput.setAttribute('min', tourStartDate);
+                bookingDateInput.setAttribute('max', tourEndDate);
+                pickupDateInput.setAttribute('min', tourStartDate);
+                pickupDateInput.setAttribute('max', tourEndDate);
+                
+                bookingDateInput.value = tourStartDate;
+                pickupDateInput.value = tourStartDate;
+                entryTimeInput.value = "07:00";
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in loadTravelPointDataForEdit:', error);
+    }
+}
+
+// Helper function to get travel point service data (following travel hourly pattern)
+function getTravelPointServiceData(tourId, travelPointOrderIndex, bookingIndex) {
+    return fetch('{{ url("/booking/get-travel-point-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_point_order_index: travelPointOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            // Map the API response to expected format
+            const rawData = data.data;
+            const travelPointDetails = rawData.travel_point_details || {};
+            
+            return {
+                vehicles_name: rawData.vehicles_name || travelPointDetails.vehicles_name,
+                image: travelPointDetails.image,
+                bookingDate: rawData.booking_date || travelPointDetails.bookingDate,
+                entrytime: rawData.entry_time || travelPointDetails.entry_time,
+                pickupDate: rawData.pickup_date || travelPointDetails.pickup_date,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                adults: rawData.adults || '0',
+                children: rawData.children || '0',
+                pickupPoint: rawData.entrypickup || travelPointDetails.entrypickup || 'N/A',
+                dropoffPoint: rawData.entrydropoff || travelPointDetails.entrydropoff || 'N/A'
+            };
+        } else {
+            throw new Error('Failed to fetch travel point data');
+        }
+    });
+}
+
+function saveIndividualTravelPointChanges(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        const formId = `editTravelPointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+        const form = document.getElementById(formId);
+        
+        if (!form) {
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const bookingDate = formData.get('booking_date');
+        const pickupDate = formData.get('pickup_date');
+        const entryTime = formData.get('entry_time');
+        
+        if (!bookingDate || !pickupDate || !entryTime) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        // Validate dates are within tour travel period
+        const tourData = getTourDataFromPage(tourId);
+        const tourStartDate = new Date(tourData?.check_in_time || "2025-09-16");
+        const tourEndDate = new Date(tourData?.check_out_time || "2025-09-20");
+        const selectedBookingDate = new Date(bookingDate);
+        const selectedPickupDate = new Date(pickupDate);
+        
+        if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
+            alert(`Booking date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
+            return;
+        }
+        
+        if (selectedPickupDate < tourStartDate || selectedPickupDate > tourEndDate) {
+            alert(`Pickup date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
+            return;
+        }
+        
+        console.log('Saving individual travel point changes:', {
+            tour_id: tourId,
+            travel_point_order_index: travelPointOrderIndex,
+            booking_index: bookingIndex,
+            booking_date: bookingDate,
+            pickup_date: pickupDate,
+            entry_time: entryTime
+        });
+        
+        // Make API call to update the booking
+        fetch('{{ url("/booking/update-travel-point-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                travel_point_order_index: travelPointOrderIndex,
+                booking_index: bookingIndex,
+                booking_date: bookingDate,
+                pickup_date: pickupDate,
+                entry_time: entryTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Individual travel point booking updated successfully:', data);
+                
+                // Close the edit modal
+                const modalId = `individualTravelPointModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}_edit`;
+                closeIndividualTravelPointModal(modalId);
+                
+                // Show success message
+                alert(data.message || 'Travel point booking updated successfully!');
+                
+                // Refresh the page to show updated data
+                window.location.reload();
+            } else {
+                console.error('Failed to update individual travel point booking:', data);
+                alert('Error updating travel point booking: ' + (data.message || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating individual travel point booking:', error);
+            alert('Error updating travel point booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('Error saving individual travel point changes:', error);
+        alert('Error saving changes. Please try again.');
+    }
+}
+
+function confirmIndividualTravelPointApproval(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('Confirming individual travel point approval:', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        // Close the approve modal
+        const modalId = `individualTravelPointModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}_approve`;
+        closeIndividualTravelPointModal(modalId);
+        
+        // Show success message
+        alert('Travel point booking approved successfully!');
+        
+        // Here you can implement the actual approval API call
+        // For now, just show success message
+        
+    } catch (error) {
+        console.error('Error confirming individual travel point approval:', error);
+        alert('Error approving travel point booking. Please try again.');
+    }
+}
+
+function confirmIndividualTravelPointRejection(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+        const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+        
+        if (!reason) {
+            alert('Please provide a reason for rejection.');
+            return;
+        }
+        
+        console.log('Confirming individual travel point rejection:', { tourId, travelPointOrderIndex, bookingIndex, reason });
+        
+        // Close the reject modal
+        const modalId = `individualTravelPointModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}_reject`;
+        closeIndividualTravelPointModal(modalId);
+        
+        // Show success message
+        alert('Travel point booking rejected successfully!');
+        
+        // Here you can implement the actual rejection API call
+        // For now, just show success message
+        
+    } catch (error) {
+        console.error('Error confirming individual travel point rejection:', error);
+        alert('Error rejecting travel point booking. Please try again.');
+    }
+}
+
+// Individual Local Transport Modal Functions (following Travel Point pattern)
+function openIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('🚐 Opening individual local transport modal for:', { tourId, localTransportOrderIndex, bookingIndex });
+        
+        const modalId = `individualLocalTransportViewModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create and show the modal
+        createIndividualLocalTransportViewModal(modalId, tourId, localTransportOrderIndex, bookingIndex);
+        loadIndividualLocalTransportContent(modalId, tourId, localTransportOrderIndex, bookingIndex);
+        
+    } catch (error) {
+        console.error('Error opening individual local transport modal:', error);
+        alert('Error opening local transport details. Please try again.');
+    }
+}
+
+function createIndividualLocalTransportViewModal(modalId, tourId, localTransportOrderIndex, bookingIndex) {
+    const modalHtml = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-car-line me-2"></i>Local Transport ${parseInt(localTransportOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Local Transport Service Details</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualLocalTransportViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        <div id="${modalId}_content">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-3 text-muted">Loading local transport details...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+}
+
+function closeIndividualLocalTransportViewModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after it's hidden
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Error closing individual local transport modal:', error);
+    }
+}
+
+function loadIndividualLocalTransportContent(modalId, tourId, localTransportOrderIndex, bookingIndex) {
+    console.log('🔍 Loading individual local transport content for:', { tourId, localTransportOrderIndex, bookingIndex });
+    
+    // Fetch real data from server (following travel point pattern)
+    fetch('{{ url("/booking/get-local-transport-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            local_transport_order_index: localTransportOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Local transport data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Local transport data parsed', data);
+        
+        if (data.success && data.data) {
+            // Use the actual local transport data from backend
+            const rawData = data.data;
+            const localTransportDetails = rawData.local_transport_details || {};
+            
+            const localTransportBooking = {
+                vehicles_name: rawData.vehicles_name || localTransportDetails.vehicles_name,
+                image: localTransportDetails.image,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                bookingDate: rawData.booking_date || localTransportDetails.bookingDate,
+                entrytime: rawData.entry_time || localTransportDetails.entry_time,
+                type: localTransportDetails.type || 'Standard',
+                adults: rawData.adults || '0',
+                children: rawData.children || '0',
+                pickupPoint: rawData.entrypickup || localTransportDetails.entrypickup || localTransportDetails.pickup_point || 'N/A',
+                dropoffPoint: rawData.entrydropoff || localTransportDetails.entrydropoff || localTransportDetails.dropoff_point || 'N/A',
+                city: localTransportDetails.city || 'N/A',
+                country: localTransportDetails.country || 'N/A',
+                Tax: localTransportDetails.Tax || '0',
+                fullName: localTransportDetails.fullName || localTransportDetails.full_name || 'N/A',
+                email: localTransportDetails.email || 'N/A',
+                phone: localTransportDetails.phone || 'N/A',
+                specialRequests: localTransportDetails.specialRequests || localTransportDetails.special_requests
+            };
+            
+            console.log('✅ Local transport booking data prepared for display', localTransportBooking);
+            generateIndividualLocalTransportContent(localTransportBooking, modalId, tourId, localTransportOrderIndex, bookingIndex);
+        } else {
+            console.error('❌ Local transport data fetch failed', data);
+            displayLocalTransportErrorContent(modalId, 'Failed to load local transport details');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error fetching local transport data:', error);
+        displayLocalTransportErrorContent(modalId, 'Error loading local transport details');
+    });
+}
+
+function displayLocalTransportErrorContent(modalId, message) {
+    document.getElementById(`${modalId}_content`).innerHTML = `
+        <div class="text-center py-5">
+            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                <i class="ri-car-line ri-48px text-muted"></i>
+            </div>
+            <h4 class="text-dark mb-3">No Local Transport Data Available</h4>
+            <p class="text-muted mb-4">${message}</p>
+        </div>
+    `;
+}
+
+function generateIndividualLocalTransportContent(localTransportData, modalId, tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        const content = `
+            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1 fw-bold text-white">
+                                <i class="ri-car-line me-2"></i>${localTransportData.vehicles_name || 'Local Transport Service'}
+                            </h5>
+                            <p class="mb-0 text-white opacity-75">Local Transport ${parseInt(localTransportOrderIndex) + 1} • ${localTransportData.type || 'Standard'} Service</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                <span class="text-success fw-bold fs-5">SGD ${(localTransportData.totalPrice || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Service Schedule & Group Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-primary rounded-circle p-2 me-3">
+                                        <i class="ri-calendar-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Booking Date</small>
+                                        <div class="fw-medium">${localTransportData.bookingDate || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Time</small>
+                                        <div class="fw-medium">${localTransportData.entrytime || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Service Type</small>
+                                        <span class="badge bg-warning">${localTransportData.type || 'Standard'}</span>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Transport Type</small>
+                                        <span class="badge bg-info">Local Transport</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-group-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Group Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Adults</small>
+                                        <div class="fw-medium">${localTransportData.adults || 0}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Children</small>
+                                        <div class="fw-medium">${localTransportData.children || 0}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Total Guests</small>
+                                        <span class="badge bg-primary">${(parseInt(localTransportData.adults || 0) + parseInt(localTransportData.children || 0))}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Route Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-route-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Route Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Pickup Point</small>
+                                        <div class="fw-medium d-flex align-items-center">
+                                            <i class="ri-map-pin-line text-success me-2"></i>
+                                            ${localTransportData.pickupPoint || 'N/A'}
+                                        </div>
+                                        <small class="text-success">Origin</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Dropoff Point</small>
+                                        <div class="fw-medium d-flex align-items-center">
+                                            <i class="ri-map-pin-2-line text-danger me-2"></i>
+                                            ${localTransportData.dropoffPoint || 'N/A'}
+                                        </div>
+                                        <small class="text-danger">Destination</small>
+                                    </div>
+                                </div>
+                                <!-- Route Direction Visual -->
+                                <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
+                                    <div class="text-center">
+                                        <span class="badge bg-success me-2">${localTransportData.pickupPoint || 'Pickup'}</span>
+                                        <i class="ri-arrow-right-line text-primary mx-2"></i>
+                                        <span class="badge bg-danger">${localTransportData.dropoffPoint || 'Dropoff'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle & Location Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-warning rounded-circle p-2 me-3">
+                                        <i class="ri-car-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Details</h6>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-6 mb-2">
+                                        <small class="text-muted">Vehicle Name</small>
+                                        <div class="fw-medium">${localTransportData.vehicles_name || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-6 mb-2">
+                                        <small class="text-muted">Service Type</small>
+                                        <div class="fw-medium">${localTransportData.type || 'N/A'} Transport</div>
+                                    </div>
+                                </div>
+                                <!-- Vehicle Image Display -->
+                                <div class="vehicle-image-container">
+                                    ${localTransportData.image ? `
+                                        <div class="position-relative">
+                                            <img src="${localTransportData.image}" 
+                                                 alt="${localTransportData.vehicles_name || 'Vehicle'}" 
+                                                 class="img-fluid rounded shadow-sm w-100" 
+                                                 style="height: 180px; object-fit: cover; border-radius: 12px !important; cursor: pointer;"
+                                                 onclick="openVehicleImageModal('${localTransportData.image}', '${localTransportData.vehicles_name || 'Vehicle'}')">
+                                            <div class="position-absolute top-0 end-0 m-2">
+                                                <span class="badge bg-dark bg-opacity-75 text-white">
+                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
+                                            <div class="text-center">
+                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
+                                                <div class="text-muted">No Vehicle Image</div>
+                                            </div>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-info rounded-circle p-2 me-3">
+                                        <i class="ri-map-pin-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Location Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">City</small>
+                                        <div class="fw-medium">${localTransportData.city || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Country</small>
+                                        <div class="fw-medium">${localTransportData.country || 'N/A'}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Pricing Details -->
+                                <div class="mt-3">
+                                    <h6 class="fw-bold mb-2 text-dark">Pricing Details</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">Total Price</small>
+                                            <div class="fw-bold text-success">SGD ${localTransportData.totalPrice || '0'}</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <small class="text-muted">Tax</small>
+                                            <div class="fw-medium">${localTransportData.Tax || '0'}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-info rounded-circle p-2 me-3">
+                                        <i class="ri-user-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Customer Information</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <small class="text-muted">Name</small>
+                                        <div class="fw-medium">${localTransportData.fullName || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <small class="text-muted">Email</small>
+                                        <div class="fw-medium">${localTransportData.email || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <small class="text-muted">Phone</small>
+                                        <div class="fw-medium">${localTransportData.phone || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${localTransportData.specialRequests ? `
+                        <!-- Special Requests -->
+                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-message-2-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                            </div>
+                            <p class="text-muted mb-0">${localTransportData.specialRequests}</p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Individual Action Buttons -->
+                    <div class="bg-white rounded p-3 shadow-sm border-top">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-settings-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                        onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-edit-line me-1"></i>Edit
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
+                                <button type="button" 
+                                        class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                        onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-close-line me-1"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+    } catch (error) {
+        console.error('Error generating individual local transport content:', error);
+        displayLocalTransportErrorContent(modalId, 'Error generating content');
+    }
+}
+
+// Individual Local Transport Edit Functions (following Travel Point pattern)
+function editIndividualLocalTransport(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual local transport edit modal for tour:', tourId, 'order:', localTransportOrderIndex, 'booking:', bookingIndex);
+        
+        // Close the individual view modal if open
+        const viewModalId = `individualLocalTransportViewModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        // Wait a moment for the modal to close, then show individual edit modal
+        setTimeout(() => {
+            createAndShowIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex, 'edit');
+            // Load data after modal is created (exactly like travel_hourly)
+            setTimeout(() => {
+                loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, bookingIndex);
+            }, 100);
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual local transport edit modal:', error);
+        alert('Error opening edit modal. Please try again.');
+    }
+}
+
+function approveIndividualLocalTransport(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual local transport approve modal for tour:', tourId, 'order:', localTransportOrderIndex, 'booking:', bookingIndex);
+        
+        // Close any open modals first
+        const viewModalId = `individualLocalTransportViewModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        setTimeout(() => {
+            createAndShowIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex, 'approve');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual local transport approve modal:', error);
+        alert('Error opening approve modal. Please try again.');
+    }
+}
+
+function rejectIndividualLocalTransport(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual local transport reject modal for tour:', tourId, 'order:', localTransportOrderIndex, 'booking:', bookingIndex);
+        
+        // Close any open modals first
+        const viewModalId = `individualLocalTransportViewModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+        const viewModal = document.getElementById(viewModalId);
+        if (viewModal) {
+            const modal = bootstrap.Modal.getInstance(viewModal);
+            if (modal) {
+                modal.hide();
+            }
+        }
+        
+        setTimeout(() => {
+            createAndShowIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex, 'reject');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual local transport reject modal:', error);
+        alert('Error opening reject modal. Please try again.');
+    }
+}
+
+function createAndShowIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex, action) {
+    try {
+        const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_${action}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+        
+        switch (action) {
+            case 'edit':
+                modalTitle = `Edit Local Transport ${parseInt(localTransportOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                buttonClass = 'btn-primary';
+                buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
+                onSubmit = `saveIndividualLocalTransportChanges(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})`;
+                modalContent = generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex);
+                break;
+                
+            case 'approve':
+                modalTitle = `Approve Local Transport ${parseInt(localTransportOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                buttonClass = 'btn-success';
+                buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+                onSubmit = `confirmIndividualLocalTransportApproval(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})`;
+                modalContent = generateApproveLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex);
+                break;
+                
+            case 'reject':
+                modalTitle = `Reject Local Transport ${parseInt(localTransportOrderIndex) + 1}`;
+                modalColor = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                buttonClass = 'btn-danger';
+                buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+                onSubmit = `confirmIndividualLocalTransportRejection(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})`;
+                modalContent = generateRejectLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex);
+                break;
+        }
+        
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
+                        <!-- Modal Header -->
+                        <div class="modal-header text-white border-0 p-0" style="background: ${modalColor}; min-height: 120px;">
+                            <div class="container-fluid p-4">
+                                <h4 class="mb-1 fw-bold text-white">
+                                    <i class="ri-car-line me-2"></i>${modalTitle}
+                                </h4>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Local Transport Service</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeIndividualLocalTransportModal('${modalId}')" aria-label="Close"></button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4">
+                            ${modalContent}
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualLocalTransportModal('${modalId}')" style="border-radius: 25px;">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        console.log('✅ Local transport modal HTML added to DOM with ID:', modalId);
+        
+        // Show modal
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) {
+            console.error('❌ Modal element not found after adding to DOM:', modalId);
+            return;
+        }
+        
+        console.log('✅ Modal element found:', modalElement);
+        const modal = new bootstrap.Modal(modalElement);
+        
+        modal.show();
+        console.log('✅ Modal show() called');
+        
+        // Remove modal from DOM when hidden
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            modalElement.remove();
+        });
+        
+    } catch (error) {
+        console.error('Error creating individual local transport modal:', error);
+        alert('Error creating modal. Please try again.');
+    }
+}
+
+function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex) {
+    return `
+        <form id="editLocalTransportForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="local_transport_order_index" value="${localTransportOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Vehicle Information with Image -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-car-line me-2 text-primary"></i>Vehicle Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <div id="edit_local_transport_vehicle_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                         class="rounded shadow-sm" 
+                                         style="width: 80px; height: 60px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ri-car-line ri-24px text-muted"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 id="edit_local_transport_vehicle_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="mb-1 fw-bold text-dark">Loading...</h6>
+                                    <small class="text-muted">Local Transport Service</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-success bg-opacity-10 rounded px-3 py-2">
+                                <span id="edit_local_transport_total_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-success fw-bold">SGD 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Travel Date Constraint -->
+            <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
+                <i class="ri-information-line fs-5 me-3 text-info"></i>
+                <div>
+                    <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
+                    <small id="edit_local_transport_date_constraint_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-muted">Local transport booking must be within the tour travel period</small>
+                </div>
+            </div>
+            
+            <!-- Travel Date Ranges -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-calendar-line me-2 text-primary"></i>Travel Date Ranges
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_local_transport_booking_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Booking Date</label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_local_transport_booking_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
+                                   name="booking_date"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Select date within your travel dates</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Pickup Date</label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
+                                   name="pickup_date"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Select pickup date within your travel dates</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Entry Time -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-time-line me-2 text-primary"></i>Entry Time
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_local_transport_entry_time_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Entry Time</label>
+                            <input type="time" 
+                                   class="form-control form-control-lg" 
+                                   id="edit_local_transport_entry_time_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
+                                   name="entry_time"
+                                   required
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            <small class="text-muted">Please enter time in 24-hour format (eg: 16:00)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Booking Summary -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-file-text-line me-2 text-success"></i>Booking Summary
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Vehicle Type</h6>
+                                <div id="edit_local_transport_summary_vehicle_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="fw-medium text-dark">LOCAL TRANSPORT</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Tour ID</h6>
+                                <div class="fw-medium text-dark">${tourId}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="bg-light rounded p-3">
+                                <h6 class="fw-bold text-dark mb-2">Total Amount</h6>
+                                <div id="edit_local_transport_summary_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="fw-bold text-success">SGD 150.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
+
+function generateApproveLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex) {
+    return `
+        <div class="text-center py-4">
+            <div class="bg-success rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                <i class="ri-check-line ri-32px text-white"></i>
+            </div>
+            <h5 class="text-dark mb-3">Approve Local Transport Service</h5>
+            <p class="text-muted mb-4">Are you sure you want to approve this Local Transport ${parseInt(localTransportOrderIndex) + 1} booking?</p>
+            <div class="alert alert-success">
+                <i class="ri-information-line me-2"></i>
+                This action will mark the local transport service as approved and notify the relevant parties.
+            </div>
+        </div>
+    `;
+}
+
+function generateRejectLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex) {
+    return `
+        <div class="py-4">
+            <div class="text-center mb-4">
+                <div class="bg-danger rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                    <i class="ri-close-line ri-32px text-white"></i>
+                </div>
+                <h5 class="text-dark mb-3">Reject Local Transport Service</h5>
+                <p class="text-muted mb-4">Please provide a reason for rejecting this Local Transport ${parseInt(localTransportOrderIndex) + 1} booking.</p>
+            </div>
+            
+            <div class="mb-4">
+                <label for="reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Rejection Reason</label>
+                <textarea class="form-control" 
+                          id="reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
+                          name="reject_reason"
+                          rows="4"
+                          placeholder="Please provide a detailed reason for rejection..."
+                          required
+                          style="border-radius: 8px; border: 2px solid #e9ecef;"></textarea>
+            </div>
+            
+            <div class="alert alert-warning">
+                <i class="ri-alert-line me-2"></i>
+                This action will mark the local transport service as rejected and notify the relevant parties.
+            </div>
+        </div>
+    `;
+}
+
+function closeIndividualLocalTransportModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    } catch (error) {
+        console.error('Error closing individual local transport modal:', error);
+    }
+}
+
+function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('Loading local transport data for edit:', { tourId, localTransportOrderIndex, bookingIndex });
+        
+        // Get tour data from the page
+        const tourData = getTourDataFromPage(tourId);
+        console.log('Tour data extracted:', tourData);
+        
+        // Fetch local transport data from server (following travel point pattern)
+        getLocalTransportServiceData(tourId, localTransportOrderIndex, bookingIndex)
+        .then(localTransportData => {
+            console.log('Local transport data loaded:', localTransportData);
+            
+            // Populate vehicle information
+            const vehicleImageElement = document.getElementById(`edit_local_transport_vehicle_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const vehicleNameElement = document.getElementById(`edit_local_transport_vehicle_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const totalPriceElement = document.getElementById(`edit_local_transport_total_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const summaryVehicleElement = document.getElementById(`edit_local_transport_summary_vehicle_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const summaryPriceElement = document.getElementById(`edit_local_transport_summary_price_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const dateConstraintElement = document.getElementById(`edit_local_transport_date_constraint_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            
+            // Update vehicle image
+            if (vehicleImageElement && localTransportData.image) {
+                vehicleImageElement.innerHTML = `
+                    <img src="${localTransportData.image}" 
+                         alt="${localTransportData.vehicles_name || 'Vehicle'}" 
+                         class="img-fluid rounded shadow-sm" 
+                         style="width: 80px; height: 60px; object-fit: cover;">
+                `;
+            }
+            
+            // Update vehicle name
+            if (vehicleNameElement) {
+                vehicleNameElement.textContent = localTransportData.vehicles_name || 'Local Transport Service';
+            }
+            
+            // Update total price
+            if (totalPriceElement) {
+                totalPriceElement.textContent = `SGD ${(localTransportData.totalPrice || 0).toFixed(2)}`;
+            }
+            
+            // Update summary sections
+            if (summaryVehicleElement) {
+                summaryVehicleElement.textContent = localTransportData.vehicles_name || 'LOCAL TRANSPORT';
+            }
+            if (summaryPriceElement) {
+                summaryPriceElement.textContent = `SGD ${(localTransportData.totalPrice || 0).toFixed(2)}`;
+            }
+            
+            // Update date constraint
+            if (dateConstraintElement) {
+                dateConstraintElement.innerHTML = `Local transport booking must be within the tour travel period: <strong>${tourData?.check_in_time || 'Loading...'}</strong> to <strong>${tourData?.check_out_time || 'Loading...'}</strong>`;
+            }
+            
+            // Wait a moment for DOM to be ready and then populate form fields
+            setTimeout(() => {
+                // Populate form fields with real data and set date constraints
+                const bookingDateInput = document.getElementById(`edit_local_transport_booking_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+                const pickupDateInput = document.getElementById(`edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+                const entryTimeInput = document.getElementById(`edit_local_transport_entry_time_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+                
+                console.log('🔍 Looking for local transport form elements...');
+                console.log('Elements found:', {
+                    bookingDateInput: !!bookingDateInput,
+                    pickupDateInput: !!pickupDateInput,
+                    entryTimeInput: !!entryTimeInput
+                });
+                
+                if (bookingDateInput && pickupDateInput && entryTimeInput) {
+                // Set date constraints based on tour travel period
+                const tourStartDate = tourData?.check_in_time || "2025-09-16";
+                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                try {
+                    // Set min and max attributes to restrict date selection
+                    bookingDateInput.setAttribute('min', tourStartDate);
+                    bookingDateInput.setAttribute('max', tourEndDate);
+                    pickupDateInput.setAttribute('min', tourStartDate);
+                    pickupDateInput.setAttribute('max', tourEndDate);
+                    
+                    // Set values from real data or defaults
+                    const bookingDateValue = localTransportData.bookingDate ? 
+                        new Date(localTransportData.bookingDate).toISOString().split('T')[0] : 
+                        tourStartDate;
+                    
+                    const pickupDateValue = localTransportData.pickupDate ? 
+                        new Date(localTransportData.pickupDate).toISOString().split('T')[0] : 
+                        tourStartDate;
+                    
+                    const entryTimeValue = localTransportData.entrytime || "07:00";
+                    
+                    console.log('Setting form values:', {
+                        bookingDateValue,
+                        pickupDateValue,
+                        entryTimeValue
+                    });
+                    
+                    if (bookingDateInput) {
+                        bookingDateInput.value = bookingDateValue;
+                        console.log('✅ Set booking date value:', bookingDateValue);
+                    } else {
+                        console.error('❌ Booking date input not found');
+                    }
+                    
+                    if (pickupDateInput) {
+                        pickupDateInput.value = pickupDateValue;
+                        console.log('✅ Set pickup date value:', pickupDateValue);
+                    } else {
+                        console.error('❌ Pickup date input not found');
+                    }
+                    
+                    if (entryTimeInput) {
+                        entryTimeInput.value = entryTimeValue;
+                        console.log('✅ Set entry time value:', entryTimeValue);
+                    } else {
+                        console.error('❌ Entry time input not found');
+                    }
+                    
+                    console.log(`✅ Date constraints set: ${tourStartDate} to ${tourEndDate}`);
+                } catch (setValueError) {
+                    console.error('❌ Error setting form values:', setValueError);
+                }
+                } else {
+                    console.error('❌ Some local transport form elements not found');
+                }
+            }, 300); // Wait 300ms for DOM to be ready
+        })
+        .catch(error => {
+            console.error('Error loading local transport data for edit:', error);
+            // Set default values if data fetch fails
+            const bookingDateInputId = `edit_local_transport_booking_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+            const pickupDateInputId = `edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+            const entryTimeInputId = `edit_local_transport_entry_time_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+            
+            console.log('Error case - Looking for form elements with IDs:', {
+                bookingDateInputId,
+                pickupDateInputId,
+                entryTimeInputId
+            });
+            
+            const bookingDateInput = document.getElementById(bookingDateInputId);
+            const pickupDateInput = document.getElementById(pickupDateInputId);
+            const entryTimeInput = document.getElementById(entryTimeInputId);
+            
+            console.log('Error case - Found form elements:', {
+                bookingDateInput: !!bookingDateInput,
+                pickupDateInput: !!pickupDateInput,
+                entryTimeInput: !!entryTimeInput
+            });
+            
+            if (bookingDateInput && pickupDateInput && entryTimeInput) {
+                try {
+                    // Set date constraints even in error case
+                    const tourStartDate = tourData?.check_in_time || "2025-09-16";
+                    const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                    
+                    bookingDateInput.setAttribute('min', tourStartDate);
+                    bookingDateInput.setAttribute('max', tourEndDate);
+                    pickupDateInput.setAttribute('min', tourStartDate);
+                    pickupDateInput.setAttribute('max', tourEndDate);
+                    
+                    bookingDateInput.value = tourStartDate;
+                    pickupDateInput.value = tourStartDate;
+                    entryTimeInput.value = "07:00";
+                    
+                    console.log('Error case - Default values set successfully');
+                } catch (defaultValueError) {
+                    console.error('Error setting default values:', defaultValueError);
+                }
+            } else {
+                console.error('Error case - Form elements not found, cannot set default values');
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in loadLocalTransportDataForEdit:', error);
+    }
+}
+
+// Helper function to get local transport service data (following travel point pattern)
+function getLocalTransportServiceData(tourId, localTransportOrderIndex, bookingIndex) {
+    return fetch('{{ url("/booking/get-local-transport-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            local_transport_order_index: localTransportOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            // Map the API response to expected format
+            const rawData = data.data;
+            const localTransportDetails = rawData.local_transport_details || {};
+            
+            return {
+                vehicles_name: rawData.vehicles_name || localTransportDetails.vehicles_name,
+                image: localTransportDetails.image,
+                bookingDate: rawData.booking_date || localTransportDetails.bookingDate,
+                entrytime: rawData.entry_time || localTransportDetails.entry_time,
+                pickupDate: rawData.pickup_date || localTransportDetails.pickup_date,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                adults: rawData.adults || '0',
+                children: rawData.children || '0',
+                pickupPoint: rawData.entrypickup || localTransportDetails.entrypickup || 'N/A',
+                dropoffPoint: rawData.entrydropoff || localTransportDetails.entrydropoff || 'N/A'
+            };
+        } else {
+            throw new Error('Failed to fetch local transport data');
+        }
+    });
+}
+
+function saveIndividualLocalTransportChanges(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        const formId = `editLocalTransportForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+        const form = document.getElementById(formId);
+        
+        if (!form) {
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const bookingDate = formData.get('booking_date');
+        const pickupDate = formData.get('pickup_date');
+        const entryTime = formData.get('entry_time');
+        
+        if (!bookingDate || !pickupDate || !entryTime) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        // Validate dates are within tour travel period
+        const tourData = getTourDataFromPage(tourId);
+        const tourStartDate = new Date(tourData?.check_in_time || "2025-09-16");
+        const tourEndDate = new Date(tourData?.check_out_time || "2025-09-20");
+        const selectedBookingDate = new Date(bookingDate);
+        const selectedPickupDate = new Date(pickupDate);
+        
+        if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
+            alert(`Booking date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
+            return;
+        }
+        
+        if (selectedPickupDate < tourStartDate || selectedPickupDate > tourEndDate) {
+            alert(`Pickup date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
+            return;
+        }
+        
+        console.log('Saving individual local transport changes:', {
+            tour_id: tourId,
+            local_transport_order_index: localTransportOrderIndex,
+            booking_index: bookingIndex,
+            booking_date: bookingDate,
+            pickup_date: pickupDate,
+            entry_time: entryTime
+        });
+        
+        // Make API call to update the booking
+        fetch('{{ url("/booking/update-local-transport-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                local_transport_order_index: localTransportOrderIndex,
+                booking_index: bookingIndex,
+                booking_date: bookingDate,
+                pickup_date: pickupDate,
+                entry_time: entryTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Individual local transport booking updated successfully:', data);
+                
+                // Close the edit modal
+                const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_edit`;
+                closeIndividualLocalTransportModal(modalId);
+                
+                // Show success message
+                alert(data.message || 'Local transport booking updated successfully!');
+                
+                // Refresh the page to show updated data
+                window.location.reload();
+            } else {
+                console.error('Failed to update individual local transport booking:', data);
+                alert('Error updating local transport booking: ' + (data.message || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating individual local transport booking:', error);
+            alert('Error updating local transport booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('Error saving individual local transport changes:', error);
+        alert('Error saving changes. Please try again.');
+    }
+}
+
+function confirmIndividualLocalTransportApproval(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('Confirming individual local transport approval:', { tourId, localTransportOrderIndex, bookingIndex });
+        
+        // Close the approve modal
+        const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_approve`;
+        closeIndividualLocalTransportModal(modalId);
+        
+        // Show success message
+        alert('Local transport booking approved successfully!');
+        
+        // Here you can implement the actual approval API call
+        // For now, just show success message
+        
+    } catch (error) {
+        console.error('Error confirming individual local transport approval:', error);
+        alert('Error approving local transport booking. Please try again.');
+    }
+}
+
+function confirmIndividualLocalTransportRejection(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+        const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+        
+        if (!reason) {
+            alert('Please provide a reason for rejection.');
+            return;
+        }
+        
+        console.log('Confirming individual local transport rejection:', { tourId, localTransportOrderIndex, bookingIndex, reason });
+        
+        // Close the reject modal
+        const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_reject`;
+        closeIndividualLocalTransportModal(modalId);
+        
+        // Show success message
+        alert('Local transport booking rejected successfully!');
+        
+        // Here you can implement the actual rejection API call
+        // For now, just show success message
+        
+    } catch (error) {
+        console.error('Error confirming individual local transport rejection:', error);
+        alert('Error rejecting local transport booking. Please try again.');
+    }
+}
+
 // Local Transport Booking Management Functions
 function editLocalTransportBooking(tourId, localTransportOrderIndex, localTransportBookingIndex) {
     console.log('Editing local transport booking:', { tourId, localTransportOrderIndex, localTransportBookingIndex });
@@ -9023,148 +12516,7 @@ function closeLocalTransportEditModal(editModalId) {
     }, 300);
 }
 
-function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, localTransportBookingIndex, editModalId) {
-    console.log('Loading local transport data for edit:', { tourId, localTransportOrderIndex, localTransportBookingIndex });
-    
-    fetch('{{ url("/booking/get-local-transport-data") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify({
-            tour_id: tourId,
-            local_transport_order_index: localTransportOrderIndex,
-            booking_index: localTransportBookingIndex
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const localTransportData = data.data;
-            const localTransportDetails = localTransportData.local_transport_details || {};
-            
-            console.log('Local transport data loaded successfully:', localTransportData);
-            
-            // Update header vehicle info
-            const vehicleInfoElement = document.getElementById(`local_transport_vehicle_info_${editModalId}`);
-            if (vehicleInfoElement) {
-                const vehicleName = localTransportDetails.vehicles_name || 'Local Transport Service';
-                const serviceType = localTransportDetails.type || 'Transport';
-                vehicleInfoElement.textContent = `${vehicleName} • ${serviceType}`;
-            }
-            
-            // Update travel date constraint with actual tour dates
-            const tourData = getTourDataFromPage(tourId);
-            console.log('Tour data retrieved:', tourData);
-            const constraintElement = document.getElementById(`local_transport_date_constraint_${editModalId}`);
-            if (constraintElement && tourData && tourData.check_in_time && tourData.check_out_time) {
-                const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
-                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-                });
-                const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
-                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-                });
-                constraintElement.innerHTML = `Local transport booking must be within the tour travel period: <strong>${startDate}</strong> to <strong>${endDate}</strong>`;
-            } else {
-                console.warn('Could not update date constraint, tour data not available:', tourData);
-                if (constraintElement) {
-                    constraintElement.innerHTML = `Local transport booking must be within the tour travel period: <strong>Loading...</strong> to <strong>Loading...</strong>`;
-                }
-            }
-            
-            // Update booking summary section
-            const summaryVehicle = document.getElementById(`local_transport_vehicle_summary_${editModalId}`);
-            if (summaryVehicle) {
-                summaryVehicle.textContent = localTransportDetails.vehicles_name || 'Vehicle';
-            }
-            
-            const summaryPrice = document.getElementById(`local_transport_price_summary_${editModalId}`);
-            if (summaryPrice) {
-                const totalPrice = localTransportDetails.totalPrice || localTransportData.total_price || '0';
-                summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
-            }
-            
-            // Update date input constraints with actual tour dates
-            const tourData2 = getTourDataFromPage(tourId);
-            if (tourData2.check_in_time && tourData2.check_out_time) {
-                const bookingDateInput = document.getElementById(`local_transport_booking_date_${editModalId}`);
-                const pickupDateInput = document.getElementById(`local_transport_pickup_date_${editModalId}`);
-                
-                if (bookingDateInput) {
-                    bookingDateInput.min = tourData2.check_in_time;
-                    bookingDateInput.max = tourData2.check_out_time;
-                }
-                
-                if (pickupDateInput) {
-                    pickupDateInput.min = tourData2.check_in_time;
-                    pickupDateInput.max = tourData2.check_out_time;
-                }
-            }
-            
-            // Populate form fields with actual data
-            document.getElementById(`local_transport_booking_date_${editModalId}`).value = localTransportData.booking_date || localTransportData.bookingDate;
-            document.getElementById(`local_transport_pickup_date_${editModalId}`).value = localTransportData.pickup_date || localTransportData.pickupdate;
-            
-            // Handle time format conversion
-            let timeValue = localTransportData.entry_time || localTransportData.entrytime;
-            if (timeValue) {
-                // Convert from 12-hour format to 24-hour format for input[type="time"]
-                timeValue = convertTo24HourFormat(timeValue);
-            }
-            document.getElementById(`local_transport_entry_time_${editModalId}`).value = timeValue || "07:00";
-        } else {
-            console.error('Failed to load local transport data:', data.message);
-            
-            // Update date constraints even if data loading fails
-            const tourData = getTourDataFromPage(tourId);
-            if (tourData.check_in_time && tourData.check_out_time) {
-                const bookingDateInput = document.getElementById(`local_transport_booking_date_${editModalId}`);
-                const pickupDateInput = document.getElementById(`local_transport_pickup_date_${editModalId}`);
-                
-                if (bookingDateInput) {
-                    bookingDateInput.min = tourData.check_in_time;
-                    bookingDateInput.max = tourData.check_out_time;
-                }
-                
-                if (pickupDateInput) {
-                    pickupDateInput.min = tourData.check_in_time;
-                    pickupDateInput.max = tourData.check_out_time;
-                }
-            }
-            
-            // Use fallback data if backend fails
-            document.getElementById(`local_transport_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-            document.getElementById(`local_transport_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-            document.getElementById(`local_transport_entry_time_${editModalId}`).value = "07:00";
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching local transport data:', error);
-        
-        // Update date constraints even if network fails
-        const tourData = getTourDataFromPage(tourId);
-        if (tourData.check_in_time && tourData.check_out_time) {
-            const bookingDateInput = document.getElementById(`local_transport_booking_date_${editModalId}`);
-            const pickupDateInput = document.getElementById(`local_transport_pickup_date_${editModalId}`);
-            
-            if (bookingDateInput) {
-                bookingDateInput.min = tourData.check_in_time;
-                bookingDateInput.max = tourData.check_out_time;
-            }
-            
-            if (pickupDateInput) {
-                pickupDateInput.min = tourData.check_in_time;
-                pickupDateInput.max = tourData.check_out_time;
-            }
-        }
-        
-        // Use fallback data if network fails
-        document.getElementById(`local_transport_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-        document.getElementById(`local_transport_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-        document.getElementById(`local_transport_entry_time_${editModalId}`).value = "07:00";
-    });
-}
+
 
 function saveLocalTransportChanges(tourId, localTransportOrderIndex, localTransportBookingIndex, editModalId) {
     const bookingDate = document.getElementById(`local_transport_booking_date_${editModalId}`).value;
