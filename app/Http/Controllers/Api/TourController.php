@@ -451,12 +451,12 @@ class TourController extends Controller
         }
         // Update expired tours to 'Closed'
         $dmc_id = $request->dmc_id;
-        if($dmc_id){
-            $tours = Tour::where('agent_id', $agent_id)->where('dmc_id', $dmc_id)->get();
-        }
-        else{
+        // if($dmc_id){
+        //     $tours = Tour::where('agent_id', $agent_id)->where('dmc_id', $dmc_id)->get();
+        // }
+        // else{
             $tours = Tour::where('agent_id', $agent_id)->get();
-        }
+        // }
         foreach ($tours as $tour) {
             if (
                 $tour->check_out_time &&
@@ -469,9 +469,14 @@ class TourController extends Controller
         }
 
         // Fetch active (not Closed) tours
+        if($dmc_id){
         $query = Tour::with(['booking']) // eager load to prevent N+1
+            ->where('agent_id', $agent_id)
+            ->where('dmc_id', $dmc_id);
+        }else{
+            $query = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id);
-            
+        }
         // Apply date filters based on type
         $today = Carbon::today();
         
@@ -2432,6 +2437,7 @@ class TourController extends Controller
         if ($order) {
             $order->status = 4; //cancel booking
             $order->deleted_at = now(); //cancel booking
+            $order->cancel_reason = $request->cancel_reason;
             $order->save();
             $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$order->type);
             return response()->json([
