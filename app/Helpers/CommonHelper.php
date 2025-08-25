@@ -618,7 +618,6 @@ class CommonHelper
                                 $item
                             );
                         }
-
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
                         if ($booking->type == 'attraction') 
@@ -697,7 +696,7 @@ class CommonHelper
                     }
 
                     // Add to type-specific data if matching requested type
-                    if($booking->type == 'attraction_package' || $booking->type == 'attraction'){
+                    if(($type == 'attraction' || $type == 'attraction_package') && ($booking->type == 'attraction_package' || $booking->type == 'attraction')){
                         $data[] = array_merge(
                             ['id' => $booking->booking_id],
                             // ['type' => $booking->type],
