@@ -602,9 +602,8 @@ class CommonHelper
                                 $date_service[$bookingDate]['services'][$booking->type]['count']++;
                             }
                         }
-
                         // Add to type-specific data if matching requested type
-                        if($booking->type == 'attraction_package' || $booking->type == 'attraction'){
+                        if(($type == 'attraction' || $type == 'attraction_package') && ($booking->type == 'attraction_package' || $booking->type == 'attraction')){
                             $data[] = array_merge(
                                 ['id' => $booking->booking_id],
                                 // ['type' => $booking->type],

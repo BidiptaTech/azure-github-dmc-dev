@@ -32,7 +32,7 @@ class AgentController extends Controller
         switch ($user->role_id) {
             case 1: // Admin
             case 20: // Virtual DMC
-                $agents = Agent::where('status', 1)->get();
+                $agents = Agent::where('status', 1)->orderBy('created_at', 'desc')->get();
                 break;
 
             case 11: // DMC
@@ -89,7 +89,7 @@ class AgentController extends Controller
                     json_encode([$dmc_id]),
                     "%{$dmc_id}%"
                 ]); 
-            })->get();
+            })->orderBy('created_at', 'desc')->get();
         }
 
         // For debugging

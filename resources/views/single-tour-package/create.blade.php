@@ -29,8 +29,11 @@
             </div>
         </div>
 
-        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
-            @csrf
+        <div class="row">
+            <!-- Main Form Column -->
+            <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
+                <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
+                    @csrf
             
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
@@ -48,12 +51,15 @@
                                     <label for="user_country" class="form-label fw-semibold">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
-                                    <select name="user_country" id="user_country" class="form-select" required>
+                                    <select name="user_country" id="user_country" class="form-select" required {{ ($enquiry && $enquiry->country) ? 'disabled' : '' }}>
                                         <option value="">Choose a country...</option>
                                         @foreach($countries as $country)
-                                            <option value="{{ $country->name }}">{{ $country->name }}</option>
+                                            <option value="{{ $country->name }}" {{ ($enquiry && $enquiry->country == $country->name) ? 'selected' : '' }}>{{ $country->name }}</option>
                                         @endforeach
                                     </select>
+                                    @if($enquiry && $enquiry->country)
+                                        <input type="hidden" name="user_country" value="{{ $enquiry->country }}">
+                                    @endif
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
 
@@ -62,9 +68,16 @@
                                     <label for="city" class="form-label fw-semibold">
                                         <i class="ri-building-line me-1"></i>City
                                     </label>
-                                    <select name="city" id="city" class="form-select" required disabled>
-                                        <option value="">Select country first</option>
+                                    <select name="city" id="city" class="form-select" required {{ ($enquiry && $enquiry->city) ? 'disabled' : ($enquiry ? '' : 'disabled') }}>
+                                        @if($enquiry && $enquiry->city)
+                                            <option value="{{ $enquiry->city }}" selected>{{ $enquiry->city }}</option>
+                                        @else
+                                            <option value="">Select country first</option>
+                                        @endif
                                     </select>
+                                    @if($enquiry && $enquiry->city)
+                                        <input type="hidden" name="city" value="{{ $enquiry->city }}">
+                                    @endif
                                     <input type="hidden" name="city_id" id="city_id">
                                     <div id="cityLoader" class="text-center mt-1" style="display: none;">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
@@ -76,9 +89,12 @@
                                     <label for="travel_dates" class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
-                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly>
-                                    <input type="hidden" name="start_date" id="start_date">
-                                    <input type="hidden" name="end_date" id="end_date">
+                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly
+                                           value="@if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time){{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}@endif"
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'style=background-color:#f8f9fa;cursor:not-allowed;pointer-events:none;' : '' }}
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'data-locked=true' : 'data-locked=false' }}>
+                                    <input type="hidden" name="start_date" id="start_date" value="{{ $enquiry && $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') : '' }}">
+                                    <input type="hidden" name="end_date" id="end_date" value="{{ $enquiry && $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') : '' }}">
                                 </div>
 
                                 <!-- Guests -->
@@ -87,33 +103,43 @@
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display p-2 border rounded bg-light">
+                                        <div class="guest-display p-2 border rounded {{ $enquiry ? 'bg-light' : 'bg-light' }}" {{ $enquiry ? 'style=cursor:not-allowed;opacity:0.8;' : '' }}>
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="guest-info">
                                                     <span id="mainGuestSummary" class="text-muted small">
-                                                        1 adults (0 male, 0 female), 0 children - 0 infants
+                                                        @if($enquiry)
+                                                            {{ $enquiry->adult ?? 1 }} adults ({{ $enquiry->male_count ?? 0 }} male, {{ $enquiry->female_count ?? 0 }} female), {{ $enquiry->child ?? 0 }} children - {{ $enquiry->infant ?? 0 }} infants
+                                                        @else
+                                                            1 adults (0 male, 0 female), 0 children - 0 infants
+                                                        @endif
                                                     </span>
                                                 </div>
+                                                @if(!$enquiry)
                                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()">
                                                     <i class="ri-edit-line"></i>
-                                        </button>
+                                                </button>
+                                                @else
+                                                <span class="text-muted small">
+                                                    <i class="ri-lock-line"></i>
+                                                </span>
+                                                @endif
                                     </div>
                                             <div class="guest-badges mt-1">
-                                                <span class="badge bg-primary">1</span>
-                                                <span class="badge bg-success">0</span>
-                                                <span class="badge bg-warning text-dark">0</span>
+                                                <span class="badge bg-primary">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
+                                                <span class="badge bg-success">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
+                                                <span class="badge bg-warning text-dark">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     
                                     <!-- Hidden Fields -->
-                                    <input type="hidden" name="adults" id="adults" value="1">
-                                    <input type="hidden" name="male" id="male" value="0">
-                                    <input type="hidden" name="female" id="female" value="0">
-                                    <input type="hidden" name="children" id="children" value="0">
-                                    <input type="hidden" name="infants" id="infants" value="0">
-                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
+                                    <input type="hidden" name="adults" id="adults" value="{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}">
+                                    <input type="hidden" name="male" id="male" value="{{ $enquiry ? ($enquiry->male_count ?? 0) : 0 }}">
+                                    <input type="hidden" name="female" id="female" value="{{ $enquiry ? ($enquiry->female_count ?? 0) : 0 }}">
+                                    <input type="hidden" name="children" id="children" value="{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}">
+                                    <input type="hidden" name="infants" id="infants" value="{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
 
                                 <!-- Agent Selection -->
@@ -121,12 +147,15 @@
                                     <label for="agent_id" class="form-label fw-semibold">
                                         <i class="ri-user-star-line me-1"></i>Agent
                                     </label>
-                                    <select name="agent_id" id="agent_id" class="form-select" required>
+                                    <select name="agent_id" id="agent_id" class="form-select" required {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agent...</option>
                                         @foreach($agents as $agent)
-                                            <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
+                                            <option value="{{ $agent->agent_id }}" {{ ($enquiry && $enquiry->agent_id == $agent->agent_id) ? 'selected' : '' }}>{{ $agent->name }}</option>
                                         @endforeach
                                     </select>
+                                    @if($enquiry && $enquiry->agent_id)
+                                        <input type="hidden" name="agent_id" value="{{ $enquiry->agent_id }}">
+                                    @endif
                                 </div>
 
                                 <!-- Create Button -->
@@ -2128,12 +2157,385 @@
                     }
                 }
             </script>
-        </form>
+                </form>
+            </div>
+            
+            <!-- Enquiry Details Sidebar -->
+            @if($enquiry)
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 20px;">
+                    <!-- Enquiry Overview Card -->
+                    <div class="card border-0 shadow-lg mb-4 enquiry-sidebar">
+                        <div class="card-header bg-gradient-info text-white">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+                                    <i class="ri-file-list-3-line fs-5 text-white"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-1 text-white fw-bold">Enquiry Details</h5>
+                                    <p class="mb-0 opacity-75 small">{{ $enquiry->display_id ?? 'N/A' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Basic Info Section -->
+                            <div class="border-bottom p-3">
+                                <h6 class="text-primary fw-bold mb-3">
+                                    <i class="ri-information-line me-2"></i>Basic Information
+                                </h6>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Destination</small>
+                                            <strong class="text-dark">{{ $enquiry->country ?? 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">City</small>
+                                            <strong class="text-dark">{{ $enquiry->city ?? 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-primary bg-opacity-10 rounded p-2">
+                                            <small class="text-primary d-block">Check-in</small>
+                                            <strong class="text-dark">{{ $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') : 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-warning bg-opacity-10 rounded p-2">
+                                            <small class="text-warning d-block">Check-out</small>
+                                            <strong class="text-dark">{{ $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') : 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Guests Section -->
+                            <div class="border-bottom p-3">
+                                <h6 class="text-success fw-bold mb-3">
+                                    <i class="ri-group-line me-2"></i>Guest Information
+                                </h6>
+                                <div class="row g-2">
+                                    <div class="col-3">
+                                        <div class="text-center bg-success bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-success fs-5">{{ $enquiry->adult ?? 0 }}</div>
+                                            <small class="text-muted">Adults</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-info bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-info fs-5">{{ $enquiry->child ?? 0 }}</div>
+                                            <small class="text-muted">Children</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-warning bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-warning fs-5">{{ $enquiry->infant ?? 0 }}</div>
+                                            <small class="text-muted">Infants</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-purple bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-purple fs-5">${{ number_format($enquiry->approx_price ?? 0) }}</div>
+                                            <small class="text-muted">Budget</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Male</small>
+                                            <strong class="text-dark">{{ $enquiry->male_count ?? 0 }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Female</small>
+                                            <strong class="text-dark">{{ $enquiry->female_count ?? 0 }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Services Section -->
+                            @if($hotels->count() > 0 || $attractions->count() > 0 || $guides->count() > 0 || $vehicles->count() > 0 || $meals->count() > 0)
+                            <div class="p-3">
+                                <h6 class="text-warning fw-bold mb-3">
+                                    <i class="ri-service-line me-2"></i>Selected Services
+                                </h6>
+                                
+                                @if($hotels->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-primary rounded-circle p-1 me-2">
+                                            <i class="ri-hotel-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-primary">Hotels ({{ $hotels->count() }})</strong>
+                                    </div>
+                                    @foreach($hotels as $hotel)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $hotel->name ?? 'Hotel Name' }}</div>
+                                        <div class="text-muted small">{{ $hotel->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->hotel_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->hotel_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($attractions->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-success rounded-circle p-1 me-2">
+                                            <i class="ri-map-pin-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-success">Attractions ({{ $attractions->count() }})</strong>
+                                    </div>
+                                    @foreach($attractions as $attraction)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $attraction->name ?? 'Attraction Name' }}</div>
+                                        <div class="text-muted small">{{ $attraction->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->attraction_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->attraction_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($meals->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-warning rounded-circle p-1 me-2">
+                                            <i class="ri-restaurant-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-warning">Restaurants ({{ $meals->count() }})</strong>
+                                    </div>
+                                    @foreach($meals as $meal)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $meal->name ?? 'Restaurant Name' }}</div>
+                                        <div class="text-muted small">{{ $meal->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->restaurant_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->restaurant_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($vehicles->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-info rounded-circle p-1 me-2">
+                                            <i class="ri-car-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-info">Vehicles ({{ $vehicles->count() }})</strong>
+                                    </div>
+                                    @foreach($vehicles as $vehicle)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $vehicle->vehicle_name ?? 'Vehicle Name' }}</div>
+                                        <div class="text-muted small">{{ $vehicle->seating_capacity ?? 'N/A' }} seats</div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @endif
+
+                                @if($guides->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-purple rounded-circle p-1 me-2">
+                                            <i class="ri-user-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-purple">Guides ({{ $guides->count() }})</strong>
+                                    </div>
+                                    @foreach($guides as $guide)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $guide->name ?? 'Guide Name' }}</div>
+                                        <div class="text-muted small">{{ $guide->experience ?? 'N/A' }} years exp.</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->guide_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->guide_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
     </div>
 </div>
 @endsection
 
 @section('scripts')
+<!-- Custom Styles for Enquiry Sidebar -->
+<style>
+    .enquiry-sidebar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+        overflow: hidden;
+    }
+    
+    .enquiry-sidebar .card-header {
+        background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
+        border: none;
+        position: relative;
+    }
+    
+    .enquiry-sidebar .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.3;
+    }
+    
+    .enquiry-sidebar .card-body {
+        background: #ffffff;
+    }
+    
+    .service-item {
+        border-left: 4px solid transparent;
+        padding-left: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .service-item:hover {
+        transform: translateX(5px);
+        border-left-color: #667eea;
+    }
+    
+    .bg-purple {
+        background-color: #8b5cf6 !important;
+    }
+    
+    .text-purple {
+        color: #8b5cf6 !important;
+    }
+    
+    .bg-purple.bg-opacity-10 {
+        background-color: rgba(139, 92, 246, 0.1) !important;
+    }
+    
+    .sticky-top {
+        transition: all 0.3s ease;
+    }
+    
+    .enquiry-sidebar .service-item .bg-light {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8eaff 100%) !important;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .enquiry-sidebar .service-item .bg-light:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+        .sticky-top {
+            position: relative !important;
+            top: auto !important;
+        }
+        
+        .col-lg-4 {
+            margin-top: 20px;
+        }
+    }
+    
+    /* Animation for cards */
+    .enquiry-sidebar {
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Hover effects for info boxes */
+    .enquiry-sidebar .bg-light,
+    .enquiry-sidebar .bg-primary.bg-opacity-10,
+    .enquiry-sidebar .bg-warning.bg-opacity-10,
+    .enquiry-sidebar .bg-success.bg-opacity-10,
+    .enquiry-sidebar .bg-info.bg-opacity-10,
+    .enquiry-sidebar .bg-purple.bg-opacity-10 {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .enquiry-sidebar .bg-light:hover {
+        background: linear-gradient(135deg, #e8eaff 0%, #d1d5ff 100%) !important;
+    }
+    
+    .enquiry-sidebar .bg-primary.bg-opacity-10:hover {
+        background-color: rgba(13, 110, 253, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-warning.bg-opacity-10:hover {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-success.bg-opacity-10:hover {
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-info.bg-opacity-10:hover {
+        background-color: rgba(13, 202, 240, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-purple.bg-opacity-10:hover {
+        background-color: rgba(139, 92, 246, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    /* Add pulse animation to budget */
+    .enquiry-sidebar .text-purple.fs-5 {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+</style>
+
 <!-- jQuery (required for date range picker and AJAX) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -2719,47 +3121,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
          // Wait for all dependencies to load
     $(document).ready(function() {
-        // Date Range Picker Initialization
-        $('#travel_dates').daterangepicker({
-            opens: 'left',
-            autoUpdateInput: false,
-            minDate: moment(),
-            locale: {
-                format: 'MMM DD, YYYY',
-                cancelLabel: 'Clear'
-            }
-        });
+        // Date Range Picker Initialization - only if not locked
+        const travelDatesField = $('#travel_dates');
+        if (travelDatesField.attr('data-locked') !== 'true') {
+            travelDatesField.daterangepicker({
+                opens: 'left',
+                autoUpdateInput: false,
+                minDate: moment(),
+                locale: {
+                    format: 'MMM DD, YYYY',
+                    cancelLabel: 'Clear'
+                }
+            });
+        }
 
-        $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
-            $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
-            
-            // Set hidden date fields
-            document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
-            document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
-            
-            // Update global variables
-            tourStartDate = picker.startDate;
-            tourEndDate = picker.endDate;
-            tourNights = picker.endDate.diff(picker.startDate, 'days');
+        // Only attach event handlers if field is not locked
+        if (travelDatesField.attr('data-locked') !== 'true') {
+            $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
+                
+                // Set hidden date fields
+                document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
+                document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
+                
+                // Update global variables
+                tourStartDate = picker.startDate;
+                tourEndDate = picker.endDate;
+                tourNights = picker.endDate.diff(picker.startDate, 'days');
+                
+                // Update the hotel section date display
+                document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+                
+                        // Generate night selection buttons
+                generateNightSelection();
+                // Initialize night display
+                updateNightDisplay();
+            });
+
+            $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
+                $(this).val('');
+                document.getElementById('start_date').value = '';
+                document.getElementById('end_date').value = '';
+                tourStartDate = null;
+                tourEndDate = null;
+                tourNights = 0;
+            });
+        } else {
+            // If field is locked with enquiry data, set the global variables
+            @if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time)
+            tourStartDate = moment('{{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') }}');
+            tourEndDate = moment('{{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') }}');
+            tourNights = tourEndDate.diff(tourStartDate, 'days');
             
             // Update the hotel section date display
-            document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
-            document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            if (document.getElementById('tourDates')) {
+                document.getElementById('tourDates').textContent = '{{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}';
+            }
+            if (document.getElementById('hotelNights')) {
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            }
             
-                    // Generate night selection buttons
+            // Generate night selection buttons for enquiry data
             generateNightSelection();
-            // Initialize night display
             updateNightDisplay();
-        });
-
-        $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
-            $(this).val('');
-            document.getElementById('start_date').value = '';
-            document.getElementById('end_date').value = '';
-            tourStartDate = null;
-            tourEndDate = null;
-            tourNights = 0;
-        });
+            @endif
+        }
     });
 
         // Update total adults count and hidden field
@@ -9014,7 +9441,7 @@ window.saveService = function(day, type) {
     </div>
 
 
-                                    </div>
+</div>
 
 
 

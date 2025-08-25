@@ -318,7 +318,7 @@ use Illuminate\Support\Facades\Auth;
                                         <th style="width: 50px; text-align: center;">#</th>
                                         <th>Date & Time</th>
                                         <th>Booking ID</th>
-                                        <th>Agent Name</th>
+                                        <th>Agency Name</th>
                                         <th>Service Type</th>
                                         <th>Customer Details</th>
                                         <th>Opening Balance</th>
@@ -368,8 +368,8 @@ use Illuminate\Support\Facades\Auth;
                                             </td>
                                             <td>
                                                 <div class="d-flex flex-column">
-                                                    <span class="fw-semibold">{{ $row->agent_name }}</span>
-                                                    {{-- <small class="text-muted">ID: {{ $row->agent_id ?? 'N/A' }}</small> --}}
+                                                    <span class="fw-semibold">{{ $row->company_name }}</span>
+                                                    <small class="text-muted"> {{ $row->agent_name ?? 'N/A' }}</small>
                                                 </div>
                                             </td>
                                             <td>
@@ -1059,7 +1059,6 @@ use Illuminate\Support\Facades\Auth;
         editRateBtn.innerHTML = '<i class="ri-edit-line"></i>';
         editRateBtn.classList.remove('btn-outline-secondary');
         editRateBtn.classList.add('btn-outline-info');
-        
         // Show success message
         showRateUpdateMessage('Exchange rate updated successfully!');
     }

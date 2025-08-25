@@ -16,17 +16,15 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         // Fetch all active tours with their related enquiries and bookings
-        $tours = Tour::with(['enquiries', 'booking'])->where('status', 1)->get();
+        $tours = Tour::with(['enquiries', 'booking'])->where('status', 1)->orderBy('created_at', 'desc')->get();
 
         // Process tours for summary
         $alltours = $tours->map(function ($tour) {
             $totalAmount = $tour->booking->sum(function ($order) {
                 return collect($order->data)->sum(fn($item) => (float) data_get($item, 'totalPrice', 0));
             });
-
             // Calculate total discount from enquiries
             $totalDiscount = $tour->enquiries->sum('discount_amount'); // Assuming `discount_amount` exists
-
             return [
                 'tour_id' => $tour->tour_id,
                 'name' => $tour->name,

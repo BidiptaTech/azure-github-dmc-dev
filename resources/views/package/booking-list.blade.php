@@ -147,6 +147,7 @@
                             @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <th>Confirm Payment </th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -274,6 +275,7 @@
                                         @endif
                                     </td>
                                 @endif
+                                <td>{{ $booking->created_at->format('d-m-Y') }}</td>
                             </tr>
                             @endforeach
                         @endif

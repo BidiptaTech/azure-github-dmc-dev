@@ -46,6 +46,7 @@
                             @if(hasPermission('edit category') || hasPermission('delete category'))
                                 <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,6 +94,7 @@
                                 @endif
                             </td>
                             @endif
+                            <td>{{ $category->created_at->format('d-m-Y') }}</td>
                         </tr>
                         @endforeach
                     </tbody>

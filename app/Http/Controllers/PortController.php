@@ -9,6 +9,7 @@ use App\Models\City;
 use Illuminate\Support\Str;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Crypt;
 
 class PortController extends Controller
 {
@@ -17,7 +18,7 @@ class PortController extends Controller
      */
     public function index()
     {
-        $ports = Port::with(['country', 'city'])->orderby('updated_at', 'desc')->get();
+        $ports = Port::with(['country', 'city'])->orderby('created_at', 'desc')->get();
         return view('ports.index', compact('ports'));
     }
 
