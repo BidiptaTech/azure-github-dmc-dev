@@ -34,28 +34,28 @@ class AttractionController extends Controller
         $attractions = [];
         if ($user->role_id == 4) {
             $dmc_ids = User::where('role_id', 11)->pluck('userId')->toArray();
-            $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('status', [4, 5, 1])
+            $attractions = Attraction::orderBy('created_at', 'desc')->whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
                 ->get();
         } elseif ($user->role_id == 3) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('status', [5, 1])->get();
+            $attractions = Attraction::orderBy('created_at', 'desc')->whereIn('status', [5, 1])->get();
         } elseif (in_array($user->role_id, [1, 2, 23])) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->whereIn('status', [1, 3])->get();
+            $attractions = Attraction::orderBy('created_at', 'desc')->whereIn('status', [1, 3])->get();
         }
         elseif($user->role_id == 10){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($dmc_ids) {
+            $attractions = Attraction::orderBy('created_at', 'desc')->get()->filter(function($attraction) use ($dmc_ids) {
                 $selectedDmcIds = $attraction->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
         }
         elseif ($user->role_id == 11) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($user) {
+            $attractions = Attraction::orderBy('created_at', 'desc')->get()->filter(function($attraction) use ($user) {
                 return $attraction->hasSelectedByDmc($user->userId);
             });
         }
         elseif ($user->role_id == 20) {
-            $attractions = Attraction::orderBy('updated_at', 'desc')->get();
+            $attractions = Attraction::orderBy('created_at', 'desc')->get();
         }
 
         elseif(in_array($user->role_id, [25,26, 60,49, 92,89])){
@@ -73,13 +73,13 @@ class AttractionController extends Controller
                 $master_dmc_id = $product_head->created_by;
             }
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($dmc_ids) {
+            $attractions = Attraction::orderBy('created_at', 'desc')->get()->filter(function($attraction) use ($dmc_ids) {
                 $selectedDmcIds = $attraction->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
-        } 
+        }
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($user) {
+            $attractions = Attraction::orderBy('created_at', 'desc')->get()->filter(function($attraction) use ($user) {
                 return $attraction->hasSelectedByDmc($user->created_by);
             });
         }
@@ -88,7 +88,7 @@ class AttractionController extends Controller
             $this_dmc_id = $product_head->created_by;
 
             if($this_dmc_id){
-                $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($this_dmc_id) {
+                $attractions = Attraction::orderBy('created_at', 'desc')->get()->filter(function($attraction) use ($this_dmc_id) {
                     return $attraction->hasSelectedByDmc($this_dmc_id);
                 });
             }
@@ -99,7 +99,7 @@ class AttractionController extends Controller
             $this_dmc_id = $product_head->created_by;
 
             if($this_dmc_id){
-                $attractions = Attraction::orderBy('updated_at', 'desc')->get()->filter(function($attraction) use ($this_dmc_id) {
+                $attractions = Attraction::orderBy('created_at', 'desc')->get()->filter(function($attraction) use ($this_dmc_id) {
                     return $attraction->hasSelectedByDmc($this_dmc_id);
                 });
             }
@@ -117,6 +117,7 @@ class AttractionController extends Controller
         if($auth_user->role_id == 2 || $auth_user->role_id == 1 || $auth_user->role_id == 23){
             $pendingattractions = Attraction::with('user')
             ->where('status', 5)
+            ->orderBy('created_at', 'desc')
             ->get();
         }
         
@@ -663,7 +664,7 @@ class AttractionController extends Controller
 
         // Get all available attractions
         $allAttractions = Attraction::where('status', 1)
-                                   ->orderBy('name', 'asc')
+                                   ->orderBy('created_at', 'desc')
                                    ->get();
         
         // Filter attractions that are selected by the current DMC

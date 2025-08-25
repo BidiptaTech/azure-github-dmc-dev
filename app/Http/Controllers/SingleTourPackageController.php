@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\Agent;
 use App\Models\SingleTourPackage;
 use App\Models\Tour;
+use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Ticket;
 use App\Models\User;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
 use Carbon\Carbon;
+use App\Models\EnquiryForm;
+use Illuminate\Support\Facades\Crypt;
 
 class SingleTourPackageController extends Controller
 {
@@ -44,9 +47,11 @@ class SingleTourPackageController extends Controller
     /**
      * Show the form for creating a new single tour package.
      */
-    public function create()
+    public function create($enquiry_id = null)
     {
         // Get countries for dropdown
+        
+        
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         
         // Get agents for the current DMC
@@ -54,7 +59,55 @@ class SingleTourPackageController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('single-tour-package.create', compact('countries', 'agents'));
+        $enquiry = null;
+        $hotels = collect();
+        $attractions = collect();
+        $guides = collect();
+        $vehicles = collect();
+        $meals = collect();
+        $tickets = collect();
+        $zones = collect();
+        
+        if($enquiry_id){
+            $enquiry_id = Crypt::decrypt($enquiry_id);
+            if($enquiry_id){
+                $enquiry = EnquiryForm::where('enquiry_id', $enquiry_id)->first();
+                
+                if($enquiry){
+                    // Get hotels
+                    if($enquiry->hotel_ids){
+                        $hotel_ids = json_decode($enquiry->hotel_ids, true);
+                        $hotels = Hotel::whereIn('hotel_unique_id', $hotel_ids)->get();
+                    }
+                    
+                    // Get attractions
+                    if($enquiry->attraction_ids){
+                        $attraction_ids = json_decode($enquiry->attraction_ids, true);
+                        $attractions = Attraction::whereIn('attraction_id', $attraction_ids)->get();
+                    }
+                    
+                    // Get guides
+                    if($enquiry->guide_ids){
+                        $guide_ids = json_decode($enquiry->guide_ids, true);
+                        $guides = Guide::whereIn('guide_id', $guide_ids)->get();
+                    }
+                    
+                    // Get vehicles
+                    if($enquiry->local_transport_vehicle_ids){
+                        $vehicle_ids = json_decode($enquiry->local_transport_vehicle_ids, true);
+                        $vehicles = Vehicle::whereIn('vehicle_id', $vehicle_ids)->get();
+                    }
+                    
+                    // Get restaurants as meals
+                    if($enquiry->restaurant_ids){
+                        $restaurant_ids = json_decode($enquiry->restaurant_ids, true);
+                        $meals = Restaurant::whereIn('restaurant_id', $restaurant_ids)->get();
+                    }
+                }
+            }
+        }
+
+        return view('single-tour-package.create', compact('countries', 'agents', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
     }
 
     /**

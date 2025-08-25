@@ -56,6 +56,7 @@
                                 {{-- <th>Distance (miles)</th> --}}
                                 <th>Status</th>
                                 <th>Actions</th>
+                                <th>Created At</th>
                             </tr>
                         </thead>
                         <tbody class="table-border-bottom-0">
@@ -106,6 +107,7 @@
                                         </form>
                                     </div>
                                 </td>
+                                <td>{{ $port->created_at->format('d-m-Y') }}</td>
                             </tr>
                             @endforeach
                         </tbody>

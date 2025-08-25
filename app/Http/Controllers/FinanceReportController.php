@@ -129,6 +129,7 @@ class FinanceReportController extends Controller
                 o.status,
                 o.created_at,
                 a.name as agent_name,
+                a.company_name,
                 COALESCE(
                     (o.data->>'totalPrice')::NUMERIC,
                     (o.data->0->>'totalPrice')::NUMERIC,

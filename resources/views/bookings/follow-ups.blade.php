@@ -236,6 +236,7 @@
                             <th>Last Contact</th>
                             <th>Negotiation</th>
                             <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -415,6 +416,7 @@
                                     <i class="ri-eye-line"></i> View
                                 </a>
                             </td>
+                            <td>{{ $tour->created_at->format('d-m-Y') }}</td>
                         </tr>
                         @empty
                         {{-- <tr>

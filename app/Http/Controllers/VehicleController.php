@@ -39,21 +39,21 @@ class VehicleController extends Controller
         $user = auth()->user();
         if ($user->role_id == 4) {
             $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } elseif ($user->role_id == 3) {
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->get();
         } elseif (in_array($user->role_id, [1, 2, 23, 20])) {
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->get();
         }
         elseif ($user->role_id == 10) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
          elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
          elseif ($user->role_id == 20) {
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif(in_array($user->role_id, [25, 62, 110])){
             if($user->role_id == 25){
@@ -70,21 +70,21 @@ class VehicleController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 76){
             $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
             if($assistant_product_manager_ids){
-                $vehicles = Vehicle::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
+                $vehicles = Vehicle::orderBy('created_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
             }else{
-                $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+                $vehicles = Vehicle::orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
             }
         }
         elseif($user->role_id == 111){
-            $vehicles = Vehicle::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+            $vehicles = Vehicle::orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
         }
         return view('vehicles.vehicle', compact('vehicles'));
     }

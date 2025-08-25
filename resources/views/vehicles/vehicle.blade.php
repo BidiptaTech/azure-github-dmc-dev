@@ -61,6 +61,7 @@
                             @if(hasPermission('edit vehicle') || hasPermission('delete vehicle'))
                                 <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -124,6 +125,7 @@
                                     @endif
                                 </td>
                                 @endif
+                                <td>{{ $vehicle->created_at->format('d-m-Y') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
