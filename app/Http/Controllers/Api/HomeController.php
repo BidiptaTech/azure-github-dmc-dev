@@ -87,10 +87,10 @@ class HomeController extends Controller
         });
 
         // Apply pagination after DMC filtering
-        if($start && $limit){
-            $allAttractions = $filteredAttractions->slice($start, $limit);
+        if ($start && $limit) {
+            $allAttractions = $filteredAttractions->slice($start, $limit)->values();
         } else {
-            $allAttractions = $filteredAttractions;
+            $allAttractions = $filteredAttractions->values();
         }
 
         // Filter out attractions where the date is in close_dates
