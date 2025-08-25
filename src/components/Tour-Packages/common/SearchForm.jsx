@@ -90,21 +90,21 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
-  console.log("All Services in SearchForm:", allServices);
+  // console.log("All Services in SearchForm:", allServices);
   
   // Get packageData from Redux state and prioritize it over prop
   const reduxPackageData = useSelector((state) => state.tourPackages.packageData);
   const enquirydetail = useSelector((state) => state.convertToTourList?.enquirydetail);
-  console.log("enquirydetail",enquirydetail);
+  // console.log("enquirydetail",enquirydetail);
   // Use Redux state if available, otherwise fall back to prop
   const packageData = reduxPackageData || propPackageData;
   
-  console.log("SearchForm packageData sources:", {
-    reduxPackageData: reduxPackageData,
-    propPackageData: propPackageData,
-    finalPackageData: packageData,
-    hasValidTourId: packageData?.tour?.tour_id > 0
-  });
+  // console.log("SearchForm packageData sources:", {
+  //   reduxPackageData: reduxPackageData,
+  //   propPackageData: propPackageData,
+  //   finalPackageData: packageData,
+  //   hasValidTourId: packageData?.tour?.tour_id > 0
+  // });
   
   // State for date validation dialog
   const [dateValidationDialog, setDateValidationDialog] = useState({
@@ -174,9 +174,23 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
         maleCount: tour.male_count || 0,
         femaleCount: tour.female_count || 0,
         genders: [], // Initialize empty array for compatibility
-        ages: tour.child_ages ? 
-          (Array.isArray(tour.child_ages) ? tour.child_ages : 
-           JSON.parse(tour.child_ages || '[]')) : [],
+        ages: (() => {
+          try {
+            if (tour.child_ages) {
+              if (Array.isArray(tour.child_ages)) {
+                return tour.child_ages;
+              } else if (typeof tour.child_ages === 'string') {
+                return JSON.parse(tour.child_ages || '[]');
+              } else if (tour.child_ages) {
+                return [tour.child_ages];
+              }
+            }
+            return [];
+          } catch (error) {
+            console.error('Error parsing child_ages from tour:', error);
+            return [];
+          }
+        })(),
       };
     }
     
@@ -189,9 +203,23 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
         maleCount: enquirydetail.male_count || 0,
         femaleCount: enquirydetail.female_count || 0,
         genders: [], // Initialize empty array for compatibility
-        ages: enquirydetail.child_ages ? 
-          (Array.isArray(enquirydetail.child_ages) ? enquirydetail.child_ages : 
-           JSON.parse(enquirydetail.child_ages || '[]')) : [],
+        ages: (() => {
+          try {
+            if (enquirydetail.child_ages) {
+              if (Array.isArray(enquirydetail.child_ages)) {
+                return enquirydetail.child_ages;
+              } else if (typeof enquirydetail.child_ages === 'string') {
+                return JSON.parse(enquirydetail.child_ages || '[]');
+              } else if (enquirydetail.child_ages) {
+                return [enquirydetail.child_ages];
+              }
+            }
+            return [];
+          } catch (error) {
+            console.error('Error parsing child_ages from enquirydetail:', error);
+            return [];
+          }
+        })(),
       };
     }
     
@@ -237,6 +265,26 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   // Check if data is coming from enquirydetail (to disable date and guest selection)
   const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour);
 
+  // Helper function to safely get ages array
+  const getSafeAges = () => {
+    if (!guestCounts.ages || !Array.isArray(guestCounts.ages)) {
+      console.warn('getSafeAges: ages is not an array:', guestCounts.ages);
+      return [];
+    }
+    const filteredAges = guestCounts.ages.filter(age => age !== null && age !== undefined);
+    console.log('getSafeAges: filtered ages:', filteredAges);
+    return filteredAges;
+  };
+
+  // Helper function to safely get ages for API calls (maintains backward compatibility)
+  const getSafeAgesForAPI = () => {
+    const safeAges = getSafeAges();
+    if (safeAges.length === 0) {
+      return [];
+    }
+    return safeAges;
+  };
+
   // Log the initialization values for debugging
   React.useEffect(() => {
     if (packageData?.tour || enquirydetail) {
@@ -266,6 +314,10 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     dispatch(fetchAgentList());
   }, [dispatch]);
   console.log("guestCounts",guestCounts);
+  console.log("guestCounts.ages type:", typeof guestCounts.ages, "value:", guestCounts.ages);
+  if (guestCounts.ages && Array.isArray(guestCounts.ages)) {
+    console.log("ages array contents:", guestCounts.ages.map(age => ({ value: age, type: typeof age })));
+  }
   // Auto-select agent based on packageData agent_id and agent_name
   React.useEffect(() => {
     const dataSource = packageData?.tour || enquirydetail;
@@ -703,9 +755,27 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 
     if (
       guestCounts.Children > 0 &&
-      !guestCounts.ages.every((age) => age.trim() !== "")
+      getSafeAges().length !== guestCounts.Children
     ) {
-      setSnackbarMessage("Please provide an age for all children.");
+      setSnackbarMessage(`Please provide ages for all ${guestCounts.Children} children.`);
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return false;
+    }
+
+    if (
+      guestCounts.Children > 0 &&
+      !getSafeAges().every((age) => {
+        // Handle both string and number types for age
+        if (typeof age === 'string') {
+          return age.trim() !== "";
+        } else if (typeof age === 'number') {
+          return age > 0;
+        }
+        return false; // Invalid age type
+      })
+    ) {
+      setSnackbarMessage("Please provide valid ages for all children.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;

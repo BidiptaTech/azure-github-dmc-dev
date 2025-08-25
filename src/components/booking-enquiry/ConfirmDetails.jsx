@@ -1547,7 +1547,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             }}
           >
             <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
-              ${calculatedPrice.toLocaleString()}/person
+              ${calculatedPrice.toLocaleString()}/adult
             </Typography>
             <Typography variant="body1" sx={{ opacity: 1, color: 'white' }}>
               Approximate Total Package Cost

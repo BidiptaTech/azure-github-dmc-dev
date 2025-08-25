@@ -1112,7 +1112,6 @@ export default function CustomStepper() {
           }
         }
       `}</style>
-      ;
     </>
   );
 }
