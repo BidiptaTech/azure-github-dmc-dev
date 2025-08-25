@@ -278,14 +278,19 @@ class DriverController extends Controller
                     $dmcs = User::where('role_id', 11)
                         ->where('country', $country)
                         ->get();
-                    
-                    $vehicles_row = Vehicle::orderBy('vehicle_id', 'desc')->where('city', $matchedCity)
-                        ->whereNotNull('driver_id')
-                        ->where('dmc_id', $dmcId)
-                        ->skip($start)
-                        ->take($limit)
-                        ->get();
-                    
+                    if($start && $limit){
+                        $vehicles_row = Vehicle::orderBy('vehicle_id', 'desc')->where('city', $matchedCity)
+                            ->whereNotNull('driver_id')
+                            ->where('dmc_id', $dmcId)
+                            ->limit($limit)
+                            ->offset($start)
+                            ->get();
+                    } else {
+                        $vehicles_row = Vehicle::orderBy('vehicle_id', 'desc')->where('city', $matchedCity)
+                            ->whereNotNull('driver_id')
+                            ->where('dmc_id', $dmcId)
+                            ->get();
+                    }
                     if (!$vehicles_row) {
                         return response()->json(['error' => 'Not Getting vehicles for this city'], 404);
                     }
