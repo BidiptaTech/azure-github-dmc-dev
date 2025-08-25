@@ -726,6 +726,9 @@ class HotelBookingController extends Controller
                         'child_count' => $booking['childCount'] ?? 0,
                         'booking_date' => $booking['bookingDate'] ?? null,
                         'visit_time' => $booking['visitTime'] ?? null,
+                        'is_approve' => $restaurantOrder->is_approve ?? false,
+                        'reference_id' => $restaurantOrder->reference_id ?? null,
+                        'display_due_date' => $restaurantOrder->display_due_date ?? null,
                         'restaurant_details' => $booking // This contains the full JSON data
                     ]
                 ]
@@ -2858,6 +2861,254 @@ class HotelBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while approving attraction booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve restaurant booking and save approval data
+     * 
+     * This method saves the approval data to the orders table and sets is_approve = true
+     * for the specific restaurant booking.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function approveRestaurantBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Restaurant approval request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'restaurant_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date|after_or_equal:today',
+                'display_due_date_days' => 'required|integer|min:1',
+                'display_due_date' => 'required|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $restaurantOrderIndex = $request->restaurant_order_index;
+            $bookingIndex = $request->booking_index;
+            $referenceId = $request->reference_id;
+            $actualDueDate = $request->actual_due_date;
+            $displayDueDateDays = $request->display_due_date_days;
+            $displayDueDate = $request->display_due_date;
+
+            // Find the restaurant order in the orders table
+            $restaurantOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'restaurant')
+                ->orderBy('id')
+                ->skip($restaurantOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for restaurant order', [
+                'tour_id' => $tourId,
+                'restaurant_order_index' => $restaurantOrderIndex,
+                'restaurant_order_found' => !!$restaurantOrder,
+                'restaurant_order_id' => $restaurantOrder ? $restaurantOrder->id : null
+            ]);
+
+            if (!$restaurantOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant order not found'
+                ], 404);
+            }
+
+            // Handle file upload if provided
+            $approval_file = $restaurantOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Update the orders table with approval data
+            $updateData = [
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate,
+                'is_approve' => true,
+                'approval_file' => $approval_file,
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $restaurantOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update restaurant approval data'
+                ], 500);
+            }
+
+            // Log successful approval
+            Log::info('Restaurant booking approved successfully', [
+                'tour_id' => $tourId,
+                'restaurant_order_id' => $restaurantOrder->id,
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant booking approved successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'restaurant_order_id' => $restaurantOrder->id,
+                    'reference_id' => $referenceId,
+                    'actual_due_date' => $actualDueDate,
+                    'display_due_date' => $displayDueDate,
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error approving restaurant booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving restaurant booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject restaurant booking and save rejection reason with soft delete
+     * 
+     * This method saves the rejection reason to the orders table and soft deletes the booking
+     * by setting the deleted_at timestamp.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function rejectRestaurantBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Restaurant rejection request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'restaurant_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'cancel_reason' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $restaurantOrderIndex = $request->restaurant_order_index;
+            $bookingIndex = $request->booking_index;
+            $cancelReason = $request->cancel_reason;
+
+            // Find the restaurant order in the orders table
+            $restaurantOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'restaurant')
+                ->whereNull('deleted_at') // Only get non-deleted orders
+                ->orderBy('id')
+                ->skip($restaurantOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for restaurant order', [
+                'tour_id' => $tourId,
+                'restaurant_order_index' => $restaurantOrderIndex,
+                'restaurant_order_found' => !!$restaurantOrder,
+                'restaurant_order_id' => $restaurantOrder ? $restaurantOrder->id : null
+            ]);
+
+            if (!$restaurantOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant order not found'
+                ], 404);
+            }
+
+            // Update the orders table with rejection data and soft delete
+            $updateData = [
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now(),
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $restaurantOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update restaurant rejection data'
+                ], 500);
+            }
+
+            // Log successful rejection
+            Log::info('Restaurant booking rejected successfully', [
+                'tour_id' => $tourId,
+                'restaurant_order_id' => $restaurantOrder->id,
+                'cancel_reason' => $cancelReason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant booking rejected successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'restaurant_order_id' => $restaurantOrder->id,
+                    'cancel_reason' => $cancelReason
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error rejecting restaurant booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting restaurant booking: ' . $e->getMessage()
             ], 500);
         }
     }
