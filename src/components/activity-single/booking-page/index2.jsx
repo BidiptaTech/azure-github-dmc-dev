@@ -198,6 +198,7 @@ export default function Index2() {
   //   }, [userInfo, navigate]);
 
   // Handle form change and dispatch actions based on type
+  console.log("bookingDetailsindex2", bookingDetails);
   const handleFormChange = () => {
     // Determine which data to update based on type
     let currentData;

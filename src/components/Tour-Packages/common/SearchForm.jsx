@@ -543,8 +543,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
       fromMainSearch: false,
-      start: 0,
-      limit: 10
+
     }));
 
     // Fetch restaurants based on search criteria
@@ -580,7 +579,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
+dispatch(fetchHotels());
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -856,8 +855,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
       fromMainSearch: false,
-      start: 0,
-      limit: 10
+     
     }));
 
     // Fetch restaurants based on search criteria
@@ -893,7 +891,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
+dispatch(fetchHotels());
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -1139,8 +1137,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
       tour_id: tourId, // Use tour_id from packageData
       selectedDate: moment(startDate),
       fromMainSearch: false,
-      start: 0,
-      limit: 10
+     
     }));
 
     // Fetch restaurants based on search criteria
@@ -1176,7 +1173,8 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels({ start: 0, limit: 10 }));
+dispatch(fetchHotels());
+
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
