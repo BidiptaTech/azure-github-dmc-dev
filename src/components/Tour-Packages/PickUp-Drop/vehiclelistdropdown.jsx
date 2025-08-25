@@ -343,7 +343,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
             vehicles_id: entryData.vehicles_id ? String(entryData.vehicles_id) : '',
             totalPrice: entryData.totalPrice ? Number(entryData.totalPrice) : 0,
-            seating_capacity: entryData.seatingCapacity ? Number(entryData.seatingCapacity) : 1,
+            seating_capacity: entryData.seatingCapacity ? Number(entryData.seatingCapacity) : 1 || entryData.seating_capacity ? Number(entryData.seating_capacity) : 1,
             distance: entryData.distance ? Number(entryData.distance) : 0,
             // Normalize type for case insensitivity
             type: entryData.type ? entryData.type.toLowerCase() : 'private'

@@ -178,9 +178,6 @@ const SimpleCustomerInfo = () => {
       case 'address1':
         if (!value.trim()) error = 'Address is required';
         break;
-      case 'state':
-        if (!value.trim()) error = 'State is required';
-        break;
       case 'zip':
         if (!/^\d{5,8}$/.test(value)) error = 'Enter a valid ZIP code';
         break;
@@ -198,7 +195,6 @@ const SimpleCustomerInfo = () => {
       'email',
       'phone',
       'address1',
-      'state',
       'zip',
     ];
     let newErrors = {};
@@ -469,15 +465,13 @@ const SimpleCustomerInfo = () => {
 
         <Grid item xs={12} md={6}>
           <TextField
-            label="State/Province/Region *"
+            label="State/Province/Region"
             name="state"
             fullWidth
             variant="outlined"
             value={form.state}
             onChange={handleChange}
             onBlur={handleBlur}
-            error={!!errors.state && touched.state}
-            helperText={touched.state && errors.state}
             disabled={hasCustomerInfo}
             InputProps={{
               readOnly: hasCustomerInfo,

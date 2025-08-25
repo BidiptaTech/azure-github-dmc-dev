@@ -336,7 +336,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           dmc_id: exitData.dmc_id ? String(exitData.dmc_id) : '',
           vehicles_id: exitData.vehicles_id ? String(exitData.vehicles_id) : '',
           totalPrice: exitData.totalPrice ? Number(exitData.totalPrice) : 0,
-          seating_capacity: exitData.seatingCapacity ? Number(exitData.seatingCapacity) : 1,
+          seating_capacity: Number(exitData.seatingCapacity ?? exitData.seating_capacity ?? 1),
           distance: exitData.distance ? Number(exitData.distance) : 0,
           // Normalize type for case insensitivity
           type: exitData.type ? exitData.type.toLowerCase() : 'private'

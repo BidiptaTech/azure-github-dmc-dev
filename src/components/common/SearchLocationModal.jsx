@@ -27,7 +27,7 @@ import {
   TravelExplore as TravelIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { fetchDMCsByCountry, setSelectedCountries, clearError } from '../../slice/dmc/dmcSlice';
+import { fetchDMCsByCountry, setSelectedCountries, clearError, clearSelectedDmc, clearSelectedDmcs } from '../../slice/dmc/dmcSlice';
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -145,6 +145,10 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   const handleSearch = async () => {
     if (selectedCountry) {
       try {
+        // Clear any previously selected DMCs before starting new search
+        dispatch(clearSelectedDmc());
+        dispatch(clearSelectedDmcs());
+        
         // Set selected countries in the store
         dispatch(setSelectedCountries([selectedCountry]));
         
@@ -176,6 +180,9 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
     if (dmcError) {
       dispatch(clearError());
     }
+    // Clear any DMC selections when closing the modal
+    dispatch(clearSelectedDmc());
+    dispatch(clearSelectedDmcs());
   };
 
   const isSearchDisabled = !selectedCountry || dmcLoading;

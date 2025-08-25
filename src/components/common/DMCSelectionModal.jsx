@@ -194,14 +194,14 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
   }, [apiDMCs]);
 
   // Console logging for testing current state
-  React.useEffect(() => {
-    if (open) {
-      console.log('🔍 DMC Modal: Current Redux State:');
-      console.log('🔍 DMC Modal: Selected DMC Logo:', selectedDmcLogo);
-      console.log('🔍 DMC Modal: Selected DMC Company Name:', selectedDmcCompanyName);
-      console.log('🔍 DMC Modal: Available DMC Options:', dmcOptions);
-    }
-  }, [open, selectedDmcLogo, selectedDmcCompanyName, dmcOptions]);
+  // React.useEffect(() => {
+  //   if (open) {
+  //     console.log('🔍 DMC Modal: Current Redux State:');
+  //     console.log('🔍 DMC Modal: Selected DMC Logo:', selectedDmcLogo);
+  //     console.log('🔍 DMC Modal: Selected DMC Company Name:', selectedDmcCompanyName);
+  //     console.log('🔍 DMC Modal: Available DMC Options:', dmcOptions);
+  //   }
+  // }, [open, selectedDmcLogo, selectedDmcCompanyName, dmcOptions]);
 
   // Single selection handlers (for Book Tour)
   const handleSelectionChange = (event) => {
@@ -211,10 +211,10 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     // Find the selected DMC data
     const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiId);
     
-    console.log('📝 Radio button clicked - UI ID:', uiId);
-    console.log('📝 API userId field:', selectedDmcData?.originalData?.userId);
-    console.log('📝 Using userId as dmcId:', selectedDmcData?.dmcId);
-    console.log('📝 Selected DMC Data:', selectedDmcData);
+    // console.log('📝 Radio button clicked - UI ID:', uiId);
+    // console.log('📝 API userId field:', selectedDmcData?.originalData?.userId);
+    // console.log('📝 Using userId as dmcId:', selectedDmcData?.dmcId);
+    // console.log('📝 Selected DMC Data:', selectedDmcData);
     
     // Dispatch to Redux store with actual dmcId (can be null)
     dispatch(setSelectedDmcId({
@@ -222,7 +222,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       dmcData: selectedDmcData
     }));
     
-    console.log('✅ DMC ID dispatched to Redux store');
+    // console.log('✅ DMC ID dispatched to Redux store');
   };
 
   const handleDMCCardClick = (uiId) => {
@@ -233,8 +233,8 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiIdString);
       const dmcId = selectedDmcData?.dmcId;
       
-      console.log('🎯 DMC Card clicked (Multi-Select) - UI ID:', uiId);
-      console.log('🎯 dmcId:', dmcId);
+      // console.log('🎯 DMC Card clicked (Multi-Select) - UI ID:', uiId);
+      // console.log('🎯 dmcId:', dmcId);
       
       // Check if DMC is already selected
       const isSelected = selectedDmcIds.includes(dmcId);
@@ -242,11 +242,11 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       if (isSelected) {
         // Remove from selection
         dispatch(removeDmcFromSelection({ dmcId }));
-        console.log('➖ DMC removed from multi-selection');
+        // console.log('➖ DMC removed from multi-selection'); 
       } else {
         // Add to selection
         dispatch(addDmcToSelection({ dmcId, dmcData: selectedDmcData }));
-        console.log('➕ DMC added to multi-selection');
+        // console.log('➕ DMC added to multi-selection');
       }
     } else {
       // Handle single selection (existing logic)
@@ -255,10 +255,10 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       // Find the selected DMC data
       const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiIdString);
       
-      console.log('🎯 DMC Card clicked - UI ID:', uiId);
-      console.log('🎯 API userId field:', selectedDmcData?.originalData?.userId);
-      console.log('🎯 Using userId as dmcId:', selectedDmcData?.dmcId);
-      console.log('🎯 Selected DMC Data:', selectedDmcData);
+      // console.log('🎯 DMC Card clicked - UI ID:', uiId);
+      // console.log('🎯 API userId field:', selectedDmcData?.originalData?.userId);
+      // console.log('🎯 Using userId as dmcId:', selectedDmcData?.dmcId);
+      // console.log('🎯 Selected DMC Data:', selectedDmcData);
       
       // Dispatch to Redux store with actual dmcId (can be null)
       dispatch(setSelectedDmcId({
@@ -266,7 +266,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
         dmcData: selectedDmcData
       }));
       
-      console.log('✅ DMC ID dispatched to Redux store via card click');
+      // console.log('✅ DMC ID dispatched to Redux store via card click');
     }
   };
 
