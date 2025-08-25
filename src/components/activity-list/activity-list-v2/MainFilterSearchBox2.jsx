@@ -632,47 +632,121 @@ const MainFilterSearchBox2 = ({ Location }) => {
         }
 
         /* Responsive styles */
-        @media (max-width: 1200px) {
+        @media (max-width: 1400px) {
           .single-row-container {
-            flex-wrap: wrap;
-            gap: 15px;
+            grid-template-columns: 120px 1fr 1.5fr 1.5fr 1.5fr 1fr 120px;
+            gap: 8px;
           }
 
-          .port-selection,
+          .port-selection {
+            width: 120px;
+          }
+
+          .time-selection {
+            width: 120px;
+          }
+
+          .date-selection {
+            width: 140px;
+          }
+
+          .search-button {
+            width: 120px;
+          }
+        }
+
+        @media (max-width: 1200px) {
+          .single-row-container {
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+          }
+
+          .port-selection {
+            width: 100%;
+            grid-column: span 1;
+          }
+
           .city-selection {
-            width: calc(50% - 10px);
+            width: 100%;
+            grid-column: span 1;
           }
 
           .location-search {
-            width: calc(50% - 10px);
-            min-width: calc(50% - 10px);
+            width: 100%;
+            grid-column: span 2;
+            min-width: 100%;
           }
 
-          .time-selection,
+          .pickup-location,
+          .dropoff-location {
+            min-width: 100%;
+          }
+
+          .time-selection {
+            width: 100%;
+            grid-column: span 1;
+          }
+
           .date-selection {
-            width: calc(50% - 10px);
+            width: 100%;
+            grid-column: span 1;
           }
 
           .search-button {
             width: 100%;
+            grid-column: span 2;
             margin-top: 15px;
+            justify-content: center;
+          }
+
+          .search-button button {
+            max-width: 300px;
           }
         }
 
-        @media (max-width: 767px) {
+        @media (max-width: 900px) {
           .single-row-container {
-            flex-direction: column;
+            grid-template-columns: 1fr;
             gap: 15px;
           }
 
-          .search-item,
           .port-selection,
           .city-selection,
           .location-search,
           .time-selection,
           .date-selection,
           .search-button {
+            grid-column: span 1;
             width: 100%;
+          }
+
+          .location-search {
+            margin-bottom: 10px;
+          }
+
+          .search-button {
+            margin-top: 10px;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .single-row-container {
+            gap: 15px;
+          }
+
+          .search-item {
+            margin-bottom: 10px;
+          }
+
+          .location-search {
+            margin-bottom: 8px;
+          }
+
+          .search-button button {
+            max-width: 100%;
+            height: 45px;
+            font-size: 14px;
           }
         }
 
@@ -681,12 +755,42 @@ const MainFilterSearchBox2 = ({ Location }) => {
             padding: 10px !important;
           }
 
+          .single-row-container {
+            gap: 10px;
+          }
+
           .text-15 {
             font-size: 14px;
           }
 
+          .search-button button {
+            height: 40px;
+            font-size: 13px;
+            padding: 8px 20px;
+          }
+
+          .port-selection select,
+          .location-search input,
+          .time-selection input,
+          .date-selection input {
+            font-size: 14px;
+            padding: 8px 12px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .mainSearch {
+            padding: 8px !important;
+          }
+
           .single-row-container {
-            gap: 10px;
+            gap: 8px;
+          }
+
+          .search-button button {
+            height: 38px;
+            font-size: 12px;
+            padding: 6px 16px;
           }
         }
       `}</style>

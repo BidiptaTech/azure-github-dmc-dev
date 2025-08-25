@@ -542,7 +542,8 @@ export const submitPickupDrop = createAsyncThunk(
       let formData1 = {};
       console.log("abc", typeof details);
       console.log(typeof details);
-
+      console.log("details", details);
+      console.log("details1", details1);
       // Create JSON objects based on the provided conditions
       //let json0 = {};
       //let json1 = {};

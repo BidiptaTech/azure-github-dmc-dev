@@ -15,7 +15,8 @@ const selectDmcId = (state) => state.dmc?.dmcId;
 // Async thunk for fetching hotels
 export const fetchHotels = createAsyncThunk(
   "hotels/fetchHotels",
-  async ({ start, limit }, { getState, rejectWithValue }) => {
+  async (params = {}, { getState, rejectWithValue }) => {
+    const { start, limit } = params;
     try {
       const state = getState();
      const { location, ucheckIn, ucheckOut, guests } = state.hotels.searchState;
@@ -51,8 +52,8 @@ export const fetchHotels = createAsyncThunk(
           params: {
             location: formattedLocation,
             date:JSON.stringify(dateRange) , // Added check-out
-            start,
-            limit,
+            start: start ? start : undefined,
+            limit: limit ? limit : undefined,
             adults,
             children,
             infant,
