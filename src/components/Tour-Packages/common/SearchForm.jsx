@@ -49,7 +49,7 @@ import {
 import { fetchGuides } from "../../../slice/tourguide/guideslice";
 import { setBookingType } from "../../../slice/common/commonSlice";
 import { clearUserInfo } from "../../../slice/common/customerInfo";
-import { clearAttractions } from "../../../slice/attractions/attractionSlice";
+import { clearAttractions, resetIsFromMainSearch } from "../../../slice/attractions/attractionSlice";
 import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
 import {
   fetchRestaurants,
@@ -482,6 +482,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     dispatch(clearAllServices());
     // Clear previous data
     dispatch(clearAttractions());
+    dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 
@@ -812,6 +813,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     dispatch(clearAllServices());
     // Clear previous data
     dispatch(clearAttractions());
+    dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 
@@ -1094,6 +1096,7 @@ dispatch(fetchHotels({ start: 0, limit: 10 }));
     // dispatch(clearAllServices());
     // Clear previous data
     dispatch(clearAttractions());
+    dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
     dispatch(resetVehicles());
     dispatch(resetVehicles1()); 

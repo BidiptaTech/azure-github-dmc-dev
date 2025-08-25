@@ -38,9 +38,9 @@ export const fetchGuides = createAsyncThunk(
       });
 
       // Validate the response data
-      if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-        return rejectWithValue({ message: "No guides found for the selected city" });
-      }
+      // if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+      //   return rejectWithValue({ message: "No guides found for the selected city" });
+      // }
 
       return response.data;
     } catch (error) {
@@ -515,11 +515,11 @@ const Localguideslice = createSlice({
       .addCase(fetchGuides.fulfilled, (state, action) => {
         state.status = "succeeded";
         
-        // Check if payload is string or object - store blank array in that case
-        if (typeof action.payload === 'string' || (typeof action.payload === 'object' && !Array.isArray(action.payload))) {
-          state.Guides = [];
-          console.log("fetchGuides - Payload is string/object, storing blank array");
-          return;
+        // Check if payload is a valid array
+        if (!Array.isArray(action.payload)) {
+          // If payload is not an array (string, object, etc.), keep previous guides
+          console.log("fetchGuides - Invalid payload, keeping previous guides:", state.Guides);
+          return; // Exit early, don't modify state
         }
         
         // Support infinite scrolling - check if it's initial load or subsequent load
@@ -527,21 +527,14 @@ const Localguideslice = createSlice({
         
         if (start === 0) {
           // First page - replace guides
-          state.Guides = Array.isArray(action.payload) ? action.payload : [];
+          state.Guides = action.payload;
           console.log("fetchGuides - Replaced guides:", state.Guides);
         } else {
           // Subsequent pages - accumulate guides
-          if (Array.isArray(action.payload)) {
-            const existingIds = new Set(state.Guides.map(guide => guide.id));
-            const newGuides = action.payload.filter(guide => !existingIds.has(guide.id));
-            state.Guides = [...state.Guides, ...newGuides];
-            console.log("fetchGuides - Accumulated guides:", state.Guides);
-          }
-        }
-        
-        if (state.Guides.length === 0) {
-          state.status = "idle";
-          state.error = "No guides found for the selected location";
+          const existingIds = new Set(state.Guides.map(guide => guide.id));
+          const newGuides = action.payload.filter(guide => !existingIds.has(guide.id));
+          state.Guides = [...state.Guides, ...newGuides];
+          console.log("fetchGuides - Accumulated guides:", state.Guides);
         }
       })
       .addCase(fetchGuides.rejected, (state, action) => {

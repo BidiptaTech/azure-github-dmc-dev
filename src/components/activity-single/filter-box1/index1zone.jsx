@@ -265,14 +265,15 @@ const Index1Zone = () => {
       DropoffPlaceid: DropoffPlaceid,
       pickupdate: selectedDate,
       entrytime: entrytime,
-      adults: adults,
-      children: children,
+      adults: Number(adults),
+      children: Number(children),
       totalPrice: Math.ceil(Price), // ✅ Add price dynamically
       Tax: vehicles.tax_percentage,
       city: vehicles.city,
       country: vehicles.country,
-      to_zone_id: vehicles.to_zone_id,
-      from_zone_id: vehicles.from_zone_id,
+      to_zone_id: Number(vehicles.to_zone_id),
+      from_zone_id: Number(vehicles.from_zone_id),
+      seatingCapacity: Number(vehicles.seating_capacity),
     };
 
     dispatch(setentrydata(details));

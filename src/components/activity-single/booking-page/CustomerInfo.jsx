@@ -526,19 +526,9 @@ const CustomerInfo = ({
           // toast.success(response.message, { position: "top-center", autoClose: 3000 });
         }
 
-        // Store user info and booking response - with safety checks
-        if (response?.service?.data) {
-          // Ensure data is in the expected format (array)
-          const userData = Array.isArray(response.service.data) 
-            ? response.service.data 
-            : [response.service.data];
-          
-          dispatch(setUserInfo(userData));
-        } else {
-          console.warn("Response service data is missing or invalid:", response);
-          dispatch(setUserInfo([])); // Set empty array as fallback
-        }
-        
+        // Store user info and booking response
+        // dispatch(setUserInfo(formData));
+        dispatch(setUserInfo(response?.service?.data));
         dispatch(setBookingResponse(response));
 
         // Navigate to the Thank You page after a short delay to ensure Redux updates

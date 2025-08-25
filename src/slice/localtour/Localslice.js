@@ -826,7 +826,7 @@ const LocalSlice = createSlice({
       state.entrytime = "";
       state.DropoffPlaceid = "";
       state.PickupPlaceid = "";
-      state.zone = [];
+      
       state.PickupZoneid = "";
       state.DropoffZoneid = "";
       //state.selectedVehicleId = null;

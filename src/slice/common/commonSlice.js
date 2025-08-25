@@ -1,4 +1,41 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import Cookies from "js-cookie";
+import { BASE_URL } from "@/services/api";
+import axios from "axios";
+
+export const singleBooking = createAsyncThunk(
+  "singleBooking/common",
+  async ({bookingId, tourId, cancelReason}, { rejectWithValue, getState }) => {
+    try {
+      const userRole = getState().auth?.userRole;
+      const authToken = Cookies.get("authToken");
+      const AgentId = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)" ? getState().editing.agentId : Cookies.get("AgentId");
+      console.log("bookingIdcommon", bookingId);
+      console.log("tourIdcommon", tourId);
+      console.log("AgentIdcommon", AgentId);
+      console.log("authTokencommon", authToken);
+      
+      const response = await axios.post(`${BASE_URL}/cancel-booking`, {
+        booking_id: String(bookingId),
+        agent_id: String(AgentId),
+        tour_id: String(tourId),
+        cancel_reason: String(cancelReason),
+      }, {
+        headers: {
+          "Authorization": `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        }
+      });
+      
+      console.log("API response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("API error:", error.response?.data || error.message);
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 
 const initialState = {
   bookingType: null, // can be 'booking' or 'enquiry'

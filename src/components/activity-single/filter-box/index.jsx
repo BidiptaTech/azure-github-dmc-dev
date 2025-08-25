@@ -457,11 +457,11 @@ const Index = () => {
       <div className="col-12">
         <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">
           <div>
-            <h4 className="text-15 fw-500 ls-2 lh-16">Pick Up Time </h4>
+            {/* <h4 className="text-15 fw-500 ls-2 lh-16">Pick Up Time </h4> */}
             <Pickuptime entryytime={entryytime} setentryytime={setentryytime} />
           </div>
         </div>
-      </div>
+      </div>                             
 
       <div className="col-12">
         <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">
