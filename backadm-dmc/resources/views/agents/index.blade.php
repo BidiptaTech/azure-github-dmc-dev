@@ -66,6 +66,7 @@
               {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                   <th>Action</th>
               {{-- @endif --}}
+              <th>Created At</th>
             </tr>
           </thead>
           <tbody>
@@ -198,6 +199,7 @@
                   </div>
                 </td>
                 {{-- @endif --}}
+                <td>{{ $agent->created_at->format('d-m-Y') }}</td>
               </tr>
             @endforeach
           </tbody>

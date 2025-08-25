@@ -75,6 +75,7 @@
                              @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 75 || auth()->user()->role_id == 45 || auth()->user()->role_id ==100 || auth()->user()->role_id == 102 || hasPermission('edit guide') || hasPermission('delete guide'))
                             <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -216,6 +217,7 @@
                                             </td>
                                         @endif
                                     @endif
+                                    <td>{{ $guide->created_at->format('d-m-Y') }}</td>
                         </tr>
                         @endforeach
                     </tbody>

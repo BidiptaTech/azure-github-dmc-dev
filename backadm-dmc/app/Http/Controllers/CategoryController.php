@@ -23,7 +23,7 @@ class CategoryController extends Controller
         if (!hasPermission('view category')) {
             abort(403, 'You do not have permission to access this page.');
         }
-        $categories = Category::orderBy('id', 'desc')->get();
+        $categories = Category::orderBy('created_at', 'desc')->get();
         return view('category.index', compact('categories'));
     }
 

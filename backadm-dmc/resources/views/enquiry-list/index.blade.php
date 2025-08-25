@@ -61,6 +61,7 @@
                             <th class="text-center">Pax Info</th>
                             <th>Travel Dates</th>
                             <th>Create Tour</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody class="sortable">
@@ -199,7 +200,11 @@
                             </td>
                             <td>
                                 @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 10, 11, 25, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
-                                <button class="btn btn-primary btn-sm create-tour-btn"
+                                <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Create
+                                </a>
+                                <!-- <button class="btn btn-primary btn-sm create-tour-btn"
+
                                     data-enquiry-id="{{ $enquiry->enquiry_id }}"
                                     data-agent-id="{{ $enquiry->agent_id }}"
                                     data-destination="{{ $enquiry->country }}"
@@ -219,11 +224,12 @@
                                     data-restaurant-ids="{{ $enquiry->restaurant_ids }}"
                                     data-guide-ids="{{ $enquiry->guide_ids }}">
                                     <i class="fas fa-plus me-1"></i>Create
-                                </button>
+                                </button> -->
                                 @else
                                 <span>Not Authorized</span>
                                 @endif
                             </td>
+                            <td>{{ $enquiry->created_at->format('d-m-Y') }}</td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -990,67 +996,67 @@
             });
 
             // Handle Create Tour button click
-            $(document).on('click', '.create-tour-btn', function() {
-                var button = $(this);
-                var enquiryData = {
-                    enquiry_id: button.data('enquiry-id'),
-                    destination: button.data('destination'),
-                    city: button.data('city'),
-                    adult: button.data('adult'),
-                    child: button.data('child'),
-                    infant: button.data('infant'),
-                    male: button.data('male'),
-                    female: button.data('female'),
-                    check_in: button.data('check-in'),
-                    check_out: button.data('check-out'),
-                    children_ages: button.data('child-ages'),
-                    dmc_id: button.data('dmc-id'),
-                    hotel_ids: button.data('hotel-ids'),
-                    attraction_ids: button.data('attraction-ids'),
-                    restaurant_ids: button.data('restaurant-ids'),
-                    guide_ids: button.data('guide-ids')
-                };
+            // $(document).on('click', '.create-tour-btn', function() {
+            //     var button = $(this);
+            //     var enquiryData = {
+            //         enquiry_id: button.data('enquiry-id'),
+            //         destination: button.data('destination'),
+            //         city: button.data('city'),
+            //         adult: button.data('adult'),
+            //         child: button.data('child'),
+            //         infant: button.data('infant'),
+            //         male: button.data('male'),
+            //         female: button.data('female'),
+            //         check_in: button.data('check-in'),
+            //         check_out: button.data('check-out'),
+            //         children_ages: button.data('child-ages'),
+            //         dmc_id: button.data('dmc-id'),
+            //         hotel_ids: button.data('hotel-ids'),
+            //         attraction_ids: button.data('attraction-ids'),
+            //         restaurant_ids: button.data('restaurant-ids'),
+            //         guide_ids: button.data('guide-ids')
+            //     };
 
-                // Disable button and show loading
-                button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Creating...');
+            //     // Disable button and show loading
+            //     button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Creating...');
 
-                // Make AJAX call
-                $.ajax({
-                    url: '{{ route("create.tour") }}',
-                    type: 'POST',
-                    data: enquiryData,
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                        'agent-id': button.data('agent-id')
-                    },
-                    success: function(response) {
-                        // Show success message
-                        showToast('success', 'Tour created successfully!');
+            //     // Make AJAX call
+            //     $.ajax({
+            //         url: '{{ route("create.tour") }}',
+            //         type: 'POST',
+            //         data: enquiryData,
+            //         headers: {
+            //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            //             'agent-id': button.data('agent-id')
+            //         },
+            //         success: function(response) {
+            //             // Show success message
+            //             showToast('success', 'Tour created successfully!');
                         
-                        // Update button to show success
-                        button.removeClass('btn-primary').addClass('btn-success')
-                              .html('<i class="fas fa-check me-1"></i>Created')
-                              .prop('disabled', true);
+            //             // Update button to show success
+            //             button.removeClass('btn-primary').addClass('btn-success')
+            //                   .html('<i class="fas fa-check me-1"></i>Created')
+            //                   .prop('disabled', true);
                         
-                        // Refresh the page after a short delay to show the success message
-                        setTimeout(function() {
-                            location.reload();
-                        }, 500);
-                    },
-                    error: function(xhr, status, error) {
-                        // Re-enable button
-                        button.prop('disabled', false).html('<i class="fas fa-plus me-1"></i>Create');
+            //             // Refresh the page after a short delay to show the success message
+            //             setTimeout(function() {
+            //                 location.reload();
+            //             }, 500);
+            //         },
+            //         error: function(xhr, status, error) {
+            //             // Re-enable button
+            //             button.prop('disabled', false).html('<i class="fas fa-plus me-1"></i>Create');
                         
-                        // Show error message
-                        var errorMessage = 'Failed to create tour';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        showToast('error', 'Error', errorMessage);
-                        console.error('Error creating tour:', xhr.responseJSON);
-                    }
-                });
-            });
+            //             // Show error message
+            //             var errorMessage = 'Failed to create tour';
+            //             if (xhr.responseJSON && xhr.responseJSON.message) {
+            //                 errorMessage = xhr.responseJSON.message;
+            //             }
+            //             showToast('error', 'Error', errorMessage);
+            //             console.error('Error creating tour:', xhr.responseJSON);
+            //         }
+            //     });
+            // });
 
             // Toast notification function
             function showToast(type, title, message) {

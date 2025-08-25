@@ -65,6 +65,7 @@
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 93 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || hasPermission('edit attraction') || hasPermission('delete attraction'))
                                 <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -189,6 +190,7 @@
                                     </td>
                                 @endif
                             @endif
+                            <td>{{ $attraction->created_at->format('d-m-Y') }}</td>
                             </tr>
                         @endforeach
                     </tbody>

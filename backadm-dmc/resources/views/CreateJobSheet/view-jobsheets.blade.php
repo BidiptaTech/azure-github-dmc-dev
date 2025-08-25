@@ -217,6 +217,7 @@
                                 <th>Vehicle</th>
                                 <th>Guide</th>
                                 <th>Actions</th>
+                                <th>Created At</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -328,9 +329,10 @@ $(document).ready(function() {
                 name: 'actions',
                 orderable: false,
                 searchable: false
-            }
+            },
+            { data: 'created_at', name: 'created_at' }
         ],
-        order: [[2, 'desc']], // Default sort by date (descending)
+        order: [[11, 'desc']], // Default sort by date (descending)
         pageLength: 15, // Show more records per page
         dom: 'lfrtip', // Show length menu and processing
         lengthMenu: [[10, 15, 25, 50, -1], [10, 15, 25, 50, "All"]]
@@ -420,7 +422,6 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     const data = response.data;
-                    
                     // Populate modal with jobsheet details
                     $('#modal-jobsheet-id').text(data.jobsheet_id);
                     $('#modal-tour-id').text(data.tour_id);

@@ -331,6 +331,7 @@
                             <th>Confirmation Date</th>
                             {{-- <th>Status</th> --}}
                             <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -830,6 +831,7 @@
                                     @endif
                                 </div>
                             </td>
+                            <td>{{ $tour->created_at->format('d-m-Y') }}</td>
                         </tr>
                         
                         @empty

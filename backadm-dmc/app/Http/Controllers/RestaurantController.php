@@ -37,22 +37,22 @@ class RestaurantController extends Controller
             $dmc_ids = User::with('hotel')->where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
             $restaurants = Restaurant::whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
-                ->orderBy('restaurant_id', 'DESC')
+                ->orderBy('created_at', 'DESC')
                 ->get();
         } elseif ($user->role_id == 3) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->whereIn('status', [5, 1])->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('created_at', 'desc')->whereIn('status', [5, 1])->get();
         } elseif (in_array($user->role_id, [1, 2, 23])) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->whereIn('status', [1, 3])->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('created_at', 'desc')->whereIn('status', [1, 3])->get();
         }
         elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+            $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
                 $selectedDmcIds = $restaurant->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
         }
         elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+            $restaurants = Restaurant::with('hotel')->orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($user) {
                 return $restaurant->hasSelectedByDmc($user->userId);
             });
         }
@@ -72,14 +72,14 @@ class RestaurantController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+            $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
                 $selectedDmcIds = $restaurant->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
         } 
         
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+            $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($user) {
                 return $restaurant->hasSelectedByDmc($user->created_by);
             });
         }
@@ -88,7 +88,7 @@ class RestaurantController extends Controller
             $this_dmc_id = $user_product_head->created_by;
 
             if($this_dmc_id){
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
+                $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
                     return $restaurant->hasSelectedByDmc($this_dmc_id);
                 });
             }
@@ -99,7 +99,7 @@ class RestaurantController extends Controller
             $this_dmc_id = $user_product_head->created_by;
 
             if($this_dmc_id){
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
+                $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
                     return $restaurant->hasSelectedByDmc($this_dmc_id);
                 });
             }
