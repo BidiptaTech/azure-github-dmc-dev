@@ -76,10 +76,10 @@ class RestaurantController extends Controller
         });
 
         // Apply pagination after DMC filtering
-        if($start && $limit){
-            $restaurants = $filteredRestaurants->slice($start, $limit);
+        if ($start && $limit) {
+            $restaurants = $filteredRestaurants->slice($start, $limit)->values();
         } else {
-            $restaurants = $filteredRestaurants;
+            $restaurants = $filteredRestaurants->values();
         }
         
         if ($restaurants->isEmpty()) {

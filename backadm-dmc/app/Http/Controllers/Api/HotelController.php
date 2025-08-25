@@ -217,10 +217,10 @@ class HotelController extends Controller
         }
 
         // Convert to array and apply pagination
-        if($start && $limit){
+        if ($start && $limit) {
             $hotel_list = array_values(array_slice($hotelsByName, $start, $limit));
         } else {
-            $hotel_list = $hotelsByName;
+            $hotel_list = array_values($hotelsByName);
         }
 
         if (!empty($hotel_list)) {
