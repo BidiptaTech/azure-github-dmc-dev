@@ -135,6 +135,7 @@ class SingleTourPackageController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
+            $tour->dmc_id = Auth::user()->created_by;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->save();
 
