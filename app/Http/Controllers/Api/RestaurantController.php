@@ -76,7 +76,11 @@ class RestaurantController extends Controller
         });
 
         // Apply pagination after DMC filtering
-        $restaurants = $filteredRestaurants->slice($start, $limit);
+        if ($start && $limit) {
+            $restaurants = $filteredRestaurants->slice($start, $limit)->values();
+        } else {
+            $restaurants = $filteredRestaurants->values();
+        }
         
         if ($restaurants->isEmpty()) {
             return response()->json(['message' => 'No restaurants found for the selected city'], 404);

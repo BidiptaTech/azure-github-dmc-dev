@@ -217,7 +217,11 @@ class HotelController extends Controller
         }
 
         // Convert to array and apply pagination
-        $hotel_list = array_values(array_slice($hotelsByName, $start, $limit));
+        if ($start && $limit) {
+            $hotel_list = array_values(array_slice($hotelsByName, $start, $limit));
+        } else {
+            $hotel_list = array_values($hotelsByName);
+        }
 
         if (!empty($hotel_list)) {
             return response()->json($hotel_list);

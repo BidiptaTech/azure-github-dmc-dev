@@ -115,12 +115,12 @@
                     <label class="form-label">Cancellation Status</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="Pending">Cancel - Pending</option>
-                        <option value="On Hold">Cancel - On Hold</option>
+                        {{-- <option value="Pending">Cancel - Pending</option> --}}
+                        {{-- <option value="On Hold">Cancel - On Hold</option> --}}
                         <option value="Prospect">Cancel - Prospect</option>
                         <option value="Tentative">Cancel - Tentative</option>
                         <option value="New Enquiry">Cancel - New Enquiry</option>
-                        <option value="Definite">Cancel - Definite</option>
+                        {{-- <option value="Definite">Cancel - Definite</option> --}}
                     </select>
                 </div>
                 <div class="col-md-2">
