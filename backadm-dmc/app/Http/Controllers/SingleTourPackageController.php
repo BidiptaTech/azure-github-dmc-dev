@@ -1382,6 +1382,16 @@ class SingleTourPackageController extends Controller
                                 // Ensure guide has proper price field (use totalPrice from frontend calculation)
                                 $guide['price'] = $guide['totalPrice'] ?? 0;
                                 
+                                // Log guide pricing for debugging
+                                \Log::info("Guide pricing data:", [
+                                    'guide_name' => $guide['guide_name'] ?? 'Unknown',
+                                    'totalPrice' => $guide['totalPrice'] ?? 0,
+                                    'basePrice' => $guide['basePrice'] ?? 0,
+                                    'hours' => $guide['hours'] ?? 0,
+                                    'surcharge' => $guide['surcharge'] ?? 0,
+                                    'final_price' => $guide['price'] ?? 0
+                                ]);
+                                
                                 // Create separate order for each guide
                                 $lastBooking = Order::orderBy('booking_id', 'desc')->first();
                                 $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
