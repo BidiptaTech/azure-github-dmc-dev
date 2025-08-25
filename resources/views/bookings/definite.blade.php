@@ -3849,7 +3849,475 @@ function closeServiceModal(serviceType, tourId) {
             document.body.classList.remove('modal-open');
         }
     }
+}
+
+// Payment Form Functions
+function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
+    const exchangeRateSection = document.getElementById(`exchangeRateSection${tourId}`);
+    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
+    const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
+    const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
+    const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
+    
+    if (selectedCurrency && selectedCurrency !== 'SGD') {
+        exchangeRateSection.style.display = 'block';
+        exchangeRateCurrency.textContent = selectedCurrency;
+        currencySymbol.textContent = selectedCurrency;
+        conversionInfoContainer.style.display = 'block';
+        
+        // Fetch exchange rate (placeholder - replace with actual API call)
+        fetchExchangeRate(selectedCurrency, tourId);
+    } else {
+        exchangeRateSection.style.display = 'none';
+        exchangeRateInput.value = '1.00';
+        currencySymbol.textContent = 'SGD';
+        conversionInfoContainer.style.display = 'none';
     }
+}
+
+function fetchExchangeRate(currency, tourId) {
+    // Placeholder for exchange rate API call
+    console.log(`Fetching exchange rate for ${currency}`);
+    
+    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
+    const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+    
+    // Set default rates (replace with actual API call)
+    const defaultRates = {
+        'USD': 0.74,
+        'EUR': 0.69,
+        'GBP': 0.59,
+        'AUD': 1.09,
+        'JPY': 109.50,
+        'CNY': 5.12,
+        'INR': 61.75
+    };
+    
+    if (defaultRates[currency]) {
+        exchangeRateInput.value = defaultRates[currency];
+        rateSourceText.textContent = 'Default';
+    }
+}
+
+function recalculateFromExchangeRate(tourId) {
+    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value);
+    const sgdAmount = parseFloat(document.getElementById(`amount${tourId}`).value);
+    const paymentAmountInput = document.getElementById(`payment_amount${tourId}`);
+    
+    if (exchangeRate && sgdAmount) {
+        const convertedAmount = sgdAmount * exchangeRate;
+        paymentAmountInput.value = convertedAmount.toFixed(2);
+    }
+}
+
+function validatePaymentAmountInput(tourId) {
+    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value);
+    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
+    const maxSGDAmount = parseFloat(document.getElementById(`amount${tourId}`).value);
+    const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+    
+    const validationError = document.getElementById(`paymentValidationError${tourId}`);
+    const validationMessage = document.getElementById(`validationMessage${tourId}`);
+    const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
+    
+    if (!paymentAmount || paymentAmount <= 0) {
+        validationError.style.display = 'block';
+        validationMessage.textContent = 'Please enter a valid payment amount';
+        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
+        return;
+    }
+    
+    // Calculate equivalent SGD amount
+    const equivalentSGD = selectedCurrency === 'SGD' ? paymentAmount : (paymentAmount / exchangeRate);
+    
+    if (equivalentSGD > maxSGDAmount) {
+        validationError.style.display = 'block';
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} SGD)`;
+        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
+    } else {
+        validationError.style.display = 'none';
+        document.getElementById(`savePaymentBtn${tourId}`).disabled = false;
+    }
+    
+    // Update conversion info
+    if (selectedCurrency !== 'SGD') {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${equivalentSGD.toFixed(2)}`;
+    } else {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} SGD`;
+    }
+}
+
+function submitPaymentForm(tourId) {
+    const form = document.getElementById(`paymentForm${tourId}`);
+    const overlay = document.getElementById('paymentProcessingOverlay');
+    const modal = document.getElementById(`addPaymentModal${tourId}`);
+    
+    // More robust button selection - try multiple selectors
+    let submitBtn = document.getElementById(`savePaymentBtn${tourId}`);
+    if (!submitBtn) {
+        submitBtn = form.querySelector('button[onclick*="submitPaymentForm"]');
+    }
+    if (!submitBtn) {
+        submitBtn = form.querySelector('button[type="submit"]');
+    }
+    if (!submitBtn) {
+        submitBtn = form.querySelector('.btn-success');
+    }
+    
+    console.log('Submitting payment form for tour:', tourId);
+    console.log('Form action:', form.action);
+    console.log('Submit button found:', submitBtn);
+    
+    if (form.checkValidity()) {
+        // Disable submit button immediately to prevent multiple submissions
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        }
+        
+        // Close modal immediately to prevent multiple submissions
+        const modalInstance = bootstrap.Modal.getInstance(modal);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        
+        overlay.classList.add('active');
+        
+        // Use AJAX to submit the form for better user experience
+        const formData = new FormData(form);
+        
+        // Log form data for debugging
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
+        
+        $.ajax({
+            url: form.action,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                overlay.classList.remove('active');
+                
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message || 'Payment has been recorded and is pending verification.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Close the modal and reload the page
+                        $(`#addPaymentModal${tourId}`).modal('hide');
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Failed to submit payment.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                overlay.classList.remove('active');
+                
+                // Re-enable submit button
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
+                }
+                
+                // Reopen modal if error occurs
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+                
+                console.error('Error submitting payment:', error);
+                
+                let errorMessage = 'An error occurred while submitting the payment.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    // Handle validation errors
+                    const errors = Object.values(xhr.responseJSON.errors).flat();
+                    errorMessage = errors.join(', ');
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    } else {
+        // Reset button if validation fails
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
+        }
+        form.reportValidity();
+    }
+}
+
+// Payment verification functions
+function verifyPayment(tourId, paymentIndex) {
+    if (confirm('Are you sure you want to verify this payment?')) {
+        // Close the modal immediately when user confirms
+        closePaymentModal(tourId);
+        
+        // Show loading overlay
+        const overlay = document.getElementById('paymentProcessingOverlay');
+        if (overlay) {
+            overlay.classList.add('active');
+        }
+        
+        // Use jQuery AJAX with proper CSRF token handling and absolute URL
+        $.ajax({
+            url: `${BASE_URL}/tour/${tourId}/verify-payment`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                payment_index: paymentIndex
+            },
+            success: function(response) {
+                // Hide loading overlay
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                
+                if (response.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Payment has been verified successfully.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Reload the page after user clicks OK
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Failed to verify payment.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Hide loading overlay
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                
+                console.error('Error verifying payment:', error);
+                
+                let errorMessage = 'An error occurred while verifying the payment.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+}
+
+function declinePayment(tourId, paymentIndex) {
+    if (confirm('Are you sure you want to decline this payment?')) {
+        // Close the modal immediately when user confirms
+        closePaymentModal(tourId);
+        
+        // Show loading overlay
+        const overlay = document.getElementById('paymentProcessingOverlay');
+        if (overlay) {
+            overlay.classList.add('active');
+        }
+        
+        // Use jQuery AJAX with proper CSRF token handling and absolute URL
+        $.ajax({
+            url: `${BASE_URL}/tour/${tourId}/decline-payment`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                payment_index: paymentIndex
+            },
+            success: function(response) {
+                // Hide loading overlay
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                
+                if (response.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Payment has been declined successfully.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Reload the page after user clicks OK
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Failed to decline payment.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Hide loading overlay
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+                
+                console.error('Error declining payment:', error);
+                
+                let errorMessage = 'An error occurred while declining the payment.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+}
+
+// Helper function to close payment modal
+function closePaymentModal(tourId) {
+    console.log('Closing payment modal for tour:', tourId);
+    
+    // Method 1: Try to find the specific modal
+    const modal = document.getElementById(`showPaymentModal${tourId}`);
+    console.log('Modal element found:', modal);
+    
+    if (modal) {
+        // Method 1a: Bootstrap Modal instance
+        try {
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            console.log('Bootstrap modal instance:', modalInstance);
+            if (modalInstance) {
+                modalInstance.hide();
+                console.log('Bootstrap modal hide called');
+            }
+        } catch (e) {
+            console.log('Bootstrap method failed:', e);
+        }
+        
+        // Method 1b: jQuery modal hide
+        try {
+            if (typeof $ !== 'undefined') {
+                $(`#showPaymentModal${tourId}`).modal('hide');
+                console.log('jQuery modal hide called');
+            }
+        } catch (e) {
+            console.log('jQuery method failed:', e);
+        }
+        
+        // Method 1c: Force hide using CSS
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        console.log('CSS modal hide applied');
+    }
+    
+    // Method 2: Close any open modal as fallback
+    try {
+        const allOpenModals = document.querySelectorAll('.modal.show');
+        console.log('Found open modals:', allOpenModals.length);
+        
+        allOpenModals.forEach(openModal => {
+            try {
+                const instance = bootstrap.Modal.getInstance(openModal);
+                if (instance) {
+                    instance.hide();
+                    console.log('Closed modal:', openModal.id);
+                }
+            } catch (e) {
+                console.log('Error closing modal instance:', e);
+            }
+        });
+    } catch (e) {
+        console.log('Fallback method failed:', e);
+    }
+    
+    // Method 3: Remove backdrop and reset body
+    try {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        console.log('Backdrop and body reset');
+    } catch (e) {
+        console.log('Backdrop reset failed:', e);
+    }
+}
+
+// Define base URL using Laravel's URL helper
+const BASE_URL = "{{ url('/') }}";
+
+// Add event listeners to reset forms when modals are closed
+document.addEventListener('DOMContentLoaded', function() {
+    // Reset payment forms when modals are hidden
+    const paymentModals = document.querySelectorAll('[id^="addPaymentModal"]');
+    paymentModals.forEach(modal => {
+        modal.addEventListener('hidden.bs.modal', function() {
+            const tourId = this.id.replace('addPaymentModal', '');
+            const form = document.getElementById(`paymentForm${tourId}`);
+            
+            // More robust button selection
+            let submitBtn = document.getElementById(`savePaymentBtn${tourId}`);
+            if (!submitBtn) {
+                submitBtn = form.querySelector('button[onclick*="submitPaymentForm"]');
+            }
+            if (!submitBtn) {
+                submitBtn = form.querySelector('button[type="submit"]');
+            }
+            if (!submitBtn) {
+                submitBtn = form.querySelector('.btn-success');
+            }
+            
+            // Reset form
+            form.reset();
+            
+            // Reset submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
+            }
+            
+            // Reset currency selection to SGD
+            const currencySelect = form.querySelector('select[name="currency"]');
+            if (currencySelect) {
+                currencySelect.value = 'SGD';
+                updatePaymentAmountEnhanced(tourId, 'SGD');
+            }
+        });
+    });
+});
 </script>
 
 @endsection
