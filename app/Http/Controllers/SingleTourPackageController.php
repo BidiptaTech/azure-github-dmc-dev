@@ -50,14 +50,33 @@ class SingleTourPackageController extends Controller
     public function create($enquiry_id = null)
     {
         // Get countries for dropdown
+        $user = Auth::user();
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }
+        elseif(in_array($user->role_id, [33,34, 128, 129, 130,131,132, 134, 135, 136,137, 138])){
+            $dmc_id = $user->created_by;
+        }
+        elseif(in_array($user->role_id, [37,64,65,66,67,68])){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        elseif(in_array($user->role_id, [38,81,90,108,117,124,125,126,127])){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        
         
         
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         
         // Get agents for the current DMC
-        $agents = Agent::Where('sales_manager_dmc', Auth::id())
+        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
             ->orderBy('name')
             ->get();
+        
 
         $enquiry = null;
         $hotels = collect();
