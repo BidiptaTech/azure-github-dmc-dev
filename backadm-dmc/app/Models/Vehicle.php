@@ -26,5 +26,9 @@ class Vehicle extends Model
     {
         return $this->belongsTo(Driver::class, 'driver_id', 'driver_id');
     }
+    public function dmc()
+    {
+        return $this->belongsTo(User::class, 'dmc_id', 'userId');
+    }
 
 }

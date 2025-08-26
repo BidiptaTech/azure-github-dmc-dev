@@ -56,6 +56,7 @@
                             <th>Senior Price</th>
                             <th>Status</th>
                             <th>Actions</th>
+                            <th>Created Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -115,6 +116,12 @@
                                         Route: {{ route('packaged-attractions.destroy', Crypt::encrypt($attraction->package_attraction_id)) }}
                                         ID: {{ $attraction->package_attraction_id }}
                                     </small>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span>{{ $attraction->created_at->format('D,  M d, Y') }}</span>
+                                        <small class="text-muted">{{ $attraction->created_at->format('h:i A') }}</small>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

@@ -67,6 +67,7 @@
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || hasPermission('edit hotel') || hasPermission('delete hotel'))
                             @if(hasPermission('edit hotel') || hasPermission('delete hotel'))
                             <th>Action</th>
+                            <th>Created At</th>
                             @endif
                             @endif
                         </tr>
@@ -187,6 +188,12 @@
                                     </td>
                                 @endif
                             @endif
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $hotel->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $hotel->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>
