@@ -456,10 +456,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($guideData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($guideOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Guide {{ $globalGuideCounter }}
+                                                                    @if($guideOrder->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -531,10 +534,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Local-Tour Hourly {{ $globalTravelHourlyCounter }}
+                                                                    @if($order->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -553,10 +559,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Local-Tour Point to Point {{ $globalTravelPointCounter }}
+                                                                    @if($order->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -575,10 +584,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
-                                                                <span class="badge bg-light text-dark border me-1 mb-1" style="cursor: pointer;" 
+                                                                <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
                                                                       onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Local Transport {{ $globalLocalTransportCounter }}
+                                                                    @if($order->is_approve == 1)
+                                                                        <i class="ri-check-line ms-1"></i>
+                                                                    @endif
                                                                 </span>
                                                                 @php 
                                                                     $actualBookingIndex++; 
@@ -589,7 +601,18 @@
                                                     @endforeach
                                                 @endif
                                             @elseif(in_array($key, ['entry_port', 'exit_port']))
-                                                <span class="badge bg-light text-dark border" style="cursor: pointer;" 
+                                                @php
+                                                    $isServiceApproved = false;
+                                                    if(isset($serviceData[$key])) {
+                                                        foreach($serviceData[$key] as $serviceOrder) {
+                                                            if($serviceOrder->is_approve == 1) {
+                                                                $isServiceApproved = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
+                                                <span class="badge @if($isServiceApproved) bg-success text-white @else bg-light text-dark border @endif" style="cursor: pointer;" 
                                                       onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
                                                       data-debug-info="{{ json_encode($debugInfo) }}">
                                                     <i class="{{ $icons[$key] }} me-1"></i>
@@ -599,6 +622,9 @@
                                                         Departure {{ $count }}
                                                     @else
                                                         {{ ucfirst($key) }}: {{ $count }}
+                                                    @endif
+                                                    @if($isServiceApproved)
+                                                        <i class="ri-check-line ms-1"></i>
                                                     @endif
                                                 </span>
                                             @else
@@ -2535,6 +2561,55 @@
                                                 </div>
                                             </div>
                                         @endif
+
+                                        <!-- Booking Actions -->
+                                        <div class="bg-white rounded p-3 shadow-sm">
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                                    <i class="ri-settings-line text-white"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                                            </div>
+                                            @if($guideOrder->is_approve == 1)
+                                                 <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                                     <i class="ri-check-circle-fill me-1"></i>
+                                                     <small><strong>Approved Booking</strong></small>
+                                                     @if($guideOrder->reference_id)
+                                                         <br><small class="text-muted">Ref: {{ $guideOrder->reference_id }}</small>
+                                                     @endif
+                                                     @if($guideOrder->display_due_date)
+                                                         <br><small class="text-muted">Due: {{ $guideOrder->display_due_date }}</small>
+                                                     @endif
+                                                 </div>
+                                             @else
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                 <div class="d-flex gap-2">
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                     <button type="button" 
+                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                                             onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             style="border-radius: 25px;">
+                                                         <i class="ri-edit-line me-1"></i>Edit
+                                                     </button>
+                                                     <button type="button" 
+                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
+                                                             onclick="approveIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             style="border-radius: 25px;">
+                                                         <i class="ri-check-line me-1"></i>Approve
+                                                     </button>
+                                                     @endif
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                     <button type="button" 
+                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                                             onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             style="border-radius: 25px;">
+                                                         <i class="ri-close-line me-1"></i>Reject
+                                                     </button>
+                                                     @endif
+                                                 </div>
+                                                 @endif
+                                             @endif
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach
@@ -2816,7 +2891,7 @@
                                             </div>
                                         @endif
 
-                                        <!-- Action Buttons -->
+                                        <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="d-flex align-items-center">
@@ -2825,6 +2900,18 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
+                                                @if($entryOrder->is_approve == 1)
+                                                    <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                                        <i class="ri-check-circle-fill me-1"></i>
+                                                        <small><strong>Approved Booking</strong></small>
+                                                        @if($entryOrder->reference_id)
+                                                            <br><small class="text-muted">Ref: {{ $entryOrder->reference_id }}</small>
+                                                        @endif
+                                                        @if($entryOrder->display_due_date)
+                                                            <br><small class="text-muted">Due: {{ \Carbon\Carbon::parse($entryOrder->display_due_date)->format('d-m-Y') }}</small>
+                                                        @endif
+                                                    </div>
+                                                @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                                                 <div class="d-flex gap-2">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -2850,6 +2937,7 @@
                                                     </button>
                                                     @endif
                                                 </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -3123,7 +3211,7 @@
                                             </div>
                                         @endif
 
-                                        <!-- Action Buttons -->
+                                        <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="d-flex align-items-center">
@@ -3132,6 +3220,18 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
+                                                @if($exitOrder->is_approve == 1)
+                                                    <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                                        <i class="ri-check-circle-fill me-1"></i>
+                                                        <small><strong>Approved Booking</strong></small>
+                                                        @if($exitOrder->reference_id)
+                                                            <br><small class="text-muted">Ref: {{ $exitOrder->reference_id }}</small>
+                                                        @endif
+                                                        @if($exitOrder->display_due_date)
+                                                            <br><small class="text-muted">Due: {{ \Carbon\Carbon::parse($exitOrder->display_due_date)->format('d-m-Y') }}</small>
+                                                        @endif
+                                                    </div>
+                                                @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                                                 <div class="d-flex gap-2">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -3157,6 +3257,7 @@
                                                     </button>
                                                     @endif
                                                 </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -3798,7 +3899,7 @@
                                 </div>
                                 @endif
 
-                                        <!-- Action Buttons -->
+                                        <!-- Action Buttons / Approval Status -->
                                         <div class="bg-white rounded p-3 shadow-sm mt-4">
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="d-flex align-items-center">
@@ -3807,6 +3908,18 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
+                                                @if($hourlyOrder->is_approve == 1)
+                                                    <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                                        <i class="ri-check-circle-fill me-1"></i>
+                                                        <small><strong>Approved Booking</strong></small>
+                                                        @if($hourlyOrder->reference_id)
+                                                            <br><small class="text-muted">Ref: {{ $hourlyOrder->reference_id }}</small>
+                                                        @endif
+                                                        @if($hourlyOrder->display_due_date)
+                                                            <br><small class="text-muted">Due: {{ \Carbon\Carbon::parse($hourlyOrder->display_due_date)->format('d-m-Y') }}</small>
+                                                        @endif
+                                                    </div>
+                                                @else
                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                                                 <div class="d-flex gap-2">
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -3832,6 +3945,7 @@
                                                     </button>
                                                     @endif
                                                 </div>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -4912,6 +5026,10 @@ function loadIndividualGuideContent(tourId, guideOrderIndex, bookingIndex, modal
                 bookingType: data.data.booking_type,
                 Mode: data.data.mode,
                 dmc_id: data.data.dmc_id,
+                // Approval status fields
+                is_approve: data.data.is_approve || 0,
+                reference_id: data.data.reference_id || null,
+                display_due_date: data.data.display_due_date || null,
                 // Additional guide-specific fields
                 duration: data.data.hours ? `${data.data.hours} Hours` : 'Full Day',
                 language: 'English', // Default, could be from backend
@@ -5118,9 +5236,46 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                     </div>
                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                 </div>
-                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                ${generateGuideActionButtons(guideBooking, tourId, guideOrderIndex, bookingIndex)}
+            </div>
+        </div>
+    `;
+    
+    document.getElementById(`individualGuideContent_${modalId}`).innerHTML = contentHTML;
+}
+
+function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingIndex) {
+    const isApproved = booking.guide_details?.is_approve || booking.is_approve || false;
+    
+    // Get user role from meta tag or global variable (assuming it's available)
+    const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
+    
+    console.log('👨‍💼 Generating guide action buttons:', {
+        isApproved,
+        userRole,
+        canEdit: [11, 34].includes(userRole),
+        canApprove: [11, 34].includes(userRole),
+        canReject: [11, 34, 33].includes(userRole)
+    });
+    
+    if (isApproved) {
+        return `
+            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                <i class="ri-check-circle-fill me-1"></i>
+                <small><strong>Approved Booking</strong></small>
+                ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+            </div>
+        `;
+    }
+    
+    if (![11, 34, 33].includes(userRole)) {
+        return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
+    }
+    
+    return `
                 <div class="d-flex gap-2">
-                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+            ${[11, 34].includes(userRole) ? `
                     <button type="button" 
                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                             onclick="editIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
@@ -5133,47 +5288,1315 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                             style="border-radius: 25px;">
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
-                    @endif
-                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+            ` : ''}
+            ${[11, 34, 33].includes(userRole) ? `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                             onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
                             style="border-radius: 25px;">
                         <i class="ri-close-line me-1"></i>Reject
                     </button>
-                    @endif
-                </div>
-                @endif
-            </div>
+            ` : ''}
         </div>
     `;
-    
-    document.getElementById(`individualGuideContent_${modalId}`).innerHTML = contentHTML;
 }
 
-function editIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
+// Make guide functions globally accessible
+window.editIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) {
     console.log('Editing individual guide:', { tourId, guideOrderIndex, bookingIndex });
     
     // Create and show the guide edit modal
     createAndShowGuideEditModal(tourId, guideOrderIndex, bookingIndex);
 }
 
-function approveIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
-    console.log('Approving individual guide:', { tourId, guideOrderIndex, bookingIndex });
-    if (confirm('Are you sure you want to approve this guide booking?')) {
-        alert('Guide booking approved successfully!');
-        // Here you would make an API call to approve the guide
+// Make guide approve function globally accessible
+window.approveIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 GUIDE APPROVE: Opening approval modal', { tourId, guideOrderIndex, bookingIndex });
+    createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex);
+}
+
+// Make guide reject function globally accessible
+window.rejectIndividualGuide = function(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 GUIDE REJECT: Opening rejection modal', { tourId, guideOrderIndex, bookingIndex });
+    createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex);
+}
+
+function createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex) {
+    const modalId = `guideRejectionModal_${tourId}_${guideOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-user-voice-line text-danger fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">Reject Guide Booking</h5>
+                                <p class="text-white-50 mb-0 small">Guide Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeGuideRejectionModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        <form id="guideRejectionForm_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                            <input type="hidden" name="tour_id" value="${tourId}">
+                            <input type="hidden" name="guide_order_index" value="${guideOrderIndex}">
+                            <input type="hidden" name="booking_index" value="${bookingIndex}">
+                            
+                            <!-- Guide Information -->
+                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                                <div class="card-header bg-light border-0 py-3">
+                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        <i class="ri-user-voice-line me-2 text-primary"></i>Guide Information
+                                    </h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <div id="reject_guide_image_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                                                <div class="bg-light rounded-circle p-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-muted fs-2"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <h6 class="fw-bold mb-1" id="reject_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}">Professional Guide</h6>
+                                            <p class="text-muted mb-0 small">Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                                    <div>
+                                        <strong class="text-danger">Confirm Rejection</strong>
+                                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this guide booking.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="cancelReason_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${guideOrderIndex}_${bookingIndex}" name="cancel_reason" required 
+                                          rows="4" placeholder="Please provide a detailed reason for rejecting this guide booking..."
+                                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeGuideRejectionModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 py-2" onclick="confirmGuideRejection(${tourId}, ${guideOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Confirm Rejection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load guide data for the modal
+    loadGuideDataForReject(tourId, guideOrderIndex, bookingIndex);
+}
+
+function closeGuideRejectionModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            document.getElementById(modalId).remove();
+        }, 300);
     }
 }
 
-function rejectIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
-    console.log('Rejecting individual guide:', { tourId, guideOrderIndex, bookingIndex });
-    const reason = prompt('Please provide a reason for rejection:');
-    if (reason !== null && reason.trim() !== '') {
-        alert('Guide booking rejected successfully!');
-        // Here you would make an API call to reject the guide
+function loadGuideDataForReject(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 GUIDE REJECT: Loading guide data for reject modal', { tourId, guideOrderIndex, bookingIndex });
+    
+    // Fetch guide data from server
+    fetch('{{ url("/booking/get-guide-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            guide_order_index: guideOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('👨‍💼 GUIDE REJECT: Received guide data', data);
+        
+        if (data.success) {
+            const guideData = data.data;
+            
+            // Update guide name in reject modal
+            const nameElement = document.getElementById(`reject_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const guideName = guideData.guide_name || 'Professional Guide';
+            
+            if (nameElement) {
+                nameElement.textContent = guideName;
+                console.log('✅ GUIDE REJECT: Updated reject modal name:', guideName);
+            }
+            
+            // Update guide image in reject modal
+            const imageContainer = document.getElementById(`reject_guide_image_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            
+            const guideImage = guideData.image;
+            const imageHTML = guideImage 
+                ? `<img src="${guideImage}" alt="${guideName}" class="rounded-circle border border-3 shadow" style="width: 80px; height: 80px; object-fit: cover;">`
+                : `<div class="bg-light rounded-circle p-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                     <i class="ri-user-voice-line text-muted fs-2"></i>
+                   </div>`;
+            
+            if (imageContainer) {
+                imageContainer.innerHTML = imageHTML;
+                console.log('✅ GUIDE REJECT: Updated reject modal image');
+            }
+            
+        } else {
+            console.error('👨‍💼 GUIDE REJECT: Failed to load guide data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('👨‍💼 GUIDE REJECT: Error loading guide data:', error);
+    });
+}
+
+function confirmGuideRejection(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 GUIDE REJECT: Confirming guide rejection');
+    
+    const form = document.getElementById(`guideRejectionForm_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/reject-guide-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('👨‍💼 GUIDE REJECT: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Guide booking rejected successfully!');
+            
+            // Close modal
+            const modalId = `guideRejectionModal_${tourId}_${guideOrderIndex}_${bookingIndex}`;
+            closeGuideRejectionModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to reject guide booking'));
+            console.error('👨‍💼 GUIDE REJECT: Rejection failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('👨‍💼 GUIDE REJECT: Network error', error);
+        alert('❌ Network error occurred while rejecting guide booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
+    const modalId = `guideApprovalModal_${tourId}_${guideOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-user-voice-line text-success fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">Approve Guide Booking</h5>
+                                <p class="text-white-50 mb-0 small">Guide Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeGuideApprovalModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        <form id="guideApprovalForm_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                            <input type="hidden" name="tour_id" value="${tourId}">
+                            <input type="hidden" name="guide_order_index" value="${guideOrderIndex}">
+                            <input type="hidden" name="booking_index" value="${bookingIndex}">
+                            
+                            <!-- Guide Information -->
+                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                                <div class="card-header bg-light border-0 py-3">
+                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        <i class="ri-user-voice-line me-2 text-primary"></i>Guide Information
+                                    </h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <div id="approve_guide_image_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                                                <div class="bg-light rounded-circle p-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-user-voice-line text-muted fs-2"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <h6 class="fw-bold mb-1" id="approve_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}">Professional Guide</h6>
+                                            <p class="text-muted mb-0 small">Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                                    <div>
+                                        <strong class="text-success">Confirm Approval</strong>
+                                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this guide booking?</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="referenceId_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${guideOrderIndex}_${bookingIndex}" name="reference_id" required 
+                                       placeholder="Enter booking reference or confirmation number"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="referenceFile_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                                </label>
+                                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${guideOrderIndex}_${bookingIndex}" name="reference_file"
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                                       onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">Select the actual due date for this booking</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
+                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                    <option value="">Select days before</option>
+                                    <option value="1">1 day before</option>
+                                    <option value="2">2 days before</option>
+                                    <option value="3">3 days before</option>
+                                    <option value="4">4 days before</option>
+                                    <option value="5">5 days before</option>
+                                    <option value="7">1 week before</option>
+                                    <option value="14">2 weeks before</option>
+                                </select>
+                                <div class="form-text">Select how many days before the actual due date to display</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="display_due_date" readonly 
+                                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">This will be calculated automatically based on your selection above</div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeGuideApprovalModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-success px-4 py-2" onclick="confirmGuideApproval(${tourId}, ${guideOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-check-line me-2"></i>Confirm Approval
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load guide data for the modal
+    loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex);
+}
+
+function closeGuideApprovalModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            document.getElementById(modalId).remove();
+        }, 300);
     }
 }
+
+function loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 GUIDE APPROVE: Loading guide data for approve modal', { tourId, guideOrderIndex, bookingIndex });
+    
+    // Fetch guide data from server
+    fetch('{{ url("/booking/get-guide-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            guide_order_index: guideOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('👨‍💼 GUIDE APPROVE: Received guide data', data);
+        
+        if (data.success) {
+            const guideData = data.data;
+            
+            // Update guide name in approve modal
+            const nameElement = document.getElementById(`approve_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const guideName = guideData.guide_name || 'Professional Guide';
+            
+            if (nameElement) {
+                nameElement.textContent = guideName;
+                console.log('✅ GUIDE APPROVE: Updated approve modal name:', guideName);
+            }
+            
+            // Update guide image in approve modal
+            const imageContainer = document.getElementById(`approve_guide_image_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            
+            const guideImage = guideData.image;
+            const imageHTML = guideImage 
+                ? `<img src="${guideImage}" alt="${guideName}" class="rounded-circle border border-3 shadow" style="width: 80px; height: 80px; object-fit: cover;">`
+                : `<div class="bg-light rounded-circle p-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                     <i class="ri-user-voice-line text-muted fs-2"></i>
+                   </div>`;
+            
+            if (imageContainer) {
+                imageContainer.innerHTML = imageHTML;
+                console.log('✅ GUIDE APPROVE: Updated approve modal image');
+            }
+            
+        } else {
+            console.error('👨‍💼 GUIDE APPROVE: Failed to load guide data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('👨‍💼 GUIDE APPROVE: Error loading guide data:', error);
+    });
+}
+
+window.calculateGuideDisplayDueDate = function(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 CALCULATE DATE: Calculating guide display due date');
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`).value;
+    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format as dd-mm-yyyy
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        
+        displayDueDateField.value = `${day}-${month}-${year}`;
+        console.log('✅ Guide display due date calculated:', `${day}-${month}-${year}`);
+    } else {
+        displayDueDateField.value = '';
+    }
+}
+
+function confirmGuideApproval(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 GUIDE APPROVE: Confirming guide approval');
+    
+    const form = document.getElementById(`guideApprovalForm_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/approve-guide-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('👨‍💼 GUIDE APPROVE: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Guide booking approved successfully!');
+            
+            // Close modal
+            const modalId = `guideApprovalModal_${tourId}_${guideOrderIndex}_${bookingIndex}`;
+            closeGuideApprovalModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to approve guide booking'));
+            console.error('👨‍💼 GUIDE APPROVE: Approval failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('👨‍💼 GUIDE APPROVE: Network error', error);
+        alert('❌ Network error occurred while approving guide booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+// Make hourly functions globally accessible
+window.approveTravelHourlyBooking = function(tourId, hourlyOrderIndex, bookingIndex) {
+    console.log('⏰ HOURLY APPROVE: Opening approval modal', { tourId, hourlyOrderIndex, bookingIndex });
+    createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex);
+}
+
+window.rejectTravelHourlyBooking = function(tourId, hourlyOrderIndex, bookingIndex) {
+    console.log('⏰ HOURLY REJECT: Opening rejection modal', { tourId, hourlyOrderIndex, bookingIndex });
+    createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex);
+}
+
+function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
+    const modalId = `hourlyApprovalModal_${tourId}_${hourlyOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-time-line text-success fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">Approve Hourly Booking</h5>
+                                <p class="text-white-50 mb-0 small">Hourly Order ${hourlyOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeHourlyApprovalModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        <form id="hourlyApprovalForm_${tourId}_${hourlyOrderIndex}_${bookingIndex}">
+                            <input type="hidden" name="tour_id" value="${tourId}">
+                            <input type="hidden" name="hourly_order_index" value="${hourlyOrderIndex}">
+                            <input type="hidden" name="booking_index" value="${bookingIndex}">
+                            
+                            <!-- Hourly Information -->
+                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                                <div class="card-header bg-light border-0 py-3">
+                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        <i class="ri-time-line me-2 text-primary"></i>Hourly Tour Information
+                                    </h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <div id="approve_hourly_image_${tourId}_${hourlyOrderIndex}_${bookingIndex}">
+                                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-time-line text-muted fs-2"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <h6 class="fw-bold mb-1" id="approve_hourly_name_${tourId}_${hourlyOrderIndex}_${bookingIndex}">Local-Tour Hourly</h6>
+                                            <p class="text-muted mb-0 small">Order ${hourlyOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                                    <div>
+                                        <strong class="text-success">Confirm Approval</strong>
+                                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this hourly tour booking?</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="referenceId_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="reference_id" required 
+                                       placeholder="Enter booking reference or confirmation number"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="referenceFile_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                                </label>
+                                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="reference_file"
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                                       onchange="calculateHourlyDisplayDueDate('${tourId}', '${hourlyOrderIndex}', '${bookingIndex}')"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">Select the actual due date for this booking</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="displayDueDateDays_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculateHourlyDisplayDueDate('${tourId}', '${hourlyOrderIndex}', '${bookingIndex}')"
+                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                    <option value="">Select days before</option>
+                                    <option value="1">1 day before</option>
+                                    <option value="2">2 days before</option>
+                                    <option value="3">3 days before</option>
+                                    <option value="4">4 days before</option>
+                                    <option value="5">5 days before</option>
+                                    <option value="7">1 week before</option>
+                                    <option value="14">2 weeks before</option>
+                                </select>
+                                <div class="form-text">Select how many days before the actual due date to display</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="displayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="display_due_date" readonly 
+                                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">This will be calculated automatically based on your selection above</div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeHourlyApprovalModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-success px-4 py-2" onclick="confirmHourlyApproval(${tourId}, ${hourlyOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-check-line me-2"></i>Confirm Approval
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load hourly data for the modal
+    loadHourlyDataForApprove(tourId, hourlyOrderIndex, bookingIndex);
+}
+
+function createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex) {
+    const modalId = `hourlyRejectionModal_${tourId}_${hourlyOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-time-line text-danger fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">Reject Hourly Booking</h5>
+                                <p class="text-white-50 mb-0 small">Hourly Order ${hourlyOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeHourlyRejectionModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        <form id="hourlyRejectionForm_${tourId}_${hourlyOrderIndex}_${bookingIndex}">
+                            <input type="hidden" name="tour_id" value="${tourId}">
+                            <input type="hidden" name="hourly_order_index" value="${hourlyOrderIndex}">
+                            <input type="hidden" name="booking_index" value="${bookingIndex}">
+                            
+                            <!-- Hourly Information -->
+                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                                <div class="card-header bg-light border-0 py-3">
+                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        <i class="ri-time-line me-2 text-primary"></i>Hourly Tour Information
+                                    </h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <div id="reject_hourly_image_${tourId}_${hourlyOrderIndex}_${bookingIndex}">
+                                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-time-line text-muted fs-2"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <h6 class="fw-bold mb-1" id="reject_hourly_name_${tourId}_${hourlyOrderIndex}_${bookingIndex}">Local-Tour Hourly</h6>
+                                            <p class="text-muted mb-0 small">Order ${hourlyOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                                    <div>
+                                        <strong class="text-danger">Confirm Rejection</strong>
+                                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this hourly tour booking.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="cancelReason_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="cancel_reason" required 
+                                          rows="4" placeholder="Please provide a detailed reason for rejecting this hourly tour booking..."
+                                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeHourlyRejectionModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 py-2" onclick="confirmHourlyRejection(${tourId}, ${hourlyOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Confirm Rejection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load hourly data for the modal
+    loadHourlyDataForReject(tourId, hourlyOrderIndex, bookingIndex);
+}
+
+function closeHourlyApprovalModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            document.getElementById(modalId).remove();
+        }, 300);
+    }
+}
+
+function closeHourlyRejectionModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            document.getElementById(modalId).remove();
+        }, 300);
+    }
+}
+
+function loadHourlyDataForApprove(tourId, hourlyOrderIndex, bookingIndex) {
+    console.log('⏰ HOURLY APPROVE: Loading hourly data for approve modal', { tourId, hourlyOrderIndex, bookingIndex });
+    
+    // Fetch hourly data from server
+    fetch('{{ url("/booking/get-travel-hourly-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_hourly_order_index: hourlyOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('⏰ HOURLY APPROVE: Received hourly data', data);
+        
+        if (data.success) {
+            const hourlyData = data.data;
+            
+            // Update hourly name in approve modal
+            const nameElement = document.getElementById(`approve_hourly_name_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+            const vehicleName = hourlyData.vehicles_name || 'Local-Tour Hourly';
+            
+            if (nameElement) {
+                nameElement.textContent = vehicleName;
+                console.log('✅ HOURLY APPROVE: Updated approve modal name:', vehicleName);
+            }
+            
+            // Update vehicle image in approve modal (if available)
+            const imageContainer = document.getElementById(`approve_hourly_image_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+            
+            let vehicleImage = null;
+            if (hourlyData.travel_hourly_details && hourlyData.travel_hourly_details.image) {
+                vehicleImage = hourlyData.travel_hourly_details.image;
+            }
+            
+            const imageHTML = vehicleImage 
+                ? `<img src="${vehicleImage}" alt="${vehicleName}" class="img-fluid rounded shadow-sm" style="width: 80px; height: 60px; object-fit: cover;">`
+                : `<div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                     <i class="ri-time-line text-muted fs-2"></i>
+                   </div>`;
+            
+            if (imageContainer) {
+                imageContainer.innerHTML = imageHTML;
+                console.log('✅ HOURLY APPROVE: Updated approve modal image');
+            }
+            
+        } else {
+            console.error('⏰ HOURLY APPROVE: Failed to load hourly data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('⏰ HOURLY APPROVE: Error loading hourly data:', error);
+    });
+}
+
+function loadHourlyDataForReject(tourId, hourlyOrderIndex, bookingIndex) {
+    console.log('⏰ HOURLY REJECT: Loading hourly data for reject modal', { tourId, hourlyOrderIndex, bookingIndex });
+    
+    // Fetch hourly data from server
+    fetch('{{ url("/booking/get-travel-hourly-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_hourly_order_index: hourlyOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('⏰ HOURLY REJECT: Received hourly data', data);
+        
+        if (data.success) {
+            const hourlyData = data.data;
+            
+            // Update hourly name in reject modal
+            const nameElement = document.getElementById(`reject_hourly_name_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+            const vehicleName = hourlyData.vehicles_name || 'Local-Tour Hourly';
+            
+            if (nameElement) {
+                nameElement.textContent = vehicleName;
+                console.log('✅ HOURLY REJECT: Updated reject modal name:', vehicleName);
+            }
+            
+            // Update vehicle image in reject modal (if available)
+            const imageContainer = document.getElementById(`reject_hourly_image_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+            
+            let vehicleImage = null;
+            if (hourlyData.travel_hourly_details && hourlyData.travel_hourly_details.image) {
+                vehicleImage = hourlyData.travel_hourly_details.image;
+            }
+            
+            const imageHTML = vehicleImage 
+                ? `<img src="${vehicleImage}" alt="${vehicleName}" class="img-fluid rounded shadow-sm" style="width: 80px; height: 60px; object-fit: cover;">`
+                : `<div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                     <i class="ri-time-line text-muted fs-2"></i>
+                   </div>`;
+            
+            if (imageContainer) {
+                imageContainer.innerHTML = imageHTML;
+                console.log('✅ HOURLY REJECT: Updated reject modal image');
+            }
+            
+        } else {
+            console.error('⏰ HOURLY REJECT: Failed to load hourly data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('⏰ HOURLY REJECT: Error loading hourly data:', error);
+    });
+}
+
+window.calculateHourlyDisplayDueDate = function(tourId, travelHourlyOrderIndex, bookingIndex) {
+    console.log('⏰ CALCULATE DATE: Calculating travel hourly display due date');
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`).value;
+    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateField = document.getElementById(`calculatedDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+    const hiddenDisplayDueDateField = document.getElementById(`hiddenDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format as dd-mm-yyyy for display
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        const formattedDate = `${day}-${month}-${year}`;
+        
+        // Update the visible field
+        displayDueDateField.value = formattedDate;
+        
+        // Update the hidden field for form submission
+        if (hiddenDisplayDueDateField) {
+            hiddenDisplayDueDateField.value = formattedDate;
+        }
+        
+        console.log('✅ Travel hourly display due date calculated:', formattedDate);
+    } else {
+        displayDueDateField.value = '';
+        if (hiddenDisplayDueDateField) {
+            hiddenDisplayDueDateField.value = '';
+        }
+    }
+}
+
+function confirmHourlyApproval(tourId, hourlyOrderIndex, bookingIndex) {
+    console.log('⏰ HOURLY APPROVE: Confirming hourly approval');
+    
+    // Try to find the form with the correct ID (the form uses travelHourlyOrderIndex)
+    let form = document.getElementById(`approveHourlyForm_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+    if (!form) {
+        form = document.getElementById(`hourlyApprovalForm_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+    }
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/approve-hourly-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('⏰ HOURLY APPROVE: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Travel Hourly booking approved successfully!');
+            
+            // Close modal
+            const modalId = `hourlyApprovalModal_${tourId}_${hourlyOrderIndex}_${bookingIndex}`;
+            closeHourlyApprovalModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to approve hourly booking'));
+            console.error('⏰ HOURLY APPROVE: Approval failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('⏰ HOURLY APPROVE: Network error', error);
+        alert('❌ Network error occurred while approving hourly booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+function confirmHourlyRejection(tourId, hourlyOrderIndex, bookingIndex) {
+    console.log('⏰ HOURLY REJECT: Confirming hourly rejection');
+    
+    // Try to find the form with the correct ID (the form uses travelHourlyOrderIndex)
+    let form = document.getElementById(`rejectHourlyForm_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+    if (!form) {
+        form = document.getElementById(`hourlyRejectionForm_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+    }
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/reject-hourly-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('⏰ HOURLY REJECT: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Hourly booking rejected successfully!');
+            
+            // Close modal
+            const modalId = `hourlyRejectionModal_${tourId}_${hourlyOrderIndex}_${bookingIndex}`;
+            closeHourlyRejectionModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to reject hourly booking'));
+            console.error('⏰ HOURLY REJECT: Rejection failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('⏰ HOURLY REJECT: Network error', error);
+        alert('❌ Network error occurred while rejecting hourly booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+// NEW FUNCTIONS: Individual Travel Hourly functions that match the modal calls
+function confirmIndividualTravelHourlyApproval(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Confirming approval', { tourId, travelHourlyOrderIndex, bookingIndex });
+        
+        const form = document.getElementById(`approveHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Form not found');
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+        
+        // Show loading state
+        const approveButton = event.target;
+        const originalText = approveButton.innerHTML;
+        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
+        approveButton.disabled = true;
+        
+        console.log('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Submitting form data:', Object.fromEntries(formData.entries()));
+        
+        // Submit to backend
+        fetch('{{ url("/booking/approve-hourly-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': formData.get('_token'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+            
+            if (data.success) {
+                console.log('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Booking approved successfully:', data);
+                const referenceId = formData.get('reference_id');
+                const displayDueDate = formData.get('display_due_date');
+                alert(`✅ Travel Hourly booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                
+                // Close modal and refresh page
+                const modalId = `travelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_approve`;
+                closeTravelHourlyModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Failed to approve booking:', data);
+                alert('❌ Failed to approve travel hourly booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+            
+            console.error('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Network error', error);
+            alert('❌ Error approving travel hourly booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('⏰ INDIVIDUAL TRAVEL HOURLY APPROVE: Error approving booking:', error);
+        alert('❌ Error approving booking. Please try again.');
+    }
+}
+
+function confirmIndividualTravelHourlyRejection(tourId, travelHourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Confirming rejection', { tourId, travelHourlyOrderIndex, bookingIndex });
+        
+        const form = document.getElementById(`rejectHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Form not found');
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+        
+        const cancelReason = formData.get('cancel_reason');
+        
+        if (!cancelReason || cancelReason.trim() === '') {
+            alert('Please provide a reason for rejection');
+            return;
+        }
+        
+        // Show loading state
+        const rejectButton = event.target;
+        const originalText = rejectButton.innerHTML;
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.disabled = true;
+        
+        console.log('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
+        
+        // Submit to backend
+        fetch('{{ url("/booking/reject-hourly-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': formData.get('_token'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
+            
+            if (data.success) {
+                console.log('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Booking rejected successfully:', data);
+                alert(`✅ Travel Hourly booking rejected successfully!\nReason: ${cancelReason}`);
+                
+                // Close modal and refresh page
+                const modalId = `travelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_reject`;
+                closeTravelHourlyModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Failed to reject booking:', data);
+                alert('❌ Failed to reject travel hourly booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
+            
+            console.error('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Network error', error);
+            alert('❌ Error rejecting travel hourly booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Error rejecting booking:', error);
+        alert('❌ Error rejecting booking. Please try again.');
+    }
+}
+
+// Close Travel Hourly Modal Function
+function closeTravelHourlyModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                modalElement.remove();
+            }
+        }, 300);
+    }
+}
+
+// Calculate Display Due Date for Travel Hourly Service
+window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookingIndex) {
+    try {
+        console.log('⏰ CALCULATE: Calculating display due date for travel hourly', { tourId, hourlyOrderIndex, bookingIndex });
+        
+        // Target the correct form structure with hourlyOrderIndex
+        const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        const displayDueDateDaysSelect = document.getElementById(`displayDueDateDays_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        const displayDueDateInput = document.getElementById(`displayDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}`);
+        
+        if (!actualDueDateInput || !displayDueDateDaysSelect || !displayDueDateInput) {
+            console.error('⏰ CALCULATE: Required form elements not found', {
+                actualDueDateInput: !!actualDueDateInput,
+                displayDueDateDaysSelect: !!displayDueDateDaysSelect,
+                displayDueDateInput: !!displayDueDateInput
+            });
+            return;
+        }
+        
+        const actualDueDate = actualDueDateInput.value;
+        const daysBefore = displayDueDateDaysSelect.value;
+        
+        if (!actualDueDate || !daysBefore) {
+            console.log('⏰ CALCULATE: Missing actual date or days before value');
+            displayDueDateInput.value = '';
+            return;
+        }
+        
+        // Calculate display due date by subtracting days from actual due date
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format for display (DD-MM-YYYY)
+        const displayFormatted = displayDate.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        // Update display field
+        displayDueDateInput.value = displayFormatted;
+        
+        console.log('⏰ CALCULATE: Display due date calculated', {
+            actualDate: actualDueDate,
+            daysBefore: daysBefore,
+            displayFormatted: displayFormatted
+        });
+        
+    } catch (error) {
+        console.error('⏰ CALCULATE: Error calculating display due date:', error);
+    }
+};
 
 // Guide Edit Modal Functions
 function createAndShowGuideEditModal(tourId, guideOrderIndex, bookingIndex) {
@@ -6265,6 +7688,30 @@ window.calculateRestaurantDisplayDueDate = function(tourId, restaurantOrderIndex
         const year = displayDate.getFullYear();
         
         displayDueDateField.value = `${day}-${month}-${year}`;
+    } else {
+        displayDueDateField.value = '';
+    }
+}
+
+// Guide date calculation function (similar to restaurant)
+window.calculateGuideDisplayDueDate = function(tourId, guideOrderIndex, bookingIndex) {
+    console.log('👨‍💼 CALCULATE DATE: Calculating guide display due date');
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`).value;
+    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}`).value;
+    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format as dd-mm-yyyy
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        
+        displayDueDateField.value = `${day}-${month}-${year}`;
+        console.log('✅ Guide display due date calculated:', `${day}-${month}-${year}`);
     } else {
         displayDueDateField.value = '';
     }
@@ -7891,21 +9338,906 @@ function editArrivalBooking(tourId, arrivalOrderIndex, arrivalBookingIndex) {
     createAndShowArrivalEditModal(tourId, arrivalOrderIndex, arrivalBookingIndex);
 }
 
-function approveArrivalBooking(tourId, arrivalOrderIndex, arrivalBookingIndex) {
-    console.log('Approve arrival booking:', { tourId, arrivalOrderIndex, arrivalBookingIndex });
-    if (confirm(`Are you sure you want to approve this arrival booking?`)) {
-        alert(`Arrival booking approved successfully!`);
-        // Here you would make an API call to approve the arrival
+// Make arrival functions globally accessible
+window.approveArrivalBooking = function(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    console.log('🚗 ARRIVAL APPROVE: Opening approval modal', { tourId, arrivalOrderIndex, arrivalBookingIndex });
+    createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, 'approve');
+}
+
+window.rejectArrivalBooking = function(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    console.log('🚗 ARRIVAL REJECT: Opening rejection modal', { tourId, arrivalOrderIndex, arrivalBookingIndex });
+    createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, 'reject');
+}
+
+function createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingIndex, action) {
+    const modalId = `arrivalApprovalModal_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}_${action}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+    
+    switch(action) {
+        case 'approve':
+            modalTitle = 'Approve Arrival Booking';
+            modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            buttonClass = 'btn-success';
+            buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+            onSubmit = `confirmArrivalApproval(${tourId}, ${arrivalOrderIndex}, ${arrivalBookingIndex})`;
+            modalContent = generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingIndex);
+            break;
+            
+        case 'reject':
+            modalTitle = 'Reject Arrival Booking';
+            modalColor = 'linear-gradient(135deg, #dc3545 0%, #e74c3c 100%)';
+            buttonClass = 'btn-danger';
+            buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+            onSubmit = `confirmArrivalRejection(${tourId}, ${arrivalOrderIndex}, ${arrivalBookingIndex})`;
+            modalContent = generateRejectArrivalForm(tourId, arrivalOrderIndex, arrivalBookingIndex);
+            break;
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: ${modalColor};">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-flight-land-line text-primary fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">${modalTitle}</h5>
+                                <p class="text-white-50 mb-0 small">Arrival Order ${arrivalOrderIndex + 1}, Booking ${arrivalBookingIndex + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeArrivalApprovalModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        ${modalContent}
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeArrivalApprovalModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                            ${buttonText}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load arrival data for the modal
+    loadArrivalDataForApprove(tourId, arrivalOrderIndex, arrivalBookingIndex);
+}
+
+function closeArrivalApprovalModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            document.getElementById(modalId).remove();
+        }, 300);
     }
 }
 
-function rejectArrivalBooking(tourId, arrivalOrderIndex, arrivalBookingIndex) {
-    console.log('Reject arrival booking:', { tourId, arrivalOrderIndex, arrivalBookingIndex });
-    const reason = prompt(`Please provide a reason for rejecting this arrival booking:`);
-    if (reason) {
-        alert(`Arrival booking rejected successfully!\nReason: ${reason}`);
-        // Here you would make an API call to reject the arrival
+function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    return `
+        <form id="approveArrivalForm_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="arrival_order_index" value="${arrivalOrderIndex}">
+            <input type="hidden" name="booking_index" value="${arrivalBookingIndex}">
+            
+            <!-- Arrival Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-flight-land-line me-2 text-primary"></i>Arrival Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_arrival_image_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-flight-land-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="approve_arrival_name_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}">Arrival Transfer</h6>
+                            <p class="text-muted mb-0 small">Order ${arrivalOrderIndex + 1}, Booking ${arrivalBookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                    <div>
+                        <strong class="text-success">Confirm Approval</strong>
+                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this arrival booking?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceId_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="reference_id" required 
+                       placeholder="Enter booking reference or confirmation number"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceFile_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                </label>
+                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="reference_file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="actual_due_date" required 
+                       onchange="calculateArrivalDisplayDueDate('${tourId}', '${arrivalOrderIndex}', '${arrivalBookingIndex}')"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Select the actual due date for this booking</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDateDays_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                </label>
+                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="display_due_date_days" required onchange="calculateArrivalDisplayDueDate('${tourId}', '${arrivalOrderIndex}', '${arrivalBookingIndex}')"
+                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                    <option value="">Select days before</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="4">4 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <div class="form-text">Select how many days before the actual due date to display</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                </label>
+                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="display_due_date" readonly 
+                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">This will be calculated automatically based on your selection above</div>
+            </div>
+        </form>
+    `;
+}
+
+function generateRejectArrivalForm(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    return `
+        <form id="rejectArrivalForm_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="arrival_order_index" value="${arrivalOrderIndex}">
+            <input type="hidden" name="booking_index" value="${arrivalBookingIndex}">
+            
+            <!-- Arrival Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-flight-land-line me-2 text-primary"></i>Arrival Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="reject_arrival_image_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-flight-land-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="reject_arrival_name_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}">Arrival Transfer</h6>
+                            <p class="text-muted mb-0 small">Order ${arrivalOrderIndex + 1}, Booking ${arrivalBookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                    <div>
+                        <strong class="text-danger">Confirm Rejection</strong>
+                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this arrival booking.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="cancelReason_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                </label>
+                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="cancel_reason" required 
+                          rows="4" placeholder="Please provide a detailed reason for rejecting this arrival booking..."
+                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+            </div>
+        </form>
+    `;
+}
+
+function loadArrivalDataForApprove(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    console.log('🚗 ARRIVAL DATA: Loading arrival data for approve modal', { tourId, arrivalOrderIndex, arrivalBookingIndex });
+    
+    // Fetch arrival data from server
+    fetch('{{ url("/booking/get-arrival-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            arrival_order_index: arrivalOrderIndex,
+            booking_index: arrivalBookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🚗 ARRIVAL DATA: Received arrival data', data);
+        
+        if (data.success) {
+            const arrivalData = data.data;
+            
+            // Update arrival name in both approve and reject modals
+            const approveNameElement = document.getElementById(`approve_arrival_name_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+            const rejectNameElement = document.getElementById(`reject_arrival_name_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+            
+            const vehicleName = arrivalData.vehicle_name || 'Arrival Transfer';
+            
+            if (approveNameElement) {
+                approveNameElement.textContent = vehicleName;
+                console.log('✅ ARRIVAL DATA: Updated approve modal name:', vehicleName);
+            }
+            
+            if (rejectNameElement) {
+                rejectNameElement.textContent = vehicleName;
+                console.log('✅ ARRIVAL DATA: Updated reject modal name:', vehicleName);
+            }
+            
+            // Update vehicle images if available
+            const approveImageContainer = document.getElementById(`approve_arrival_image_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+            const rejectImageContainer = document.getElementById(`reject_arrival_image_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+            
+            // Check for vehicle image in arrival_details
+            let vehicleImage = null;
+            if (arrivalData.arrival_details && arrivalData.arrival_details.vehicles_image) {
+                vehicleImage = arrivalData.arrival_details.vehicles_image;
+            } else if (arrivalData.arrival_details && arrivalData.arrival_details.image) {
+                vehicleImage = arrivalData.arrival_details.image;
+            }
+            
+            const imageHTML = vehicleImage 
+                ? `<img src="${vehicleImage}" alt="${vehicleName}" class="img-fluid rounded shadow-sm" style="width: 80px; height: 60px; object-fit: cover;">`
+                : `<div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                     <i class="ri-flight-land-line text-muted fs-2"></i>
+                   </div>`;
+            
+            if (approveImageContainer) {
+                approveImageContainer.innerHTML = imageHTML;
+                console.log('✅ ARRIVAL DATA: Updated approve modal image');
+            }
+            
+            if (rejectImageContainer) {
+                rejectImageContainer.innerHTML = imageHTML;
+                console.log('✅ ARRIVAL DATA: Updated reject modal image');
+            }
+            
+        } else {
+            console.error('🚗 ARRIVAL DATA: Failed to load arrival data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('🚗 ARRIVAL DATA: Error loading arrival data:', error);
+    });
+}
+
+window.calculateArrivalDisplayDueDate = function(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    console.log('🚗 CALCULATE DATE: Calculating arrival display due date');
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`).value;
+    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`).value;
+    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format as dd-mm-yyyy
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        
+        displayDueDateField.value = `${day}-${month}-${year}`;
+        console.log('✅ Arrival display due date calculated:', `${day}-${month}-${year}`);
+    } else {
+        displayDueDateField.value = '';
     }
+}
+
+function confirmArrivalApproval(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    console.log('🚗 ARRIVAL APPROVE: Confirming arrival approval');
+    
+    const form = document.getElementById(`approveArrivalForm_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/approve-arrival-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🚗 ARRIVAL APPROVE: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Arrival booking approved successfully!');
+            
+            // Close modal
+            const modalId = `arrivalApprovalModal_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}_approve`;
+            closeArrivalApprovalModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to approve arrival booking'));
+            console.error('🚗 ARRIVAL APPROVE: Approval failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('🚗 ARRIVAL APPROVE: Network error', error);
+        alert('❌ Network error occurred while approving arrival booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+function confirmArrivalRejection(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+    console.log('🚗 ARRIVAL REJECT: Confirming arrival rejection');
+    
+    const form = document.getElementById(`rejectArrivalForm_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`);
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/reject-arrival-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🚗 ARRIVAL REJECT: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Arrival booking rejected successfully!');
+            
+            // Close modal
+            const modalId = `arrivalApprovalModal_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}_reject`;
+            closeArrivalApprovalModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to reject arrival booking'));
+            console.error('🚗 ARRIVAL REJECT: Rejection failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('🚗 ARRIVAL REJECT: Network error', error);
+        alert('❌ Network error occurred while rejecting arrival booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+// Make departure functions globally accessible
+window.approveDepartureBooking = function(tourId, departureOrderIndex, departureBookingIndex) {
+    console.log('✈️ DEPARTURE APPROVE: Opening approval modal', { tourId, departureOrderIndex, departureBookingIndex });
+    createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, 'approve');
+}
+
+window.rejectDepartureBooking = function(tourId, departureOrderIndex, departureBookingIndex) {
+    console.log('✈️ DEPARTURE REJECT: Opening rejection modal', { tourId, departureOrderIndex, departureBookingIndex });
+    createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, 'reject');
+}
+
+function createDepartureApprovalModal(tourId, departureOrderIndex, departureBookingIndex, action) {
+    const modalId = `departureApprovalModal_${tourId}_${departureOrderIndex}_${departureBookingIndex}_${action}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+    
+    switch(action) {
+        case 'approve':
+            modalTitle = 'Approve Departure Booking';
+            modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            buttonClass = 'btn-success';
+            buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+            onSubmit = `confirmDepartureApproval(${tourId}, ${departureOrderIndex}, ${departureBookingIndex})`;
+            modalContent = generateApproveDepartureForm(tourId, departureOrderIndex, departureBookingIndex);
+            break;
+            
+        case 'reject':
+            modalTitle = 'Reject Departure Booking';
+            modalColor = 'linear-gradient(135deg, #dc3545 0%, #e74c3c 100%)';
+            buttonClass = 'btn-danger';
+            buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+            onSubmit = `confirmDepartureRejection(${tourId}, ${departureOrderIndex}, ${departureBookingIndex})`;
+            modalContent = generateRejectDepartureForm(tourId, departureOrderIndex, departureBookingIndex);
+            break;
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: ${modalColor};">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-flight-takeoff-line text-primary fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">${modalTitle}</h5>
+                                <p class="text-white-50 mb-0 small">Departure Order ${departureOrderIndex + 1}, Booking ${departureBookingIndex + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeDepartureApprovalModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        ${modalContent}
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeDepartureApprovalModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                            ${buttonText}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load departure data for the modal
+    loadDepartureDataForApprove(tourId, departureOrderIndex, departureBookingIndex);
+}
+
+function closeDepartureApprovalModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            document.getElementById(modalId).remove();
+        }, 300);
+    }
+}
+
+function generateApproveDepartureForm(tourId, departureOrderIndex, departureBookingIndex) {
+    return `
+        <form id="approveDepartureForm_${tourId}_${departureOrderIndex}_${departureBookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="departure_order_index" value="${departureOrderIndex}">
+            <input type="hidden" name="booking_index" value="${departureBookingIndex}">
+            
+            <!-- Departure Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-flight-takeoff-line me-2 text-primary"></i>Departure Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_departure_image_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-flight-takeoff-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="approve_departure_name_${tourId}_${departureOrderIndex}_${departureBookingIndex}">Departure Transfer</h6>
+                            <p class="text-muted mb-0 small">Order ${departureOrderIndex + 1}, Booking ${departureBookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                    <div>
+                        <strong class="text-success">Confirm Approval</strong>
+                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this departure booking?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceId_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="reference_id" required 
+                       placeholder="Enter booking reference or confirmation number"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceFile_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                </label>
+                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="reference_file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="actual_due_date" required 
+                       onchange="calculateDepartureDisplayDueDate('${tourId}', '${departureOrderIndex}', '${departureBookingIndex}')"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Select the actual due date for this booking</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDateDays_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                </label>
+                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="display_due_date_days" required onchange="calculateDepartureDisplayDueDate('${tourId}', '${departureOrderIndex}', '${departureBookingIndex}')"
+                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                    <option value="">Select days before</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="4">4 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <div class="form-text">Select how many days before the actual due date to display</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                </label>
+                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="display_due_date" readonly 
+                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">This will be calculated automatically based on your selection above</div>
+            </div>
+        </form>
+    `;
+}
+
+function generateRejectDepartureForm(tourId, departureOrderIndex, departureBookingIndex) {
+    return `
+        <form id="rejectDepartureForm_${tourId}_${departureOrderIndex}_${departureBookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="departure_order_index" value="${departureOrderIndex}">
+            <input type="hidden" name="booking_index" value="${departureBookingIndex}">
+            
+            <!-- Departure Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-flight-takeoff-line me-2 text-primary"></i>Departure Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="reject_departure_image_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-flight-takeoff-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="reject_departure_name_${tourId}_${departureOrderIndex}_${departureBookingIndex}">Departure Transfer</h6>
+                            <p class="text-muted mb-0 small">Order ${departureOrderIndex + 1}, Booking ${departureBookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                    <div>
+                        <strong class="text-danger">Confirm Rejection</strong>
+                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this departure booking.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="cancelReason_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                </label>
+                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="cancel_reason" required 
+                          rows="4" placeholder="Please provide a detailed reason for rejecting this departure booking..."
+                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+            </div>
+        </form>
+    `;
+}
+
+function loadDepartureDataForApprove(tourId, departureOrderIndex, departureBookingIndex) {
+    console.log('✈️ DEPARTURE DATA: Loading departure data for approve modal', { tourId, departureOrderIndex, departureBookingIndex });
+    
+    // Fetch departure data from server
+    fetch('{{ url("/booking/get-departure-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            departure_order_index: departureOrderIndex,
+            booking_index: departureBookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('✈️ DEPARTURE DATA: Received departure data', data);
+        
+        if (data.success) {
+            const departureData = data.data;
+            
+            // Update departure name in both approve and reject modals
+            const approveNameElement = document.getElementById(`approve_departure_name_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+            const rejectNameElement = document.getElementById(`reject_departure_name_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+            
+            const vehicleName = departureData.vehicles_name || 'Departure Transfer';
+            
+            if (approveNameElement) {
+                approveNameElement.textContent = vehicleName;
+                console.log('✅ DEPARTURE DATA: Updated approve modal name:', vehicleName);
+            }
+            
+            if (rejectNameElement) {
+                rejectNameElement.textContent = vehicleName;
+                console.log('✅ DEPARTURE DATA: Updated reject modal name:', vehicleName);
+            }
+            
+            // Update vehicle images if available
+            const approveImageContainer = document.getElementById(`approve_departure_image_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+            const rejectImageContainer = document.getElementById(`reject_departure_image_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+            
+            // Check for vehicle image in departure_details
+            let vehicleImage = null;
+            if (departureData.departure_details && departureData.departure_details.vehicles_image) {
+                vehicleImage = departureData.departure_details.vehicles_image;
+            } else if (departureData.departure_details && departureData.departure_details.image) {
+                vehicleImage = departureData.departure_details.image;
+            }
+            
+            const imageHTML = vehicleImage 
+                ? `<img src="${vehicleImage}" alt="${vehicleName}" class="img-fluid rounded shadow-sm" style="width: 80px; height: 60px; object-fit: cover;">`
+                : `<div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                     <i class="ri-flight-takeoff-line text-muted fs-2"></i>
+                   </div>`;
+            
+            if (approveImageContainer) {
+                approveImageContainer.innerHTML = imageHTML;
+                console.log('✅ DEPARTURE DATA: Updated approve modal image');
+            }
+            
+            if (rejectImageContainer) {
+                rejectImageContainer.innerHTML = imageHTML;
+                console.log('✅ DEPARTURE DATA: Updated reject modal image');
+            }
+            
+        } else {
+            console.error('✈️ DEPARTURE DATA: Failed to load departure data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('✈️ DEPARTURE DATA: Error loading departure data:', error);
+    });
+}
+
+window.calculateDepartureDisplayDueDate = function(tourId, departureOrderIndex, departureBookingIndex) {
+    console.log('✈️ CALCULATE DATE: Calculating departure display due date');
+    const actualDueDate = document.getElementById(`actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}`).value;
+    const daysBefore = document.getElementById(`displayDueDateDays_${tourId}_${departureOrderIndex}_${departureBookingIndex}`).value;
+    const displayDueDateField = document.getElementById(`displayDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+    
+    if (actualDueDate && daysBefore) {
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format as dd-mm-yyyy
+        const day = String(displayDate.getDate()).padStart(2, '0');
+        const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+        const year = displayDate.getFullYear();
+        
+        displayDueDateField.value = `${day}-${month}-${year}`;
+        console.log('✅ Departure display due date calculated:', `${day}-${month}-${year}`);
+    } else {
+        displayDueDateField.value = '';
+    }
+}
+
+function confirmDepartureApproval(tourId, departureOrderIndex, departureBookingIndex) {
+    console.log('✈️ DEPARTURE APPROVE: Confirming departure approval');
+    
+    const form = document.getElementById(`approveDepartureForm_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/approve-departure-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('✈️ DEPARTURE APPROVE: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Departure booking approved successfully!');
+            
+            // Close modal
+            const modalId = `departureApprovalModal_${tourId}_${departureOrderIndex}_${departureBookingIndex}_approve`;
+            closeDepartureApprovalModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to approve departure booking'));
+            console.error('✈️ DEPARTURE APPROVE: Approval failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('✈️ DEPARTURE APPROVE: Network error', error);
+        alert('❌ Network error occurred while approving departure booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
+}
+
+function confirmDepartureRejection(tourId, departureOrderIndex, departureBookingIndex) {
+    console.log('✈️ DEPARTURE REJECT: Confirming departure rejection');
+    
+    const form = document.getElementById(`rejectDepartureForm_${tourId}_${departureOrderIndex}_${departureBookingIndex}`);
+    const formData = new FormData(form);
+    
+    // Add CSRF token
+    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+    
+    // Disable submit button to prevent double submission
+    const submitButton = event.target;
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+    
+    fetch('{{ url("/booking/reject-departure-booking") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('✈️ DEPARTURE REJECT: Server response', data);
+        
+        if (data.success) {
+            // Show success message
+            alert('✅ Departure booking rejected successfully!');
+            
+            // Close modal
+            const modalId = `departureApprovalModal_${tourId}_${departureOrderIndex}_${departureBookingIndex}_reject`;
+            closeDepartureApprovalModal(modalId);
+            
+            // Refresh the page to show updated status
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to reject departure booking'));
+            console.error('✈️ DEPARTURE REJECT: Rejection failed', data);
+        }
+    })
+    .catch(error => {
+        console.error('✈️ DEPARTURE REJECT: Network error', error);
+        alert('❌ Network error occurred while rejecting departure booking');
+    })
+    .finally(() => {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
 }
 
 function createAndShowArrivalEditModal(tourId, arrivalOrderIndex, arrivalBookingIndex) {
@@ -9273,28 +11605,9 @@ function editTravelHourlyBooking(tourId, travelHourlyOrderIndex, travelHourlyBoo
     }
 }
 
-function approveTravelHourlyBooking(tourId, travelHourlyOrderIndex, travelHourlyBookingIndex) {
-    console.log('Approving travel hourly booking:', { tourId, travelHourlyOrderIndex, travelHourlyBookingIndex });
-    
-    if (confirm('Are you sure you want to approve this travel hourly booking?')) {
-        // Here you can implement the approval logic
-        alert('Travel hourly booking approved successfully!');
-        // Optionally refresh the page or update the UI
-        // window.location.reload();
-    }
-}
+// Note: approveTravelHourlyBooking function is now defined globally at line 5828 with detailed modal functionality
 
-function rejectTravelHourlyBooking(tourId, travelHourlyOrderIndex, travelHourlyBookingIndex) {
-    console.log('Rejecting travel hourly booking:', { tourId, travelHourlyOrderIndex, travelHourlyBookingIndex });
-    
-    const reason = prompt('Please provide a reason for rejection:');
-    if (reason !== null && reason.trim() !== '') {
-        // Here you can implement the rejection logic
-        alert('Travel hourly booking rejected successfully!');
-        // Optionally refresh the page or update the UI
-        // window.location.reload();
-    }
-}
+// Note: rejectTravelHourlyBooking function is now defined globally at line 5833 with detailed modal functionality
 
 function createAndShowTravelHourlyEditModal(tourId, travelHourlyOrderIndex, travelHourlyBookingIndex) {
     const editModalId = `travelHourlyEdit_${tourId}_${travelHourlyOrderIndex}_${travelHourlyBookingIndex}`;
@@ -9835,7 +12148,11 @@ function loadIndividualTravelHourlyContent(modalId, tourId, travelHourlyOrderInd
                 phone: travelHourlyDetails.phone || 'N/A',
                 specialRequests: travelHourlyDetails.specialRequests || travelHourlyDetails.special_requests,
                 Night_Start_Time: travelHourlyDetails.Night_Start_Time,
-                Night_End_Time: travelHourlyDetails.Night_End_Time
+                Night_End_Time: travelHourlyDetails.Night_End_Time,
+                // Add approval-related fields
+                is_approve: rawData.is_approve || 0,
+                reference_id: rawData.reference_id || null,
+                display_due_date: rawData.display_due_date || null
             };
             
             console.log('✅ Travel hourly booking data prepared for display', travelHourlyBooking);
@@ -10083,6 +12400,14 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                 </div>
                                 <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                             </div>
+                            ${travelHourlyData.is_approve == 1 ? `
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${travelHourlyData.reference_id ? `<br><small class="text-muted">Ref: ${travelHourlyData.reference_id}</small>` : ''}
+                                    ${travelHourlyData.display_due_date ? `<br><small class="text-muted">Due: ${travelHourlyData.display_due_date}</small>` : ''}
+                                </div>
+                            ` : `
                             @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                             <div class="d-flex gap-2">
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -10094,7 +12419,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                 </button>
                                 <button type="button" 
                                         class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                            onclick="approveTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-check-line me-1"></i>Approve
                                 </button>
@@ -10102,13 +12427,14 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                        onclick="rejectIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                            onclick="rejectTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-close-line me-1"></i>Reject
                                 </button>
                                 @endif
                             </div>
                             @endif
+                            `}
                         </div>
                     </div>
                 </div>
@@ -10438,47 +12764,157 @@ function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingInd
 
 function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex) {
     return `
-        <div class="text-center py-4">
-            <div class="bg-success rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                <i class="ri-check-line ri-32px text-white"></i>
+        <form id="approveHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="hourly_order_index" value="${travelHourlyOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Hourly Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-car-line me-2 text-primary"></i>Local-Tour Hourly Information
+                    </h6>
             </div>
-            <h5 class="text-dark mb-3">Approve Travel Hourly Service</h5>
-            <p class="text-muted mb-4">Are you sure you want to approve this Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} booking?</p>
-            <div class="alert alert-success">
-                <i class="ri-information-line me-2"></i>
-                This action will mark the travel hourly service as approved and notify the relevant parties.
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_hourly_image_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-car-line text-muted fs-2"></i>
             </div>
         </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="approve_hourly_name_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">Local-Tour Hourly Service</h6>
+                            <p class="text-muted mb-0 small">Order ${parseInt(travelHourlyOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                    <div>
+                        <strong class="text-success">Confirm Approval</strong>
+                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} booking?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceId_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="reference_id" required 
+                       placeholder="Enter booking reference or confirmation number"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceFile_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                </label>
+                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="reference_file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                       onchange="calculateHourlyDisplayDueDate('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Select the actual due date for this booking</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDateDays_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                </label>
+                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculateHourlyDisplayDueDate('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')"
+                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                    <option value="">Select days before</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="4">4 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <div class="form-text">Choose how many days before the actual due date to display</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="calculatedDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                </label>
+                <input type="text" class="form-control form-control-lg" id="calculatedDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" readonly 
+                       placeholder="Will be calculated automatically"
+                       style="border-radius: 8px; border: 2px solid #e9ecef; background-color: #f8f9fa;">
+                <input type="hidden" name="display_due_date" id="hiddenDisplayDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">
+                <div class="form-text">This date will be automatically calculated based on your selections above</div>
+            </div>
+        </form>
     `;
 }
 
 function generateRejectTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex) {
     return `
-        <div class="py-4">
-            <div class="text-center mb-4">
-                <div class="bg-danger rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                    <i class="ri-close-line ri-32px text-white"></i>
+        <form id="rejectHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="hourly_order_index" value="${travelHourlyOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Hourly Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-car-line me-2 text-primary"></i>Local-Tour Hourly Information
+                    </h6>
                 </div>
-                <h5 class="text-dark mb-3">Reject Travel Hourly Service</h5>
-                <p class="text-muted mb-4">Please provide a reason for rejecting this Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} booking.</p>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="reject_hourly_image_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-car-line text-muted fs-2"></i>
+            </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="reject_hourly_name_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">Local-Tour Hourly Service</h6>
+                            <p class="text-muted mb-0 small">Order ${parseInt(travelHourlyOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <div class="mb-4">
-                <label for="reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Rejection Reason</label>
-                <textarea class="form-control" 
-                          id="reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
-                          name="reject_reason"
-                          rows="4"
-                          placeholder="Please provide a detailed reason for rejection..."
-                          required
-                          style="border-radius: 8px; border: 2px solid #e9ecef;"></textarea>
-            </div>
-            
-            <div class="alert alert-warning">
-                <i class="ri-alert-line me-2"></i>
-                This action will mark the travel hourly service as rejected and notify the relevant parties.
+            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                    <div>
+                        <strong class="text-danger">Confirm Rejection</strong>
+                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this Local-Tour Hourly ${parseInt(travelHourlyOrderIndex) + 1} booking.</p>
             </div>
         </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="cancelReason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                </label>
+                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="cancel_reason" required 
+                          rows="4" placeholder="Please provide a detailed reason for rejecting this Local-Tour Hourly booking..."
+                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+            </div>
+        </form>
     `;
 }
 
@@ -10493,6 +12929,955 @@ function closeIndividualTravelHourlyModal(modalId) {
         }
     } catch (error) {
         console.error('Error closing individual travel hourly modal:', error);
+    }
+}
+
+// ========================================
+// TRAVEL POINT TO POINT MODAL FUNCTIONS
+// ========================================
+
+// Individual Travel Point Modal Functions (following Travel Hourly pattern)
+function openIndividualTravelPointModal(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('🚗 Opening individual travel point modal for:', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        const modalId = `individualTravelPointViewModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create and show the modal
+        createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex);
+        loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex, bookingIndex);
+        
+    } catch (error) {
+        console.error('Error opening individual travel point modal:', error);
+        alert('Error opening travel point details. Please try again.');
+    }
+}
+
+function createIndividualTravelPointViewModal(modalId, tourId, travelPointOrderIndex, bookingIndex) {
+    const modalHtml = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h3 class="mb-1 fw-bold">
+                                    <i class="ri-route-line me-2"></i>Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1}
+                                </h3>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Service Details</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualTravelPointViewModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
+                        </div>
+                    </div>
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        <div id="${modalId}_content">
+                            <div class="d-flex justify-content-center align-items-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-3 text-muted">Loading travel point details...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+}
+
+function closeIndividualTravelPointViewModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after it's hidden
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Error closing individual travel point modal:', error);
+    }
+}
+
+function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex, bookingIndex) {
+    console.log('🔍 Loading individual travel point content for:', { tourId, travelPointOrderIndex, bookingIndex });
+    
+    // Fetch real data from server (following travel hourly pattern)
+    fetch('{{ url("/booking/get-travel-point-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_point_order_index: travelPointOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => {
+        console.log('📡 Travel point data response received', { status: response.status });
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Travel point data parsed', data);
+        
+        if (data.success && data.data) {
+            // Use the actual travel point data from backend
+            const rawData = data.data;
+            const travelPointDetails = rawData.travel_point_details || {};
+            
+            const travelPointBooking = {
+                vehicles_name: rawData.vehicles_name || travelPointDetails.vehicles_name,
+                image: travelPointDetails.image,
+                totalPrice: parseFloat(rawData.total_price || 0),
+                bookingDate: rawData.booking_date || travelPointDetails.bookingDate,
+                entrytime: rawData.entry_time || travelPointDetails.entry_time,
+                pickup_location: rawData.pickup_location || travelPointDetails.pickup_location,
+                drop_location: rawData.drop_location || travelPointDetails.drop_location,
+                type: travelPointDetails.type || 'Standard',
+                adults: rawData.adults || '0',
+                children: rawData.children || '0',
+                city: travelPointDetails.city || 'N/A',
+                country: travelPointDetails.country || 'N/A',
+                Tax: travelPointDetails.Tax || '0',
+                fullName: travelPointDetails.fullName || travelPointDetails.full_name || 'N/A',
+                email: travelPointDetails.email || 'N/A',
+                phone: travelPointDetails.phone || 'N/A',
+                specialRequests: travelPointDetails.specialRequests || travelPointDetails.special_requests,
+                // Add approval-related fields
+                is_approve: rawData.is_approve !== undefined ? rawData.is_approve : 0,
+                reference_id: rawData.reference_id || null,
+                display_due_date: rawData.display_due_date || null
+            };
+            
+            console.log('✅ Travel point booking data prepared for display', travelPointBooking);
+            console.log('🔍 RAW BACKEND DATA:', rawData);
+            console.log('🔍 APPROVAL STATUS CHECK:', {
+                is_approve: travelPointBooking.is_approve,
+                is_approve_type: typeof travelPointBooking.is_approve,
+                reference_id: travelPointBooking.reference_id,
+                display_due_date: travelPointBooking.display_due_date,
+                rawData_is_approve: rawData.is_approve,
+                rawData_is_approve_type: typeof rawData.is_approve,
+                condition_check: travelPointBooking.is_approve == 1,
+                strict_condition_check: travelPointBooking.is_approve === 1,
+                all_conditions: (travelPointBooking.is_approve == 1 || travelPointBooking.is_approve === '1' || travelPointBooking.is_approve === true)
+            });
+            generateIndividualTravelPointContent(travelPointBooking, modalId, tourId, travelPointOrderIndex, bookingIndex);
+        } else {
+            console.error('❌ Travel point data fetch failed', data);
+            displayTravelPointErrorContent(modalId, 'Failed to load travel point details');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error fetching travel point data:', error);
+        displayTravelPointErrorContent(modalId, 'Error loading travel point details');
+    });
+}
+
+function displayTravelPointErrorContent(modalId, message) {
+    document.getElementById(`${modalId}_content`).innerHTML = `
+        <div class="text-center py-5">
+            <div class="bg-light rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                <i class="ri-route-line ri-48px text-muted"></i>
+            </div>
+            <h4 class="text-dark mb-3">No Travel Point Data Available</h4>
+            <p class="text-muted mb-4">${message}</p>
+            <button type="button" class="btn btn-outline-primary" onclick="closeIndividualTravelPointViewModal('${modalId}')">
+                <i class="ri-close-line me-2"></i>Close
+            </button>
+        </div>
+    `;
+}
+
+function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        const content = `
+            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1 fw-bold text-white">
+                                <i class="ri-route-line me-2"></i>${travelPointData.vehicles_name || 'Point to Point Service'}
+                            </h5>
+                            <p class="mb-0 text-white opacity-75">Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+                                <span class="text-success fw-bold fs-5">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4" style="background-color: #f8f9fa;">
+                    <!-- Service Schedule & Location Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-primary rounded-circle p-2 me-3">
+                                        <i class="ri-calendar-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Booking Date</small>
+                                        <div class="fw-medium">${travelPointData.bookingDate || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Time</small>
+                                        <div class="fw-medium">${travelPointData.entrytime || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Adults</small>
+                                        <span class="badge bg-info">${travelPointData.adults || '0'}</span>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Children</small>
+                                        <span class="badge bg-warning">${travelPointData.children || '0'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-success rounded-circle p-2 me-3">
+                                        <i class="ri-map-pin-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Location Details</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-2">
+                                        <small class="text-muted">Pickup Location</small>
+                                        <div class="fw-medium">${travelPointData.pickup_location || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        <small class="text-muted">Drop Location</small>
+                                        <div class="fw-medium">${travelPointData.drop_location || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <small class="text-muted">City</small>
+                                        <div class="fw-medium">${travelPointData.city || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <small class="text-muted">Country</small>
+                                        <div class="fw-medium">${travelPointData.country || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Image & Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-info rounded-circle p-2 me-3">
+                                        <i class="ri-car-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Information</h6>
+                                </div>
+                                <div class="text-center">
+                                    ${travelPointData.image ? `
+                                        <div class="position-relative d-inline-block">
+                                            <img src="${travelPointData.image}" alt="Vehicle" class="img-fluid rounded shadow-sm" style="max-height: 180px; width: 100%; object-fit: cover; border-radius: 12px;">
+                                            <div class="position-absolute top-0 end-0 m-2">
+                                                <span class="badge bg-dark bg-opacity-75 text-white">
+                                                    <i class="ri-zoom-in-line me-1"></i>View
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
+                                            <div class="text-center">
+                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
+                                                <div class="text-muted">No Vehicle Image</div>
+                                            </div>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="bg-white rounded p-3 shadow-sm h-100">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-warning rounded-circle p-2 me-3">
+                                        <i class="ri-money-dollar-circle-line text-white"></i>
+                                    </div>
+                                    <h6 class="fw-bold mb-0 text-dark">Pricing & Customer</h6>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Total Price</small>
+                                        <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <small class="text-muted">Tax</small>
+                                        <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        <small class="text-muted">Customer Name</small>
+                                        <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <small class="text-muted">Email</small>
+                                        <div class="fw-medium">${travelPointData.email || 'N/A'}</div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <small class="text-muted">Phone</small>
+                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${travelPointData.specialRequests ? `
+                        <!-- Special Requests -->
+                        <div class="bg-white rounded p-3 shadow-sm mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-message-2-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+                            </div>
+                            <p class="text-muted mb-0">${travelPointData.specialRequests}</p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Individual Action Buttons -->
+                    <div class="bg-white rounded p-3 shadow-sm border-top">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-secondary rounded-circle p-2 me-3">
+                                    <i class="ri-settings-line text-white"></i>
+                                </div>
+                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+                            </div>
+                            ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
+                                    ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
+                                </div>
+                            ` : `
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                <div class="d-flex gap-2">
+                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                    <button type="button" 
+                                            class="btn btn-outline-primary btn-sm px-3 py-2" 
+                                            onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                            style="border-radius: 25px;">
+                                        <i class="ri-edit-line me-1"></i>Edit
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-outline-success btn-sm px-3 py-2" 
+                                            onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                            style="border-radius: 25px;">
+                                        <i class="ri-check-line me-1"></i>Approve
+                                    </button>
+                                    @endif
+                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                    <button type="button" 
+                                            class="btn btn-outline-danger btn-sm px-3 py-2" 
+                                            onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                            style="border-radius: 25px;">
+                                        <i class="ri-close-line me-1"></i>Reject
+                                    </button>
+                                    @endif
+                                </div>
+                                @endif
+                            `}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById(`${modalId}_content`).innerHTML = content;
+        
+    } catch (error) {
+        console.error('Error generating individual travel point content:', error);
+        displayTravelPointErrorContent(modalId, 'Error generating content');
+    }
+}
+
+// Travel Point Approve and Reject Functions (following Travel Hourly pattern)
+window.approveTravelPointBooking = function(tourId, travelPointOrderIndex, bookingIndex) {
+    console.log('🚗 TRAVEL POINT APPROVE: Opening approve modal', { tourId, travelPointOrderIndex, bookingIndex });
+    createTravelPointApprovalModal(tourId, travelPointOrderIndex, bookingIndex);
+};
+
+window.rejectTravelPointBooking = function(tourId, travelPointOrderIndex, bookingIndex) {
+    console.log('🚗 TRAVEL POINT REJECT: Opening reject modal', { tourId, travelPointOrderIndex, bookingIndex });
+    console.log('🔍 REJECT STATUS CHECK: Before opening reject modal - checking if booking is already approved');
+    createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingIndex);
+};
+
+function createTravelPointApprovalModal(tourId, travelPointOrderIndex, bookingIndex) {
+    const modalId = `travelPointApprovalModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if it exists
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 120px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h4 class="mb-1 fw-bold">Approve Point to Point ${parseInt(travelPointOrderIndex) + 1}</h4>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Service</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeTravelPointModal('${modalId}')" aria-label="Close"></button>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        ${generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIndex)}
+                    </div>
+                    
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeTravelPointModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-success px-4 py-2" onclick="confirmIndividualTravelPointApproval(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-check-line me-2"></i>Confirm Approval
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load travel point data for the modal
+    loadTravelPointDataForApprove(tourId, travelPointOrderIndex, bookingIndex);
+}
+
+function createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingIndex) {
+    const modalId = `travelPointRejectionModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if it exists
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <div class="modal-header p-0 border-0 position-relative" style="height: 120px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                            <div class="text-white">
+                                <h4 class="mb-1 fw-bold">Reject Point to Point ${parseInt(travelPointOrderIndex) + 1}</h4>
+                                <p class="mb-0 opacity-75">Tour #${tourId} Point to Point Service</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeTravelPointModal('${modalId}')" aria-label="Close"></button>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                        ${generateRejectTravelPointForm(tourId, travelPointOrderIndex, bookingIndex)}
+                    </div>
+                    
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeTravelPointModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 py-2" onclick="confirmIndividualTravelPointRejection(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Confirm Rejection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load travel point data for the modal
+    loadTravelPointDataForReject(tourId, travelPointOrderIndex, bookingIndex);
+}
+
+function closeTravelPointModal(modalId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+    if (modal) {
+        modal.hide();
+        setTimeout(() => {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                modalElement.remove();
+            }
+        }, 300);
+    }
+}
+
+function loadTravelPointDataForApprove(tourId, travelPointOrderIndex, bookingIndex) {
+    console.log('🔍 Loading travel point data for approve modal');
+    
+    fetch('{{ url("/booking/get-travel-point-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_point_order_index: travelPointOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data && data.data.travel_point_details) {
+            const pointDetails = data.data.travel_point_details;
+            
+            // Update vehicle image
+            const imageContainer = document.getElementById(`approve_point_image_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            if (imageContainer && pointDetails.image) {
+                imageContainer.innerHTML = `
+                    <img src="${pointDetails.image}" alt="Vehicle" class="img-fluid rounded" style="width: 80px; height: 60px; object-fit: cover;">
+                `;
+            }
+            
+            // Update vehicle name
+            const nameContainer = document.getElementById(`approve_point_name_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            if (nameContainer && (data.data.vehicles_name || pointDetails.vehicles_name)) {
+                nameContainer.textContent = data.data.vehicles_name || pointDetails.vehicles_name;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error loading travel point data for approve:', error);
+    });
+}
+
+function loadTravelPointDataForReject(tourId, travelPointOrderIndex, bookingIndex) {
+    console.log('🔍 Loading travel point data for reject modal');
+    
+    fetch('{{ url("/booking/get-travel-point-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            travel_point_order_index: travelPointOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data && data.data.travel_point_details) {
+            const pointDetails = data.data.travel_point_details;
+            
+            // Update vehicle image
+            const imageContainer = document.getElementById(`reject_point_image_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            if (imageContainer && pointDetails.image) {
+                imageContainer.innerHTML = `
+                    <img src="${pointDetails.image}" alt="Vehicle" class="img-fluid rounded" style="width: 80px; height: 60px; object-fit: cover;">
+                `;
+            }
+            
+            // Update vehicle name
+            const nameContainer = document.getElementById(`reject_point_name_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+            if (nameContainer && (data.data.vehicles_name || pointDetails.vehicles_name)) {
+                nameContainer.textContent = data.data.vehicles_name || pointDetails.vehicles_name;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error loading travel point data for reject:', error);
+    });
+}
+
+// Calculate Display Due Date for Travel Point Service (following Travel Hourly pattern)
+window.calculatePointDisplayDueDate = function(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('⏰ CALCULATE: Calculating display due date for travel point', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+        const displayDueDateDaysSelect = document.getElementById(`displayDueDateDays_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+        const calculatedDisplayDueDateInput = document.getElementById(`displayDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+        
+        if (!actualDueDateInput || !displayDueDateDaysSelect || !calculatedDisplayDueDateInput) {
+            console.error('⏰ CALCULATE: Required form elements not found');
+            return;
+        }
+        
+        const actualDueDate = actualDueDateInput.value;
+        const daysBefore = displayDueDateDaysSelect.value;
+        
+        if (!actualDueDate || !daysBefore) {
+            console.log('⏰ CALCULATE: Missing actual date or days before value');
+            calculatedDisplayDueDateInput.value = '';
+            return;
+        }
+        
+        // Calculate display due date by subtracting days from actual due date
+        const actualDate = new Date(actualDueDate);
+        const displayDate = new Date(actualDate);
+        displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
+        
+        // Format for display (DD-MM-YYYY)
+        const displayFormatted = displayDate.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        // Update display field
+        calculatedDisplayDueDateInput.value = displayFormatted;
+        
+        console.log('⏰ CALCULATE: Display due date calculated', {
+            actualDate: actualDueDate,
+            daysBefore: daysBefore,
+            displayFormatted: displayFormatted
+        });
+        
+    } catch (error) {
+        console.error('⏰ CALCULATE: Error calculating display due date:', error);
+    }
+};
+
+function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
+    return `
+        <form id="approvePointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="hourly_order_index" value="${travelPointOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Point Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-route-line me-2 text-primary"></i>Point to Point Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_point_image_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-car-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="approve_point_name_${tourId}_${travelPointOrderIndex}_${bookingIndex}">Point to Point Service</h6>
+                            <p class="text-muted mb-0 small">Order ${parseInt(travelPointOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                    <div>
+                        <strong class="text-success">Confirm Approval</strong>
+                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this Point to Point ${parseInt(travelPointOrderIndex) + 1} booking?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceId_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="reference_id" required 
+                       placeholder="Enter booking reference or confirmation number"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceFile_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                </label>
+                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="reference_file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                       onchange="calculatePointDisplayDueDate('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Select the actual due date for this booking</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDateDays_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                </label>
+                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculatePointDisplayDueDate('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')"
+                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                    <option value="">Select days before</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="4">4 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <div class="form-text">Choose how many days before the actual due date to display</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                </label>
+                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="display_due_date" readonly 
+                       placeholder="Will be calculated automatically"
+                       style="border-radius: 8px; border: 2px solid #e9ecef; background-color: #f8f9fa;">
+                <div class="form-text">This date will be automatically calculated based on your selections above</div>
+            </div>
+        </form>
+    `;
+}
+
+function generateRejectTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
+    return `
+        <form id="rejectPointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="hourly_order_index" value="${travelPointOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Point Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-route-line me-2 text-primary"></i>Point to Point Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="reject_point_image_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-car-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="reject_point_name_${tourId}_${travelPointOrderIndex}_${bookingIndex}">Point to Point Service</h6>
+                            <p class="text-muted mb-0 small">Order ${parseInt(travelPointOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                    <div>
+                        <strong class="text-danger">Confirm Rejection</strong>
+                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this Point to Point ${parseInt(travelPointOrderIndex) + 1} booking.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="cancelReason_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                </label>
+                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="cancel_reason" required 
+                          rows="4" placeholder="Please provide a detailed reason for rejecting this Point to Point booking..."
+                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+            </div>
+        </form>
+    `;
+}
+
+// Travel Point Confirmation Functions (following Travel Hourly pattern)
+function confirmIndividualTravelPointApproval(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('🚗 TRAVEL POINT APPROVE: Confirming approval', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        const form = document.getElementById(`approvePointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('🚗 TRAVEL POINT APPROVE: Form not found');
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+        
+        // Show loading state
+        const approveButton = event.target;
+        const originalText = approveButton.innerHTML;
+        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
+        approveButton.disabled = true;
+        
+        console.log('🚗 TRAVEL POINT APPROVE: Submitting form data:', Object.fromEntries(formData.entries()));
+        
+        // Submit to backend using the correct route
+        fetch('{{ url("/booking/approve-point-to-point-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': formData.get('_token'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+            
+            if (data.success) {
+                console.log('🚗 TRAVEL POINT APPROVE: Booking approved successfully:', data);
+                const referenceId = formData.get('reference_id');
+                const displayDueDate = formData.get('display_due_date');
+                alert(`✅ Point to Point booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                
+                // Close modal and refresh page
+                const modalId = `travelPointApprovalModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+                closeTravelPointModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('🚗 TRAVEL POINT APPROVE: Failed to approve booking:', data);
+                alert('❌ Failed to approve point to point booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+            
+            console.error('🚗 TRAVEL POINT APPROVE: Network error', error);
+            alert('❌ Error approving point to point booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('🚗 TRAVEL POINT APPROVE: Error approving booking:', error);
+        alert('❌ Error approving booking. Please try again.');
+    }
+}
+
+function confirmIndividualTravelPointRejection(tourId, travelPointOrderIndex, bookingIndex) {
+    try {
+        console.log('🚗 TRAVEL POINT REJECT: Confirming rejection', { tourId, travelPointOrderIndex, bookingIndex });
+        
+        const form = document.getElementById(`rejectPointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('🚗 TRAVEL POINT REJECT: Form not found');
+            alert('Form not found. Please try again.');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
+        
+        const cancelReason = formData.get('cancel_reason');
+        
+        if (!cancelReason || cancelReason.trim() === '') {
+            alert('Please provide a reason for rejection');
+            return;
+        }
+        
+        // Show loading state
+        const rejectButton = event.target;
+        const originalText = rejectButton.innerHTML;
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.disabled = true;
+        
+        console.log('🚗 TRAVEL POINT REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
+        
+        // Submit to backend using the correct route
+        fetch('{{ url("/booking/reject-point-to-point-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': formData.get('_token'),
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
+            
+            if (data.success) {
+                console.log('🚗 TRAVEL POINT REJECT: Booking rejected successfully:', data);
+                alert(`✅ Point to Point booking rejected successfully!\nReason: ${cancelReason}`);
+                
+                // Close modal and refresh page
+                const modalId = `travelPointRejectionModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}`;
+                closeTravelPointModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('🚗 TRAVEL POINT REJECT: Failed to reject booking:', data);
+                alert('❌ Failed to reject point to point booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
+            
+            console.error('🚗 TRAVEL POINT REJECT: Network error', error);
+            alert('❌ Error rejecting point to point booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('🚗 TRAVEL POINT REJECT: Error rejecting booking:', error);
+        alert('❌ Error rejecting booking. Please try again.');
     }
 }
 
@@ -10738,53 +14123,53 @@ function saveIndividualTravelHourlyChanges(tourId, travelHourlyOrderIndex, booki
     }
 }
 
-function confirmIndividualTravelHourlyApproval(tourId, travelHourlyOrderIndex, bookingIndex) {
-    try {
-        console.log('Confirming individual travel hourly approval:', { tourId, travelHourlyOrderIndex, bookingIndex });
+// function confirmIndividualTravelHourlyApproval(tourId, travelHourlyOrderIndex, bookingIndex) {
+//     try {
+//         console.log('Confirming individual travel hourly approval:', { tourId, travelHourlyOrderIndex, bookingIndex });
         
-        // Close the approve modal
-        const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_approve`;
-        closeIndividualTravelHourlyModal(modalId);
+//         // Close the approve modal
+//         const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_approve`;
+//         closeIndividualTravelHourlyModal(modalId);
         
-        // Show success message
-        alert('Travel hourly booking approved successfully!');
+//         // Show success message
+//         alert('Travel hourly booking approved successfully!');
         
-        // Here you can implement the actual approval API call
-        // For now, just show success message
+//         // Here you can implement the actual approval API call
+//         // For now, just show success message
         
-    } catch (error) {
-        console.error('Error confirming individual travel hourly approval:', error);
-        alert('Error approving travel hourly booking. Please try again.');
-    }
-}
+//     } catch (error) {
+//         console.error('Error confirming individual travel hourly approval:', error);
+//         alert('Error approving travel hourly booking. Please try again.');
+//     }
+// }
 
-function confirmIndividualTravelHourlyRejection(tourId, travelHourlyOrderIndex, bookingIndex) {
-    try {
-        const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
-        const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+// function confirmIndividualTravelHourlyRejection(tourId, travelHourlyOrderIndex, bookingIndex) {
+//     try {
+//         const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+//         const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
         
-        if (!reason) {
-            alert('Please provide a reason for rejection.');
-            return;
-        }
+//         if (!reason) {
+//             alert('Please provide a reason for rejection.');
+//             return;
+//         }
         
-        console.log('Confirming individual travel hourly rejection:', { tourId, travelHourlyOrderIndex, bookingIndex, reason });
+//         console.log('Confirming individual travel hourly rejection:', { tourId, travelHourlyOrderIndex, bookingIndex, reason });
         
-        // Close the reject modal
-        const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_reject`;
-        closeIndividualTravelHourlyModal(modalId);
+//         // Close the reject modal
+//         const modalId = `individualTravelHourlyModal_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}_reject`;
+//         closeIndividualTravelHourlyModal(modalId);
         
-        // Show success message
-        alert('Travel hourly booking rejected successfully!');
+//         // Show success message
+//         alert('Travel hourly booking rejected successfully!');
         
-        // Here you can implement the actual rejection API call
-        // For now, just show success message
+//         // Here you can implement the actual rejection API call
+//         // For now, just show success message
         
-    } catch (error) {
-        console.error('Error confirming individual travel hourly rejection:', error);
-        alert('Error rejecting travel hourly booking. Please try again.');
-    }
-}
+//     } catch (error) {
+//         console.error('Error confirming individual travel hourly rejection:', error);
+//         alert('Error rejecting travel hourly booking. Please try again.');
+//     }
+// }
 
 // Vehicle Image Modal Function
 function openVehicleImageModal(imageUrl, vehicleName) {
@@ -10955,66 +14340,7 @@ function closeIndividualTravelPointViewModal(modalId) {
     }
 }
 
-function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex, bookingIndex) {
-    console.log('🔍 Loading individual travel point content for:', { tourId, travelPointOrderIndex, bookingIndex });
-    
-    // Fetch real data from server (following travel hourly pattern)
-    fetch('{{ url("/booking/get-travel-point-data") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            tour_id: tourId,
-            travel_point_order_index: travelPointOrderIndex,
-            booking_index: bookingIndex
-        })
-    })
-    .then(response => {
-        console.log('📡 Travel point data response received', { status: response.status });
-        return response.json();
-    })
-    .then(data => {
-        console.log('📊 Travel point data parsed', data);
-        
-        if (data.success && data.data) {
-            // Use the actual travel point data from backend
-            const rawData = data.data;
-            const travelPointDetails = rawData.travel_point_details || {};
-            
-            const travelPointBooking = {
-                vehicles_name: rawData.vehicles_name || travelPointDetails.vehicles_name,
-                image: travelPointDetails.image,
-                totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || travelPointDetails.bookingDate,
-                entrytime: rawData.entry_time || travelPointDetails.entry_time,
-                type: travelPointDetails.type || 'Standard',
-                adults: rawData.adults || '0',
-                children: rawData.children || '0',
-                pickupPoint: rawData.entrypickup || travelPointDetails.entrypickup || travelPointDetails.pickup_point || 'N/A',
-                dropoffPoint: rawData.entrydropoff || travelPointDetails.entrydropoff || travelPointDetails.dropoff_point || 'N/A',
-                city: travelPointDetails.city || 'N/A',
-                country: travelPointDetails.country || 'N/A',
-                Tax: travelPointDetails.Tax || '0',
-                fullName: travelPointDetails.fullName || travelPointDetails.full_name || 'N/A',
-                email: travelPointDetails.email || 'N/A',
-                phone: travelPointDetails.phone || 'N/A',
-                specialRequests: travelPointDetails.specialRequests || travelPointDetails.special_requests
-            };
-            
-            console.log('✅ Travel point booking data prepared for display', travelPointBooking);
-            generateIndividualTravelPointContent(travelPointBooking, modalId, tourId, travelPointOrderIndex, bookingIndex);
-        } else {
-            console.error('❌ Travel point data fetch failed', data);
-            displayTravelPointErrorContent(modalId, 'Failed to load travel point details');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Error fetching travel point data:', error);
-        displayTravelPointErrorContent(modalId, 'Error loading travel point details');
-    });
-}
+
 
 function displayTravelPointErrorContent(modalId, message) {
     document.getElementById(`${modalId}_content`).innerHTML = `
@@ -11249,7 +14575,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.reference_id || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -11278,6 +14604,14 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 </div>
                                 <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                             </div>
+                            ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
+                                    ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
+                                </div>
+                            ` : `
                             @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                             <div class="d-flex gap-2">
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -11289,7 +14623,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 </button>
                                 <button type="button" 
                                         class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                        onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-check-line me-1"></i>Approve
                                 </button>
@@ -11297,13 +14631,14 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                        onclick="rejectIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                        onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-close-line me-1"></i>Reject
                                 </button>
                                 @endif
                             </div>
                             @endif
+                            `}
                         </div>
                     </div>
                 </div>
@@ -11629,51 +14964,9 @@ function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex
     `;
 }
 
-function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
-    return `
-        <div class="text-center py-4">
-            <div class="bg-success rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                <i class="ri-check-line ri-32px text-white"></i>
-            </div>
-            <h5 class="text-dark mb-3">Approve Travel Point Service</h5>
-            <p class="text-muted mb-4">Are you sure you want to approve this Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} booking?</p>
-            <div class="alert alert-success">
-                <i class="ri-information-line me-2"></i>
-                This action will mark the travel point service as approved and notify the relevant parties.
-            </div>
-        </div>
-    `;
-}
 
-function generateRejectTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
-    return `
-        <div class="py-4">
-            <div class="text-center mb-4">
-                <div class="bg-danger rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                    <i class="ri-close-line ri-32px text-white"></i>
-                </div>
-                <h5 class="text-dark mb-3">Reject Travel Point Service</h5>
-                <p class="text-muted mb-4">Please provide a reason for rejecting this Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} booking.</p>
-            </div>
-            
-            <div class="mb-4">
-                <label for="reject_reason_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Rejection Reason</label>
-                <textarea class="form-control" 
-                          id="reject_reason_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
-                          name="reject_reason"
-                          rows="4"
-                          placeholder="Please provide a detailed reason for rejection..."
-                          required
-                          style="border-radius: 8px; border: 2px solid #e9ecef;"></textarea>
-            </div>
-            
-            <div class="alert alert-warning">
-                <i class="ri-alert-line me-2"></i>
-                This action will mark the travel point service as rejected and notify the relevant parties.
-            </div>
-        </div>
-    `;
-}
+
+
 
 function closeIndividualTravelPointModal(modalId) {
     try {
@@ -11932,53 +15225,7 @@ function saveIndividualTravelPointChanges(tourId, travelPointOrderIndex, booking
     }
 }
 
-function confirmIndividualTravelPointApproval(tourId, travelPointOrderIndex, bookingIndex) {
-    try {
-        console.log('Confirming individual travel point approval:', { tourId, travelPointOrderIndex, bookingIndex });
-        
-        // Close the approve modal
-        const modalId = `individualTravelPointModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}_approve`;
-        closeIndividualTravelPointModal(modalId);
-        
-        // Show success message
-        alert('Travel point booking approved successfully!');
-        
-        // Here you can implement the actual approval API call
-        // For now, just show success message
-        
-    } catch (error) {
-        console.error('Error confirming individual travel point approval:', error);
-        alert('Error approving travel point booking. Please try again.');
-    }
-}
 
-function confirmIndividualTravelPointRejection(tourId, travelPointOrderIndex, bookingIndex) {
-    try {
-        const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
-        const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
-        
-        if (!reason) {
-            alert('Please provide a reason for rejection.');
-            return;
-        }
-        
-        console.log('Confirming individual travel point rejection:', { tourId, travelPointOrderIndex, bookingIndex, reason });
-        
-        // Close the reject modal
-        const modalId = `individualTravelPointModal_${tourId}_${travelPointOrderIndex}_${bookingIndex}_reject`;
-        closeIndividualTravelPointModal(modalId);
-        
-        // Show success message
-        alert('Travel point booking rejected successfully!');
-        
-        // Here you can implement the actual rejection API call
-        // For now, just show success message
-        
-    } catch (error) {
-        console.error('Error confirming individual travel point rejection:', error);
-        alert('Error rejecting travel point booking. Please try again.');
-    }
-}
 
 // Individual Local Transport Modal Functions (following Travel Point pattern)
 function openIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex) {
@@ -12104,7 +15351,11 @@ function loadIndividualLocalTransportContent(modalId, tourId, localTransportOrde
                 fullName: localTransportDetails.fullName || localTransportDetails.full_name || 'N/A',
                 email: localTransportDetails.email || 'N/A',
                 phone: localTransportDetails.phone || 'N/A',
-                specialRequests: localTransportDetails.specialRequests || localTransportDetails.special_requests
+                specialRequests: localTransportDetails.specialRequests || localTransportDetails.special_requests,
+                // Include approval-related fields from backend
+                is_approve: rawData.is_approve ?? 0,
+                reference_id: rawData.reference_id ?? null,
+                display_due_date: rawData.display_due_date ?? null
             };
             
             console.log('✅ Local transport booking data prepared for display', localTransportBooking);
@@ -12382,6 +15633,14 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                 </div>
                                 <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                             </div>
+                            ${localTransportData.is_approve == 1 ? `
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${localTransportData.reference_id ? `<br><small class="text-muted">Ref: ${localTransportData.reference_id}</small>` : ''}
+                                    ${localTransportData.display_due_date ? `<br><small class="text-muted">Due: ${localTransportData.display_due_date}</small>` : ''}
+                                </div>
+                            ` : `
                             @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                             <div class="d-flex gap-2">
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -12408,6 +15667,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                 @endif
                             </div>
                             @endif
+                            `}
                         </div>
                     </div>
                 </div>
@@ -12452,51 +15712,600 @@ function editIndividualLocalTransport(tourId, localTransportOrderIndex, bookingI
     }
 }
 
-function approveIndividualLocalTransport(tourId, localTransportOrderIndex, bookingIndex) {
+// Local Transport Approve and Reject Functions (following Point to Point pattern)
+window.approveIndividualLocalTransport = function(tourId, localTransportOrderIndex, bookingIndex) {
+    console.log('🚌 LOCAL TRANSPORT APPROVE: Opening approve modal', { tourId, localTransportOrderIndex, bookingIndex });
+    createLocalTransportApprovalModal(tourId, localTransportOrderIndex, bookingIndex);
+};
+
+window.rejectIndividualLocalTransport = function(tourId, localTransportOrderIndex, bookingIndex) {
+    console.log('🚌 LOCAL TRANSPORT REJECT: Opening reject modal', { tourId, localTransportOrderIndex, bookingIndex });
+    createLocalTransportRejectionModal(tourId, localTransportOrderIndex, bookingIndex);
+};
+
+function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, bookingIndex) {
+    const modalId = `localTransportApprovalModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-bus-line text-success fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">Approve Local Transport Booking</h5>
+                                <p class="text-white-50 mb-0 small">Local Transport Order ${parseInt(localTransportOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeLocalTransportModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        <form id="localTransportApprovalForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+                            <input type="hidden" name="tour_id" value="${tourId}">
+                            <input type="hidden" name="hourly_order_index" value="${localTransportOrderIndex}">
+                            <input type="hidden" name="booking_index" value="${bookingIndex}">
+                            
+                            <!-- Local Transport Information -->
+                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                                <div class="card-header bg-light border-0 py-3">
+                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        <i class="ri-bus-line me-2 text-primary"></i>Local Transport Information
+                                    </h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <div id="approve_local_transport_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+                                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-bus-line text-muted fs-2"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <h6 class="fw-bold mb-1" id="approve_local_transport_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}">Local Transport</h6>
+                                            <p class="text-muted mb-0 small">Order ${parseInt(localTransportOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                                    <div>
+                                        <strong class="text-success">Confirm Approval</strong>
+                                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this local transport booking?</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="referenceId_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="reference_id" required 
+                                       placeholder="Enter booking reference or confirmation number"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="referenceFile_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                                </label>
+                                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="reference_file"
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                                       onchange="calculateLocalTransportDisplayDueDate('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <div class="form-text">Select the actual due date for this booking</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="displayDueDateDays_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculateLocalTransportDisplayDueDate('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')"
+                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                    <option value="">Select days before</option>
+                                    <option value="1">1 day before</option>
+                                    <option value="2">2 days before</option>
+                                    <option value="3">3 days before</option>
+                                    <option value="4">4 days before</option>
+                                    <option value="5">5 days before</option>
+                                    <option value="7">1 week before</option>
+                                    <option value="14">2 weeks before</option>
+                                    <option value="30">1 month before</option>
+                                </select>
+                                <div class="form-text">Select how many days before the actual due date to display</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="displayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-calendar-check-line me-2"></i>Display Due Date (Auto-calculated)
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="display_due_date_display" readonly 
+                                       placeholder="Will be auto-calculated"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef; background-color: #f8f9fa;">
+                                <input type="hidden" id="hiddenDisplayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="display_due_date">
+                                <div class="form-text">This will be calculated automatically based on your selections above</div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeLocalTransportModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-success px-4 py-2" onclick="confirmIndividualLocalTransportApproval(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-check-line me-2"></i>Confirm Approval
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load local transport data for the modal
+    loadLocalTransportDataForApprove(tourId, localTransportOrderIndex, bookingIndex);
+}
+
+function createLocalTransportRejectionModal(tourId, localTransportOrderIndex, bookingIndex) {
+    const modalId = `localTransportRejectionModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+    
+    // Remove existing modal if present
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modalHTML = `
+        <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                    <!-- Modal Header -->
+                    <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                <i class="ri-bus-line text-danger fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title fw-bold text-white mb-1">Reject Local Transport Booking</h5>
+                                <p class="text-white-50 mb-0 small">Local Transport Order ${parseInt(localTransportOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeLocalTransportModal('${modalId}')" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body p-4">
+                        <form id="localTransportRejectionForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+                            <input type="hidden" name="tour_id" value="${tourId}">
+                            <input type="hidden" name="hourly_order_index" value="${localTransportOrderIndex}">
+                            <input type="hidden" name="booking_index" value="${bookingIndex}">
+                            
+                            <!-- Local Transport Information -->
+                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                                <div class="card-header bg-light border-0 py-3">
+                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                                        <i class="ri-bus-line me-2 text-primary"></i>Local Transport Information
+                                    </h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-3 text-center">
+                                            <div id="reject_local_transport_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+                                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                                    <i class="ri-bus-line text-muted fs-2"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <h6 class="fw-bold mb-1" id="reject_local_transport_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}">Local Transport</h6>
+                                            <p class="text-muted mb-0 small">Order ${parseInt(localTransportOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                                    <div>
+                                        <strong class="text-danger">Confirm Rejection</strong>
+                                        <p class="mb-0 text-muted small mt-1">Please provide a reason for rejecting this local transport booking.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="cancelReason_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                                    <i class="ri-message-3-line me-2"></i>Rejection Reason <span class="text-danger">*</span>
+                                </label>
+                                <textarea class="form-control form-control-lg" id="cancelReason_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="cancel_reason" required 
+                                          rows="4" placeholder="Please provide a detailed reason for rejecting this local transport booking..."
+                                          style="border-radius: 8px; border: 2px solid #e9ecef; resize: vertical;"></textarea>
+                                <div class="form-text">This reason will be recorded and may be shared with relevant parties.</div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeLocalTransportModal('${modalId}')" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 py-2" onclick="confirmIndividualLocalTransportRejection(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Confirm Rejection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    modal.show();
+    
+    // Load local transport data for the modal
+    loadLocalTransportDataForReject(tourId, localTransportOrderIndex, bookingIndex);
+}
+
+function closeLocalTransportModal(modalId) {
     try {
-        console.log('Opening individual local transport approve modal for tour:', tourId, 'order:', localTransportOrderIndex, 'booking:', bookingIndex);
-        
-        // Close any open modals first
-        const viewModalId = `individualLocalTransportViewModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
-        const viewModal = document.getElementById(viewModalId);
-        if (viewModal) {
-            const modal = bootstrap.Modal.getInstance(viewModal);
-            if (modal) {
-                modal.hide();
-            }
+        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+        if (modal) {
+            modal.hide();
         }
-        
+        // Remove the modal element after hiding
         setTimeout(() => {
-            createAndShowIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex, 'approve');
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                modalElement.remove();
+            }
         }, 300);
-        
     } catch (error) {
-        console.error('Error opening individual local transport approve modal:', error);
-        alert('Error opening approve modal. Please try again.');
+        console.error('Error closing local transport modal:', error);
     }
 }
 
-function rejectIndividualLocalTransport(tourId, localTransportOrderIndex, bookingIndex) {
-    try {
-        console.log('Opening individual local transport reject modal for tour:', tourId, 'order:', localTransportOrderIndex, 'booking:', bookingIndex);
-        
-        // Close any open modals first
-        const viewModalId = `individualLocalTransportViewModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
-        const viewModal = document.getElementById(viewModalId);
-        if (viewModal) {
-            const modal = bootstrap.Modal.getInstance(viewModal);
-            if (modal) {
-                modal.hide();
+// Local Transport Data Loading Functions
+function loadLocalTransportDataForApprove(tourId, localTransportOrderIndex, bookingIndex) {
+    fetch('/booking/get-local-transport-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            local_transport_order_index: localTransportOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            const imageContainer = document.getElementById(`approve_local_transport_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const nameContainer = document.getElementById(`approve_local_transport_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            
+            if (imageContainer && nameContainer) {
+                // Update vehicle image
+                if (data.data.local_transport_details && data.data.local_transport_details.image) {
+                    imageContainer.innerHTML = `<img src="${data.data.local_transport_details.image}" alt="Vehicle" class="img-fluid rounded" style="width: 80px; height: 60px; object-fit: cover;">`;
+                } else {
+                    imageContainer.innerHTML = `<div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;"><i class="ri-bus-line text-muted fs-2"></i></div>`;
+                }
+                
+                // Update vehicle name
+                if (data.data.vehicles_name) {
+                    nameContainer.textContent = data.data.vehicles_name;
+                } else {
+                    nameContainer.textContent = 'Local Transport Service';
+                }
             }
         }
+    })
+    .catch(error => {
+        console.error('Error loading local transport data for approve:', error);
+    });
+}
+
+function loadLocalTransportDataForReject(tourId, localTransportOrderIndex, bookingIndex) {
+    fetch('/booking/get-local-transport-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            local_transport_order_index: localTransportOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            const imageContainer = document.getElementById(`reject_local_transport_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            const nameContainer = document.getElementById(`reject_local_transport_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+            
+            if (imageContainer && nameContainer) {
+                // Update vehicle image
+                if (data.data.local_transport_details && data.data.local_transport_details.image) {
+                    imageContainer.innerHTML = `<img src="${data.data.local_transport_details.image}" alt="Vehicle" class="img-fluid rounded" style="width: 80px; height: 60px; object-fit: cover;">`;
+                } else {
+                    imageContainer.innerHTML = `<div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;"><i class="ri-bus-line text-muted fs-2"></i></div>`;
+                }
+                
+                // Update vehicle name
+                if (data.data.vehicles_name) {
+                    nameContainer.textContent = data.data.vehicles_name;
+                } else {
+                    nameContainer.textContent = 'Local Transport Service';
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading local transport data for reject:', error);
+    });
+}
+
+// Auto-calculation function for Display Due Date
+window.calculateLocalTransportDisplayDueDate = function(tourId, localTransportOrderIndex, bookingIndex) {
+    const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+    const displayDueDateDaysInput = document.getElementById(`displayDueDateDays_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+    const displayDueDateDisplay = document.getElementById(`displayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+    const hiddenDisplayDueDate = document.getElementById(`hiddenDisplayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+    
+    if (actualDueDateInput && displayDueDateDaysInput && displayDueDateDisplay && hiddenDisplayDueDate) {
+        const actualDate = actualDueDateInput.value;
+        const daysBefore = parseInt(displayDueDateDaysInput.value);
         
-        setTimeout(() => {
-            createAndShowIndividualLocalTransportModal(tourId, localTransportOrderIndex, bookingIndex, 'reject');
-        }, 300);
+        if (actualDate && daysBefore) {
+            const actual = new Date(actualDate);
+            const displayDate = new Date(actual);
+            displayDate.setDate(actual.getDate() - daysBefore);
+            
+            // Format for display (DD-MM-YYYY)
+            const day = String(displayDate.getDate()).padStart(2, '0');
+            const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+            const year = displayDate.getFullYear();
+            const formattedDate = `${day}-${month}-${year}`;
+            
+            displayDueDateDisplay.value = formattedDate;
+            hiddenDisplayDueDate.value = formattedDate;
+        } else {
+            displayDueDateDisplay.value = '';
+            hiddenDisplayDueDate.value = '';
+        }
+    }
+};
+
+// Form submission functions
+function confirmIndividualLocalTransportApproval(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('🚌 LOCAL TRANSPORT APPROVE: Confirming approval', { tourId, localTransportOrderIndex, bookingIndex });
+        
+        const form = document.getElementById(`localTransportApprovalForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('🚌 LOCAL TRANSPORT APPROVE: Form not found');
+            alert('Form not found. Please try again.');
+            return;
+        }
+
+        // Validate required fields
+        const referenceId = form.querySelector('[name="reference_id"]').value.trim();
+        const actualDueDate = form.querySelector('[name="actual_due_date"]').value;
+        const displayDueDateDays = form.querySelector('[name="display_due_date_days"]').value;
+        const hiddenDisplayDueDate = form.querySelector('[name="display_due_date"]').value;
+
+        console.log('🚌 LOCAL TRANSPORT APPROVE: Form validation', {
+            referenceId,
+            actualDueDate,
+            displayDueDateDays,
+            hiddenDisplayDueDate
+        });
+
+        if (!referenceId) {
+            alert('Please enter a reference ID.');
+            return;
+        }
+
+        if (!actualDueDate) {
+            alert('Please select an actual due date.');
+            return;
+        }
+
+        if (!displayDueDateDays) {
+            alert('Please select display due date (days before).');
+            return;
+        }
+
+        if (!hiddenDisplayDueDate) {
+            alert('Display due date calculation failed. Please try again.');
+            return;
+        }
+
+        // Get the approve button and show loading state
+        const approveButton = document.querySelector(`button[onclick="confirmIndividualLocalTransportApproval(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"]`);
+        const originalText = approveButton.innerHTML;
+        approveButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+        approveButton.disabled = true;
+
+        // Prepare form data
+        const formData = new FormData(form);
+        
+        // Add CSRF token to form data
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        formData.append('_token', csrfToken);
+        
+        console.log('🚌 LOCAL TRANSPORT APPROVE: Submitting form data:', Object.fromEntries(formData.entries()));
+        
+        // Submit to backend
+        fetch('/booking/approve-local-transport-booking', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('🚌 LOCAL TRANSPORT APPROVE: Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+            
+            console.log('🚌 LOCAL TRANSPORT APPROVE: Response data:', data);
+            
+            if (data.success) {
+                console.log('🚌 LOCAL TRANSPORT APPROVE: Booking approved successfully:', data);
+                const referenceId = formData.get('reference_id');
+                const displayDueDate = formData.get('display_due_date');
+                alert(`✅ Local Transport booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                
+                // Close modal and refresh page
+                const modalId = `localTransportApprovalModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+                closeLocalTransportModal(modalId);
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                console.error('🚌 LOCAL TRANSPORT APPROVE: Backend error:', data);
+                alert('Failed to approve local transport booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            approveButton.innerHTML = originalText;
+            approveButton.disabled = false;
+            
+            console.error('🚌 LOCAL TRANSPORT APPROVE: Network error:', error);
+            alert('An error occurred while approving the booking. Please try again.');
+        });
         
     } catch (error) {
-        console.error('Error opening individual local transport reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
+        console.error('🚌 LOCAL TRANSPORT APPROVE: Unexpected error:', error);
+        alert('An unexpected error occurred. Please try again.');
+    }
+}
+
+function confirmIndividualLocalTransportRejection(tourId, localTransportOrderIndex, bookingIndex) {
+    try {
+        console.log('🚌 LOCAL TRANSPORT REJECT: Confirming rejection', { tourId, localTransportOrderIndex, bookingIndex });
+        
+        const form = document.getElementById(`localTransportRejectionForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('🚌 LOCAL TRANSPORT REJECT: Form not found');
+            alert('Form not found. Please try again.');
+            return;
+        }
+
+        // Validate required fields
+        const cancelReason = form.querySelector('[name="cancel_reason"]').value.trim();
+
+        console.log('🚌 LOCAL TRANSPORT REJECT: Form validation', { cancelReason });
+
+        if (!cancelReason) {
+            alert('Please provide a reason for rejection.');
+            return;
+        }
+
+        // Get the reject button and show loading state
+        const rejectButton = document.querySelector(`button[onclick="confirmIndividualLocalTransportRejection(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"]`);
+        const originalText = rejectButton.innerHTML;
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Processing...';
+        rejectButton.disabled = true;
+
+        // Prepare form data
+        const formData = new FormData(form);
+        
+        // Add CSRF token to form data
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        formData.append('_token', csrfToken);
+        
+        console.log('🚌 LOCAL TRANSPORT REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
+        
+        // Submit to backend
+        fetch('/booking/reject-local-transport-booking', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('🚌 LOCAL TRANSPORT REJECT: Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
+            
+            console.log('🚌 LOCAL TRANSPORT REJECT: Response data:', data);
+            
+            if (data.success) {
+                console.log('🚌 LOCAL TRANSPORT REJECT: Booking rejected successfully:', data);
+                const cancelReason = formData.get('cancel_reason');
+                alert(`✅ Local Transport booking rejected successfully!\nReason: ${cancelReason}`);
+                
+                // Close modal and refresh page
+                const modalId = `localTransportRejectionModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}`;
+                closeLocalTransportModal(modalId);
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                console.error('🚌 LOCAL TRANSPORT REJECT: Backend error:', data);
+                alert('Failed to reject local transport booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            // Reset button
+            rejectButton.innerHTML = originalText;
+            rejectButton.disabled = false;
+            
+            console.error('🚌 LOCAL TRANSPORT REJECT: Network error:', error);
+            alert('An error occurred while rejecting the booking. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('🚌 LOCAL TRANSPORT REJECT: Unexpected error:', error);
+        alert('An unexpected error occurred. Please try again.');
     }
 }
 
@@ -12744,47 +16553,214 @@ function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookin
 
 function generateApproveLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex) {
     return `
-        <div class="text-center py-4">
-            <div class="bg-success rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                <i class="ri-check-line ri-32px text-white"></i>
+        <form id="approveLocalTransportForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="hourly_order_index" value="${localTransportOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Local Transport Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-bus-line me-2 text-primary"></i>Local Transport Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_local_transport_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-bus-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div id="approve_local_transport_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="fw-bold text-dark fs-5 mb-1">
+                                Loading vehicle information...
+                            </div>
+                            <p class="text-muted mb-0">Local Transport Service ${parseInt(localTransportOrderIndex) + 1}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <h5 class="text-dark mb-3">Approve Local Transport Service</h5>
-            <p class="text-muted mb-4">Are you sure you want to approve this Local Transport ${parseInt(localTransportOrderIndex) + 1} booking?</p>
-            <div class="alert alert-success">
-                <i class="ri-information-line me-2"></i>
-                This action will mark the local transport service as approved and notify the relevant parties.
+
+            <!-- Approval Details Form -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-file-check-line me-2 text-success"></i>Approval Details
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <!-- Reference ID -->
+                        <div class="col-md-6">
+                            <label for="referenceId_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
+                                <i class="ri-hashtag me-1"></i>Reference ID <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="referenceId_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                   name="reference_id" 
+                                   placeholder="Enter reference ID"
+                                   required
+                                   style="border-radius: 8px;">
+                        </div>
+
+                        <!-- Reference File -->
+                        <div class="col-md-6">
+                            <label for="referenceFile_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
+                                <i class="ri-file-upload-line me-1"></i>Reference File
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="referenceFile_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                   name="reference_file"
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                   style="border-radius: 8px;">
+                            <small class="text-muted">Supported: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)</small>
+                        </div>
+
+                        <!-- Actual Due Date -->
+                        <div class="col-md-6">
+                            <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
+                                <i class="ri-calendar-line me-1"></i>Actual Due Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                   name="actual_due_date" 
+                                   required
+                                   onchange="calculateLocalTransportDisplayDueDate(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                   style="border-radius: 8px;">
+                        </div>
+
+                        <!-- Display Due Date (Days Before) -->
+                        <div class="col-md-6">
+                            <label for="displayDueDateDays_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
+                                <i class="ri-time-line me-1"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-control" 
+                                    id="displayDueDateDays_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                    name="display_due_date_days" 
+                                    required
+                                    onchange="calculateLocalTransportDisplayDueDate(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 8px;">
+                                <option value="">Select days before</option>
+                                <option value="1">1 Day Before</option>
+                                <option value="2">2 Days Before</option>
+                                <option value="3">3 Days Before</option>
+                                <option value="4">4 Days Before</option>
+                                <option value="5">5 Days Before</option>
+                                <option value="7">1 Week Before</option>
+                                <option value="14">2 Weeks Before</option>
+                                <option value="30">1 Month Before</option>
+                            </select>
+                        </div>
+
+                        <!-- Calculated Display Due Date -->
+                        <div class="col-12">
+                            <label for="displayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
+                                <i class="ri-calendar-check-line me-1"></i>Display Due Date (Auto-calculated)
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="displayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                   name="display_due_date_display" 
+                                   placeholder="Will be auto-calculated"
+                                   readonly
+                                   style="border-radius: 8px; background-color: #f8f9fa;">
+                            <input type="hidden" 
+                                   id="hiddenDisplayDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                   name="display_due_date">
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
+
+            <!-- Information Alert -->
+            <div class="alert alert-success border-0" style="border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-3 fs-4"></i>
+                    <div>
+                        <strong>Approval Confirmation</strong><br>
+                        <small>This action will mark the local transport service as approved and notify the relevant parties.</small>
+                    </div>
+                </div>
+            </div>
+        </form>
     `;
 }
 
 function generateRejectLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex) {
     return `
-        <div class="py-4">
-            <div class="text-center mb-4">
-                <div class="bg-danger rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                    <i class="ri-close-line ri-32px text-white"></i>
+        <form id="rejectLocalTransportForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="hourly_order_index" value="${localTransportOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Local Transport Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-bus-line me-2 text-primary"></i>Local Transport Information
+                    </h6>
                 </div>
-                <h5 class="text-dark mb-3">Reject Local Transport Service</h5>
-                <p class="text-muted mb-4">Please provide a reason for rejecting this Local Transport ${parseInt(localTransportOrderIndex) + 1} booking.</p>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="reject_local_transport_image_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-bus-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div id="reject_local_transport_name_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="fw-bold text-dark fs-5 mb-1">
+                                Loading vehicle information...
+                            </div>
+                            <p class="text-muted mb-0">Local Transport Service ${parseInt(localTransportOrderIndex) + 1}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="mb-4">
-                <label for="reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Rejection Reason</label>
-                <textarea class="form-control" 
-                          id="reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
-                          name="reject_reason"
-                          rows="4"
-                          placeholder="Please provide a detailed reason for rejection..."
-                          required
-                          style="border-radius: 8px; border: 2px solid #e9ecef;"></textarea>
+
+            <!-- Rejection Details Form -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-file-close-line me-2 text-danger"></i>Rejection Details
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label for="cancelReason_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
+                            <i class="ri-message-3-line me-1"></i>Rejection Reason <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" 
+                                  id="cancelReason_${tourId}_${localTransportOrderIndex}_${bookingIndex}" 
+                                  name="cancel_reason" 
+                                  placeholder="Please provide a detailed reason for rejecting this local transport service..."
+                                  
+                                  required
+                                  style="border-radius: 8px; border: 2px solid #e9ecef;">
+                        </textarea>
+                        <small class="text-muted">This reason will be shared with the relevant parties.</small>
+                    </div>
+                </div>
             </div>
-            
-            <div class="alert alert-warning">
-                <i class="ri-alert-line me-2"></i>
-                This action will mark the local transport service as rejected and notify the relevant parties.
+
+            <!-- Warning Alert -->
+            <div class="alert alert-warning border-0" style="border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-alert-line me-3 fs-4"></i>
+                    <div>
+                        <strong>Rejection Confirmation</strong><br>
+                        <small>This action will mark the local transport service as rejected and notify the relevant parties.</small>
+                    </div>
+                </div>
             </div>
-        </div>
+        </form>
     `;
 }
 
@@ -13112,53 +17088,53 @@ function saveIndividualLocalTransportChanges(tourId, localTransportOrderIndex, b
     }
 }
 
-function confirmIndividualLocalTransportApproval(tourId, localTransportOrderIndex, bookingIndex) {
-    try {
-        console.log('Confirming individual local transport approval:', { tourId, localTransportOrderIndex, bookingIndex });
+// function confirmIndividualLocalTransportApproval(tourId, localTransportOrderIndex, bookingIndex) {
+//     try {
+//         console.log('Confirming individual local transport approval:', { tourId, localTransportOrderIndex, bookingIndex });
         
-        // Close the approve modal
-        const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_approve`;
-        closeIndividualLocalTransportModal(modalId);
+//         // Close the approve modal
+//         const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_approve`;
+//         closeIndividualLocalTransportModal(modalId);
         
-        // Show success message
-        alert('Local transport booking approved successfully!');
+//         // Show success message
+//         alert('Local transport booking approved successfully!');
         
-        // Here you can implement the actual approval API call
-        // For now, just show success message
+//         // Here you can implement the actual approval API call
+//         // For now, just show success message
         
-    } catch (error) {
-        console.error('Error confirming individual local transport approval:', error);
-        alert('Error approving local transport booking. Please try again.');
-    }
-}
+//     } catch (error) {
+//         console.error('Error confirming individual local transport approval:', error);
+//         alert('Error approving local transport booking. Please try again.');
+//     }
+// }
 
-function confirmIndividualLocalTransportRejection(tourId, localTransportOrderIndex, bookingIndex) {
-    try {
-        const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
-        const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+// function confirmIndividualLocalTransportRejection(tourId, localTransportOrderIndex, bookingIndex) {
+//     try {
+//         const reasonTextarea = document.getElementById(`reject_reason_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+//         const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
         
-        if (!reason) {
-            alert('Please provide a reason for rejection.');
-            return;
-        }
+//         if (!reason) {
+//             alert('Please provide a reason for rejection.');
+//             return;
+//         }
         
-        console.log('Confirming individual local transport rejection:', { tourId, localTransportOrderIndex, bookingIndex, reason });
+//         console.log('Confirming individual local transport rejection:', { tourId, localTransportOrderIndex, bookingIndex, reason });
         
-        // Close the reject modal
-        const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_reject`;
-        closeIndividualLocalTransportModal(modalId);
+//         // Close the reject modal
+//         const modalId = `individualLocalTransportModal_${tourId}_${localTransportOrderIndex}_${bookingIndex}_reject`;
+//         closeIndividualLocalTransportModal(modalId);
         
-        // Show success message
-        alert('Local transport booking rejected successfully!');
+//         // Show success message
+//         alert('Local transport booking rejected successfully!');
         
-        // Here you can implement the actual rejection API call
-        // For now, just show success message
+//         // Here you can implement the actual rejection API call
+//         // For now, just show success message
         
-    } catch (error) {
-        console.error('Error confirming individual local transport rejection:', error);
-        alert('Error rejecting local transport booking. Please try again.');
-    }
-}
+//     } catch (error) {
+//         console.error('Error confirming individual local transport rejection:', error);
+//         alert('Error rejecting local transport booking. Please try again.');
+//     }
+// }
 
 // Local Transport Booking Management Functions
 function editLocalTransportBooking(tourId, localTransportOrderIndex, localTransportBookingIndex) {
@@ -17819,6 +21795,576 @@ function confirmIndividualRestaurantRejection(tourId, restaurantOrderIndex, book
         alert('Error rejecting booking. Please try again.');
     }
 }
+
+// Guide Individual Booking Functions (following restaurant pattern)
+function approveIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual guide approve modal for tour:', tourId, 'guide order:', guideOrderIndex, 'booking:', bookingIndex);
+        
+        // Close the guide details modal first
+        const guideDetailsModal = document.getElementById('guideDetailsModal' + tourId);
+        if (guideDetailsModal) {
+            const guideModal = bootstrap.Modal.getInstance(guideDetailsModal);
+            if (guideModal) {
+                guideModal.hide();
+            }
+        }
+        
+        // Wait a moment for the modal to close, then show individual approve modal
+        setTimeout(() => {
+            createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'approve');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual guide approve modal:', error);
+        alert('Error opening approve modal. Please try again.');
+    }
+}
+
+function rejectIndividualGuide(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        console.log('Opening individual guide reject modal for tour:', tourId, 'guide order:', guideOrderIndex, 'booking:', bookingIndex);
+        
+        // Close the guide details modal first
+        const guideDetailsModal = document.getElementById('guideDetailsModal' + tourId);
+        if (guideDetailsModal) {
+            const guideModal = bootstrap.Modal.getInstance(guideDetailsModal);
+            if (guideModal) {
+                guideModal.hide();
+            }
+        }
+        
+        // Wait a moment for the modal to close, then show individual reject modal
+        setTimeout(() => {
+            createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'reject');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual guide reject modal:', error);
+        alert('Error opening reject modal. Please try again.');
+    }
+}
+
+function createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, action) {
+    try {
+        const modalId = `individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}_${action}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+        
+        switch (action) {
+            case 'approve':
+                modalTitle = 'Approve Individual Guide Booking';
+                modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                buttonClass = 'btn-success';
+                buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+                onSubmit = `confirmIndividualGuideApproval(${tourId}, ${guideOrderIndex}, ${bookingIndex})`;
+                modalContent = generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex);
+                break;
+                
+            case 'reject':
+                modalTitle = 'Reject Individual Guide Booking';
+                modalColor = 'linear-gradient(135deg, #dc3545 0%, #e74c3c 100%)';
+                buttonClass = 'btn-danger';
+                buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+                onSubmit = `confirmIndividualGuideRejection(${tourId}, ${guideOrderIndex}, ${bookingIndex})`;
+                modalContent = generateRejectGuideForm(tourId, guideOrderIndex, bookingIndex);
+                break;
+        }
+        
+        // Create modal HTML
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                    <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                        <div class="modal-header p-0 border-0 position-relative" style="height: 120px; background: ${modalColor};">
+                            <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
+                                <div class="text-white">
+                                    <h4 class="mb-1 fw-bold">${modalTitle}</h4>
+                                    <p class="mb-0 opacity-75">Guide Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                </div>
+                                <button type="button" class="btn-close btn-close-white" onclick="closeIndividualGuideModal('${modalId}')" aria-label="Close"></button>
+                            </div>
+                        </div>
+                        <div class="modal-body p-4" style="background-color: #f8f9fa; max-height: 70vh; overflow-y: auto;">
+                            ${modalContent}
+                        </div>
+                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualGuideModal('${modalId}')" style="border-radius: 25px;">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn ${buttonClass} px-4 py-2 ms-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modalElement = document.getElementById(modalId);
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        // Load data for approve modal
+        if (action === 'approve') {
+            setTimeout(() => {
+                loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex);
+            }, 100);
+        }
+        
+        // Remove modal from DOM when hidden
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            if (document.getElementById(modalId)) {
+                document.getElementById(modalId).remove();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error creating individual guide modal:', error);
+        alert('Error creating modal. Please try again.');
+    }
+}
+
+function closeIndividualGuideModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+        }
+    } catch (error) {
+        console.error('Error closing individual guide modal:', error);
+    }
+}
+
+function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
+    return `
+        <form id="approveIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="guide_order_index" value="${guideOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Guide Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-user-voice-line me-2 text-primary"></i>Guide Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div id="approve_guide_image_${tourId}_${guideOrderIndex}_${bookingIndex}" class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-user-voice-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="approve_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}">Guide Booking</h6>
+                            <p class="text-muted mb-0 small">Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
+                    <div>
+                        <strong class="text-success">Confirm Approval</strong>
+                        <p class="mb-0 text-muted small mt-1">Are you sure you want to approve this individual guide booking?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceId_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${guideOrderIndex}_${bookingIndex}" name="reference_id" required 
+                       placeholder="Enter booking reference or confirmation number"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+            </div>
+
+            <div class="mb-3">
+                <label for="referenceFile_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                </label>
+                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${guideOrderIndex}_${bookingIndex}" name="reference_file"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                </label>
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                       onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
+                       style="border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">Select the actual due date for this booking</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
+                </label>
+                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${guideOrderIndex}_${bookingIndex}" name="display_due_date_days" required onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
+                        style="border-radius: 8px; border: 2px solid #e9ecef;">
+                    <option value="">Select days before</option>
+                    <option value="1">1 day before</option>
+                    <option value="2">2 days before</option>
+                    <option value="3">3 days before</option>
+                    <option value="4">4 days before</option>
+                    <option value="5">5 days before</option>
+                    <option value="7">1 week before</option>
+                    <option value="14">2 weeks before</option>
+                </select>
+                <div class="form-text">Select how many days before the actual due date to display</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
+                </label>
+                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="display_due_date" readonly 
+                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
+                <div class="form-text">This will be calculated automatically based on your selection above</div>
+            </div>
+        </form>
+    `;
+}
+
+function generateRejectGuideForm(tourId, guideOrderIndex, bookingIndex) {
+    return `
+        <form id="rejectIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="guide_order_index" value="${guideOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            
+            <!-- Guide Information -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-user-voice-line me-2 text-danger"></i>Guide Information
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-user-voice-line text-muted fs-2"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <h6 class="fw-bold mb-1" id="reject_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}">Guide Booking</h6>
+                            <p class="text-muted mb-0 small">Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-danger border-0 mb-4" style="background: linear-gradient(45deg, #f8d7da, #f5c6cb); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-error-warning-line me-2 text-danger fs-4"></i>
+                    <div>
+                        <h6 class="fw-bold mb-1 text-danger">Confirm Rejection</h6>
+                        <p class="mb-0 text-danger opacity-75">Are you sure you want to reject this individual guide booking?</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rejection Reason -->
+            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <i class="ri-message-line me-2 text-warning"></i>Rejection Reason
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label for="rejectionReason_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-medium">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="rejection_reason" id="rejectionReason_${tourId}_${guideOrderIndex}_${bookingIndex}" 
+                                  rows="4" placeholder="Please provide a reason for rejecting this guide booking..." 
+                                  required style="border-radius: 8px;"></textarea>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
+
+function loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        console.log('Loading guide data for approve modal:', { tourId, guideOrderIndex, bookingIndex });
+        
+        // Fetch guide data from server (using similar endpoint to oher services)
+        fetch('{{ url("/booking/get-guide-data") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                guide_order_index: guideOrderIndex,
+                booking_index: bookingIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const guideData = data.data;
+                console.log('✅ Guide data loaded for approve modal:', guideData);
+                
+                // Update guide name
+                const guideNameElement = document.getElementById(`approve_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+                if (guideNameElement) {
+                    guideNameElement.textContent = guideData.guide_name || 'Guide Booking';
+                    console.log('✅ Updated guide name to:', guideData.guide_name);
+                }
+                
+                // Update guide image (if available)
+                const guideImageElement = document.getElementById(`approve_guide_image_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+                if (guideImageElement) {
+                    if (guideData.image) {
+                        guideImageElement.innerHTML = `
+                            <img src="${guideData.image}" 
+                                 alt="${guideData.guide_name || 'Guide'}" 
+                                 class="img-fluid rounded shadow-sm" 
+                                 style="width: 80px; height: 60px; object-fit: cover;">
+                        `;
+                        console.log('✅ Updated guide image');
+                    } else {
+                        // Show default guide icon if no image
+                        guideImageElement.innerHTML = `
+                            <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                                <i class="ri-user-voice-line text-muted fs-2"></i>
+                            </div>
+                        `;
+                        console.log('✅ Set default guide icon');
+                    }
+                }
+                
+                // Set default actual due date to today + 7 days
+                const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+                if (actualDueDateInput) {
+                    const defaultDate = new Date();
+                    defaultDate.setDate(defaultDate.getDate() + 7);
+                    actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
+                    console.log('✅ Set default actual due date to:', actualDueDateInput.value);
+                }
+                
+            } else {
+                console.error('❌ Failed to load guide data for approve modal:', data);
+                
+                // Show error in the modal
+                const guideNameElement = document.getElementById(`approve_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+                if (guideNameElement) {
+                    guideNameElement.textContent = 'Error loading guide data';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('🔥 Error loading guide data for approve modal:', error);
+            
+            // Show error in the modal
+            const guideNameElement = document.getElementById(`approve_guide_name_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            if (guideNameElement) {
+                guideNameElement.textContent = 'Error loading guide data';
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in loadGuideDataForApprove:', error);
+    }
+}
+
+function confirmIndividualGuideApproval(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        const form = document.getElementById(`approveIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('Individual guide approve form not found');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const referenceId = formData.get('reference_id');
+        const actualDueDate = formData.get('actual_due_date');
+        const displayDueDateDays = formData.get('display_due_date_days');
+        const displayDueDate = formData.get('display_due_date');
+        
+        // Client-side validation
+        if (!referenceId || !actualDueDate || !displayDueDateDays) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        // Disable submit button and show loading
+        const submitButton = document.querySelector(`#approveIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}`).closest('.modal').querySelector('.btn-success');
+        const originalText = submitButton.innerHTML;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+        }
+        
+        // Submit to backend
+        fetch('{{ url("/booking/approve-guide-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                                 console.log('✅ Guide booking approved successfully:', data);
+                 const referenceId = formData.get('reference_id');
+                 const displayDueDate = formData.get('display_due_date');
+                 alert(`Guide booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                 
+                 // Close approval modal
+                 const modalId = `individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}_approve`;
+                 closeIndividualGuideModal(modalId);
+                 
+                 // Update the guide badge to show approved status
+                 const guideBadges = document.querySelectorAll(`[onclick="openIndividualGuideModal(${tourId}, ${guideOrderIndex}, ${bookingIndex})"]`);
+                 guideBadges.forEach(badge => {
+                     badge.className = 'badge bg-success text-white me-1 mb-1';
+                     badge.style.cursor = 'pointer';
+                     if (!badge.querySelector('.ri-check-line')) {
+                         badge.insertAdjacentHTML('beforeend', '<i class="ri-check-line ms-1"></i>');
+                     }
+                 });
+                 
+                 // Refresh the individual guide modal content if it's open
+                 const guideModalId = `individualGuideViewModal_${tourId}_${guideOrderIndex}_${bookingIndex}`;
+                 const guideModal = document.getElementById(guideModalId);
+                 if (guideModal) {
+                     // Reload the guide modal content with updated approval status
+                     loadIndividualGuideContent(tourId, guideOrderIndex, bookingIndex, guideModalId);
+                 }
+                 
+                 console.log('✅ Guide approval process completed successfully');
+            } else {
+                console.error('Failed to approve guide booking:', data);
+                alert('Failed to approve guide booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error approving guide booking:', error);
+            alert('Error approving guide booking. Please try again.');
+        })
+        .finally(() => {
+            // Reset button
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in confirmIndividualGuideApproval:', error);
+        alert('Error processing approval. Please try again.');
+    }
+}
+
+function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        const form = document.getElementById(`rejectIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('Individual guide reject form not found');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const rejectionReason = formData.get('rejection_reason');
+        
+        // Client-side validation
+        if (!rejectionReason || rejectionReason.trim() === '') {
+            alert('Please provide a reason for rejection.');
+            return;
+        }
+        
+        // Disable submit button and show loading
+        const submitButton = document.querySelector(`#rejectIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}`).closest('.modal').querySelector('.btn-danger');
+        const originalText = submitButton.innerHTML;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+        }
+        
+        // Submit to backend
+        fetch('{{ url("/booking/reject-guide-booking") }}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Guide booking rejected successfully:', data);
+                alert(`Guide booking rejected successfully!\nReason: ${rejectionReason}`);
+                
+                // Close modal and refresh page
+                const modalId = `individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}_reject`;
+                closeIndividualGuideModal(modalId);
+                window.location.reload();
+            } else {
+                console.error('Failed to reject guide booking:', data);
+                alert('Failed to reject guide booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error rejecting guide booking:', error);
+            alert('Error rejecting guide booking. Please try again.');
+        })
+        .finally(() => {
+            // Reset button
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalText;
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in confirmIndividualGuideRejection:', error);
+        alert('Error processing rejection. Please try again.');
+    }
+}
+
+// Old jQuery-based date calculation removed - now using direct onchange handlers with calculateGuideDisplayDueDate function
 
 </script>
 @endsection
