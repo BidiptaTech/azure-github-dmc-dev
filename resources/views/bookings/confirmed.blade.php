@@ -3923,7 +3923,7 @@
                                                             <br><small class="text-muted">Ref: {{ $hourlyOrder->reference_id }}</small>
                                                         @endif
                                                         @if($hourlyOrder->display_due_date)
-                                                            <br><small class="text-muted">Due: {{ \Carbon\Carbon::parse($hourlyOrder->display_due_date)->format('d-m-Y') }}</small>
+                                                            <br><small class="text-muted">Due: {{ $hourlyOrder->display_due_date }}</small>
                                                         @endif
                                                     </div>
                                                 @else
@@ -16003,7 +16003,7 @@ function closeLocalTransportModal(modalId) {
 
 // Local Transport Data Loading Functions
 function loadLocalTransportDataForApprove(tourId, localTransportOrderIndex, bookingIndex) {
-    fetch('/booking/get-local-transport-data', {
+    fetch('{{ url("/booking/get-local-transport-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -16044,7 +16044,7 @@ function loadLocalTransportDataForApprove(tourId, localTransportOrderIndex, book
 }
 
 function loadLocalTransportDataForReject(tourId, localTransportOrderIndex, bookingIndex) {
-    fetch('/booking/get-local-transport-data', {
+    fetch('{{ url("/booking/get-local-transport-data") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -16176,7 +16176,7 @@ function confirmIndividualLocalTransportApproval(tourId, localTransportOrderInde
         console.log('🚌 LOCAL TRANSPORT APPROVE: Submitting form data:', Object.fromEntries(formData.entries()));
         
         // Submit to backend
-        fetch('/booking/approve-local-transport-booking', {
+        fetch('{{ url("/booking/approve-local-transport-booking") }}', {
             method: 'POST',
             body: formData,
             headers: {
@@ -16265,7 +16265,7 @@ function confirmIndividualLocalTransportRejection(tourId, localTransportOrderInd
         console.log('🚌 LOCAL TRANSPORT REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
         
         // Submit to backend
-        fetch('/booking/reject-local-transport-booking', {
+        fetch('{{ url("/booking/reject-local-transport-booking") }}', {
             method: 'POST',
             body: formData,
             headers: {
