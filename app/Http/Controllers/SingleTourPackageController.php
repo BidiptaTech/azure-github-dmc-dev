@@ -1065,6 +1065,76 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * Fetch vehicles based on city and dmc_id for point to point and hourly services
+     */
+    public function fetchVehiclesByCityAndDmc(Request $request)
+    {
+        try {
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            $city = $request->input('city');
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            if (!$city) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'City is required'
+                ], 400);
+            }
+
+            // Fetch vehicles for the current DMC and city
+            $vehicles = Vehicle::where('dmc_id', $dmcId)
+                ->where('city', $city)
+                ->where('is_available', 1)
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour')
+                ->orderBy('vehicle_name')
+                ->get();
+
+            $vehiclesData = $vehicles->map(function ($vehicle) {
+                return [
+                    'vehicle_id' => $vehicle->vehicle_id,
+                    'vehicle_name' => $vehicle->vehicle_name,
+                    'vehicle_type' => $vehicle->vehicle_type,
+                    'seating_capacity' => $vehicle->seating_capacity,
+                    'vehicle_model' => $vehicle->vehicle_model,
+                    'image' => $vehicle->image,
+                    'base_price' => $vehicle->base_price,
+                    'sharable_base_price' => $vehicle->sharable_base_price,
+                    'service_type' => $vehicle->service_type,
+                    'cost_per_hour' => $vehicle->cost_per_hour,
+                    'sharable_cost_per_hour' => $vehicle->sharable_cost_per_hour,
+                    'private_price' => $vehicle->base_price,
+                    'shared_price' => $vehicle->sharable_base_price
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'vehicles' => $vehiclesData,
+                'total_vehicles' => count($vehiclesData),
+                'city' => $city,
+                'dmc_id' => $dmcId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching vehicles: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
      * Get service name based on service type and data using exact field names from your JSON
      */
     private function getServiceName($serviceType, $data)
@@ -1424,7 +1494,22 @@ class SingleTourPackageController extends Controller
                             
                         } elseif ($type === 'transport') {
                             // For transport, store each transport as a separate order
+                            \Log::info("Processing transport data", [
+                                'total_transports' => count($decodedData),
+                                'transport_data' => $decodedData
+                            ]);
+                            
                             foreach ($decodedData as $transport) {
+                                // Determine the correct type based on travel_type
+                                $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                
+                                \Log::info("Processing individual transport", [
+                                    'transport_id' => $transport['id'] ?? 'no_id',
+                                    'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
+                                    'travel_type' => $orderType,
+                                    'service_type' => $transport['type'] ?? 'unknown'
+                                ]);
+                                
                                 // Create separate order for each transport
                                 $lastBooking = Order::orderBy('booking_id', 'desc')->first();
                                 $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
@@ -1435,21 +1520,22 @@ class SingleTourPackageController extends Controller
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
-                                    'type' => $type,
+                                    'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
                                     'bookingType' => 'enquiry',
                                 ]);
 
                                 \Log::info("Transport order created successfully", [
                                     'order_id' => $order->booking_id,
-                                    'transport_name' => $transport['vehicle_name'] ?? 'Unknown Transport',
+                                    'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
+                                    'travel_type' => $orderType,
                                     'tour_id' => $tourId
                                 ]);
 
                                 $createdOrders[] = [
-                                    'type' => $type,
+                                    'type' => $orderType,
                                     'order_id' => $order->booking_id,
-                                    'transport_name' => $transport['vehicle_name'] ?? 'Unknown Transport',
+                                    'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
                                     'data_count' => 1
                                 ];
                             }
