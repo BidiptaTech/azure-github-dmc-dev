@@ -47,12 +47,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
 
-                            @if($roleId == 10)
-                                <th>DMC</th>
-                            @elseif($roleId != 11)
-                                <th>Master Dmc</th>
-                                <th>DMC</th>
-                            @endif
+                            <th>Company Name</th>
                             <th>Vehicle Type</th>
                             <th>Vehicle Model</th>
                             <th>Model Year</th>
@@ -73,19 +68,9 @@
                                     $roleId = auth()->user()->role_id;
                                 @endphp
 
-                                @if($roleId == 10)
-                                    @php
-                                        $dmcUser = App\Models\User::where('userId', $vehicle->dmc_id)->first();
-                                    @endphp
-                                    <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                @elseif($roleId != 11)
-                                    @php
-                                        $dmcUser = App\Models\User::where('userId', $vehicle->dmc_id)->first();
-                                        $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
-                                    @endphp
-                                    <td>{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
-                                    <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                @endif
+                                <td>
+                                    {{ $vehicle->dmc ? $vehicle->dmc->company_name : 'N/A' }}
+                                </td>
                                 <td>{{ $vehicle->vehicle_type }}</td>
                                 <td>{{ $vehicle->vehicle_model }}</td>
                                 <td>{{ $vehicle->model_year }}</td>
@@ -125,7 +110,12 @@
                                     @endif
                                 </td>
                                 @endif
-                                <td>{{ $vehicle->created_at->format('d-m-Y') }}</td>
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span>{{ $vehicle->created_at->format('D,  M d, Y') }}</span>
+                                        <small class="text-muted">{{ $vehicle->created_at->format('h:i A') }}</small>
+                                    </div>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

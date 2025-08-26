@@ -169,6 +169,7 @@
                                         <span class="fw-medium">
                                             {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('D, M d, Y') }}
                                         </span>
+                                        
                                     </div>
                                     @endif
                                     
@@ -229,7 +230,12 @@
                                 <span>Not Authorized</span>
                                 @endif
                             </td>
-                            <td>{{ $enquiry->created_at->format('d-m-Y') }}</td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $enquiry->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $enquiry->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>
