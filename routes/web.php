@@ -139,7 +139,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     
     // Single Tour Package Routes
     Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
-    Route::get('/single-tour-package/create', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
+    Route::get('/single-tour-package/create/{enquiry_id?}', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
     Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
     Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
     Route::post('/single-tour-package', [SingleTourPackageController::class, 'store'])->name('single-tour-package.store');

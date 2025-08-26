@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\Agent;
 use App\Models\SingleTourPackage;
 use App\Models\Tour;
+use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Ticket;
 use App\Models\User;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
 use Carbon\Carbon;
+use App\Models\EnquiryForm;
+use Illuminate\Support\Facades\Crypt;
 
 class SingleTourPackageController extends Controller
 {
@@ -44,17 +47,86 @@ class SingleTourPackageController extends Controller
     /**
      * Show the form for creating a new single tour package.
      */
-    public function create()
+    public function create($enquiry_id = null)
     {
         // Get countries for dropdown
+        $user = Auth::user();
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }
+        elseif(in_array($user->role_id, [33,34, 128, 129, 130,131,132, 134, 135, 136,137, 138])){
+            $dmc_id = $user->created_by;
+        }
+        elseif(in_array($user->role_id, [37,64,65,66,67,68])){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        elseif(in_array($user->role_id, [38,81,90,108,117,124,125,126,127])){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        
+        
+        
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         
         // Get agents for the current DMC
-        $agents = Agent::Where('sales_manager_dmc', Auth::id())
+        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
             ->orderBy('name')
             ->get();
+        
 
-        return view('single-tour-package.create', compact('countries', 'agents'));
+        $enquiry = null;
+        $hotels = collect();
+        $attractions = collect();
+        $guides = collect();
+        $vehicles = collect();
+        $meals = collect();
+        $tickets = collect();
+        $zones = collect();
+        
+        if($enquiry_id){
+            $enquiry_id = Crypt::decrypt($enquiry_id);
+            if($enquiry_id){
+                $enquiry = EnquiryForm::where('enquiry_id', $enquiry_id)->first();
+                
+                if($enquiry){
+                    // Get hotels
+                    if($enquiry->hotel_ids){
+                        $hotel_ids = json_decode($enquiry->hotel_ids, true);
+                        $hotels = Hotel::whereIn('hotel_unique_id', $hotel_ids)->get();
+                    }
+                    
+                    // Get attractions
+                    if($enquiry->attraction_ids){
+                        $attraction_ids = json_decode($enquiry->attraction_ids, true);
+                        $attractions = Attraction::whereIn('attraction_id', $attraction_ids)->get();
+                    }
+                    
+                    // Get guides
+                    if($enquiry->guide_ids){
+                        $guide_ids = json_decode($enquiry->guide_ids, true);
+                        $guides = Guide::whereIn('guide_id', $guide_ids)->get();
+                    }
+                    
+                    // Get vehicles
+                    if($enquiry->local_transport_vehicle_ids){
+                        $vehicle_ids = json_decode($enquiry->local_transport_vehicle_ids, true);
+                        $vehicles = Vehicle::whereIn('vehicle_id', $vehicle_ids)->get();
+                    }
+                    
+                    // Get restaurants as meals
+                    if($enquiry->restaurant_ids){
+                        $restaurant_ids = json_decode($enquiry->restaurant_ids, true);
+                        $meals = Restaurant::whereIn('restaurant_id', $restaurant_ids)->get();
+                    }
+                }
+            }
+        }
+
+        return view('single-tour-package.create', compact('countries', 'agents', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
     }
 
     /**
@@ -135,6 +207,7 @@ class SingleTourPackageController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
+            $tour->dmc_id = Auth::user()->created_by;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->save();
 
@@ -1381,6 +1454,16 @@ class SingleTourPackageController extends Controller
                             foreach ($decodedData as $guide) {
                                 // Ensure guide has proper price field (use totalPrice from frontend calculation)
                                 $guide['price'] = $guide['totalPrice'] ?? 0;
+                                
+                                // Log guide pricing for debugging
+                                \Log::info("Guide pricing data:", [
+                                    'guide_name' => $guide['guide_name'] ?? 'Unknown',
+                                    'totalPrice' => $guide['totalPrice'] ?? 0,
+                                    'basePrice' => $guide['basePrice'] ?? 0,
+                                    'hours' => $guide['hours'] ?? 0,
+                                    'surcharge' => $guide['surcharge'] ?? 0,
+                                    'final_price' => $guide['price'] ?? 0
+                                ]);
                                 
                                 // Create separate order for each guide
                                 $lastBooking = Order::orderBy('booking_id', 'desc')->first();

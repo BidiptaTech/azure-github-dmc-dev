@@ -29,8 +29,11 @@
             </div>
         </div>
 
-        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
-            @csrf
+        <div class="row">
+            <!-- Main Form Column -->
+            <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
+                <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
+                    @csrf
             
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
@@ -48,12 +51,15 @@
                                     <label for="user_country" class="form-label fw-semibold">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
-                                    <select name="user_country" id="user_country" class="form-select" required>
+                                    <select name="user_country" id="user_country" class="form-select" required {{ ($enquiry && $enquiry->country) ? 'disabled' : '' }}>
                                         <option value="">Choose a country...</option>
                                         @foreach($countries as $country)
-                                            <option value="{{ $country->name }}">{{ $country->name }}</option>
+                                            <option value="{{ $country->name }}" {{ ($enquiry && $enquiry->country == $country->name) ? 'selected' : '' }}>{{ $country->name }}</option>
                                         @endforeach
                                     </select>
+                                    @if($enquiry && $enquiry->country)
+                                        <input type="hidden" name="user_country" value="{{ $enquiry->country }}">
+                                    @endif
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
 
@@ -62,9 +68,16 @@
                                     <label for="city" class="form-label fw-semibold">
                                         <i class="ri-building-line me-1"></i>City
                                     </label>
-                                    <select name="city" id="city" class="form-select" required disabled>
-                                        <option value="">Select country first</option>
+                                    <select name="city" id="city" class="form-select" required {{ ($enquiry && $enquiry->city) ? 'disabled' : ($enquiry ? '' : 'disabled') }}>
+                                        @if($enquiry && $enquiry->city)
+                                            <option value="{{ $enquiry->city }}" selected>{{ $enquiry->city }}</option>
+                                        @else
+                                            <option value="">Select country first</option>
+                                        @endif
                                     </select>
+                                    @if($enquiry && $enquiry->city)
+                                        <input type="hidden" name="city" value="{{ $enquiry->city }}">
+                                    @endif
                                     <input type="hidden" name="city_id" id="city_id">
                                     <div id="cityLoader" class="text-center mt-1" style="display: none;">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
@@ -76,9 +89,12 @@
                                     <label for="travel_dates" class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
-                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly>
-                                    <input type="hidden" name="start_date" id="start_date">
-                                    <input type="hidden" name="end_date" id="end_date">
+                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly
+                                           value="@if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time){{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}@endif"
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'style=background-color:#f8f9fa;cursor:not-allowed;pointer-events:none;' : '' }}
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'data-locked=true' : 'data-locked=false' }}>
+                                    <input type="hidden" name="start_date" id="start_date" value="{{ $enquiry && $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') : '' }}">
+                                    <input type="hidden" name="end_date" id="end_date" value="{{ $enquiry && $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') : '' }}">
                                 </div>
 
                                 <!-- Guests -->
@@ -87,33 +103,43 @@
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display p-2 border rounded bg-light">
+                                        <div class="guest-display p-2 border rounded {{ $enquiry ? 'bg-light' : 'bg-light' }}" {{ $enquiry ? 'style=cursor:not-allowed;opacity:0.8;' : '' }}>
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="guest-info">
                                                     <span id="mainGuestSummary" class="text-muted small">
-                                                        1 adults (0 male, 0 female), 0 children - 0 infants
+                                                        @if($enquiry)
+                                                            {{ $enquiry->adult ?? 1 }} adults ({{ $enquiry->male_count ?? 0 }} male, {{ $enquiry->female_count ?? 0 }} female), {{ $enquiry->child ?? 0 }} children - {{ $enquiry->infant ?? 0 }} infants
+                                                        @else
+                                                            1 adults (0 male, 0 female), 0 children - 0 infants
+                                                        @endif
                                                     </span>
                                                 </div>
+                                                @if(!$enquiry)
                                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()">
                                                     <i class="ri-edit-line"></i>
-                                        </button>
+                                                </button>
+                                                @else
+                                                <span class="text-muted small">
+                                                    <i class="ri-lock-line"></i>
+                                                </span>
+                                                @endif
                                     </div>
                                             <div class="guest-badges mt-1">
-                                                <span class="badge bg-primary">1</span>
-                                                <span class="badge bg-success">0</span>
-                                                <span class="badge bg-warning text-dark">0</span>
+                                                <span class="badge bg-primary">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
+                                                <span class="badge bg-success">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
+                                                <span class="badge bg-warning text-dark">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     
                                     <!-- Hidden Fields -->
-                                    <input type="hidden" name="adults" id="adults" value="1">
-                                    <input type="hidden" name="male" id="male" value="0">
-                                    <input type="hidden" name="female" id="female" value="0">
-                                    <input type="hidden" name="children" id="children" value="0">
-                                    <input type="hidden" name="infants" id="infants" value="0">
-                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
+                                    <input type="hidden" name="adults" id="adults" value="{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}">
+                                    <input type="hidden" name="male" id="male" value="{{ $enquiry ? ($enquiry->male_count ?? 0) : 0 }}">
+                                    <input type="hidden" name="female" id="female" value="{{ $enquiry ? ($enquiry->female_count ?? 0) : 0 }}">
+                                    <input type="hidden" name="children" id="children" value="{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}">
+                                    <input type="hidden" name="infants" id="infants" value="{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
 
                                 <!-- Agent Selection -->
@@ -121,18 +147,21 @@
                                     <label for="agent_id" class="form-label fw-semibold">
                                         <i class="ri-user-star-line me-1"></i>Agent
                                     </label>
-                                    <select name="agent_id" id="agent_id" class="form-select" required>
+                                    <select name="agent_id" id="agent_id" class="form-select" required {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agent...</option>
                                         @foreach($agents as $agent)
-                                            <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
+                                            <option value="{{ $agent->agent_id }}" {{ ($enquiry && $enquiry->agent_id == $agent->agent_id) ? 'selected' : '' }}>{{ $agent->name }}</option>
                                         @endforeach
                                     </select>
+                                    @if($enquiry && $enquiry->agent_id)
+                                        <input type="hidden" name="agent_id" value="{{ $enquiry->agent_id }}">
+                                    @endif
                                 </div>
 
                                 <!-- Create Button -->
                                 <div class="col-md-2 d-flex align-items-end">
                                     <button type="button" class="btn btn-primary w-100" onclick="createTourPackage()">
-                                        <i class="ri-rocket-line me-1"></i>Create Amazing Tour Package
+                                        <i class="ri-rocket-line me-1"></i>Create Tour
                                     </button>
                                 </div>
                             </div>
@@ -222,6 +251,16 @@
                                 <div class="col-md-1 d-flex align-items-end">
                                     <button type="button" class="btn btn-info btn-sm" onclick="testCurrentMealPricing()" title="Test current meal prices from dataset">
                                         <i class="ri-test-tube-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="testGuidePricing()" title="Test guide pricing calculation">
+                                        <i class="ri-user-star-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="ensureGuideHiddenFields()" title="Ensure guide hidden fields exist">
+                                        <i class="ri-settings-line"></i>
                                     </button>
                                 </div>
                             </div>
@@ -785,6 +824,102 @@
                     return totalMealCost;
                 }
 
+                // Function to ensure all guide forms have hidden fields
+                function ensureGuideHiddenFields() {
+                    console.log('=== ENSURING GUIDE HIDDEN FIELDS ===');
+                    
+                    document.querySelectorAll('.guide-select').forEach((select, index) => {
+                        const dayMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                        if (dayMatch) {
+                            const day = dayMatch[1];
+                            const guideIndex = dayMatch[2];
+                            
+                            // Check if hidden fields exist
+                            const basePriceField = document.getElementById(`day${day}_guide_${guideIndex}_base_price`);
+                            const hoursField = document.getElementById(`day${day}_guide_${guideIndex}_hours`);
+                            const surchargeField = document.getElementById(`day${day}_guide_${guideIndex}_surcharge`);
+                            const totalPriceField = document.getElementById(`day${day}_guide_${guideIndex}_total_price`);
+                            
+                            console.log(`Guide ${index + 1} (Day ${day}, Index ${guideIndex}):`);
+                            console.log('  Base Price Field:', basePriceField ? 'EXISTS' : 'MISSING');
+                            console.log('  Hours Field:', hoursField ? 'EXISTS' : 'MISSING');
+                            console.log('  Surcharge Field:', surchargeField ? 'EXISTS' : 'MISSING');
+                            console.log('  Total Price Field:', totalPriceField ? 'EXISTS' : 'MISSING');
+                            
+                            // If any field is missing, create it
+                            if (!basePriceField || !hoursField || !surchargeField || !totalPriceField) {
+                                console.log('  Creating missing hidden fields...');
+                                
+                                const packageSelect = document.getElementById(`day${day}_guide_${guideIndex}_package`);
+                                if (packageSelect) {
+                                    // Insert hidden fields after the package select
+                                    const hiddenFieldsHTML = `
+                                        <input type="hidden" id="day${day}_guide_${guideIndex}_base_price" name="day${day}_guide_${guideIndex}_base_price" value="0">
+                                        <input type="hidden" id="day${day}_guide_${guideIndex}_hours" name="day${day}_guide_${guideIndex}_hours" value="0">
+                                        <input type="hidden" id="day${day}_guide_${guideIndex}_surcharge" name="day${day}_guide_${guideIndex}_surcharge" value="0">
+                                        <input type="hidden" id="day${day}_guide_${guideIndex}_total_price" name="day${day}_guide_${guideIndex}_total_price" value="0">
+                                    `;
+                                    packageSelect.insertAdjacentHTML('afterend', hiddenFieldsHTML);
+                                    console.log('  Hidden fields created successfully');
+                                }
+                            }
+                        }
+                    });
+                    
+                    showNotification('Guide hidden fields check completed. Check console for details.', 'info');
+                }
+
+                // Function to test guide pricing calculation
+                function testGuidePricing() {
+                    console.log('=== TESTING GUIDE PRICING ===');
+                    
+                    // Test with the current guide selection
+                    const guideSelects = document.querySelectorAll('.guide-select');
+                    guideSelects.forEach((select, index) => {
+                        if (select.value) {
+                            const dayMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                            if (dayMatch) {
+                                const day = dayMatch[1];
+                                const guideIndex = dayMatch[2];
+                                
+                                const selectedOption = select.options[select.selectedIndex];
+                                const packageSelect = document.getElementById(`day${day}_guide_${guideIndex}_package`);
+                                
+                                console.log(`\n--- Guide ${index + 1} (Day ${day}, Index ${guideIndex}) ---`);
+                                console.log('Guide:', selectedOption.text);
+                                console.log('Guide dataset:', selectedOption.dataset);
+                                
+                                if (packageSelect && packageSelect.value) {
+                                    const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
+                                    console.log('Selected package:', selectedPackage.text);
+                                    console.log('Package dataset:', selectedPackage.dataset);
+                                    
+                                    // Get current pricing values
+                                    const basePrice = parseFloat(document.getElementById(`day${day}_guide_${guideIndex}_base_price`)?.value || 0);
+                                    const hours = parseFloat(document.getElementById(`day${day}_guide_${guideIndex}_hours`)?.value || 0);
+                                    const surcharge = parseFloat(document.getElementById(`day${day}_guide_${guideIndex}_surcharge`)?.value || 0);
+                                    const totalPrice = parseFloat(document.getElementById(`day${day}_guide_${guideIndex}_total_price`)?.value || 0);
+                                    
+                                    console.log('Current pricing values:');
+                                    console.log('  Base Price:', basePrice);
+                                    console.log('  Hours:', hours);
+                                    console.log('  Surcharge:', surcharge);
+                                    console.log('  Total Price:', totalPrice);
+                                    
+                                    // Calculate expected total
+                                    const expectedTotal = basePrice + surcharge;
+                                    console.log('Expected total (basePrice + surcharge):', expectedTotal);
+                                    console.log('Price calculation correct:', Math.abs(expectedTotal - totalPrice) < 0.01);
+                                } else {
+                                    console.log('No package selected');
+                                }
+                            }
+                        }
+                    });
+                    
+                    showNotification('Guide pricing test completed. Check console for details.', 'info');
+                }
+
                 // Function to test current meal prices and calculation
                 function testCurrentMealPricing() {
                     console.log('=== TESTING CURRENT MEAL PRICING ===');
@@ -1234,6 +1369,8 @@
                         role_id: '{{ auth()->user()->role_id }}'
                     };
                     
+                    console.log('=== UPDATING GUIDE DATA FIELD ===');
+                    
                     document.querySelectorAll('.guide-select').forEach(select => {
                         if (select.value) {
                             const dayMatch = select.name.match(/day(\d+)_guide_(\d+)/);
@@ -1255,11 +1392,65 @@
                                 // Get guide date from the form
                                 const guideDate = document.getElementById(`day${day}_guide_${index}_date`)?.value || new Date().toISOString().split('T')[0];
                                 
-                                // Calculate pricing (this should come from actual guide pricing data)
-                                const basePrice = parseFloat(document.getElementById(`day${day}_guide_${index}_base_price`)?.value || 0);
-                                const hours = parseFloat(document.getElementById(`day${day}_guide_${index}_hours`)?.value || 0);
-                                const surcharge = parseFloat(document.getElementById(`day${day}_guide_${index}_surcharge`)?.value || 0);
-                                const totalPrice = (basePrice * hours) + surcharge;
+                                // Calculate pricing directly from package selection
+                                let basePrice = 0;
+                                let hours = 0;
+                                let surcharge = 0;
+                                let totalPrice = 0;
+                                
+                                if (packageType) {
+                                    const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+                                    if (packageSelect && packageSelect.value) {
+                                        const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
+                                        if (selectedPackage && selectedPackage.dataset) {
+                                            basePrice = parseFloat(selectedPackage.dataset.price) || 0;
+                                            hours = parseInt(selectedPackage.dataset.hours) || 0;
+                                            
+                                            // Calculate surcharge based on pickup time
+                                            if (pickupTime) {
+                                                const pickupHour = parseInt(pickupTime.split(':')[0]);
+                                                const nightStartTime = selectedOption.dataset.nightStartTime;
+                                                const nightEndTime = selectedOption.dataset.nightEndTime;
+                                                
+                                                if (nightStartTime && nightEndTime) {
+                                                    const nightStart = parseInt(nightStartTime.split(':')[0]);
+                                                    const nightEnd = parseInt(nightEndTime.split(':')[0]) - 1;
+                                                    
+                                                    // Check if pickup time is in night range
+                                                    const isNightTime = (pickupHour >= nightStart && pickupHour <= nightEnd) || 
+                                                                       (nightStart > nightEnd && (pickupHour >= nightStart || pickupHour <= nightEnd));
+                                                    
+                                                    if (isNightTime) {
+                                                        surcharge = parseFloat(selectedOption.dataset.nightSurcharge) || 0;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            totalPrice = basePrice + surcharge;
+                                            
+                                            console.log(`Calculated pricing for Day ${day}, Index ${index}:`, {
+                                                packageType: packageType,
+                                                basePrice: basePrice,
+                                                hours: hours,
+                                                surcharge: surcharge,
+                                                totalPrice: totalPrice,
+                                                pickupTime: pickupTime,
+                                                isNightTime: surcharge > 0
+                                            });
+                                        }
+                                    }
+                                }
+                                
+                                // Debug: Log the final pricing values
+                                console.log(`Final guide pricing for Day ${day}, Index ${index}:`, {
+                                    basePrice: basePrice,
+                                    hours: hours,
+                                    surcharge: surcharge,
+                                    totalPrice: totalPrice,
+                                    packageType: packageType,
+                                    guideId: guideId,
+                                    guideName: selectedOption.text
+                                });
                                 
                                 guideDataArray.push({
                                     // Guide Information
@@ -1365,18 +1556,16 @@
                                 const selectedOption = select.options[select.selectedIndex];
                                 const restaurantId = select.value;
                                 
-                                // Calculate meal price from the selected restaurant option data attributes
-                                const mealPrice = parseFloat(selectedOption.dataset.mealPrice || selectedOption.dataset.meal_price || selectedOption.dataset.price || 0);
+                                // Get pricing data from hidden fields (this is the correct way)
+                                const totalPrice = parseFloat(document.getElementById(`day${day}_restaurant_${index}_total_price`)?.value || 0);
+                                const mealId = document.getElementById(`day${day}_restaurant_${index}_meal_id`)?.value || '';
+                                const dishName = document.getElementById(`day${day}_restaurant_${index}_dish_name`)?.value || '';
                                 
-                                // If no price in data attributes, try to get from form field as fallback
-                                const fallbackMealPrice = parseFloat(document.getElementById(`day${day}_restaurant_${index}_meal_price`)?.value || 0);
-                                
-                                // Use data attributes if available, otherwise use form field
-                                const finalMealPrice = mealPrice || fallbackMealPrice;
-                                
-                                const totalPrice = (guestInfo.adults + guestInfo.children) * finalMealPrice;
-                                
-                                console.log(`Restaurant pricing: ${selectedOption.text} - Meal price: $${finalMealPrice}, Adults: ${guestInfo.adults}, Children: ${guestInfo.children}, Total: $${totalPrice}`);
+                                console.log(`Restaurant pricing for day ${day}, index ${index}:`);
+                                console.log(`- Total Price: $${totalPrice}`);
+                                console.log(`- Meal ID: ${mealId}`);
+                                console.log(`- Dish Name: ${dishName}`);
+                                console.log(`- Guest Info: ${guestInfo.adults} adults, ${guestInfo.children} children`);
                                 
                                 restaurantDataArray.push({
                                     // Customer Information (from Customer Information form)
@@ -1404,10 +1593,10 @@
                                     
                                     // Meal Description (array of meal items)
                                     MealDescription: [{
-                                        item_name: document.getElementById(`day${day}_meal_item_name_${index}`)?.value || null,
-                                        name: document.getElementById(`day${day}_meal_name_${index}`)?.value || "",
-                                        price: mealPrice,
-                                        meal_id: parseInt(restaurantId),
+                                        item_name: dishName || null,
+                                        name: dishName || "",
+                                        price: totalPrice,
+                                        meal_id: parseInt(mealId) || parseInt(restaurantId),
                                         category: document.getElementById(`day${day}_meal_category_${index}`)?.value || "",
                                         item_type: document.getElementById(`day${day}_meal_item_type_${index}`)?.value || ""
                                     }],
@@ -1479,9 +1668,16 @@
                                     const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                     
-                                    // Calculate total price (this should come from actual pricing data)
+                                    // Get pricing data from hidden fields (this is the correct way)
                                     const basePrice = parseFloat(document.getElementById(`day${day}_${section}_base_price`)?.value || 0);
-                                    const totalPrice = (adultCount + childCount) * basePrice;
+                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_total_price`)?.value || 0);
+                                    const serviceType = document.getElementById(`day${day}_${section}_service_type`)?.value || '';
+                                    
+                                    console.log(`Transport pricing for day ${day}, section ${section}:`);
+                                    console.log(`- Base Price: $${basePrice}`);
+                                    console.log(`- Total Price: $${totalPrice}`);
+                                    console.log(`- Service Type: ${serviceType}`);
+                                    console.log(`- Guest Count: ${adultCount + childCount}`);
                                     
                                     // Get pickup and dropoff coordinates (these should come from zone data)
                                     const pickupCoords = {
@@ -2032,6 +2228,9 @@
                         return false;
                     }
 
+                    // Manually calculate guide pricing before updating data fields
+                    calculateAllGuidePricing();
+                    
                     // Update all service data fields before sending
                     updateHotelDataField();
                     updateAttractionDataField();
@@ -2141,12 +2340,385 @@
                     }
                 }
             </script>
-        </form>
+                </form>
+            </div>
+            
+            <!-- Enquiry Details Sidebar -->
+            @if($enquiry)
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 20px;">
+                    <!-- Enquiry Overview Card -->
+                    <div class="card border-0 shadow-lg mb-4 enquiry-sidebar">
+                        <div class="card-header bg-gradient-info text-white">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+                                    <i class="ri-file-list-3-line fs-5 text-white"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-1 text-white fw-bold">Enquiry Details</h5>
+                                    <p class="mb-0 opacity-75 small">{{ $enquiry->display_id ?? 'N/A' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Basic Info Section -->
+                            <div class="border-bottom p-3">
+                                <h6 class="text-primary fw-bold mb-3">
+                                    <i class="ri-information-line me-2"></i>Basic Information
+                                </h6>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Destination</small>
+                                            <strong class="text-dark">{{ $enquiry->country ?? 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">City</small>
+                                            <strong class="text-dark">{{ $enquiry->city ?? 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-primary bg-opacity-10 rounded p-2">
+                                            <small class="text-primary d-block">Check-in</small>
+                                            <strong class="text-dark">{{ $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') : 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-warning bg-opacity-10 rounded p-2">
+                                            <small class="text-warning d-block">Check-out</small>
+                                            <strong class="text-dark">{{ $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') : 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Guests Section -->
+                            <div class="border-bottom p-3">
+                                <h6 class="text-success fw-bold mb-3">
+                                    <i class="ri-group-line me-2"></i>Guest Information
+                                </h6>
+                                <div class="row g-2">
+                                    <div class="col-3">
+                                        <div class="text-center bg-success bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-success fs-5">{{ $enquiry->adult ?? 0 }}</div>
+                                            <small class="text-muted">Adults</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-info bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-info fs-5">{{ $enquiry->child ?? 0 }}</div>
+                                            <small class="text-muted">Children</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-warning bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-warning fs-5">{{ $enquiry->infant ?? 0 }}</div>
+                                            <small class="text-muted">Infants</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-purple bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-purple fs-5">${{ number_format($enquiry->approx_price ?? 0) }}</div>
+                                            <small class="text-muted">Budget</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Male</small>
+                                            <strong class="text-dark">{{ $enquiry->male_count ?? 0 }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Female</small>
+                                            <strong class="text-dark">{{ $enquiry->female_count ?? 0 }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Services Section -->
+                            @if($hotels->count() > 0 || $attractions->count() > 0 || $guides->count() > 0 || $vehicles->count() > 0 || $meals->count() > 0)
+                            <div class="p-3">
+                                <h6 class="text-warning fw-bold mb-3">
+                                    <i class="ri-service-line me-2"></i>Selected Services
+                                </h6>
+                                
+                                @if($hotels->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-primary rounded-circle p-1 me-2">
+                                            <i class="ri-hotel-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-primary">Hotels ({{ $hotels->count() }})</strong>
+                                    </div>
+                                    @foreach($hotels as $hotel)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $hotel->name ?? 'Hotel Name' }}</div>
+                                        <div class="text-muted small">{{ $hotel->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->hotel_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->hotel_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($attractions->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-success rounded-circle p-1 me-2">
+                                            <i class="ri-map-pin-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-success">Attractions ({{ $attractions->count() }})</strong>
+                                    </div>
+                                    @foreach($attractions as $attraction)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $attraction->name ?? 'Attraction Name' }}</div>
+                                        <div class="text-muted small">{{ $attraction->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->attraction_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->attraction_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($meals->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-warning rounded-circle p-1 me-2">
+                                            <i class="ri-restaurant-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-warning">Restaurants ({{ $meals->count() }})</strong>
+                                    </div>
+                                    @foreach($meals as $meal)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $meal->name ?? 'Restaurant Name' }}</div>
+                                        <div class="text-muted small">{{ $meal->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->restaurant_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->restaurant_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($vehicles->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-info rounded-circle p-1 me-2">
+                                            <i class="ri-car-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-info">Vehicles ({{ $vehicles->count() }})</strong>
+                                    </div>
+                                    @foreach($vehicles as $vehicle)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $vehicle->vehicle_name ?? 'Vehicle Name' }}</div>
+                                        <div class="text-muted small">{{ $vehicle->seating_capacity ?? 'N/A' }} seats</div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @endif
+
+                                @if($guides->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-purple rounded-circle p-1 me-2">
+                                            <i class="ri-user-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-purple">Guides ({{ $guides->count() }})</strong>
+                                    </div>
+                                    @foreach($guides as $guide)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $guide->name ?? 'Guide Name' }}</div>
+                                        <div class="text-muted small">{{ $guide->experience ?? 'N/A' }} years exp.</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->guide_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->guide_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
     </div>
 </div>
 @endsection
 
 @section('scripts')
+<!-- Custom Styles for Enquiry Sidebar -->
+<style>
+    .enquiry-sidebar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+        overflow: hidden;
+    }
+    
+    .enquiry-sidebar .card-header {
+        background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
+        border: none;
+        position: relative;
+    }
+    
+    .enquiry-sidebar .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.3;
+    }
+    
+    .enquiry-sidebar .card-body {
+        background: #ffffff;
+    }
+    
+    .service-item {
+        border-left: 4px solid transparent;
+        padding-left: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .service-item:hover {
+        transform: translateX(5px);
+        border-left-color: #667eea;
+    }
+    
+    .bg-purple {
+        background-color: #8b5cf6 !important;
+    }
+    
+    .text-purple {
+        color: #8b5cf6 !important;
+    }
+    
+    .bg-purple.bg-opacity-10 {
+        background-color: rgba(139, 92, 246, 0.1) !important;
+    }
+    
+    .sticky-top {
+        transition: all 0.3s ease;
+    }
+    
+    .enquiry-sidebar .service-item .bg-light {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8eaff 100%) !important;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .enquiry-sidebar .service-item .bg-light:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+        .sticky-top {
+            position: relative !important;
+            top: auto !important;
+        }
+        
+        .col-lg-4 {
+            margin-top: 20px;
+        }
+    }
+    
+    /* Animation for cards */
+    .enquiry-sidebar {
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Hover effects for info boxes */
+    .enquiry-sidebar .bg-light,
+    .enquiry-sidebar .bg-primary.bg-opacity-10,
+    .enquiry-sidebar .bg-warning.bg-opacity-10,
+    .enquiry-sidebar .bg-success.bg-opacity-10,
+    .enquiry-sidebar .bg-info.bg-opacity-10,
+    .enquiry-sidebar .bg-purple.bg-opacity-10 {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .enquiry-sidebar .bg-light:hover {
+        background: linear-gradient(135deg, #e8eaff 0%, #d1d5ff 100%) !important;
+    }
+    
+    .enquiry-sidebar .bg-primary.bg-opacity-10:hover {
+        background-color: rgba(13, 110, 253, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-warning.bg-opacity-10:hover {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-success.bg-opacity-10:hover {
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-info.bg-opacity-10:hover {
+        background-color: rgba(13, 202, 240, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-purple.bg-opacity-10:hover {
+        background-color: rgba(139, 92, 246, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    /* Add pulse animation to budget */
+    .enquiry-sidebar .text-purple.fs-5 {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+</style>
+
 <!-- jQuery (required for date range picker and AJAX) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -2732,47 +3304,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
          // Wait for all dependencies to load
     $(document).ready(function() {
-        // Date Range Picker Initialization
-        $('#travel_dates').daterangepicker({
-            opens: 'left',
-            autoUpdateInput: false,
-            minDate: moment(),
-            locale: {
-                format: 'MMM DD, YYYY',
-                cancelLabel: 'Clear'
-            }
-        });
+        // Date Range Picker Initialization - only if not locked
+        const travelDatesField = $('#travel_dates');
+        if (travelDatesField.attr('data-locked') !== 'true') {
+            travelDatesField.daterangepicker({
+                opens: 'left',
+                autoUpdateInput: false,
+                minDate: moment(),
+                locale: {
+                    format: 'MMM DD, YYYY',
+                    cancelLabel: 'Clear'
+                }
+            });
+        }
 
-        $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
-            $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
-            
-            // Set hidden date fields
-            document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
-            document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
-            
-            // Update global variables
-            tourStartDate = picker.startDate;
-            tourEndDate = picker.endDate;
-            tourNights = picker.endDate.diff(picker.startDate, 'days');
+        // Only attach event handlers if field is not locked
+        if (travelDatesField.attr('data-locked') !== 'true') {
+            $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
+                
+                // Set hidden date fields
+                document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
+                document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
+                
+                // Update global variables
+                tourStartDate = picker.startDate;
+                tourEndDate = picker.endDate;
+                tourNights = picker.endDate.diff(picker.startDate, 'days');
+                
+                // Update the hotel section date display
+                document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+                
+                        // Generate night selection buttons
+                generateNightSelection();
+                // Initialize night display
+                updateNightDisplay();
+            });
+
+            $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
+                $(this).val('');
+                document.getElementById('start_date').value = '';
+                document.getElementById('end_date').value = '';
+                tourStartDate = null;
+                tourEndDate = null;
+                tourNights = 0;
+            });
+        } else {
+            // If field is locked with enquiry data, set the global variables
+            @if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time)
+            tourStartDate = moment('{{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') }}');
+            tourEndDate = moment('{{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') }}');
+            tourNights = tourEndDate.diff(tourStartDate, 'days');
             
             // Update the hotel section date display
-            document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
-            document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            if (document.getElementById('tourDates')) {
+                document.getElementById('tourDates').textContent = '{{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}';
+            }
+            if (document.getElementById('hotelNights')) {
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            }
             
-                    // Generate night selection buttons
+            // Generate night selection buttons for enquiry data
             generateNightSelection();
-            // Initialize night display
             updateNightDisplay();
-        });
-
-        $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
-            $(this).val('');
-            document.getElementById('start_date').value = '';
-            document.getElementById('end_date').value = '';
-            tourStartDate = null;
-            tourEndDate = null;
-            tourNights = 0;
-        });
+            @endif
+        }
     });
 
         // Update total adults count and hidden field
@@ -4437,6 +5034,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </div>
                                                 </div>
                                             </div>
+                                            
+                                            <!-- Hidden fields for entry port pricing -->
+                                            <input type="hidden" name="day${day}_entry_base_price" id="day${day}_entry_base_price" value="0">
+                                            <input type="hidden" name="day${day}_entry_total_price" id="day${day}_entry_total_price" value="0">
+                                            <input type="hidden" name="day${day}_entry_service_type" id="day${day}_entry_service_type" value="">
+                                            <input type="hidden" name="day${day}_entry_guest_count" id="day${day}_entry_guest_count" value="0">
                                         </div>
                                     </div>
                                 </div>
@@ -4619,6 +5222,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     </div>
                                                 </div>
                                             </div>
+                                            
+                                            <!-- Hidden fields for exit port pricing -->
+                                            <input type="hidden" name="day${day}_exit_base_price" id="day${day}_exit_base_price" value="0">
+                                            <input type="hidden" name="day${day}_exit_total_price" id="day${day}_exit_total_price" value="0">
+                                            <input type="hidden" name="day${day}_exit_service_type" id="day${day}_exit_service_type" value="">
+                                            <input type="hidden" name="day${day}_exit_guest_count" id="day${day}_exit_guest_count" value="0">
                                         </div>
                                     </div>
                                 </div>
@@ -4896,6 +5505,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  </div>
                                              </div>
                                          </div>
+                                         
+                                         <!-- Hidden fields for restaurant pricing -->
+                                         <input type="hidden" name="day${day}_restaurant_1_total_price" id="day${day}_restaurant_1_total_price" value="0">
+                                         <input type="hidden" name="day${day}_restaurant_1_meal_id" id="day${day}_restaurant_1_meal_id" value="">
+                                         <input type="hidden" name="day${day}_restaurant_1_dish_name" id="day${day}_restaurant_1_dish_name" value="">
                                      </div>
                                      <div class="col-md-2">
                                          <label class="form-label fw-semibold">Meal Type</label>
@@ -5212,7 +5826,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Update attraction pricing display
-    function updateAttractionPricing(day, index = 1) {
+    window.updateAttractionPricing = function(day, index = 1) {
         console.log(`=== UPDATING ATTRACTION PRICING: Day ${day}, Index ${index} ===`);
         
         const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
@@ -6187,6 +6801,20 @@ document.addEventListener('DOMContentLoaded', function() {
     window.confirmDishSelection = function(mealId, dishName, day, index, totalPrice) {
         console.log('Dish confirmed:', dishName, 'Price:', totalPrice);
         
+        // Store pricing data in hidden fields
+        const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+        const mealIdField = document.getElementById(`day${day}_restaurant_${index}_meal_id`);
+        const dishNameField = document.getElementById(`day${day}_restaurant_${index}_dish_name`);
+        
+        if (totalPriceField) totalPriceField.value = totalPrice;
+        if (mealIdField) mealIdField.value = mealId;
+        if (dishNameField) dishNameField.value = dishName;
+        
+        console.log(`Restaurant pricing stored for day ${day}, index ${index}:`);
+        console.log(`- Total Price: $${totalPrice}`);
+        console.log(`- Meal ID: ${mealId}`);
+        console.log(`- Dish Name: ${dishName}`);
+        
         // Mark the selected dish button as selected and show price
         const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
         if (dishContainer) {
@@ -6456,6 +7084,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Hidden fields for restaurant pricing -->
+                            <input type="hidden" name="day${day}_restaurant_${newIndex}_total_price" id="day${day}_restaurant_${newIndex}_total_price" value="0">
+                            <input type="hidden" name="day${day}_restaurant_${newIndex}_meal_id" id="day${day}_restaurant_${newIndex}_meal_id" value="">
+                            <input type="hidden" name="day${day}_restaurant_${newIndex}_dish_name" id="day${day}_restaurant_${newIndex}_dish_name" value="">
                         </div>
                                                  <div class="col-md-2">
                              <label class="form-label fw-semibold">Meal Type</label>
@@ -6562,7 +7195,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Update package prices based on selected pickup time
-    function updatePackagePricesForTime(day, index, selectedTimeValue) {
+    window.updatePackagePricesForTime = function(day, index, selectedTimeValue) {
         if (!selectedTimeValue) return;
         
         // Extract hour from time value (HH:MM:SS format)
@@ -6595,7 +7228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Update package dropdown with calculated prices
-    function updatePackagePrices(day, index, isNightTime) {
+    window.updatePackagePrices = function(day, index, isNightTime) {
         const packageSelect = document.getElementById('day' + day + '_guide_' + index + '_package');
         const guideSelect = document.getElementById('day' + day + '_guide_' + index);
         
@@ -6640,15 +7273,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Function to update guide pricing when package is selected
-    function updateGuidePricing(day, index) {
+    window.updateGuidePricing = function(day, index) {
+        console.log(`updateGuidePricing called for Day ${day}, Index ${index}`);
+        
         const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
         const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+        
+        console.log('Package select found:', !!packageSelect);
+        console.log('Guide select found:', !!guideSelect);
+        console.log('Package value:', packageSelect?.value);
+        console.log('Guide value:', guideSelect?.value);
         
         if (!packageSelect || !guideSelect || !packageSelect.value) {
             // Clear pricing if no package selected
             document.getElementById(`day${day}_guide_${index}_base_price`).value = '0';
             document.getElementById(`day${day}_guide_${index}_hours`).value = '0';
             document.getElementById(`day${day}_guide_${index}_surcharge`).value = '0';
+            document.getElementById(`day${day}_guide_${index}_total_price`).value = '0';
+            
+            // Hide price display
+            const priceDisplay = document.getElementById(`day${day}_guide_${index}_price_display`);
+            if (priceDisplay) {
+                priceDisplay.style.display = 'none';
+            }
             return;
         }
         
@@ -6661,6 +7308,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const packagePrice = parseFloat(selectedPackage.dataset.price) || 0;
         const hours = parseInt(selectedPackage.dataset.hours) || 0;
         const basePrice = parseFloat(selectedPackage.dataset.basePrice) || 0;
+        // Store the total package price, not just the hourly rate
+        const totalPackagePrice = packagePrice;
+        
+        console.log('Package pricing data:', {
+            packagePrice: packagePrice,
+            hours: hours,
+            basePrice: basePrice,
+            totalPackagePrice: totalPackagePrice
+        });
         
         // Get guide data for surcharge calculation
         const dayRate = parseFloat(selectedGuide.dataset.dayRate) || 0;
@@ -6685,15 +7341,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Update hidden fields
-        document.getElementById(`day${day}_guide_${index}_base_price`).value = basePrice.toFixed(2);
-        document.getElementById(`day${day}_guide_${index}_hours`).value = hours.toString();
-        document.getElementById(`day${day}_guide_${index}_surcharge`).value = surcharge.toFixed(2);
+        const basePriceField = document.getElementById(`day${day}_guide_${index}_base_price`);
+        const hoursField = document.getElementById(`day${day}_guide_${index}_hours`);
+        const surchargeField = document.getElementById(`day${day}_guide_${index}_surcharge`);
+        const totalPriceField = document.getElementById(`day${day}_guide_${index}_total_price`);
+        
+        if (basePriceField) basePriceField.value = totalPackagePrice.toFixed(2);
+        if (hoursField) hoursField.value = hours.toString();
+        if (surchargeField) surchargeField.value = surcharge.toFixed(2);
+        if (totalPriceField) totalPriceField.value = (totalPackagePrice + surcharge).toFixed(2);
+        
+        console.log('Hidden fields updated:', {
+            basePriceField: basePriceField ? 'EXISTS' : 'MISSING',
+            hoursField: hoursField ? 'EXISTS' : 'MISSING',
+            surchargeField: surchargeField ? 'EXISTS' : 'MISSING',
+            totalPriceField: totalPriceField ? 'EXISTS' : 'MISSING',
+            basePriceValue: basePriceField?.value,
+            hoursValue: hoursField?.value,
+            surchargeValue: surchargeField?.value,
+            totalPriceValue: totalPriceField?.value
+        });
+        
+        // Update price display
+        const priceDisplay = document.getElementById(`day${day}_guide_${index}_price_display`);
+        if (priceDisplay) {
+            priceDisplay.style.display = 'block';
+            priceDisplay.querySelector('span').textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+        }
         
         console.log(`Guide pricing updated for Day ${day}, Index ${index}:`, {
             basePrice: basePrice.toFixed(2),
             hours: hours,
             surcharge: surcharge.toFixed(2),
-            totalPrice: packagePrice.toFixed(2)
+            totalPackagePrice: totalPackagePrice.toFixed(2),
+            finalTotalPrice: (totalPackagePrice + surcharge).toFixed(2)
         });
     }
     
@@ -6985,10 +7666,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
                                 <option value="">Select Duration</option>
                             </select>
+                            <div id="day${day}_guide_${newIndex}_price_display" class="text-success small mt-1" style="display: none;">
+                                Price: <span class="fw-bold">$0.00</span>
+                            </div>
                             <!-- Hidden fields for pricing -->
                             <input type="hidden" id="day${day}_guide_${newIndex}_base_price" name="day${day}_guide_${newIndex}_base_price" value="0">
                             <input type="hidden" id="day${day}_guide_${newIndex}_hours" name="day${day}_guide_${newIndex}_hours" value="0">
                             <input type="hidden" id="day${day}_guide_${newIndex}_surcharge" name="day${day}_guide_${newIndex}_surcharge" value="0">
+                            <input type="hidden" id="day${day}_guide_${newIndex}_total_price" name="day${day}_guide_${newIndex}_total_price" value="0">
                         </div>
                     </div>
                 </div>
@@ -8184,7 +8869,7 @@ document.addEventListener('DOMContentLoaded', function() {
      }
  }
 
- function updateVehicleDetails(day, section) {
+     window.updateVehicleDetails = function(day, section) {
      const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
      const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
      const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
@@ -8216,7 +8901,7 @@ document.addEventListener('DOMContentLoaded', function() {
      }
  }
 
- function updatePricing(day, section) {
+     window.updatePricing = function(day, section) {
     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
     const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
@@ -8303,9 +8988,38 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+        
+        // Store pricing data in hidden fields
+        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+        const serviceTypeField = document.getElementById(`day${day}_${section}_service_type`);
+        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        
+        if (basePriceField) basePriceField.value = displayPrice.toFixed(2);
+        if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
+        if (serviceTypeField) serviceTypeField.value = selectedServiceType;
+        if (guestCountField) guestCountField.value = totalGuests;
+        
+        console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
+        console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
+        console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
+        console.log(`- Service Type: ${selectedServiceType}`);
+        console.log(`- Guest Count: ${totalGuests}`);
+        
     } else {
         priceDisplay.style.display = 'none';
         console.log('No pricing information available for the selected vehicle and service type');
+        
+        // Clear hidden fields when no pricing
+        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+        const serviceTypeField = document.getElementById(`day${day}_${section}_service_type`);
+        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        
+        if (basePriceField) basePriceField.value = '0';
+        if (totalPriceField) totalPriceField.value = '0';
+        if (serviceTypeField) serviceTypeField.value = '';
+        if (guestCountField) guestCountField.value = '0';
     }
 }
 
@@ -8344,6 +9058,16 @@ window.saveService = function(day, type) {
             return;
         }
         
+        // Get pricing data from hidden fields
+        const basePrice = document.getElementById(`day${day}_entry_base_price`).value || '0';
+        const totalPrice = document.getElementById(`day${day}_entry_total_price`).value || '0';
+        const guestCount = document.getElementById(`day${day}_entry_guest_count`).value || '0';
+        
+        console.log(`Entry port pricing data for day ${day}:`);
+        console.log(`- Base Price: $${basePrice}`);
+        console.log(`- Total Price: $${totalPrice}`);
+        console.log(`- Guest Count: ${guestCount}`);
+        
         // Create data object
         data = {
             from_zone_id: pickupZoneId,
@@ -8352,6 +9076,9 @@ window.saveService = function(day, type) {
             pickup_date: pickupDate,
             vehicle_id: vehicleId,
             service_type: serviceType,
+            price: parseFloat(totalPrice),
+            base_price: parseFloat(basePrice),
+            guest_count: parseInt(guestCount),
             day: day
         };
     } 
@@ -8370,6 +9097,16 @@ window.saveService = function(day, type) {
             return;
         }
         
+        // Get pricing data from hidden fields
+        const basePrice = document.getElementById(`day${day}_exit_base_price`).value || '0';
+        const totalPrice = document.getElementById(`day${day}_exit_total_price`).value || '0';
+        const guestCount = document.getElementById(`day${day}_exit_guest_count`).value || '0';
+        
+        console.log(`Exit port pricing data for day ${day}:`);
+        console.log(`- Base Price: $${basePrice}`);
+        console.log(`- Total Price: $${totalPrice}`);
+        console.log(`- Guest Count: ${guestCount}`);
+        
         // Create data object
         data = {
             from_zone_id: pickupZoneId,
@@ -8378,6 +9115,9 @@ window.saveService = function(day, type) {
             pickup_date: pickupDate,
             vehicle_id: vehicleId,
             service_type: serviceType,
+            price: parseFloat(totalPrice),
+            base_price: parseFloat(basePrice),
+            guest_count: parseInt(guestCount),
             day: day
         };
     }
@@ -9354,7 +10094,7 @@ window.saveService = function(day, type) {
     </div>
 
 
-                                    </div>
+</div>
 
 
 
@@ -9400,4 +10140,411 @@ window.saveService = function(day, type) {
             }
         });
     });
+
+    // Function to check and fix guide hidden fields
+    window.fixGuideHiddenFields = function() {
+        console.log('=== FIXING GUIDE HIDDEN FIELDS ===');
+        
+        document.querySelectorAll('.guide-select').forEach((select, index) => {
+            const nameMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+            if (nameMatch) {
+                const day = nameMatch[1];
+                const guideIndex = nameMatch[2];
+                
+                console.log(`Checking guide ${index + 1} (Day ${day}, Index ${guideIndex})`);
+                
+                // Check if hidden fields exist
+                const basePriceField = document.getElementById(`day${day}_guide_${guideIndex}_base_price`);
+                const hoursField = document.getElementById(`day${day}_guide_${guideIndex}_hours`);
+                const surchargeField = document.getElementById(`day${day}_guide_${guideIndex}_surcharge`);
+                const totalPriceField = document.getElementById(`day${day}_guide_${guideIndex}_total_price`);
+                
+                console.log('Hidden fields status:', {
+                    basePriceField: !!basePriceField,
+                    hoursField: !!hoursField,
+                    surchargeField: !!surchargeField,
+                    totalPriceField: !!totalPriceField
+                });
+                
+                // If any field is missing, create it
+                if (!basePriceField || !hoursField || !surchargeField || !totalPriceField) {
+                    console.log('Creating missing hidden fields...');
+                    
+                    const packageSelect = document.getElementById(`day${day}_guide_${guideIndex}_package`);
+                    if (packageSelect) {
+                        // Remove any existing hidden fields first
+                        const existingHiddenFields = packageSelect.parentNode.querySelectorAll('input[type="hidden"][id*="_guide_"]');
+                        existingHiddenFields.forEach(field => field.remove());
+                        
+                        // Add hidden fields after the package select
+                        const hiddenFieldsHTML = `
+                            <input type="hidden" id="day${day}_guide_${guideIndex}_base_price" name="day${day}_guide_${guideIndex}_base_price" value="0">
+                            <input type="hidden" id="day${day}_guide_${guideIndex}_hours" name="day${day}_guide_${guideIndex}_hours" value="0">
+                            <input type="hidden" id="day${day}_guide_${guideIndex}_surcharge" name="day${day}_guide_${guideIndex}_surcharge" value="0">
+                            <input type="hidden" id="day${day}_guide_${guideIndex}_total_price" name="day${day}_guide_${guideIndex}_total_price" value="0">
+                        `;
+                        packageSelect.insertAdjacentHTML('afterend', hiddenFieldsHTML);
+                        console.log('Hidden fields created successfully');
+                    }
+                }
+            }
+        });
+        
+        console.log('Guide hidden fields fix completed');
+    };
+
+    // Simple function to test guide pricing - call this from console
+    window.testGuidePricing = function(day = 1, index = 1) {
+        console.log(`Testing guide pricing for Day ${day}, Index ${index}`);
+        
+        const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+        const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+        
+        console.log('Elements found:', {
+            packageSelect: !!packageSelect,
+            guideSelect: !!guideSelect,
+            packageValue: packageSelect?.value,
+            guideValue: guideSelect?.value
+        });
+        
+        if (packageSelect && guideSelect && packageSelect.value && guideSelect.value) {
+            console.log('Calling updateGuidePricing...');
+            updateGuidePricing(day, index);
+        } else {
+            console.log('Cannot test - missing elements or values');
+        }
+    };
+
+    // Test function to check multiple restaurant pricing
+    window.testMultipleRestaurantPricing = function() {
+        console.log('=== TESTING MULTIPLE RESTAURANT PRICING ===');
+        
+        // Check all restaurant forms for hidden fields
+        const restaurantItems = document.querySelectorAll('.restaurant-item');
+        console.log(`Found ${restaurantItems.length} restaurant forms`);
+        
+        restaurantItems.forEach((item, index) => {
+            const restaurantIndex = index + 1;
+            const totalPriceField = document.getElementById(`day1_restaurant_${restaurantIndex}_total_price`);
+            const mealIdField = document.getElementById(`day1_restaurant_${restaurantIndex}_meal_id`);
+            const dishNameField = document.getElementById(`day1_restaurant_${restaurantIndex}_dish_name`);
+            
+            console.log(`Restaurant ${restaurantIndex} hidden fields:`);
+            console.log(`- Total Price: $${totalPriceField?.value || 'Not found'}`);
+            console.log(`- Meal ID: ${mealIdField?.value || 'Not found'}`);
+            console.log(`- Dish Name: ${dishNameField?.value || 'Not found'}`);
+        });
+        
+        // Test the data collection function
+        console.log('Calling updateRestaurantDataField()...');
+        updateRestaurantDataField();
+        
+        // Check the collected data
+        const restaurantData = document.getElementById('restaurant_data')?.value;
+        
+        console.log('Collected restaurant data:');
+        if (restaurantData) {
+            const parsedData = JSON.parse(restaurantData);
+            console.log('Restaurant Data:', parsedData);
+            
+            // Check if all restaurants have correct pricing
+            parsedData.forEach((restaurant, index) => {
+                console.log(`Restaurant ${index + 1}:`);
+                console.log(`- Total Price: $${restaurant.totalPrice}`);
+                console.log(`- Meal Price: $${restaurant.mealPrice}`);
+                console.log(`- Meal Description Price: $${restaurant.MealDescription[0]?.price || 'N/A'}`);
+            });
+        } else {
+            console.log('No restaurant data found');
+        }
+    };
+
+    // Test function to check restaurant data collection
+    window.testRestaurantDataCollection = function() {
+        console.log('=== TESTING RESTAURANT DATA COLLECTION ===');
+        
+        // Check if hidden fields exist and have values
+        const totalPriceField = document.getElementById('day1_restaurant_1_total_price');
+        const mealIdField = document.getElementById('day1_restaurant_1_meal_id');
+        const dishNameField = document.getElementById('day1_restaurant_1_dish_name');
+        
+        console.log('Restaurant hidden fields:');
+        console.log(`- Total Price: $${totalPriceField?.value || 'Not found'}`);
+        console.log(`- Meal ID: ${mealIdField?.value || 'Not found'}`);
+        console.log(`- Dish Name: ${dishNameField?.value || 'Not found'}`);
+        
+        // Test the data collection function
+        console.log('Calling updateRestaurantDataField()...');
+        updateRestaurantDataField();
+        
+        // Check the collected data
+        const restaurantData = document.getElementById('restaurant_data')?.value;
+        
+        console.log('Collected restaurant data:');
+        if (restaurantData) {
+            console.log('Restaurant Data:', JSON.parse(restaurantData));
+        } else {
+            console.log('No restaurant data found');
+        }
+    };
+
+    // Test function to check transport data collection
+    window.testTransportDataCollection = function() {
+        console.log('=== TESTING TRANSPORT DATA COLLECTION ===');
+        
+        // Check if hidden fields exist and have values
+        const sections = ['entry', 'exit', 'transport'];
+        
+        sections.forEach(section => {
+            const basePriceField = document.getElementById(`day1_${section}_base_price`);
+            const totalPriceField = document.getElementById(`day1_${section}_total_price`);
+            const serviceTypeField = document.getElementById(`day1_${section}_service_type`);
+            
+            if (basePriceField && totalPriceField && serviceTypeField) {
+                console.log(`${section.toUpperCase()} PORT - Hidden fields:`);
+                console.log(`- Base Price: $${basePriceField.value}`);
+                console.log(`- Total Price: $${totalPriceField.value}`);
+                console.log(`- Service Type: ${serviceTypeField.value}`);
+            } else {
+                console.log(`${section.toUpperCase()} PORT - Hidden fields not found`);
+            }
+        });
+        
+        // Test the data collection function
+        console.log('Calling updateTransportDataField()...');
+        updateTransportDataField();
+        
+        // Check the collected data
+        const entryPortData = document.getElementById('entry_port_data')?.value;
+        const exitPortData = document.getElementById('exit_port_data')?.value;
+        const transportData = document.getElementById('transport_data')?.value;
+        
+        console.log('Collected data:');
+        if (entryPortData) {
+            console.log('Entry Port Data:', JSON.parse(entryPortData));
+        }
+        if (exitPortData) {
+            console.log('Exit Port Data:', JSON.parse(exitPortData));
+        }
+        if (transportData) {
+            console.log('Transport Data:', JSON.parse(transportData));
+        }
+    };
+
+    // Test function to check entry port pricing
+    window.testEntryPortPricing = function(day = 1) {
+        console.log(`=== TESTING ENTRY PORT PRICING FOR DAY ${day} ===`);
+        
+        // Check if hidden fields exist
+        const basePriceField = document.getElementById(`day${day}_entry_base_price`);
+        const totalPriceField = document.getElementById(`day${day}_entry_total_price`);
+        const serviceTypeField = document.getElementById(`day${day}_entry_service_type`);
+        const guestCountField = document.getElementById(`day${day}_entry_guest_count`);
+        
+        console.log('Hidden fields found:', {
+            basePriceField: !!basePriceField,
+            totalPriceField: !!totalPriceField,
+            serviceTypeField: !!serviceTypeField,
+            guestCountField: !!guestCountField
+        });
+        
+        if (basePriceField && totalPriceField && serviceTypeField && guestCountField) {
+            console.log('Current hidden field values:');
+            console.log(`- Base Price: $${basePriceField.value}`);
+            console.log(`- Total Price: $${totalPriceField.value}`);
+            console.log(`- Service Type: ${serviceTypeField.value}`);
+            console.log(`- Guest Count: ${guestCountField.value}`);
+        }
+        
+        // Check if vehicle and service type are selected
+        const vehicleSelect = document.querySelector(`select[name="day${day}_entry_vehicle_id"]`);
+        const serviceTypeSelect = document.querySelector(`select[name="day${day}_entry_service_type"]`);
+        
+        if (vehicleSelect && serviceTypeSelect) {
+            console.log('Current selections:');
+            console.log(`- Vehicle: ${vehicleSelect.value} (${vehicleSelect.options[vehicleSelect.selectedIndex]?.text || 'None'})`);
+            console.log(`- Service Type: ${serviceTypeSelect.value}`);
+            
+            if (vehicleSelect.value && serviceTypeSelect.value) {
+                console.log('✅ Vehicle and service type selected - pricing should be calculated');
+                // Trigger pricing update
+                updatePricing(day, 'entry');
+            } else {
+                console.log('❌ Please select both vehicle and service type first');
+            }
+        } else {
+            console.log('❌ Vehicle or service type selectors not found');
+        }
+    };
+
+    // Test function to check if all required functions are available
+    window.testAllFunctions = function() {
+        console.log('=== TESTING ALL REQUIRED FUNCTIONS ===');
+        
+        const requiredFunctions = [
+            'updateGuidePricing',
+            'updateAttractionPricing', 
+            'loadGuideDetails',
+            'loadAttractionDetails',
+            'loadRestaurantDetails',
+            'updateVehicleDetails',
+            'updatePricing',
+            'updatePackagePrices',
+            'updatePackagePricesForTime',
+            'calculateAllGuidePricing',
+            'fixGuideHiddenFields',
+            'quickFixGuidePricing'
+        ];
+        
+        const results = {};
+        
+        requiredFunctions.forEach(funcName => {
+            const isAvailable = typeof window[funcName] === 'function';
+            results[funcName] = isAvailable;
+            console.log(`${funcName}: ${isAvailable ? '✅ AVAILABLE' : '❌ MISSING'}`);
+        });
+        
+        const missingFunctions = Object.keys(results).filter(func => !results[func]);
+        
+        if (missingFunctions.length === 0) {
+            console.log('🎉 ALL FUNCTIONS ARE AVAILABLE!');
+        } else {
+            console.log('❌ MISSING FUNCTIONS:', missingFunctions);
+        }
+        
+        return results;
+    };
+
+    // Quick fix function - run this to immediately calculate all guide pricing
+    window.quickFixGuidePricing = function() {
+        console.log('=== QUICK FIX: CALCULATING ALL GUIDE PRICING ===');
+        
+        // First, ensure hidden fields exist
+        fixGuideHiddenFields();
+        
+        // Then calculate pricing for all guides
+        calculateAllGuidePricing();
+        
+        // Finally, update the guide data field
+        updateGuideDataField();
+        
+        console.log('Quick fix completed! Check the guide_data field for updated pricing.');
+    };
+
+    // Simple function to test guide pricing - call this from console
+    window.testGuidePricing = function(day = 1, index = 1) {
+        console.log(`Testing guide pricing for Day ${day}, Index ${index}`);
+        
+        const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+        const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+        
+        console.log('Elements found:', {
+            packageSelect: !!packageSelect,
+            guideSelect: !!guideSelect,
+            packageValue: packageSelect?.value,
+            guideValue: guideSelect?.value
+        });
+        
+        if (packageSelect && guideSelect && packageSelect.value && guideSelect.value) {
+            console.log('Calling updateGuidePricing...');
+            updateGuidePricing(day, index);
+        } else {
+            console.log('Cannot test - missing elements or values');
+        }
+    };
+
+                 // Function to calculate pricing for all guides and store in hidden fields
+                 window.calculateAllGuidePricing = function() {
+                     console.log('=== CALCULATING ALL GUIDE PRICING ===');
+                     
+                     document.querySelectorAll('.guide-select').forEach((select, index) => {
+                         if (select.value) {
+                             const nameMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                             if (nameMatch) {
+                                 const day = nameMatch[1];
+                                 const guideIndex = nameMatch[2];
+                                 
+                                 const packageSelect = document.getElementById(`day${day}_guide_${guideIndex}_package`);
+                                 if (packageSelect && packageSelect.value) {
+                                     console.log(`Calculating pricing for Day ${day}, Guide ${guideIndex}`);
+                                     
+                                     const selectedPackage = packageSelect.options[packageSelect.selectedIndex];
+                                     const selectedGuide = select.options[select.selectedIndex];
+                                     
+                                     if (selectedPackage && selectedGuide && selectedPackage.dataset) {
+                                         const basePrice = parseFloat(selectedPackage.dataset.price) || 0;
+                                         const hours = parseInt(selectedPackage.dataset.hours) || 0;
+                                         
+                                         // Calculate surcharge based on pickup time
+                                         const pickupTime = document.getElementById(`day${day}_guide_${guideIndex}_pickup_time`)?.value || '';
+                                         let surcharge = 0;
+                                         
+                                         if (pickupTime) {
+                                             const pickupHour = parseInt(pickupTime.split(':')[0]);
+                                             const nightStartTime = selectedGuide.dataset.nightStartTime;
+                                             const nightEndTime = selectedGuide.dataset.nightEndTime;
+                                             
+                                             if (nightStartTime && nightEndTime) {
+                                                 const nightStart = parseInt(nightStartTime.split(':')[0]);
+                                                 const nightEnd = parseInt(nightEndTime.split(':')[0]) - 1;
+                                                 
+                                                 const isNightTime = (pickupHour >= nightStart && pickupHour <= nightEnd) || 
+                                                                    (nightStart > nightEnd && (pickupHour >= nightStart || pickupHour <= nightEnd));
+                                                 
+                                                 if (isNightTime) {
+                                                     surcharge = parseFloat(selectedGuide.dataset.nightSurcharge) || 0;
+                                                 }
+                                             }
+                                         }
+                                         
+                                         const totalPrice = basePrice + surcharge;
+                                         
+                                         // Update hidden fields
+                                         const basePriceField = document.getElementById(`day${day}_guide_${guideIndex}_base_price`);
+                                         const hoursField = document.getElementById(`day${day}_guide_${guideIndex}_hours`);
+                                         const surchargeField = document.getElementById(`day${day}_guide_${guideIndex}_surcharge`);
+                                         const totalPriceField = document.getElementById(`day${day}_guide_${guideIndex}_total_price`);
+                                         
+                                         if (basePriceField) basePriceField.value = basePrice.toFixed(2);
+                                         if (hoursField) hoursField.value = hours.toString();
+                                         if (surchargeField) surchargeField.value = surcharge.toFixed(2);
+                                         if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
+                                         
+                                         console.log(`Pricing calculated for Day ${day}, Guide ${guideIndex}:`, {
+                                             basePrice: basePrice.toFixed(2),
+                                             hours: hours,
+                                             surcharge: surcharge.toFixed(2),
+                                             totalPrice: totalPrice.toFixed(2)
+                                         });
+                                     }
+                                 }
+                             }
+                         }
+                     });
+                     
+                     console.log('All guide pricing calculated');
+                 }
+
+                 // Function to manually trigger pricing for all guides
+                 window.triggerAllGuidePricing = function() {
+                     console.log('=== TRIGGERING ALL GUIDE PRICING ===');
+        
+                     document.querySelectorAll('.guide-select').forEach((select, index) => {
+                         if (select.value) {
+                             const nameMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                             if (nameMatch) {
+                                 const day = nameMatch[1];
+                                 const guideIndex = nameMatch[2];
+                                 
+                                 const packageSelect = document.getElementById(`day${day}_guide_${guideIndex}_package`);
+                                 if (packageSelect && packageSelect.value) {
+                                     console.log(`Triggering pricing for Day ${day}, Guide ${guideIndex}`);
+                                     updateGuidePricing(day, guideIndex);
+                                 }
+                             }
+                         }
+                     });
+                     
+                     console.log('All guide pricing triggered');
+                 };
 </script> 

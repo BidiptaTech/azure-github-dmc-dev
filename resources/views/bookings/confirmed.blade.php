@@ -331,6 +331,7 @@
                             <th>Confirmation Date</th>
                             {{-- <th>Status</th> --}}
                             <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -854,6 +855,12 @@
                                             @endif
                                         @endif
                                     @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
                                 </div>
                             </td>
                         </tr>

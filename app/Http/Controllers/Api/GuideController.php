@@ -46,15 +46,23 @@ class GuideController extends Controller
         $requestDate = Carbon::parse($dateRange[0]);
         $formattedDate = $requestDate->format('Y-m-d');
         $requestDayOfWeek = strtolower($requestDate->format('l'));
-    
-        $allGuides = Guide::orderBy('guide_id', 'desc')->where('is_active', 1)
-            ->where('country', $country)
-            ->where('status', 1)
-            ->where('city', $city)
-            ->where('dmc_id', $dmcId)
-            ->limit($limit)
-            ->offset($start)
-            ->get();
+        if($start && $limit){
+                $allGuides = Guide::orderBy('guide_id', 'desc')->where('is_active', 1)
+                    ->where('country', $country)
+                    ->where('status', 1)
+                    ->where('city', $city)
+                    ->where('dmc_id', $dmcId)
+                    ->limit($limit)
+                    ->offset($start)
+                    ->get();
+            } else {
+                $allGuides = Guide::orderBy('guide_id', 'desc')->where('is_active', 1)
+                    ->where('country', $country)
+                    ->where('status', 1)
+                    ->where('city', $city)
+                    ->where('dmc_id', $dmcId)
+                    ->get();
+            }
 
          // Filter out guides that are not available on the requested date
         $availableGuides = $allGuides->filter(function ($guide) use ($formattedDate, $requestDayOfWeek) {

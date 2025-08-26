@@ -194,6 +194,7 @@
                             <th>Cancellation Status</th>
                             <th>Cancelled Date</th>
                             <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -288,6 +289,12 @@
                                    class="btn btn-outline-danger btn-sm rounded-pill">
                                     <i class="ri-eye-line"></i> View
                                 </a>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                                </div>
                             </td>
                         </tr>
                         @empty

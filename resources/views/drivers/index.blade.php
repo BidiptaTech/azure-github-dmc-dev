@@ -69,6 +69,7 @@
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 46  || auth()->user()->role_id == 23 || auth()->user()->role_id == 76 || auth()->user()->role_id ==109 || auth()->user()->role_id == 111 || hasPermission('edit driver') || hasPermission('delete driver'))
                                 <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -181,6 +182,12 @@
                                             </td>
                                     @endif
                                 @endif
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span>{{ $driver->created_at->format('D,  M d, Y') }}</span>
+                                        <small class="text-muted">{{ $driver->created_at->format('h:i A') }}</small>
+                                    </div>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

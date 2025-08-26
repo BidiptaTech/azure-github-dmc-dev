@@ -66,6 +66,7 @@
               {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                   <th>Action</th>
               {{-- @endif --}}
+              <th>Created At</th>
             </tr>
           </thead>
           <tbody>
@@ -198,6 +199,12 @@
                   </div>
                 </td>
                 {{-- @endif --}}
+                <td>
+                  <div class="d-flex flex-column">
+                    <span>{{ $agent->created_at->format('D,  M d, Y') }}</span>
+                    <small class="text-muted">{{ $agent->created_at->format('h:i A') }}</small>
+                  </div>
+                </td>
               </tr>
             @endforeach
           </tbody>

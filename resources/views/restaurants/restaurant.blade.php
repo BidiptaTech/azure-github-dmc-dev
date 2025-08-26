@@ -65,6 +65,7 @@
                                 @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 48  || auth()->user()->role_id == 23 || auth()->user()->role_id == 78 || auth()->user()->role_id ==120 || auth()->user()->role_id == 118 || hasPermission('edit restaurant') || hasPermission('delete restaurant'))
                                     <th>Action</th>
                                 @endif
+                                <th>Created At</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -201,6 +202,12 @@
                                                 </td>
                                             @endif
                                         @endif
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span>{{ $restaurant->created_at->format('D,  M d, Y') }}</span>
+                                            <small class="text-muted">{{ $restaurant->created_at->format('h:i A') }}</small>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

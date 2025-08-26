@@ -39,22 +39,22 @@ class DriverController extends Controller
             $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
             $drivers = Driver::whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
-                ->orderBy('id', 'DESC')
+                ->orderBy('created_at', 'DESC')
                 ->get();
         } elseif ($user->role_id == 3) {
-            $drivers = Driver::orderBy('updated_at', 'desc')->whereIn('status', [5, 1])->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->whereIn('status', [5, 1])->get();
         } elseif (in_array($user->role_id, [1, 2, 23])) {
-            $drivers = Driver::orderBy('updated_at', 'desc')->whereIn('status', [1, 3])->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->whereIn('status', [1, 3])->get();
         }
         elseif ($user->role_id == 10) {
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $drivers = Driver::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
         elseif ($user->role_id == 11) {
-            $drivers = Driver::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif ($user->role_id == 20) {
-            $drivers = Driver::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
 
         elseif(in_array($user->role_id, [25, 62, 110])){
@@ -72,21 +72,21 @@ class DriverController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $drivers = Driver::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         } 
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $drivers = Driver::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 76){
             $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
             if($assistant_product_manager_ids){
-                $drivers = Driver::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
+                $drivers = Driver::orderBy('created_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
             }else{
-                $drivers = Driver::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+                $drivers = Driver::orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
             }
         }
         elseif($user->role_id == 111){
-            $drivers = Driver::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+            $drivers = Driver::orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
         }
         return view('drivers.index', compact('drivers', 'user'));
     }
