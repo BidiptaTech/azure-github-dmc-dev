@@ -499,7 +499,12 @@
                                     <i class="ri-eye-line"></i> View
                                 </a>
                             </td>
-                            <td>{{ $tour->created_at->format('d-m-Y') }}</td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
                         </tr>
                         @empty
                         {{-- <tr>

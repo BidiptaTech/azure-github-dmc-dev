@@ -186,6 +186,7 @@
                             <th>Refund Status</th>
                             <th>Cancelled Date</th>
                             <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -281,6 +282,12 @@
                                             <i class="ri-check-circle-line"></i>
                                         </span>
                                     @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ optional($tour->created_at)->format('M d, Y') }}</span>
+                                    <small class="text-muted">{{ optional($tour->created_at)->format('h:i A') }}</small>
                                 </div>
                             </td>
                         </tr>
