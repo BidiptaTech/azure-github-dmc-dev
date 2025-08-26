@@ -308,30 +308,31 @@ const SimpleCustomerInfo = () => {
   }, [dispatch]);
 
   return (
-    <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Customer Information</Typography>
+    <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>Customer Information</Typography>
         {hasCustomerInfo && (
           <Chip 
             label="Auto-filled" 
             color="success" 
             variant="outlined" 
             size="small"
+            sx={{ fontSize: '0.65rem', height: '20px' }}
           />
         )}
       </Box>
       
       {hasCustomerInfo ? (
-        <Alert severity="info" sx={{ mb: 3 }}>
+        <Alert severity="info" sx={{ mb: 2, py: 0.5, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
           Your information has been automatically filled from your Tour Package Booking.
         </Alert>
       ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.75rem' }}>
           Please provide your contact information below. Fields marked with * are required.
         </Typography>
       )}
       
-      <Grid container spacing={2}>
+      <Grid container spacing={1.5}>
         <Grid item xs={12}>
           <TextField
             label="Full Name *"
@@ -344,8 +345,16 @@ const SimpleCustomerInfo = () => {
             error={!!errors.fullName && touched.fullName}
             helperText={touched.fullName && errors.fullName}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
+            }}
+            FormHelperTextProps={{
+              sx: { fontSize: '0.65rem', mx: 0 }
             }}
           />
         </Grid>
@@ -362,8 +371,16 @@ const SimpleCustomerInfo = () => {
             error={!!errors.email && touched.email}
             helperText={touched.email && errors.email}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
+            }}
+            FormHelperTextProps={{
+              sx: { fontSize: '0.65rem', mx: 0 }
             }}
           />
         </Grid>
@@ -380,15 +397,17 @@ const SimpleCustomerInfo = () => {
             error={!!errors.phone && touched.phone}
             helperText={touched.phone && errors.phone}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' },
               startAdornment: (
                 <InputAdornment position="start">
                   <FormControl 
                     variant="standard" 
                     sx={{ 
-                      minWidth: 80,
-                      marginRight: 1,
+                      minWidth: 70,
+                      marginRight: 0.5,
                       '& .MuiInput-underline:before': { display: 'none' },
                       '& .MuiInput-underline:after': { display: 'none' },
                       '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' }
@@ -399,10 +418,11 @@ const SimpleCustomerInfo = () => {
                       onChange={handleCountryChange}
                       disableUnderline
                       disabled={hasCustomerInfo}
+                      size="small"
                       sx={{
-                        fontSize: '0.875rem',
+                        fontSize: '0.75rem',
                         '& .MuiSelect-select': {
-                          paddingRight: '20px !important',
+                          paddingRight: '16px !important',
                           paddingLeft: 0,
                           paddingTop: 0,
                           paddingBottom: 0,
@@ -410,15 +430,15 @@ const SimpleCustomerInfo = () => {
                           alignItems: 'center'
                         },
                         '& .MuiSvgIcon-root': {
-                          fontSize: '1rem'
+                          fontSize: '0.9rem'
                         }
                       }}
                     >
                       {user_country && user_country.map((country) => (
-                        <MenuItem key={country.code} value={country.code}>
+                        <MenuItem key={country.code} value={country.code} sx={{ fontSize: '0.75rem' }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <span style={{ fontWeight: 'bold' }}>{country.country_code}</span>
-                            <span style={{ fontSize: '0.75rem', color: '#666' }}>({country.code})</span>
+                            <span style={{ fontSize: '0.65rem', color: '#666' }}>({country.code})</span>
                           </Box>
                         </MenuItem>
                       ))}
@@ -426,6 +446,12 @@ const SimpleCustomerInfo = () => {
                   </FormControl>
                 </InputAdornment>
               ),
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
+            }}
+            FormHelperTextProps={{
+              sx: { fontSize: '0.65rem', mx: 0 }
             }}
           />
         </Grid>
@@ -442,8 +468,16 @@ const SimpleCustomerInfo = () => {
             error={!!errors.address1 && touched.address1}
             helperText={touched.address1 && errors.address1}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
+            }}
+            FormHelperTextProps={{
+              sx: { fontSize: '0.65rem', mx: 0 }
             }}
           />
         </Grid>
@@ -457,8 +491,13 @@ const SimpleCustomerInfo = () => {
             value={form.address2}
             onChange={handleChange}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
             }}
           />
         </Grid>
@@ -473,8 +512,13 @@ const SimpleCustomerInfo = () => {
             onChange={handleChange}
             onBlur={handleBlur}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
             }}
           />
         </Grid>
@@ -491,8 +535,16 @@ const SimpleCustomerInfo = () => {
             error={!!errors.zip && touched.zip}
             helperText={touched.zip && errors.zip}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
+            }}
+            FormHelperTextProps={{
+              sx: { fontSize: '0.65rem', mx: 0 }
             }}
           />
         </Grid>
@@ -503,22 +555,28 @@ const SimpleCustomerInfo = () => {
             name="specialRequests"
             fullWidth
             multiline
-            rows={4}
+            rows={3}
             variant="outlined"
             value={form.specialRequests}
             onChange={handleChange}
             disabled={hasCustomerInfo}
+            size="small"
             InputProps={{
               readOnly: hasCustomerInfo,
+              sx: { fontSize: '0.8rem' }
+            }}
+            InputLabelProps={{
+              sx: { fontSize: '0.8rem' }
             }}
           />
         </Grid>
       </Grid>
       
-      <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography 
           variant="body2" 
           color={formValid ? "success.main" : "text.secondary"}
+          sx={{ fontSize: '0.75rem' }}
         >
           {hasCustomerInfo 
             ? "✓ Information loaded from package data" 

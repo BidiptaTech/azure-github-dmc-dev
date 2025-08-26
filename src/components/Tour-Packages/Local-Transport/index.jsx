@@ -1909,7 +1909,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           <CardContent sx={{height: '52px', py: 0.1}}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               <Box display="flex" alignItems="center">
-                <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 28, color: '#FFD700' }} />
+                <DirectionsCarIcon sx={{ mr: 1.5, fontSize: "1.1rem", color: '#FFD700' }} />
                 <Box>
                   <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                     Book Transport Services
@@ -1957,7 +1957,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 0.9, position: 'relative' }}>
+    <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}
@@ -1972,7 +1972,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         <CardContent sx={{ py: 0.5}}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center">
-              <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 24, color: '#FFD700' }} />
+              <DirectionsCarIcon sx={{ mr: 1.5, fontSize: '1.1rem', color: '#FFD700' }} />
               <Box>
                 <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                   Book Transport Services

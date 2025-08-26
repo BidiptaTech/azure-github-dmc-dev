@@ -118,7 +118,7 @@ const MobileMenu = () => {
               }
               style={{ margin: "5px 0" }}
             >
-              Book An Enquiry
+              Quick Enquiry
             </MenuItem>
           )}
           
