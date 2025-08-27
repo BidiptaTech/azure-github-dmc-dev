@@ -8,6 +8,7 @@ use App\Models\Country;
 use App\Models\User;
 use App\Models\Agent;
 use Illuminate\Http\Request;
+use App\Models\Agency;
 
 class CountryController extends Controller
 {
@@ -76,15 +77,10 @@ class CountryController extends Controller
         }
         $agency = Agency::where('agency_id', $user->agency_id)->first();
         $agentDmcIds = $agency->dmc_id;
-        
-        // Handle JSON array or comma-separated string
-        if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
-            // It's a JSON array, decode it
-            $agentDmcIds = json_decode($agentDmcIds, true);
-        } else {
-            // It's a comma-separated string, explode it
-            $agentDmcIds = explode(',', $agentDmcIds);
+        if(!$agentDmcIds){
+            return response()->json(['error' => 'DMC not found'], 404);
         }
+        // Handle JSON array or comma-separated string
         
         // Ensure all values are integers
         $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
@@ -192,7 +188,7 @@ class CountryController extends Controller
             return response()->json(['error' => 'Agent not found'], 404);
         }
         $agency = Agency::where('agency_id', $user->agency_id)->first();
-        $agentDmcIds = $agencies->dmc_id;
+        $agentDmcIds = $agency->dmc_id;
         
         // Handle JSON array or comma-separated string
         if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
