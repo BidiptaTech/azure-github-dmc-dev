@@ -1523,7 +1523,7 @@
 
             <!-- Services Management for DMC -->
             @php
-                $allowedRoles = [11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138];
+                $allowedRoles = [1,2,3,4,19,20,11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138];
             @endphp
 
             @if(in_array(Auth::user()->role_id, $allowedRoles))
@@ -1547,7 +1547,7 @@
                                     <div data-i18n="Select Hotels">Select Hotels</div>
                                 </a>
                             </li>
-                        @endif
+                        @endif 
                         <!-- DMC Attractions Selection -->
                         @php
                             $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
@@ -1555,9 +1555,9 @@
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/attractions')) active @endif">
                             <a href="{{ route('services.attractions') }}" class="menu-link">
-                                    <div data-i18n="Select Attractions">Select Attractions</div>
-                                </a>
-                            </li>
+                                <div data-i18n="Select Attractions">Select Attractions</div>
+                            </a>
+                        </li>
                         @endif
                         
                         <!-- DMC Restaurants Selection -->
@@ -1568,6 +1568,17 @@
                         <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
                             <a href="{{ route('services.restaurants') }}" class="menu-link">
                                 <div data-i18n="Select Restaurants">Select Restaurants</div>
+                            </a>
+                        </li>
+                        @endif
+                        <!-- DMC Agencies Selection -->
+                        @php
+                            $allowedRoles = [1,2,3,4,19,20,11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138];
+                        @endphp
+                        @if(in_array(Auth::user()->role_id, $allowedRoles))
+                        <li class="menu-item @if(Request::is('services/agencies')) active @endif">
+                            <a href="{{ route('services.agencies') }}" class="menu-link">
+                                <div data-i18n="Select Agencies">Select Agencies</div>
                             </a>
                         </li>
                         @endif
@@ -1659,7 +1670,7 @@
                 </li>
             @endif --}}
 
-                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 20)
+                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 11 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38)
                 <!-- Agency Management -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>

@@ -74,7 +74,8 @@ class CountryController extends Controller
         if(!$createdByDmc){
             return response()->json(['error' => 'Agent DMC not found'], 404);
         }
-        $agentDmcIds = $user->dmc_id;
+        $agency = Agency::where('agency_id', $user->agency_id)->first();
+        $agentDmcIds = $agency->dmc_id;
         
         // Handle JSON array or comma-separated string
         if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
@@ -93,17 +94,17 @@ class CountryController extends Controller
         }
 
         if (count($agentDmcIds) > 1 && $createdByDmc->role_id != 20) {
-            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address')->whereIn('userId', $agentDmcIds);
+            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
         }
         elseif (count($agentDmcIds) == 1 && $createdByDmc->role_id != 20) {
-            $dmcs = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address')->where('userId', $agentDmcIds[0] )->first();
+            $dmcs = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('userId', $agentDmcIds[0] )->first();
             if (!$dmcs) {
                 return response()->json(['error' => 'DMC not found'], 404);
             }
             return response()->json(['data' => $dmcs]);
         }
         elseif ($createdByDmc->role_id == 20) {
-            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address')->where('role_id', 11);
+            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11);
         }
         else {
             return response()->json(['error' => 'DMC not found'], 404);
@@ -190,8 +191,8 @@ class CountryController extends Controller
         if(!$agentCreatedBy){
             return response()->json(['error' => 'Agent not found'], 404);
         }
-        
-        $agentDmcIds = $user->dmc_id;
+        $agency = Agency::where('agency_id', $user->agency_id)->first();
+        $agentDmcIds = $agencies->dmc_id;
         
         // Handle JSON array or comma-separated string
         if (is_string($agentDmcIds) && strpos($agentDmcIds, '[') === 0) {
@@ -206,6 +207,7 @@ class CountryController extends Controller
         $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
         
         $dmc_count = count($agentDmcIds);
+        
         if($user->role_id == 20){
             $dmc_count = $dmc_count - 1;
         }

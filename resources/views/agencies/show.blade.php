@@ -413,7 +413,7 @@
                     </div>
                 </div>
                 <div class="col-md-3 text-center text-md-end">
-                    <a href="{{ route('agencies.edit', $agency->agency_id) }}" class="btn btn-light btn-modern me-2">
+                    <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-light btn-modern me-2">
                         <i class="ri-pencil-line me-1"></i> Edit Agency
                     </a>
                 </div>
