@@ -20,6 +20,7 @@ use NumberFormatter;
 use App\Helpers\CountryHelper;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\CommonHelper;
+use App\Models\Agency;
 
 class LoginControllerApi extends Controller
 {
