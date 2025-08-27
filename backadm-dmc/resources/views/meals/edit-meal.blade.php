@@ -19,7 +19,7 @@
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Update Meal Information
-                <a href="{{ route('meals.restaurant_create', $meals->restaurant_id) }}" class="btn btn-sm btn-outline-danger">
+                <a href="{{ route('meals.restaurant_create', Crypt::encrypt($meals->restaurant_id)) }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>

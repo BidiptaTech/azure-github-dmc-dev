@@ -136,6 +136,16 @@
                             </div>
                             @endif -->
 
+                            <!-- Restaurant Name -->
+                            <div class="col-md-3 mb-3">
+                                <label for="name" class="form-label"><strong>Restaurant Name</strong><span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="name" value="{{ old('name') }}" placeholder="Enter Restaurant Name" required>
+                                @error('name')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- Country -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
@@ -174,16 +184,6 @@
                                 </select>
                                 @error('city')
                                     <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                             <!-- Restaurant Name -->
-                             <div class="col-md-3 mb-3">
-                                <label for="name" class="form-label"><strong>Restaurant Name</strong><span
-                                        class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="name" value="{{ old('name') }}" placeholder="Enter Restaurant Name" required>
-                                @error('name')
-                                <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
 
