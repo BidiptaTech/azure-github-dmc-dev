@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Helpers\CommonHelper;
 use Illuminate\Support\Facades\DB;
 use App\Models\Attraction;
+use App\Models\User;
 use Illuminate\Support\Facades\Crypt;
 
 class TicketController extends Controller
@@ -58,6 +59,22 @@ class TicketController extends Controller
             'status' => 'nullable|in:0,1',
         ]);
 
+        $auth_user = Auth::user();
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20){
+            $dmc_id = $request->input('dmc_id');
+        }else if($auth_user->role_id == 11){
+            $dmc_id = $auth_user->userId;
+        }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $dmc_id = $auth_user->created_by;
+        }else if($auth_user->role_id == 78){
+            $sales_head = User::where('userId', $auth_user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($auth_user->role_id == 120){
+            $sales_manager = User::where('userId', $auth_user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
         $attraction_id = $request->input('attraction_id');
         if(!$attraction_id){
             return redirect()->back()->with('error', 'Attraction not found.');
@@ -100,7 +117,7 @@ class TicketController extends Controller
             $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
             $ticket->status = $request->status ? 1 : 0;
             $ticket->created_by = Auth::user()->userId ?? null;
-            $ticket->dmc_id = Auth::user()->userId ?? null;
+            $ticket->dmc_id = $dmc_id;
             $ticket->attraction_id = $attraction_id;
             $ticket->save();
 
@@ -131,10 +148,31 @@ class TicketController extends Controller
 
     public function add_ticket($attraction_id)
     {
+        $auth_user = Auth::user();
+        $dmcUsers = collect();
+        
+        // Decrypt the attraction ID and get the current attraction
         $attraction_id = Crypt::decrypt($attraction_id);
         $attraction = Attraction::where('attraction_id', $attraction_id)->first();
+        
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            // Get the attraction's DMC IDs
+            $attractionDmcIds = $attraction ? $attraction->getSelectedDmcIds() : [];
+            
+            if (!empty($attractionDmcIds)) {
+                // Only show DMCs that are present in the attraction's dmc_id array
+                $dmcUsers = User::where('role_id', 11)
+                    ->where('user_type', 2)
+                    ->whereIn('userId', $attractionDmcIds)
+                    ->select('userId', 'name', 'company_name')
+                    ->orderBy('company_name', 'asc')
+                    ->get();
+            }
+            // If attraction's dmc_id is null/empty, $dmcUsers remains empty collection
+        }
+        
         $tickets = Ticket::where('status', 1)->where('attraction_id', $attraction_id)->get();
-        return view('tickets.add-ticket', compact('attraction', 'tickets'));
+        return view('tickets.add-ticket', compact('attraction', 'tickets', 'auth_user', 'dmcUsers'));
     }
 
     /**

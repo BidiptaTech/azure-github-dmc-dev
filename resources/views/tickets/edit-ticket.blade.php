@@ -10,8 +10,14 @@
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-header">
-                            <h4 class="card-title mb-0">Edit Ticket</h4>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Edit Ticket</h5>
+                                <a href="{{ route('tickets.add_ticket', Crypt::encrypt($ticket->attraction_id)) }}" class="btn btn-sm btn-outline-danger">
+                                    <i class="mdi mdi-arrow-left"></i> Back
+                                </a>
+                            </div>
                         </div>
+                        
                         <div class="card-body">
                             <form action="{{ route('tickets.update', Crypt::encrypt($ticket->ticket_id)) }}" method="POST">
                                 @csrf
@@ -127,7 +133,7 @@
                                 <div class="row mt-3">
                                     <div class="col-md-12">
                                         <button type="submit" class="btn btn-primary">Update Ticket</button>
-                                        <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Cancel</a>
+                                        <a href="{{ route('tickets.add_ticket', Crypt::encrypt($ticket->attraction_id)) }}" class="btn btn-secondary">Cancel</a>
                                     </div>
                                 </div>
                             </form>

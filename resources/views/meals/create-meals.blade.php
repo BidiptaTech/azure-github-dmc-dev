@@ -59,6 +59,42 @@
                     <div id="restaurantDetailsContainer">
                         <div class="restaurant-form">
                             <div class="row">
+                                @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+                                <!-- DMC Selection (Required for Admin and Role 20) -->
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        @if($dmcUsers->count() > 0)
+                                            <div class="alert alert-info">
+                                                <strong>Note:</strong> As an admin/manager, you must select a DMC to add meals on their behalf. Only DMCs associated with this restaurant are shown.
+                                            </div>
+                                        @else
+                                            <div class="alert alert-warning">
+                                                <strong>Warning:</strong> This restaurant is not associated with any DMCs. You cannot add meals until DMCs are assigned to this restaurant.
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="dmc_selection" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                                        <select id="dmc_selection" class="form-control" name="dmc_id" required @if($dmcUsers->count() == 0) disabled @endif>
+                                            @if($dmcUsers->count() > 0)
+                                                <option value="">Select DMC</option>
+                                                @foreach($dmcUsers as $dmc)
+                                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                                @endforeach
+                                            @else
+                                                <option value="">No DMCs available for this restaurant</option>
+                                            @endif
+                                        </select>
+                                        @if($dmcUsers->count() > 0)
+                                            <small class="text-muted">You are adding meals on behalf of the selected DMC.</small>
+                                        @else
+                                            <small class="text-muted text-warning">Please contact administrator to assign DMCs to this restaurant first.</small>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endif
                                 <!-- Restaurant -->
                                 <div class="col-md-3 mb-3" style="display: none;">
                                     <label for="restaurant_id" class="form-label"><strong>Reastaurant</strong><span class="text-danger">*</span></label>
@@ -204,7 +240,17 @@
                 <!-- Submit Buttons -->
                 <div class="row mt-4">
                     <div class="col-md-12 text-center">
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn"
+                            @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+                                @if($dmcUsers->count() == 0) disabled title="Cannot submit: No DMCs available for this restaurant" @endif
+                            @endif>
+                            Submit
+                        </button>
+                        @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
+                            <div class="text-muted mt-2">
+                                <small><i class="fas fa-exclamation-triangle text-warning"></i> Form submission disabled: Restaurant not associated with any DMCs</small>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </form>
@@ -692,6 +738,36 @@
 
     // Set up validation on DOM load
     document.addEventListener('DOMContentLoaded', function() {
+        // Form submission validation for DMC availability
+        const form = document.getElementById('restaurantForm');
+        const dmcSelect = document.getElementById('dmc_selection');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
+        // Prevent form submission when no DMCs are available
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                alert('Cannot submit: This restaurant is not associated with any DMCs. Please contact administrator to assign DMCs first.');
+                return false;
+            });
+        }
+        @endif
+        
+        // Show/hide submit button based on DMC selection
+        if (dmcSelect && submitBtn) {
+            dmcSelect.addEventListener('change', function() {
+                @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+                if (this.value === '' && !this.disabled) {
+                    submitBtn.disabled = true;
+                    submitBtn.title = 'Please select a DMC first';
+                } else if (!this.disabled) {
+                    submitBtn.disabled = false;
+                    submitBtn.title = '';
+                }
+                @endif
+            });
+        }
         // Add validation to price inputs
         const adultPriceInput = document.querySelector("input[name='adult_price']");
         const childPriceInput = document.querySelector("input[name='child_price']");
