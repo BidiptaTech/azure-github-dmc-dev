@@ -546,7 +546,8 @@ class EnquiryController extends Controller
                     $agent = Agent::where('agent_id', $agent_id)->first();
                     if ($agent) {
                         // Check if agent's dmc_id field contains this DMC ID
-                        $agent_dmc_ids = $agent->dmc_id;
+                        $agency = Agency::where('agency_id', $agent->agency_id)->first();
+                        $agent_dmc_ids = $agency->dmc_id;
                         if (is_string($agent_dmc_ids)) {
                             $agent_dmc_ids = json_decode($agent_dmc_ids, true) ?? [];
                         } elseif (!is_array($agent_dmc_ids)) {
@@ -634,7 +635,8 @@ class EnquiryController extends Controller
                     $dmcId = $sales_head->created_by;
                 }
                 
-                $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+                $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agency_id');
+                $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
 
                 $enquiries = EnquiryForm::whereIn('agent_id', $agent_ids)
                     ->whereNull('unique_tour_id')
@@ -740,7 +742,10 @@ class EnquiryController extends Controller
                     }
                     
                     if ($dmcId) {
-                        $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+                        // $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+                        $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agency_id');
+                        $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
+                       
                         $totalCount = EnquiryForm::whereIn('agent_id', $agent_ids)
                             ->whereNull('unique_tour_id')
                             ->where('status', null)
@@ -1035,7 +1040,7 @@ class EnquiryController extends Controller
         }
 
         if($dmc_id){
-            $agents = Agent::where('status', 1)->where(function($query) use ($dmc_id) {
+            $agencies = Agency::where('status', 1)->where(function($query) use ($dmc_id) {
                 $query->whereRaw("CASE 
                     WHEN dmc_id IS NOT NULL 
                     THEN (
@@ -1054,6 +1059,7 @@ class EnquiryController extends Controller
                     "%{$dmc_id}%"
                 ]); 
             })->get();
+            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->get();
         }
 
         // For debugging
@@ -1061,7 +1067,7 @@ class EnquiryController extends Controller
             'role_id' => $user->role_id,
             'user_id' => $user->userId,
             'agent_count' => $agents->count(),
-            'agents' => $agents->pluck('dmc_id', 'agent_id')
+            'agencies' => $agencies->pluck('dmc_id', 'agency_id')
         ]);
 
         return response()->json([
