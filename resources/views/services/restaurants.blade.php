@@ -189,7 +189,7 @@
                                             
                                             <button type="button" 
                                                     class="btn btn-warning btn-sm w-100 select-restaurant-btn" 
-                                                    data-restaurant-id="{{ $restaurant->id }}"
+                                                    data-restaurant-id="{{ Crypt::encrypt($restaurant->restaurant_id) }}"
                                                     data-restaurant-name="{{ $restaurant->name }}">
                                                 <span class="btn-text">
                                                     <i class="ri-add-line me-1"></i>Select Restaurant

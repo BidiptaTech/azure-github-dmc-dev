@@ -39,9 +39,17 @@ class MealController extends Controller
             abort(403, 'You do not have permission to access this page.');
         }
         $meals = Meal::with('restaurant')->get();
-       
+        $auth_user = Auth::user();
+        $dmcUsers = collect();
+        if ($auth_user->role_id == 1) {
+            $dmcUsers = User::where('role_id', 11)
+            ->where('user_type', 2)
+            ->select('userId', 'name', 'company_name')
+            ->orderBy('company_name', 'asc')
+            ->get();
+        }
         $restaurants = Restaurant::where('is_active', 1)->get();
-        return view('meals.add-meals', compact('restaurants', 'meals'));
+        return view('meals.add-meals', compact('restaurants', 'meals', 'auth_user', 'dmcUsers'));
     }
 
     /*
@@ -66,7 +74,9 @@ class MealController extends Controller
         }
 
         $auth_user = Auth::user();
-        if($auth_user->role_id == 11){
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20){
+            $dmc_id = $request->input('dmc_id');
+        }else if($auth_user->role_id == 11){
             $dmc_id = $auth_user->userId;
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $auth_user->created_by;

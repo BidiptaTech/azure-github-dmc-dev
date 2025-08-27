@@ -456,7 +456,7 @@ class AttractionController extends Controller
         // if (in_array($auth_user->role_id, [11, 4, 3, 35, 74, 93])) {
         //     return view('attractions.thankyou');
         // }
-        return redirect()->route('tickets.add_ticket', $attractionId)->with('success', 'Attraction added successfully!');
+        return redirect()->route('tickets.add_ticket', Crypt::encrypt($attractionId))->with('success', 'Attraction added successfully!');
     }
 
     /*
@@ -732,7 +732,7 @@ class AttractionController extends Controller
     public function selectAttraction(Request $request)
     {
         try {
-            $attractionId = $request->input('attraction_id');
+            $attractionId = Crypt::decrypt($request->input('attraction_id'));
             $user = Auth::user();
 
         $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
