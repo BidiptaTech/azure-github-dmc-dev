@@ -23,12 +23,14 @@ class Agency extends Model
         'postal_code',
         'branches',
         'status',
+        'dmc_id',
         'created_by',
         'updated_by',
     ];
 
     protected $casts = [
         'branches' => 'array', // Cast JSON to array
+        'dmc_id' => 'array', // Cast JSON to array
         'status' => 'boolean',
     ];
 
@@ -83,5 +85,79 @@ class Agency extends Model
     public function hasBranches()
     {
         return !empty($this->branches);
+    }
+
+    /**
+     * Add a DMC ID to the dmc_id array
+     */
+    public function addDmcId($dmcId)
+    {
+        $dmcIds = $this->getDmcIdsArray();
+        if (!in_array($dmcId, $dmcIds)) {
+            $dmcIds[] = $dmcId;
+            $this->dmc_id = $dmcIds;
+            $this->save();
+        }
+        return $this;
+    }
+
+    /**
+     * Remove a DMC ID from the dmc_id array
+     */
+    public function removeDmcId($dmcId)
+    {
+        $dmcIds = $this->getDmcIdsArray();
+        $dmcIds = array_values(array_filter($dmcIds, function($id) use ($dmcId) {
+            return $id != $dmcId;
+        }));
+        $this->dmc_id = $dmcIds;
+        $this->save();
+        return $this;
+    }
+
+    /**
+     * Check if a DMC has selected this agency
+     */
+    public function hasSelectedByDmc($dmcId)
+    {
+        $dmcIds = $this->getDmcIdsArray();
+        return in_array($dmcId, $dmcIds);
+    }
+
+    /**
+     * Get all DMC IDs that have selected this agency
+     */
+    public function getSelectedDmcIds()
+    {
+        return $this->getDmcIdsArray();
+    }
+
+    /**
+     * Helper method to get dmc_id as array, handling both integer and array formats
+     */
+    private function getDmcIdsArray()
+    {
+        $dmcIds = $this->dmc_id;
+        
+        if (is_null($dmcIds)) {
+            return [];
+        }
+        
+        if (is_array($dmcIds)) {
+            return $dmcIds;
+        }
+        
+        if (is_string($dmcIds)) {
+            $decoded = json_decode($dmcIds, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return is_array($decoded) ? $decoded : [$decoded];
+            }
+        }
+        
+        if (is_numeric($dmcIds)) {
+            return [$dmcIds];
+        }
+        
+        return [];
     }
 } 

@@ -123,13 +123,13 @@
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <label for="company_name" class="form-label"><strong>Select Agency Company</strong><span class="text-danger">*</span></label>
-                        <select class="form-control select2" id="agency_id" name="company_name">
+                        <select class="form-control select2" id="agency_id" name="agency_id">
                             <option value="">Select Agency</option>
                             @foreach($agency as $a)
-                                <option value="{{ $a->agency_name }}">{{ $a->agency_name }}</option>
+                                <option value="{{ $a->agency_id }}">{{ $a->agency_name }}</option>
                             @endforeach
                         </select>
-                        @error('company_name')
+                        @error('agency_id')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -218,7 +218,7 @@
                                     {{ $countryName }}
                                 </option>
                             @endforeach
-                        </select>                        
+                        </select>
                         @error('country')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -848,7 +848,7 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     // Fill form fields
-                    $('input[name="company_name"]').val($row.find('td:eq(1)').text().trim());
+                    $('input[name="agency_id"]').val($row.find('td:eq(1)').text().trim());
                     $('input[name="name"]').val($row.find('td:eq(0)').text().trim());
                     
                     const country = $row.find('td:eq(2)').text().trim();

@@ -99,7 +99,6 @@ class AgentController extends Controller
             'agent_count' => $agents->count(),
             'agents' => $agents->pluck('dmc_id', 'agent_id')
         ]);
-
         return view('agents.index', compact('agents', 'user'));
     }
 
@@ -194,7 +193,7 @@ class AgentController extends Controller
         $validator = Validator::make($request->all(), [
             'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
             'name' => 'required|string|max:255',
-            'company_name' => 'required|string|max:255',
+            'agency_id' => 'required|integer',
             'phone' => 'required|numeric',
             'email' => 'required|email',
             'user_country' => 'required|string|max:255',
@@ -262,6 +261,7 @@ class AgentController extends Controller
             $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
             $agentImage = $pathData['master_value'] ?? null;
         }
+        $agency = Agency::where('agency_id', $request->input('agency_id'))->first();
 
         if ($deletedAgent && $deletedAgent->trashed()) {
             // Restore and update
@@ -283,11 +283,13 @@ class AgentController extends Controller
             if (!in_array($dmc_id, $existingDmcIds)) {
                 $existingDmcIds[] = $dmc_id;
             }
+            
 
             $deletedAgent->fill([
                 'salutation' => $request->input('salutation'),
                 'name' => $request->input('name'),
-                'company_name' => $request->input('company_name'),
+                'company_name' => $agency->agency_name,
+                'agency_id' => $request->input('agency_id'),
                 'phone' => $request->input('phone'),
                 'sales_manager_dmc' => Auth::user()->userId,
                 'role_id' => Auth::user()->role_id,
@@ -323,7 +325,8 @@ class AgentController extends Controller
         $agent->agent_id = $agentId;
         $agent->salutation = $request->input('salutation');
         $agent->name = $request->input('name');
-        $agent->company_name = $request->input('company_name');
+        $agent->company_name = $agency->agency_name;
+        $agent->agency_id = $request->input('agency_id');
         $agent->phone = $request->input('phone');
         $agent->email = $request->input('email');
         $agent->sales_manager_dmc = Auth::user()->userId;
