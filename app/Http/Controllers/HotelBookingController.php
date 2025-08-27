@@ -2113,7 +2113,7 @@ class HotelBookingController extends Controller
             ], 500);
         }
     }
-
+ 
     public function getTravelHourlyBookingData(Request $request)
     {
         try {

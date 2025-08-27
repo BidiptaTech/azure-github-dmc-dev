@@ -984,7 +984,7 @@
                         
                         @if(is_array($hotelData))
                             @foreach($hotelData as $bookingIndex => $booking)
-                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
+                                <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;" data-hotel-order="{{ $hotelOrderIndex }}" data-booking-index="{{ $bookingIndex }}">
                                     <!-- Booking Header -->
                                     <div class="card-header border-0" style="background: linear-gradient(90deg, #74b9ff 0%, #0984e3 100%); padding: 20px;">
                                         <div class="row align-items-center">
@@ -1293,6 +1293,9 @@
                                                     <button type="button" class="btn btn-sm btn-outline-primary px-3" onclick="editIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Edit this hotel booking">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-info px-3" onclick="openHotelMailPreview({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Preview email for this hotel booking">
+                                                        <i class="ri-mail-line me-1"></i>Mail Preview
+                                                    </button>
                                                     <button type="button" class="btn btn-sm btn-outline-success px-3" onclick="approveIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Approve this hotel booking">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
@@ -1304,8 +1307,13 @@
                                                     @endif
                                                 </div>
                                                 @elseif($hotelOrder->is_approve == 1)
-                                                <div class="text-muted small">
-                                                    <i class="ri-information-line me-1"></i>This booking has been approved
+                                                <div class="d-flex gap-2">
+                                                    <div class="text-muted small me-3">
+                                                        <i class="ri-information-line me-1"></i>This booking has been approved
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-info px-3" onclick="openHotelMailPreview({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Preview email for this hotel booking">
+                                                        <i class="ri-mail-line me-1"></i>Mail Preview
+                                                    </button>
                                                 </div>
                                                 @endif
                                             </div>
@@ -1338,17 +1346,11 @@
                         <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeHotelModal({{ $tour->tour_id }})" style="border-radius: 25px;">
                             <i class="ri-close-line me-2"></i>Close
                         </button>
-                        {{-- <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-primary px-4 py-2" onclick="editHotelBooking({{ $tour->tour_id }})" style="border-radius: 25px;">
-                                <i class="ri-edit-line me-2"></i>Edit
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-info px-4 py-2" onclick="openHotelMailPreview({{ $tour->tour_id }}, 0, 0)" style="border-radius: 25px;">
+                                <i class="ri-mail-line me-2"></i>Mail Preview
                             </button>
-                            <button type="button" class="btn btn-outline-success px-4 py-2" onclick="approveHotelBooking({{ $tour->tour_id }})" style="border-radius: 25px;">
-                                <i class="ri-check-line me-2"></i>Approve
-                            </button>
-                            <button type="button" class="btn btn-outline-danger px-4 py-2" onclick="rejectHotelBooking({{ $tour->tour_id }})" style="border-radius: 25px;">
-                                <i class="ri-close-line me-2"></i>Reject
-                            </button>
-                        </div> --}}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1524,12 +1526,17 @@
 
                 <!-- Modal Footer -->
                 <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                    <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeEditHotelModal({{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-close-line me-2"></i>Cancel
+                    <button type="button" class="btn btn-outline-info px-4 py-2" onclick="openHotelMailPreview({{ $tour->tour_id }}, 0, 0)" style="border-radius: 25px;">
+                        <i class="ri-mail-line me-2"></i>Mail Preview
                     </button>
-                    <button type="button" class="btn btn-primary px-4 py-2" onclick="saveHotelDateChanges({{ $tour->tour_id }})" style="border-radius: 25px;">
-                        <i class="ri-save-line me-2"></i>Save Changes
-                    </button>
+                    <div class="ms-auto">
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2 me-2" onclick="closeEditHotelModal({{ $tour->tour_id }})" style="border-radius: 25px;">
+                            <i class="ri-close-line me-2"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary px-4 py-2" onclick="saveHotelDateChanges({{ $tour->tour_id }})" style="border-radius: 25px;">
+                            <i class="ri-save-line me-2"></i>Save Changes
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -6985,6 +6992,12 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
                             <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
                                 <i class="ri-close-line me-1"></i>Close
                             </button>
+                            <button type="button" 
+                                    class="btn btn-outline-info btn-sm px-3 py-2" 
+                                    onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;">
+                                <i class="ri-mail-line me-1"></i>Mail Preview
+                            </button>
                             @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
                             <div class="d-flex gap-2">
                                  @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -7321,9 +7334,14 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
                         </div>
                     ` : ''}
                 </div>
-                <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
-                    <i class="ri-close-line me-1"></i>Close
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm px-3 py-2" onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                        <i class="ri-mail-line me-1"></i>Mail Preview
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
+                        <i class="ri-close-line me-1"></i>Close
+                    </button>
+                </div>
             </div>
         `;
     } else {
@@ -7331,8 +7349,8 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
         @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
         modalFooter.innerHTML = `
             <div class="d-flex justify-content-between w-100">
-                <button type="button" class="btn btn-outline-secondary" onclick="closeIndividualHotelViewModal('${modalId}')">
-                    <i class="ri-close-line me-1"></i>Close
+                <button type="button" class="btn btn-outline-info btn-sm px-3 py-2" onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                    <i class="ri-mail-line me-1"></i>Mail Preview
                 </button>
                 <div class="d-flex gap-2">
                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
@@ -17840,12 +17858,17 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
 
                         <!-- Modal Footer -->
                         <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                            <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualHotelModal('${modalId}')" style="border-radius: 25px;">
-                                <i class="ri-close-line me-2"></i>Cancel
+                            <button type="button" class="btn btn-outline-info px-4 py-2" onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
+                                <i class="ri-mail-line me-2"></i>Mail Preview
                             </button>
-                            <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
-                                ${buttonText}
-                            </button>
+                            <div class="ms-auto">
+                                <button type="button" class="btn btn-outline-secondary px-4 py-2 me-2" onclick="closeIndividualHotelModal('${modalId}')" style="border-radius: 25px;">
+                                    <i class="ri-close-line me-2"></i>Cancel
+                                </button>
+                                <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                    ${buttonText}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -18513,9 +18536,11 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
             
-            // Show success message
-                alert(`Hotel booking approved successfully!\\nReference ID: ${referenceId}\\nDue Date: ${displayDueDate}\\n\\nData saved to database successfully!`);
-            
+            alert(`✅ Hotel booking approved successfully!
+                    Reference ID: ${referenceId}
+                    Due Date: ${displayDueDate}
+                    Data saved to database successfully!`);
+
             // Close modal
             const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_approve`;
             closeIndividualHotelModal(modalId);
@@ -18606,8 +18631,9 @@ function confirmIndividualHotelRejection(tourId, hotelOrderIndex, bookingIndex) 
             rejectButton.disabled = false;
             
             // Show success message
-                alert(`Hotel booking rejected successfully!\\nReason: ${rejectReason}\\n\\nBooking has been soft deleted from the system.`);
-            
+            alert(`✅ Hotel booking rejected successfully!
+                    Reason: ${rejectReason}`);
+                    
             // Close modal
             const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_reject`;
             closeIndividualHotelModal(modalId);
@@ -22536,7 +22562,569 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             table.button('.buttons-print').trigger();
         });
     }
+
+    // Hotel Mail Preview Function
+    function openHotelMailPreview(tourId, hotelOrderIndex, bookingIndex) {
+        console.log('🔍 Opening hotel mail preview for:', { tourId, hotelOrderIndex, bookingIndex });
+        
+        // Close any open individual hotel modals first
+        closeOpenHotelModals(tourId, hotelOrderIndex, bookingIndex);
+        
+        // Get tour and hotel data
+        const tourRow = document.querySelector(`tr[data-tour-id="${tourId}"]`);
+        if (!tourRow) {
+            console.error('Tour row not found for tour ID:', tourId);
+            return;
+        }
+
+        // Get tour details from the table
+        const tourDisplayId = tourRow.querySelector('.text-success')?.textContent || `Tour #${tourId}`;
+        const destination = tourRow.querySelector('td:nth-child(3) .fw-medium')?.textContent || 'N/A';
+        const checkInDate = tourRow.querySelector('td:nth-child(7) small:first-child strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const checkOutDate = tourRow.querySelector('td:nth-child(7) small:nth-child(2) strong')?.nextSibling?.textContent?.trim() || 'N/A';
+        const agentName = tourRow.querySelector('td:nth-child(6) .fw-medium')?.textContent || 'N/A';
+        
+        // Hotel name will be fetched from the backend data, not from the table
+        // Removed hotelName variable as it's not needed
+
+        // Generate email subject
+        const emailSubject = `Hotel Booking Confirmation - ${tourDisplayId} - ${destination}`;
+        document.getElementById('hotelEmailSubject').value = emailSubject;
+
+        // Reset modal state
+        resetMailPreviewModal();
+        
+        // Show loading state
+        document.getElementById('emailLoadingState').style.display = 'block';
+        document.getElementById('hotelEmailContent').textContent = '';
+
+        // Generate email content asynchronously
+        generateHotelEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, hotelOrderIndex, bookingIndex)
+            .then(emailContent => {
+                // Hide loading state and show content
+                document.getElementById('emailLoadingState').style.display = 'none';
+                document.getElementById('hotelEmailContent').textContent = emailContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('hotelMailPreviewModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error generating email content:', error);
+                
+                // Hide loading state
+                document.getElementById('emailLoadingState').style.display = 'none';
+                
+                // Show fallback content
+                const fallbackContent = `Dear Valued Partner,\n\nWe are pleased to confirm your hotel booking request. Please find the details below:\n\n=== HOTEL BOOKING CONFIRMATION ===\n\nBOOKING INFORMATION\nReference ID: ${tourDisplayId}\nTour ID: ${tourId}\nAgent: ${agentName}\n\nTOUR DETAILS\nDestination: ${destination}\nCheck-in Date: ${checkInDate}\nCheck-out Date: ${checkOutDate}\n\nFor any questions or modifications, please contact our support team.`;
+                
+                document.getElementById('hotelEmailContent').textContent = fallbackContent;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('hotelMailPreviewModal'));
+                modal.show();
+            });
+    }
+
+    // Function to close open hotel modals
+    function closeOpenHotelModals(tourId, hotelOrderIndex, bookingIndex) {
+        console.log('🔒 Closing open hotel modals for:', { tourId, hotelOrderIndex, bookingIndex });
+        
+        // Close individual hotel view modal
+        const individualModalId = `individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`;
+        const individualModal = document.getElementById(individualModalId);
+        if (individualModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(individualModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed individual hotel view modal');
+                }
+            } catch (error) {
+                console.log('Individual modal not found or already closed');
+            }
+        }
+        
+        // Close any other individual hotel modals (edit, approve, reject)
+        const actionModals = ['edit', 'approve', 'reject'];
+        actionModals.forEach(action => {
+            const actionModalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_${action}`;
+            const actionModal = document.getElementById(actionModalId);
+            if (actionModal) {
+                try {
+                    const modalInstance = bootstrap.Modal.getInstance(actionModal);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                        console.log(`✅ Closed ${action} hotel modal`);
+                    }
+                } catch (error) {
+                    console.log(`${action} modal not found or already closed`);
+                }
+            }
+        });
+        
+        // Close main hotel details modal
+        const mainHotelModal = document.getElementById(`hotelDetailsModal${tourId}`);
+        if (mainHotelModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(mainHotelModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed main hotel details modal');
+                }
+            } catch (error) {
+                console.log('Main hotel modal not found or already closed');
+            }
+        }
+        
+        // Close edit hotel modal
+        const editHotelModal = document.getElementById(`editHotelModal${tourId}`);
+        if (editHotelModal) {
+            try {
+                const modalInstance = bootstrap.Modal.getInstance(editHotelModal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    console.log('✅ Closed edit hotel modal');
+                }
+            } catch (error) {
+                console.log('Edit hotel modal not found or already closed');
+            }
+        }
+        
+        // Wait a moment for modals to close before opening mail preview
+        setTimeout(() => {
+            console.log('⏳ Modals closed, ready to open mail preview');
+        }, 300);
+    }
+
+    // Function to reopen hotel modal after mail preview is closed (optional)
+    function reopenHotelModal(tourId, hotelOrderIndex, bookingIndex) {
+        console.log('🔄 Reopening hotel modal for:', { tourId, hotelOrderIndex, bookingIndex });
+        
+        // You can implement this if you want to return to the hotel modal after closing mail preview
+        // For now, we'll just log it
+        console.log('Hotel modal can be reopened if needed');
+    }
+
+    // Function to close mail preview modal
+    function closeMailPreviewModal() {
+        const mailPreviewModal = document.getElementById('hotelMailPreviewModal');
+        if (mailPreviewModal) {
+            const modal = bootstrap.Modal.getInstance(mailPreviewModal);
+            if (modal) {
+                modal.hide();
+                console.log('✅ Mail preview modal closed');
+            }
+        }
+    }
+
+    // Function to show copy success message in modal
+    function showCopySuccessMessage() {
+        const successMessage = document.getElementById('copySuccessMessage');
+        const emailContent = document.getElementById('hotelEmailContent');
+        
+        if (successMessage && emailContent) {
+            // Hide email content and show success message
+            emailContent.style.display = 'none';
+            successMessage.style.display = 'block';
+            
+            console.log('✅ Copy success message displayed');
+        }
+    }
+
+    // Function to reset mail preview modal state
+    function resetMailPreviewModal() {
+        const successMessage = document.getElementById('copySuccessMessage');
+        const emailContent = document.getElementById('hotelEmailContent');
+        const loadingState = document.getElementById('emailLoadingState');
+        
+        if (successMessage) successMessage.style.display = 'none';
+        if (emailContent) {
+            emailContent.style.display = 'block';
+            emailContent.textContent = '';
+        }
+        if (loadingState) loadingState.style.display = 'none';
+        
+        console.log('🔄 Mail preview modal state reset');
+    }
+
+    // Generate hotel email content with proper formatting
+    function generateHotelEmailContent(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName, hotelOrderIndex, bookingIndex) {
+        // Fetch actual hotel data from the backend
+        return fetchHotelDataAndGenerateEmail(tourId, hotelOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+    }
+
+    // Function to fetch hotel data and generate formatted email
+    async function fetchHotelDataAndGenerateEmail(tourId, hotelOrderIndex, bookingIndex, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        try {
+            console.log('🔍 Fetching hotel data for email generation:', { tourId, hotelOrderIndex, bookingIndex });
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            // Fetch hotel data from backend
+            const response = await fetch('{{ url("/booking/get-hotel-data") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    tour_id: tourId,
+                    hotel_order_index: hotelOrderIndex,
+                    booking_index: bookingIndex
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('📊 Hotel data received:', data);
+
+            if (data.success && data.data && data.data.hotel_booking) {
+                const hotelData = data.data.hotel_booking;
+                console.log('🏨 Hotel booking data structure:', hotelData);
+                console.log('🏨 Hotel details:', hotelData.hotelDetails);
+                console.log('🏨 Hotel name found:', hotelData.hotelDetails?.hotel_name || hotelData.hotel_name || 'Not found');
+                console.log('🏨 All available keys:', Object.keys(hotelData));
+                console.log('🏨 hotel_name field:', hotelData.hotel_name);
+                console.log('🏨 hotelDetails field:', hotelData.hotelDetails);
+                console.log('🏨 hotel_details field:', hotelData.hotel_details);
+                return generateFormattedHotelEmail(hotelData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            } else {
+                console.warn('No hotel data found, using fallback');
+                return generateFallbackHotelEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+            }
+        } catch (error) {
+            console.error('Error fetching hotel data:', error);
+            return generateFallbackHotelEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName);
+        }
+    }
+
+    // Generate formatted hotel email with proper structure
+    function generateFormattedHotelEmail(hotelData, tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+        const fullRow = (text) => `│ ${padRight(text, WIDTH - 4)} │`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your hotel booking request. Please find the details below:\n\n${header}\n║${centerText('=== HOTEL BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        
+        // BOOKING INFORMATION
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // TOUR DETAILS
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        
+        // Get hotel name for display - check multiple possible locations
+        let tourHotelName = 'N/A';
+        if (hotelData.hotel_name) {
+            tourHotelName = hotelData.hotel_name;
+        } else if (hotelData.hotelDetails?.hotel_name) {
+            tourHotelName = hotelData.hotelDetails.hotel_name;
+        } else if (hotelData.hotelDetails?.name) {
+            tourHotelName = hotelData.hotelDetails.name;
+        } else if (hotelData.hotel_details?.hotel_name) {
+            tourHotelName = hotelData.hotel_details.hotel_name;
+        } else if (hotelData.hotel_details?.name) {
+            tourHotelName = hotelData.hotel_details.name;
+        }
+        
+        content += `${row('Hotel Name', tourHotelName)}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${row('Check-in Date', formatEmailDate(checkInDate))}\n`;
+        content += `${row('Check-out Date', formatEmailDate(checkOutDate))}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // SERVICE DETAILS
+        content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Service Type', 'Hotel')}\n`;
+        
+
+        
+        // Debug: Log the hotel data structure
+        console.log('🏨 Hotel data structure for email:', {
+            hotelData: hotelData,
+            hotelDetails: hotelData.hotelDetails,
+            tourHotelName: tourHotelName,
+            flattenedHotelName: hotelData.hotel_name,
+            nestedHotelName: hotelData.hotelDetails?.hotel_name,
+            hotelDetailsHotelName: hotelData.hotel_details?.hotel_name
+        });
+        
+        if (hotelData.rooms && hotelData.rooms.length > 0) {
+            const room = hotelData.rooms[0];
+            if (room.room_type) {
+                content += `${row('Room Type', room.room_type)}\n`;
+            }
+            if (room.beds && room.beds.length > 0) {
+                const bed = room.beds[0];
+                if (bed.bed_type) {
+                    content += `${row('Bed Type', bed.bed_type)}\n`;
+                }
+                if (bed.head_count) {
+                    content += `${row('Room Occupancy', bed.head_count + ' person(s)')}\n`;
+                }
+                if (bed.selectedMeals && Object.keys(bed.selectedMeals).length > 0) {
+                    const mealType = Object.values(bed.selectedMeals)[0]?.type || 'Room Only';
+                    content += `${row('Meal Plan', mealType)}\n`;
+                }
+            }
+            content += `${row('Number of Rooms', hotelData.rooms.length.toString())}\n`;
+        }
+        
+        if (hotelData.totalPrice) {
+            const price = (parseFloat(hotelData.totalPrice) / 100).toFixed(2); // Convert from cents to dollars
+            content += `${row('Total Price', 'SGD ' + price)}\n`;
+        }
+        
+        content += `${endBorder}\n\n`;
+        
+        // CUSTOMER DETAILS
+        content += `${border}\n${sectionHeader('CUSTOMER DETAILS')}\n${sectionBorder}\n`;
+        
+        if (hotelData.fullName) {
+            content += `${row('Customer Name', hotelData.fullName)}\n`;
+        }
+        if (hotelData.email) {
+            content += `${row('Email Address', hotelData.email)}\n`;
+        }
+        if (hotelData.phone) {
+            const phone = hotelData.countryCode ? `+${hotelData.countryCode} ${hotelData.phone}` : hotelData.phone;
+            content += `${row('Phone Number', phone)}\n`;
+        }
+        if (hotelData.address1) {
+            content += `${row('Address', hotelData.address1)}\n`;
+        }
+        if (hotelData.state) {
+            content += `${row('State/Province', hotelData.state)}\n`;
+        }
+        if (hotelData.specialRequests) {
+            content += `${row('Special Requests', hotelData.specialRequests)}\n`;
+        }
+        
+        content += `${endBorder}\n\n`;
+        
+        // IMPORTANT NOTES
+        content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+        content += `${fullRow('• Please confirm this booking within 24 hours')}\n`;
+        content += `${fullRow('• All timings are local time')}\n`;
+        content += `${fullRow('• Prices are subject to availability and confirmation')}\n`;
+        content += `${fullRow('• Terms and conditions apply')}\n`;
+        content += `${fullRow('')}\n`;
+        content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // content += `Best regards,\nNam Ho Singapore`;
+        
+        return content;
+    }
+
+    // Generate fallback email if hotel data cannot be fetched
+    function generateFallbackHotelEmail(tourId, tourDisplayId, destination, checkInDate, checkOutDate, agentName) {
+        const WIDTH = 66;
+        const border = '┌' + '─'.repeat(WIDTH - 2) + '┐';
+        const sectionBorder = '├' + '─'.repeat(WIDTH - 2) + '┤';
+        const endBorder = '└' + '─'.repeat(WIDTH - 2) + '┘';
+        const header = '╔' + '═'.repeat(WIDTH - 2) + '╗';
+        const headerEnd = '╚' + '═'.repeat(WIDTH - 2) + '╝';
+        const sectionHeader = (title) => `│${centerText(title, WIDTH - 2)}│`;
+        const row = (label, value) => `│ ${padRight(label, 16)} │ ${padRight(value, 43)}│`;
+
+        let content = `Dear Valued Partner,\n\nWe are pleased to confirm your hotel booking request. Please find the details below:\n\n${header}\n║${centerText('=== HOTEL BOOKING CONFIRMATION ===', WIDTH - 2)}║\n${headerEnd}\n`;
+        
+        content += `${border}\n${sectionHeader('BOOKING INFORMATION')}\n${sectionBorder}\n`;
+        content += `${row('Reference ID', tourDisplayId)}\n`;
+        content += `${row('Tour ID', tourId.toString())}\n`;
+        content += `${row('Agent', agentName)}\n`;
+        content += `${endBorder}\n\n`;
+        
+        content += `${border}\n${sectionHeader('TOUR DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Hotel Name', 'To be confirmed')}\n`;
+        content += `${row('Destination', destination)}\n`;
+        content += `${row('Check-in Date', formatEmailDate(checkInDate))}\n`;
+        content += `${row('Check-out Date', formatEmailDate(checkOutDate))}\n`;
+        content += `${endBorder}\n\n`;
+        
+        content += `${border}\n${sectionHeader('SERVICE DETAILS')}\n${sectionBorder}\n`;
+        content += `${row('Service Type', 'Hotel')}\n`;
+        content += `${row('Note', 'Hotel details to be confirmed')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
+        content += `${row('Note', 'Please contact us for complete hotel details')}\n`;
+        content += `${endBorder}\n\n`;
+        
+        // content += `Best regards,\nNam Ho Singapore`;
+        
+        return content;
+    }
+
+    // Helper function to pad text to the right
+    function padRight(text, length) {
+        if (!text) text = '';
+        text = text.toString();
+        if (text.length > length) {
+            return text.substring(0, length);
+        }
+        return text + ' '.repeat(length - text.length);
+    }
+
+    // Helper to center text
+    function centerText(text, width) {
+        const totalPadding = width - text.length;
+        const left = Math.floor(totalPadding / 2);
+        const right = totalPadding - left;
+        return ' '.repeat(left) + text + ' '.repeat(right);
+    }
+
+    // Format date for email display
+    function formatEmailDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            let date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        } catch (e) {
+            return dateString;
+        }
+    }
+
+    // Copy email content to clipboard
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyHotelEmailBtn = document.getElementById('copyHotelEmailBtn');
+        const copyHotelEmailBtn2 = document.getElementById('copyHotelEmailBtn2');
+
+        if (copyHotelEmailBtn) {
+            copyHotelEmailBtn.addEventListener('click', function() {
+                copyHotelEmailToClipboard();
+            });
+        }
+
+        if (copyHotelEmailBtn2) {
+            copyHotelEmailBtn2.addEventListener('click', function() {
+                copyHotelEmailToClipboard();
+            });
+        }
+
+        // Add event listener for mail preview modal close
+        const hotelMailPreviewModal = document.getElementById('hotelMailPreviewModal');
+        if (hotelMailPreviewModal) {
+            hotelMailPreviewModal.addEventListener('hidden.bs.modal', function() {
+                console.log('📧 Mail preview modal closed');
+                // You can add any cleanup logic here if needed
+            });
+        }
+    });
+
+    function copyHotelEmailToClipboard() {
+        const subject = document.getElementById('hotelEmailSubject').value;
+        const content = document.getElementById('hotelEmailContent').textContent;
+        
+        const fullEmail = `Subject: ${subject}\n\n${content}`;
+        
+        navigator.clipboard.writeText(fullEmail).then(function() {
+            // Show success message in modal
+            showCopySuccessMessage();
+            
+            // Close the mail preview modal after successful copy
+            setTimeout(() => {
+                closeMailPreviewModal();
+            }, 1500); // Slightly longer delay to ensure user sees the success message
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = fullEmail;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Show success message in modal
+            showCopySuccessMessage();
+            
+            // Close the mail preview modal after successful copy (fallback)
+            setTimeout(() => {
+                closeMailPreviewModal();
+            }, 1500); // Slightly longer delay to ensure user sees the success message
+        });
+    }
 </script>
+
+<!-- Mail Preview Modal -->
+<div class="modal fade" id="hotelMailPreviewModal" tabindex="-1" aria-labelledby="hotelMailPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="hotelMailPreviewModalLabel">
+                    <i class="fas fa-envelope me-2"></i>Email Preview - Hotel Booking Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Subject:</label>
+                        <input type="text" id="hotelEmailSubject" class="form-control" readonly style="background-color: #f8f9fa;">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-success w-100" id="copyHotelEmailBtn">
+                            <i class="fas fa-copy me-1"></i> Copy Email Content
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="border rounded p-3" style="background-color: #f8f9fa;">
+                    <div id="emailLoadingState" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2">Generating email content...</p>
+                    </div>
+                    <div id="copySuccessMessage" class="alert alert-success text-center py-3" style="display: none;">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Email content copied successfully!</strong>
+                        <br>
+                        <small class="text-muted">Modal will close automatically...</small>
+                    </div>
+                    <pre id="hotelEmailContent" style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin: 0; color: #333;"></pre>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Instructions:</strong> Click the "Copy Email Content" button to copy the subject and message to your clipboard. Then paste it into your email client.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Close
+                </button>
+                <div class="ms-auto">
+                    <button type="button" class="btn btn-primary" id="copyHotelEmailBtn2">
+                        <i class="fas fa-copy me-1"></i> Copy to Clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @extends('layouts.datatablejs')
