@@ -46,6 +46,39 @@
                                 @csrf
                                 <div class="row">
                                     <input type="hidden" name="attraction_id" value="{{ $attraction->attraction_id }}">
+                                    @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+                                    <!-- DMC Selection (Required for Admin and Role 20) -->
+                                    <div class="col-md-12 mb-3">
+                                        @if($dmcUsers->count() > 0)
+                                            <div class="alert alert-info">
+                                                <strong>Note:</strong> As an admin/manager, you must select a DMC to add tickets on their behalf. Only DMCs associated with this attraction are shown.
+                                            </div>
+                                        @else
+                                            <div class="alert alert-warning">
+                                                <strong>Warning:</strong> This attraction is not associated with any DMCs. You cannot add tickets until DMCs are assigned to this attraction.
+                                            </div>
+                                        @endif
+                                    </div>
+                                    
+                                    <div class="col-md-4 mb-3">
+                                        <label for="dmc_selection" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                                        <select id="dmc_selection" class="form-control" name="dmc_id" required @if($dmcUsers->count() == 0) disabled @endif>
+                                            @if($dmcUsers->count() > 0)
+                                                <option value="">Select DMC</option>
+                                                @foreach($dmcUsers as $dmc)
+                                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                                @endforeach
+                                            @else
+                                                <option value="">No DMCs available for this attraction</option>
+                                            @endif
+                                        </select>
+                                        @if($dmcUsers->count() > 0)
+                                            <small class="text-muted">You are adding tickets on behalf of the selected DMC.</small>
+                                        @else
+                                            <small class="text-muted text-warning">Please contact administrator to assign DMCs to this attraction first.</small>
+                                        @endif
+                                    </div>
+                                    @endif
                                     <!-- Ticket Name -->
                                     <div class="col-md-4 mb-3">
                                         <label for="name" class="form-label"><strong>Ticket Name</strong><span class="text-danger">*</span></label>
@@ -147,8 +180,18 @@
                                 
                                 <div class="row mt-3">
                                     <div class="col-md-12">
-                                        <button type="submit" class="btn btn-primary">Create Ticket</button>
+                                        <button type="submit" class="btn btn-primary" id="submitBtn"
+                                            @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+                                                @if($dmcUsers->count() == 0) disabled title="Cannot submit: No DMCs available for this attraction" @endif
+                                            @endif>
+                                            Create Ticket
+                                        </button>
                                         <a href="{{ route('tickets.index') }}" class="btn btn-secondary">Cancel</a>
+                                        @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
+                                            <div class="text-muted mt-2">
+                                                <small><i class="fas fa-exclamation-triangle text-warning"></i> Form submission disabled: Attraction not associated with any DMCs</small>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </form>
@@ -321,6 +364,37 @@
             tags: true,
             width: '100%'
         });
+        
+        // Form submission validation for DMC availability
+        const ticketForm = document.querySelector('form[action*="tickets.store"]');
+        const dmcSelect = document.getElementById('dmc_selection');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        @if(($auth_user->role_id == 1 || $auth_user->role_id == 20) && $dmcUsers->count() == 0)
+        // Prevent form submission when no DMCs are available
+        if (ticketForm) {
+            ticketForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                alert('Cannot submit: This attraction is not associated with any DMCs. Please contact administrator to assign DMCs first.');
+                return false;
+            });
+        }
+        @endif
+        
+        // Show/hide submit button based on DMC selection
+        if (dmcSelect && submitBtn) {
+            dmcSelect.addEventListener('change', function() {
+                @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+                if (this.value === '' && !this.disabled) {
+                    submitBtn.disabled = true;
+                    submitBtn.title = 'Please select a DMC first';
+                } else if (!this.disabled) {
+                    submitBtn.disabled = false;
+                    submitBtn.title = '';
+                }
+                @endif
+            });
+        }
     });
     
     // Function to set the delete form action URL

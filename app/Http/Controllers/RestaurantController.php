@@ -282,11 +282,32 @@ class RestaurantController extends Controller
 
     public function restaurant_create($restaurant_id)
     {
+        $auth_user = Auth::user();
+        $dmcUsers = collect();
+        
+        // Decrypt the restaurant ID and get the current restaurant
         $restaurant_id = Crypt::decrypt($restaurant_id);
-        $restaurants = Restaurant::where('status', 1)->get();
         $current_restaurant = Restaurant::where('restaurant_id', $restaurant_id)->first();
+        
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            // Get the restaurant's DMC IDs
+            $restaurantDmcIds = $current_restaurant ? $current_restaurant->getSelectedDmcIds() : [];
+            
+            if (!empty($restaurantDmcIds)) {
+                // Only show DMCs that are present in the restaurant's dmc_id array
+                $dmcUsers = User::where('role_id', 11)
+                    ->where('user_type', 2)
+                    ->whereIn('userId', $restaurantDmcIds)
+                    ->select('userId', 'name', 'company_name')
+                    ->orderBy('company_name', 'asc')
+                    ->get();
+            }
+            // If restaurant's dmc_id is null/empty, $dmcUsers remains empty collection
+        }
+        
+        $restaurants = Restaurant::where('status', 1)->get();
         $meals = Meal::where('restaurant_id', $restaurant_id)->get();
-        return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant'));
+        return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant', 'auth_user', 'dmcUsers'));
     }
 
     /*
@@ -531,7 +552,7 @@ class RestaurantController extends Controller
         //     return view('restaurants.thankyou');
         // }
         $restaurant_id = $restaurant->restaurant_id;
-        return redirect()->route('meals.restaurant_create', $restaurant_id)->with('success', 'Restaurant added successfully!');
+        return redirect()->route('meals.restaurant_create', Crypt::encrypt($restaurant_id))->with('success', 'Restaurant added successfully!');
     }
 
     /*
@@ -836,7 +857,7 @@ class RestaurantController extends Controller
     public function selectRestaurant(Request $request)
     {
         try {
-            $restaurantId = $request->input('restaurant_id');
+            $restaurantId = Crypt::decrypt($request->input('restaurant_id'));
             $user = Auth::user();
 
             $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];

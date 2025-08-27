@@ -185,7 +185,7 @@
                                             
                                             <button type="button" 
                                                     class="btn btn-success btn-sm w-100 select-attraction-btn" 
-                                                    data-attraction-id="{{ $attraction->id }}"
+                                                    data-attraction-id="{{ Crypt::encrypt($attraction->attraction_id) }}"
                                                     data-attraction-name="{{ $attraction->name }}">
                                                 <span class="btn-text">
                                                     <i class="ri-add-line me-1"></i>Select Attraction
