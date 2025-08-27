@@ -18,6 +18,7 @@ use App\Models\Driver;
 use App\Models\Guide;
 use App\Models\City;
 use App\Models\Agent;
+use App\Models\Agency;
 use App\Models\Tour;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
