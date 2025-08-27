@@ -152,7 +152,6 @@
                                         @endif
                                     </td>
                                 @else
-
                                     <!-- @if(Auth::user()->role_id == 11)
                                         <td>
                                             @if($hotel->status == 2)
@@ -166,7 +165,6 @@
                                             @endif
                                         </td>
                                     @endif -->
-
                                     <!-- @if(Auth::user()->role_id == 4)
                                         <td>
                                             @if($hotel->status == 4)
@@ -178,7 +176,6 @@
                                             @endif
                                         </td>
                                     @endif -->
-
                                     <td>
                                         @if($hotel->status == 5)
                                             <span>Your Hotel, awaiting for Admin approval</span>
