@@ -201,7 +201,6 @@ class CountryController extends Controller
         
         // Ensure all values are integers
         $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
-        
         $dmc_count = count($agentDmcIds);
         
         if($user->role_id == 20){

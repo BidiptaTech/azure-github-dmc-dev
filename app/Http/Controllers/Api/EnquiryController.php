@@ -971,6 +971,7 @@ class EnquiryController extends Controller
                     'check_out_time' => $formEnquiry->check_out_time,
                     'adult' => $formEnquiry->adult,
                     'child' => $formEnquiry->child,
+                    'child_ages' => $formEnquiry->child_ages,
                     'infant' => $formEnquiry->infant,
                     'male_count' => $formEnquiry->male_count,
                     'female_count' => $formEnquiry->female_count,
