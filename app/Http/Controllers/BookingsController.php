@@ -104,7 +104,7 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
-                // 'tours.multi_enq_id',
+                'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
                 'tours.hotel',
@@ -124,7 +124,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
                 ])
                 ->orderBy('tours.created_at', 'desc')
-                ->paginate(15);
+                ->get();
         }
 
         
@@ -148,7 +148,7 @@ class BookingsController extends Controller
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
-                    // 'tours.multi_enq_id',
+                    'tours.multi_enq_id',
                     'tours.adult',
                     'tours.child',
                     'tours.hotel',
@@ -168,7 +168,7 @@ class BookingsController extends Controller
                     'agents.name as agent_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
-                ->paginate(15);
+                ->get();
         }
 
         $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
@@ -325,7 +325,7 @@ class BookingsController extends Controller
                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(10);
+            ->get();
         }
         
         if($user->role_id == 11){
@@ -383,7 +383,7 @@ class BookingsController extends Controller
                 ])
                 ->where('tours.dmc_id', $dmc_id)
                 ->orderBy('tours.created_at', 'desc')
-                ->paginate(15);
+                ->get();
         }
         return view('bookings.follow-ups', compact('tours'));
     }
@@ -465,7 +465,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
         
         if($user->role_id == 11){
@@ -515,7 +515,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
 
         return view('bookings.confirmed', compact('tours'));
@@ -568,7 +568,7 @@ class BookingsController extends Controller
                     // ->orWhereDate('tours.updated_at', $today);
             })
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
         
         if($user->role_id == 11){
@@ -622,7 +622,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
 
         return view('bookings.definite', compact('tours'));
@@ -664,7 +664,7 @@ class BookingsController extends Controller
                     'agents.name as agent_name'
                 ])
                 ->orderBy('tours.created_at', 'desc')
-                ->paginate(15);
+                ->get();
         }
         
         if($user->role_id == 11){
@@ -708,7 +708,7 @@ class BookingsController extends Controller
                     'agents.name as agent_name'
                 ])
                 ->orderBy('tours.created_at', 'desc')
-                ->paginate(15);
+                ->get();
         }
 
         // Parse payment details for each tour
@@ -767,7 +767,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
 
         if($user->role_id == 11){
@@ -808,7 +808,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
 
         return view('bookings.cancelled', compact('tours'));
@@ -857,7 +857,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
         
         if($user->role_id == 11){
@@ -908,7 +908,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
         }
         
         return view('bookings.refunds', compact('tours'));
@@ -990,7 +990,7 @@ class BookingsController extends Controller
                 'agents.name as agent_name'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->paginate(15);
+            ->get();
 
         return view('bookings.cancellations-refunds', compact('tours'));
     }

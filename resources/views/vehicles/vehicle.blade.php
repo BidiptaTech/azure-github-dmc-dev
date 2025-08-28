@@ -47,7 +47,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
 
-                            <th>Company Name</th>
+                            <th>DMC Company Name</th>
                             <th>Vehicle Type</th>
                             <th>Vehicle Model</th>
                             <th>Model Year</th>
