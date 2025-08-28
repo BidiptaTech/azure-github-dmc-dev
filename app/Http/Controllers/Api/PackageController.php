@@ -547,10 +547,15 @@ class PackageController extends Controller
         $agent = Agent::where('agent_id', $agent_id)->first();
         $agent_name = $agent->name;
         $tour->agent_name = $agent_name;
+        $dmc = User::where('userId', $tour->dmc_id)->first();
         return response()->json([
             'tour' => $tour,
             'customer_info' => $customer_info,
-            'dmc_id' => $tour->dmc_id
+            'dmc_id' => $dmc->userId,
+            'dmc_company_name' => $dmc->company_name,
+            'dmc_logo' => $dmc->logo,
+            'zone_on' => $dmc->zone_on,
+            'price_hide' => $dmc->price_hide,
         ]);
     }
 
