@@ -323,12 +323,12 @@
                         </label>
                         <div class="input-group">
                             <input type="password" class="form-control @error('password') is-invalid @enderror"
-                                id="password" name="password" placeholder="Choose Password" required 
-                                oninput="validatePassword(this)">
+                                id="password" name="password" placeholder="Choose Password" required>
                             <button class="btn btn-outline-secondary" type="button" id="togglePassword">
                                 <i class="fa fa-eye-slash" id="toggleIcon"></i>
                             </button>
                         </div>
+                        {{-- oninput="validatePassword(this)" --}}
                         <small class="validation-message text-danger" id="password-validation-message"></small>
                         @error('password')
                         <div class="text-danger mt-1">{{ $message }}</div>
