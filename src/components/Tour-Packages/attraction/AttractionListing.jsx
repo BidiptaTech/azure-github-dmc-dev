@@ -61,6 +61,7 @@ const OpeningHoursChip = ({ isOpen, label }) => (
 
 // Tooltip content component
 const TooltipContent = ({ attraction }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   const openingTimes = [];
   if (attraction.morning_opening === 1) openingTimes.push("Morning");
   if (attraction.afternoon_opening === 1) openingTimes.push("Afternoon");
@@ -154,73 +155,85 @@ const TooltipContent = ({ attraction }) => {
 
         {/* Pricing Section */}
         <Box sx={{ mt: 1.5 }}>
-          <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
-            Pricing Details
-          </Typography>
-          <Grid container spacing={1.5}>
-            {/* DMC Prices */}
-            {attraction.dmc_adult_price > 0 && (
-              <Grid item xs={6}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 1,
-                    bgcolor: 'rgba(25, 118, 210, 0.02)',
-                    borderColor: 'rgba(25, 118, 210, 0.1)'
-                  }}
-                >
-                  <Typography variant="caption" gutterBottom sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>
-                    DMC Prices
-                  </Typography>
-                  <Stack spacing={0.3}>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Adult: ${attraction.dmc_adult_price}</Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Child: ${attraction.dmc_child_price}</Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Senior: ${attraction.dmc_senior_price}</Typography>
-                  </Stack>
-                </Paper>
-              </Grid>
-            )}
+  <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
+    Pricing Details
+  </Typography>
 
-            {/* Travclicks Prices */}
-            {attraction.travClicks_adult_price > 0 && (
-              <Grid item xs={6}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 1,
-                    bgcolor: 'rgba(76, 175, 80, 0.02)',
-                    borderColor: 'rgba(76, 175, 80, 0.1)'
-                  }}
-                >
-                  <Typography variant="caption" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500, fontSize: '0.75rem' }}>
-                    Travclicks Prices
-                  </Typography>
-                  <Stack spacing={0.3}>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Adult: ${attraction.travClicks_adult_price}</Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Child: ${attraction.travClicks_child_price}</Typography>
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Senior: ${attraction.travClicks_senior_price}</Typography>
-                  </Stack>
-                </Paper>
-              </Grid>
-            )}
-          </Grid>
-
-          {/* Tax Information */}
-          {attraction.tax_percentage && (
-            <Typography 
-              variant="caption" 
+  {PriceHide !== "1" ? (
+    <>
+      <Grid container spacing={1.5}>
+        {/* DMC Prices */}
+        {attraction.dmc_adult_price > 0 && (
+          <Grid item xs={6}>
+            <Paper 
+              variant="outlined" 
               sx={{ 
-                display: 'block',
-                mt: 0.8,
-                color: 'text.secondary',
-                fontStyle: 'italic',
-                fontSize: '0.65rem'
+                p: 1,
+                bgcolor: 'rgba(25, 118, 210, 0.02)',
+                borderColor: 'rgba(25, 118, 210, 0.1)'
               }}
             >
-              *Prices are subject to {attraction.tax_percentage}% tax
-            </Typography>
-          )}
-        </Box>
+              <Typography variant="caption" gutterBottom sx={{ color: 'primary.main', fontWeight: 500, fontSize: '0.75rem' }}>
+                DMC Prices
+              </Typography>
+              <Stack spacing={0.3}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Adult: ${attraction.dmc_adult_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Child: ${attraction.dmc_child_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Senior: ${attraction.dmc_senior_price}</Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        )}
+
+        {/* Travclicks Prices */}
+        {attraction.travClicks_adult_price > 0 && (
+          <Grid item xs={6}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 1,
+                bgcolor: 'rgba(76, 175, 80, 0.02)',
+                borderColor: 'rgba(76, 175, 80, 0.1)'
+              }}
+            >
+              <Typography variant="caption" gutterBottom sx={{ color: '#2e7d32', fontWeight: 500, fontSize: '0.75rem' }}>
+                Travclicks Prices
+              </Typography>
+              <Stack spacing={0.3}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Adult: ${attraction.travClicks_adult_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Child: ${attraction.travClicks_child_price}</Typography>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Senior: ${attraction.travClicks_senior_price}</Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        )}
+      </Grid>
+
+      {/* Tax Information */}
+      {attraction.tax_percentage && (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            display: 'block',
+            mt: 0.8,
+            color: 'text.secondary',
+            fontStyle: 'italic',
+            fontSize: '0.65rem'
+          }}
+        >
+          *Prices are subject to {attraction.tax_percentage}% tax
+        </Typography>
+      )}
+    </>
+  ) : (
+    <Grid item xs={12}>
+      <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+        Pricing hidden
+      </Typography>
+    </Grid>
+  )}
+</Box>
+
       </Box>
     </Box>
   );

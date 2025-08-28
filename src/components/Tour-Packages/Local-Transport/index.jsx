@@ -82,7 +82,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const searchDayIndex = useSelector((state) => state.localtour.searchDayIndex);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   
   // Location data from Redux
@@ -2085,7 +2085,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         variant="outlined"
                         sx={{ fontSize: '0.75rem', height: '24px' }}
                       />
-                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && (
+                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && PriceHide !== "1" && (
                         <Chip
                           label={`$${(
                             !isNaN(Number(booking.price)) && Number(booking.price) > 0

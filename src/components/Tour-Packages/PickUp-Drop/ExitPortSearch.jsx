@@ -40,6 +40,8 @@ const ExitPortSearch = ({ Location }) => {
   const reduxExitTime = useSelector((state) => state.pickupDrop.exittime || "");
   const reduxPickUpLatLng = useSelector((state) => state.pickupDrop.PickupPlaceid1 || "");
   const reduxDropOffLatLng = useSelector((state) => state.pickupDrop.DropoffPlaceid1 || "");
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
   
   // Log Redux values for debugging
   console.log("Redux values in ExitPortSearch:", {

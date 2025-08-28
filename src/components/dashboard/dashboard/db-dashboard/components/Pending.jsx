@@ -860,10 +860,11 @@ export default function Pending() {
     dispatch(UpdateCustomPackage({ tour_id: tourId }))
       .unwrap()
       .then((response) => {
+        dispatch(setSelectedDmcId({ dmcId: response.dmc_id , dmcData: {originalData: {price_hide: response.price_hide, zone_on: response.zone_on}}}));
         dispatch(resetPackages());
         navigate("/dashboard/tour-packages");
         console.log("Full Response Data:", response);
-        dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
+        
       })
       .catch((error) => {
         console.error("Error fetching booking:", error);

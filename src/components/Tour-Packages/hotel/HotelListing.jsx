@@ -126,6 +126,7 @@ const CountBadge = styled(Chip)(({ theme }) => ({
 
 // Tooltip content component for hotels
 const TooltipContent = ({ hotel }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Generate star icons based on hotel rating
   const renderStarRating = (stars) => {
     if (!stars) return null;
@@ -250,6 +251,7 @@ const TooltipContent = ({ hotel }) => {
             <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
               Pricing Details
             </Typography>
+            {PriceHide !== "1" ? (
             <Paper 
               variant="outlined" 
               sx={{ 
@@ -280,6 +282,11 @@ const TooltipContent = ({ hotel }) => {
                 )}
               </Stack>
             </Paper>
+            ):(
+              <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+                Pricing hidden
+              </Typography>
+            )}
           </Box>
         )}
       </Box>
@@ -293,7 +300,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedHotel, setSelectedHotel] = useState(null);
   const tourDetails = useSelector((state) => state.hotels.tourdetails);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
  
   // Removed hotels.length from the dependency array to prevent repeated calls
 
@@ -461,7 +468,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
                       color: '#F9A825'
                     }}
                   />
-                  {(option.dmc_price > 0 || option.price > 0) && (
+                  {(option.dmc_price > 0 || option.price > 0) && PriceHide !== "1" && (
                     <Chip 
                       size="small" 
                       label={`$${option.formatted_price || option.dmc_price || option.price}`}
@@ -545,7 +552,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
                     ))}
                   </StarRating>
                   
-                  {(selectedHotel.dmc_price > 0 || selectedHotel.price > 0) && (
+                  {(selectedHotel.dmc_price > 0 || selectedHotel.price > 0) && PriceHide !== "1" && (
                     <Typography variant="body2" fontWeight={500} sx={{ ml: 1.5, fontSize: '0.75rem' }}>
                       ${selectedHotel.formatted_price || selectedHotel.dmc_price || selectedHotel.price}
                       {selectedHotel.dmc_tax_amount > 0 && ` + $${selectedHotel.dmc_tax_amount} tax`}
