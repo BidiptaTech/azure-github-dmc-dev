@@ -53,9 +53,10 @@ import DateSearchZone from "@/components/activity-list/activity-list-v3/DateSear
 import DisabledStateLayout from '../common/DisabledStateLayout';
 import PickupDropDisabledLayout from '../common/PickupDropDisabledLayout';
 
+import 'react-toastify/dist/ReactToastify.css';
 const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const dispatch = useDispatch();
-  
+  const errorMessage = useSelector((state) => state.localtour.error);
   console.log(`SearchLocationTransport Day ${dayIndex}: Component mounting/rendering`);
   
   // Helper function to format date from Itinerary
@@ -953,6 +954,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
           />
         )}
       </Box>
+      
     </Paper>
   );
 }; 

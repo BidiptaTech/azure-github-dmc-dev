@@ -89,6 +89,7 @@ const RestaurantBookingSummaryModal = ({
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const restaurants = useSelector((state) => state.restaurants.restaurants);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   // Get restaurant details - handle both current restaurantDetails and restaurantspack data
   const getRestaurantDetails = () => {
@@ -430,19 +431,31 @@ const RestaurantBookingSummaryModal = ({
                         <Box key={`buffet-${item.meal_id}`}>
                           <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <span>Adult ({paxData.Adults}x):</span>
-                            <span>{currencyCode} {Math.ceil((item.adult_price || 0) * exchangeRate * paxData.Adults)}</span>
+                            {PriceHide !== "1" ? (
+                              <span>{currencyCode} {Math.ceil((item.adult_price || 0) * exchangeRate * paxData.Adults)}</span>
+                            ):(
+                              <span>Pricing hidden</span>
+                            )}
                           </Typography>
                           {paxData.Children > 0 && (
                             <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span>Child ({paxData.Children}x):</span>
-                              <span>{currencyCode} {Math.ceil((item.child_price || 0) * exchangeRate * paxData.Children)}</span>
+                              {PriceHide !== "1" ? (
+                                <span>{currencyCode} {Math.ceil((item.child_price || 0) * exchangeRate * paxData.Children)}</span>
+                              ):(
+                                <span>Pricing hidden</span>
+                              )}
                             </Typography>
                           )}
                         </Box>
                       ) : (
                         <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span>{item.name} ({item.quantity}x):</span>
-                          <span>{currencyCode} {Math.ceil(item.price * exchangeRate * item.quantity)}</span>
+                          {PriceHide !== "1" ? (
+                            <span>{currencyCode} {Math.ceil(item.price * exchangeRate * item.quantity)}</span>
+                          ):(
+                            <span>Pricing hidden</span>
+                          )}
                         </Typography>
                       )}
                     </Box>
@@ -454,7 +467,13 @@ const RestaurantBookingSummaryModal = ({
                   <Typography variant="subtitle1" gutterBottom sx={{ color: 'inherit' }}>
                     Total Price
                   </Typography>
-                  {formatPrice(totalPrice)}
+                  {PriceHide !== "1" ? (
+                    formatPrice(totalPrice)
+                  ):(
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                      Pricing hidden
+                    </Typography>
+                  )}
                   {/* {restaurantDetails?.tax_percentage && (
                     <Typography variant="caption" sx={{ color: 'inherit', opacity: 0.8 }}>
                       *Prices are subject to {restaurantDetails.tax_percentage}% tax

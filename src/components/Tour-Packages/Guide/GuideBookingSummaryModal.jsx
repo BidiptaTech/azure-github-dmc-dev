@@ -87,7 +87,7 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
   const guideDetailsFromState = useSelector((state) => state.tourguide.guideDetails);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Pre-calculate formatted prices to avoid recalculations during render
   const formattedPriceContent = useMemo(() => {
     if (!bookingData?.priceBreakdown) return (
@@ -492,7 +492,13 @@ const GuideBookingSummaryModal = ({ open, onClose, bookingData, bookingIndex, gu
                     <AttachMoneyIcon sx={{ mr: 0.5 }} />
                     Price Breakdown
                   </Typography>
-                  {formattedPriceContent}
+                  {PriceHide !== "1" ? (
+                    formattedPriceContent
+                  ):(
+                    <Typography variant="caption" color="text.secondary">
+                      Pricing hidden
+                    </Typography>
+                  )}
                   {guideDetails.tax_percentage && (
                     <Typography variant="caption" color="text.secondary">
                       *Prices are subject to {guideDetails.tax_percentage}% tax

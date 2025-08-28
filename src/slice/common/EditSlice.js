@@ -165,7 +165,9 @@ export const fetchEditid = createAsyncThunk(
             originalData: { 
               dmcId: data.dmc_id,
               logo: data.dmc_logo,
-              company_name: data.dmc_company_name
+              company_name: data.dmc_company_name,
+              price_hide: data.price_hide,
+              zone_on: data.zone_on
             }
           }
         }));

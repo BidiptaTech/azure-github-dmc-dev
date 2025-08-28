@@ -7,7 +7,7 @@ import Cookies from "js-cookie";
 
 import getUserCountry from "./getUserCountry";
 import { BASE_URL } from "@/services/api";
-import { clearSelectedDmc, setSelectedDmcId } from "../dmc/dmcSlice";
+import { setSelectedDmcId } from '../dmc/dmcSlice';
 
 // Function to get initial state from cookies
 const getInitialState = () => {
@@ -439,6 +439,13 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    setPriceHide: (state, action) => {
+      state.PriceHide = action.payload;
+      console.log('PriceHide set to:', action.payload);
+    },
+    setZone_on: (state, action) => {
+      state.zone_on = action.payload;
+    },
     updateProfileData: (state, action) => {
       const { phone, image, agent_address } = action.payload;
       // console.log('updateProfileData called with:', { phone, image, agent_address });
@@ -680,7 +687,21 @@ const authSlice = createSlice({
       .addCase(logoutUser.rejected, (state, action) => {
         state.logoutStatus = "failed";
         state.logoutError = action.payload;
+      })
+      .addCase(setSelectedDmcId, (state, action) => {
+        const dmcData = action.payload.dmcData;
+        if (dmcData?.originalData) {
+          // Update authSlice state when dmcSlice changes
+          state.PriceHide = String(dmcData.originalData.price_hide || "0");
+          state.zone_on = dmcData.originalData.zone_on || null;
+          
+          console.log('AuthSlice updated from dmcSlice:', {
+            PriceHide: state.PriceHide,
+            zone_on: state.zone_on
+          });
+        }
       });
+      
   },
 });
 

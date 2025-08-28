@@ -58,6 +58,7 @@ const MealChip = ({ isAvailable, label }) => (
 // Tooltip content component
 const TooltipContent = ({ restaurant }) => {
   const mealAvailability = [];
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   if (restaurant.breakfast_available === 1) mealAvailability.push("Breakfast");
   if (restaurant.lunch_available === 1) mealAvailability.push("Lunch");
   if (restaurant.dinner_available === 1) mealAvailability.push("Dinner");
@@ -162,6 +163,7 @@ const TooltipContent = ({ restaurant }) => {
           <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
             Pricing Details
           </Typography>
+          {PriceHide !== "1" ? (
           <Grid container spacing={1.5}>
             {/* DMC Prices */}
             {restaurant.dmc_id && (
@@ -201,7 +203,11 @@ const TooltipContent = ({ restaurant }) => {
               </Grid>
             )}
           </Grid>
-
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
+            </Typography>
+          )}
           {/* Tax Information */}
           {restaurant.tax_percentage && (
             <Typography 

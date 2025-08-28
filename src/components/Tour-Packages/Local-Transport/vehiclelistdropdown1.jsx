@@ -49,6 +49,7 @@ const CustomTooltip = styled(({ className, ...props }) => (
 
 // Tooltip content component
 const TooltipContent = ({ vehicle }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <Box>
       {/* Header Image Section */}
@@ -118,6 +119,8 @@ const TooltipContent = ({ vehicle }) => {
           <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500, fontSize: '0.9rem' }}>
             Pricing Details
           </Typography>
+          {PriceHide !== "1" ? (
+          <>
           <Grid container spacing={1.5}>
             {/* DMC Prices */}
             {(vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0) && (
@@ -171,7 +174,7 @@ const TooltipContent = ({ vehicle }) => {
               </Grid>
             )}
           </Grid>
-
+         
           {/* Tax Information */}
           {vehicle.tax_percentage && (
             <Typography 
@@ -187,6 +190,12 @@ const TooltipContent = ({ vehicle }) => {
               *Prices are subject to {vehicle.tax_percentage}% tax
             </Typography>
           )}
+          </>
+        ):(
+          <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+            Pricing hidden
+          </Typography>
+        )}
         </Box>
       </Box>
     </Box>
