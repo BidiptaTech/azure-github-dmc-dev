@@ -151,6 +151,8 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
 
     // API routes for single tour packages (follow agent controller pattern)
     Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
+    Route::get('/fetch-ports-by-country-single-tour', [SingleTourPackageController::class, 'fetchPortsByCountry'])->name('fetch-ports-by-country-single-tour');
+    Route::get('/fetch-zone-assigned-locations', [SingleTourPackageController::class, 'fetchZoneAssignedLocations'])->name('fetch-zone-assigned-locations');
     Route::get('/fetch-attractions-by-dmc', [SingleTourPackageController::class, 'fetchAttractions'])->name('fetch-attractions-by-dmc');
     Route::get('/fetch-tickets-by-attraction', [SingleTourPackageController::class, 'fetchTickets'])->name('fetch-tickets-by-attraction');
     Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
@@ -198,8 +200,6 @@ Route::put('/packages/{package_id}', [PackageController::class, 'update'])->name
 Route::delete('/packages/{package_id}', [PackageController::class, 'destroy'])->name('packages.destroy');
 Route::get('/packages/{package_id}', [PackageController::class, 'show'])->name('packages.show');
 Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages'])->name('packages.filtered');
-
-
         // Legacy route for backward compatibility
         Route::get('/package', [PackageController::class, 'index'])->name('package');
         Route::get('/predefined-package-booking-list', [PackageController::class, 'predefinedPackageBookingList'])->name('predefined.package.booking.list');
