@@ -116,14 +116,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/services/hotels/remove', [HotelController::class, 'removeHotel'])->name('services.hotels.remove');
     
     Route::get('/services/attractions', [AttractionController::class, 'dmcAttractionsSelection'])->name('services.attractions');
-Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');
-Route::post('/services/attractions/select', [AttractionController::class, 'selectAttraction'])->name('services.attractions.select');
-Route::post('/services/attractions/remove', [AttractionController::class, 'removeAttraction'])->name('services.attractions.remove');
+    Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');
+    Route::post('/services/attractions/select', [AttractionController::class, 'selectAttraction'])->name('services.attractions.select');
+    Route::post('/services/attractions/remove', [AttractionController::class, 'removeAttraction'])->name('services.attractions.remove');
     
     Route::get('/services/restaurants', [RestaurantController::class, 'dmcRestaurantsSelection'])->name('services.restaurants');
-Route::post('/services/restaurants/update', [RestaurantController::class, 'updateDmcRestaurants'])->name('services.restaurants.update');
-Route::post('/services/restaurants/select', [RestaurantController::class, 'selectRestaurant'])->name('services.restaurants.select');
-Route::post('/services/restaurants/remove', [RestaurantController::class, 'removeRestaurant'])->name('services.restaurants.remove');
+    Route::post('/services/restaurants/update', [RestaurantController::class, 'updateDmcRestaurants'])->name('services.restaurants.update');
+    Route::post('/services/restaurants/select', [RestaurantController::class, 'selectRestaurant'])->name('services.restaurants.select');
+    Route::post('/services/restaurants/remove', [RestaurantController::class, 'removeRestaurant'])->name('services.restaurants.remove');
+    
+    Route::get('/services/agencies', [AgencyController::class, 'dmcAgenciesSelection'])->name('services.agencies');
+    Route::post('/services/agencies/select', [AgencyController::class, 'selectAgency'])->name('services.agencies.select');
+    Route::post('/services/agencies/remove', [AgencyController::class, 'removeAgency'])->name('services.agencies.remove');
     
     Route::resource('hotels', HotelController::class);
     
@@ -139,7 +143,7 @@ Route::post('/services/restaurants/remove', [RestaurantController::class, 'remov
     
     // Single Tour Package Routes
     Route::get('/single-tour-package', [SingleTourPackageController::class, 'index'])->name('single-tour-package.index');
-    Route::get('/single-tour-package/create', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
+    Route::get('/single-tour-package/create/{enquiry_id?}', [SingleTourPackageController::class, 'create'])->name('single-tour-package.create');
     Route::get('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou'])->name('single-tour-package.thank-you');
     Route::post('/single-tour-package/thank-you', [SingleTourPackageController::class, 'thankYou']);
     Route::post('/single-tour-package', [SingleTourPackageController::class, 'store'])->name('single-tour-package.store');
@@ -516,7 +520,19 @@ Route::get('/packages-filtered', [PackageController::class, 'getFilteredPackages
         Route::post('/booking/approve-restaurant-booking', [HotelBookingController::class, 'approveRestaurantBooking'])->name('booking.approve.restaurant.booking');
         Route::post('/booking/reject-restaurant-booking', [HotelBookingController::class, 'rejectRestaurantBooking'])->name('booking.reject.restaurant.booking');
         Route::post('/booking/reject-attraction-booking', [HotelBookingController::class, 'rejectAttractionBooking'])->name('booking.reject.attraction.booking');
-
+        Route::post('/booking/approve-guide-booking', [HotelBookingController::class, 'approveGuideBooking'])->name('booking.approve.guide.booking');
+        Route::post('/booking/reject-guide-booking', [HotelBookingController::class, 'rejectGuideBooking'])->name('booking.reject.guide.booking');
+        Route::post('/booking/approve-arrival-booking', [HotelBookingController::class, 'approveArrivalBooking'])->name('booking.approve.arrival.booking');
+        Route::post('/booking/reject-arrival-booking', [HotelBookingController::class, 'rejectArrivalBooking'])->name('booking.reject.arrival.booking');
+        Route::post('/booking/approve-departure-booking', [HotelBookingController::class, 'approveDepartureBooking'])->name('booking.approve.departure.booking');
+        Route::post('/booking/reject-departure-booking', [HotelBookingController::class, 'rejectDepartureBooking'])->name('booking.reject.departure.booking');
+        Route::post('/booking/approve-hourly-booking', [HotelBookingController::class, 'approveHourlyBooking'])->name('booking.approve.hourly.booking');
+        Route::post('/booking/reject-hourly-booking', [HotelBookingController::class, 'rejectHourlyBooking'])->name('booking.reject.hourly.booking');
+        Route::post('/booking/approve-point-to-point-booking', [HotelBookingController::class, 'approvePointToPointBooking'])->name('booking.approve.point.to.point.booking');
+        Route::post('/booking/reject-point-to-point-booking', [HotelBookingController::class, 'rejectPointToPointBooking'])->name('booking.reject.point.to.point.booking');
+        Route::post('/booking/approve-local-transport-booking', [HotelBookingController::class, 'approveLocalTransportBooking'])->name('booking.approve.local.transport.booking');
+        Route::post('/booking/reject-local-transport-booking', [HotelBookingController::class, 'rejectLocalTransportBooking'])->name('booking.reject.local.transport.booking'); 
+        
         // Route::get('/approve-attraction', [BookingAttractionController::class, 'index'])->name('booking.attraction');
         // Route::post('/booking-attraction/approve', [BookingAttractionController::class, 'approve'])->name('booking.attraction.approve');
         // Route::post('/booking-attraction/decline', [BookingAttractionController::class, 'decline'])->name('booking.attraction.decline');

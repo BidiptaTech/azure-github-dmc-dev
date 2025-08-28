@@ -16,12 +16,10 @@
                     <div class="d-flex justify-content-between gap-3">
                         <!-- Add New Hotel Button -->
                         @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                        @if(hasPermission('create hotel'))
                         <a href="{{ route('hotels.create') }}"
                             class="btn btn-primary btn-sm d-flex align-items-center gap-2">
                             <i class="fas fa-plus"></i> Add New Hotel
                         </a>
-                        @endif
                         @endif
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
@@ -51,10 +49,13 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                            @endphp
 
                             @if($roleId == 10 || $roleId == 19)
                                 <th>DMC</th>
-                            @elseif($roleId != 11 && $roleId != 20)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
@@ -67,6 +68,7 @@
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || hasPermission('edit hotel') || hasPermission('delete hotel'))
                             @if(hasPermission('edit hotel') || hasPermission('delete hotel'))
                             <th>Action</th>
+                            <th>Created At</th>
                             @endif
                             @endif
                         </tr>
@@ -87,13 +89,16 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                            @endphp
 
                             @if($roleId == 10 || $roleId == 19)
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
                                 @endphp
                                 <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                            @elseif($roleId != 11 && $roleId != 20)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
                                     $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
@@ -151,7 +156,6 @@
                                         @endif
                                     </td>
                                 @else
-
                                     <!-- @if(Auth::user()->role_id == 11)
                                         <td>
                                             @if($hotel->status == 2)
@@ -165,7 +169,6 @@
                                             @endif
                                         </td>
                                     @endif -->
-
                                     <!-- @if(Auth::user()->role_id == 4)
                                         <td>
                                             @if($hotel->status == 4)
@@ -177,7 +180,6 @@
                                             @endif
                                         </td>
                                     @endif -->
-
                                     <td>
                                         @if($hotel->status == 5)
                                             <span>Your Hotel, awaiting for Admin approval</span>
@@ -187,6 +189,12 @@
                                     </td>
                                 @endif
                             @endif
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $hotel->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $hotel->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>

@@ -48,10 +48,13 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 74, 93];
+                            @endphp
 
                             @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
                                 <th>DMC</th>
-                            @elseif(!in_array($roleId, [11, 20])) {{-- Not DMC or Virtual DMC --}}
+                            @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
@@ -65,6 +68,7 @@
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 93 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || hasPermission('edit attraction') || hasPermission('delete attraction'))
                                 <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,19 +79,64 @@
                                 @php
                                     $roleId = auth()->user()->role_id;
                                 @endphp
+                                @php
+                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 74, 93];
+                                @endphp
 
                                 @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
                                     @php
-                                        $dmcUser = App\Models\User::where('userId', $attraction->dmc_id)->first();
+                                        $dmcIds = $attraction->getSelectedDmcIds(); // Get array of DMC IDs
+                                        $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
                                     @endphp
-                                    <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                @elseif(!in_array($roleId, [11, 20])) {{-- Not DMC or Virtual DMC --}}
+                                    <td>
+                                        @if($dmcUsers->count() > 0)
+                                            {{ $dmcUsers->first()->company_name }}
+                                            @if($dmcUsers->count() > 1)
+                                                <br><a href="javascript:void(0)" 
+                                                       class="text-primary" 
+                                                       onclick="showDmcModal('{{ $attraction->attraction_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                    <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                                </a>
+                                            @endif
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
                                     @php
-                                        $dmcUser = App\Models\User::where('userId', $attraction->dmc_id)->first();
-                                        $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
+                                        $dmcIds = $attraction->getSelectedDmcIds(); // Get array of DMC IDs
+                                        $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
+                                        $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
+                                        $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
                                     @endphp
-                                    <td>{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
-                                    <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
+                                    <td>
+                                        @if($masterDmcUsers->count() > 0)
+                                            <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
+                                            @if($masterDmcUsers->count() > 1)
+                                                <br><a href="javascript:void(0)" 
+                                                       class="btn btn-primary btn-sm text-white" 
+                                                       onclick="showDmcModal('{{ $attraction->attraction_id }}', 'master_dmc', {{ $masterDmcUsers->toJson() }})">
+                                                    <small>+{{ $masterDmcUsers->count() - 1 }} More</small>
+                                                </a>
+                                            @endif
+                                        @else
+                                            <span class="text-muted">No DMC assigned</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($dmcUsers->count() > 0)
+                                            <span class="text-primary">{{ $dmcUsers->first()->company_name }}</span>
+                                            @if($dmcUsers->count() > 1)
+                                                <br><a href="javascript:void(0)" 
+                                                       class="btn btn-primary btn-sm text-white" 
+                                                       onclick="showDmcModal('{{ $attraction->attraction_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                    <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                                </a>
+                                            @endif
+                                        @else
+                                            <span class="text-muted">No DMC assigned</span>
+                                        @endif
+                                    </td>
                                 @endif
 
                                 {{-- <td>
@@ -189,6 +238,12 @@
                                     </td>
                                 @endif
                             @endif
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $attraction->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $attraction->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -197,6 +252,27 @@
         </div>
     </div>
 </div>
+
+<!-- DMC Companies Modal -->
+<div class="modal fade" id="dmcCompaniesModal" tabindex="-1" role="dialog" aria-labelledby="dmcCompaniesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dmcCompaniesModalLabel">DMC Companies</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="closeDmcModal()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="dmcCompaniesModalBody">
+                <!-- Company names will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="closeDmcModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Attraction Delete Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" Category="dialog" 
         aria-labelledby="deleteModalLabel" aria-hidden="true">
@@ -274,5 +350,45 @@
     function setDeleteForm(action) {
         document.getElementById('deleteForm').action = action;
     }
+    
+    function showDmcModal(attractionId, type, companies) {
+        // Set modal title
+        const modalTitle = document.getElementById('dmcCompaniesModalLabel');
+        modalTitle.textContent = type === 'master_dmc' ? 'Master DMC Companies' : 'DMC Companies';
+        
+        // Clear and populate modal body
+        const modalBody = document.getElementById('dmcCompaniesModalBody');
+        modalBody.innerHTML = '';
+        
+        if (companies && companies.length > 0) {
+            companies.forEach(function(company) {
+                const companyDiv = document.createElement('div');
+                companyDiv.className = 'mb-2 p-2 border-bottom';
+                companyDiv.innerHTML = `
+                    <strong>${company.company_name || 'N/A'}</strong>
+                    ${company.name ? `<br><small class="text-muted">${company.name}</small>` : ''}
+                `;
+                modalBody.appendChild(companyDiv);
+            });
+        } else {
+            modalBody.innerHTML = '<p class="text-muted">No companies found.</p>';
+        }
+        
+        // Show modal using Bootstrap 4 syntax
+        $('#dmcCompaniesModal').modal('show');
+    }
+    
+    // Add explicit close functionality
+    function closeDmcModal() {
+        $('#dmcCompaniesModal').modal('hide');
+    }
+    
+    // Ensure modal can be closed with escape key and click outside
+    $(document).ready(function() {
+        $('#dmcCompaniesModal').on('hidden.bs.modal', function () {
+            // Clean up when modal is closed
+            $('#dmcCompaniesModalBody').html('');
+        });
+    });
 </script>
 @endsection

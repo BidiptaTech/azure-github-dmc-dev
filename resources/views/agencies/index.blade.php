@@ -383,12 +383,13 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-1">
-                                    <a href="{{ route('agencies.show', $agency->agency_id) }}" class="btn btn-sm btn-info" title="View">
+                                    <a href="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-sm btn-info" title="View">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    <a href="{{ route('agencies.edit', $agency->agency_id) }}" class="btn btn-sm btn-primary" title="Edit">
+                                    <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-sm btn-primary" title="Edit">
                                         <i class="ri-pencil-line"></i>
                                     </a>
+                                    @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
                                     <form action="{{ route('agencies.destroy', $agency->agency_id) }}" method="POST" class="d-inline">
                                         @csrf
                                         @method('DELETE')
@@ -397,6 +398,7 @@
                                             <i class="ri-delete-bin-7-line"></i>
                                         </button>
                                     </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

@@ -37,22 +37,22 @@ class RestaurantController extends Controller
             $dmc_ids = User::with('hotel')->where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
             $restaurants = Restaurant::whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
-                ->orderBy('restaurant_id', 'DESC')
+                ->orderBy('created_at', 'DESC')
                 ->get();
         } elseif ($user->role_id == 3) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->whereIn('status', [5, 1])->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('created_at', 'desc')->whereIn('status', [5, 1])->get();
         } elseif (in_array($user->role_id, [1, 2, 23])) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->whereIn('status', [1, 3])->get();
+            $restaurants = Restaurant::with('hotel')->orderBy('created_at', 'desc')->whereIn('status', [1, 3])->get();
         }
         elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+            $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
                 $selectedDmcIds = $restaurant->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
         }
         elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $restaurants = Restaurant::with('hotel')->orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+            $restaurants = Restaurant::with('hotel')->orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($user) {
                 return $restaurant->hasSelectedByDmc($user->userId);
             });
         }
@@ -72,14 +72,14 @@ class RestaurantController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
+            $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($dmc_ids) {
                 $selectedDmcIds = $restaurant->getSelectedDmcIds();
                 return !empty(array_intersect($selectedDmcIds, $dmc_ids));
             });
         } 
         
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($user) {
+            $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($user) {
                 return $restaurant->hasSelectedByDmc($user->created_by);
             });
         }
@@ -88,7 +88,7 @@ class RestaurantController extends Controller
             $this_dmc_id = $user_product_head->created_by;
 
             if($this_dmc_id){
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
+                $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
                     return $restaurant->hasSelectedByDmc($this_dmc_id);
                 });
             }
@@ -99,11 +99,40 @@ class RestaurantController extends Controller
             $this_dmc_id = $user_product_head->created_by;
 
             if($this_dmc_id){
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
+                $restaurants = Restaurant::orderBy('created_at', 'desc')->get()->filter(function($restaurant) use ($this_dmc_id) {
                     return $restaurant->hasSelectedByDmc($this_dmc_id);
                 });
             }
         }
+        // Add DMC and Master DMC user data for each restaurant
+        $restaurants = $restaurants->map(function($restaurant) {
+            // Get DMC users for this restaurant
+            $dmcIds = $restaurant->getSelectedDmcIds();
+            $dmcUsers = collect();
+            $masterDmcUsers = collect();
+            
+            if (!empty($dmcIds)) {
+                $dmcUsers = User::whereIn('userId', $dmcIds)
+                    ->where('role_id', 11)
+                    ->select('userId', 'name', 'company_name', 'master_dmc_id')
+                    ->get();
+                
+                // Get Master DMC users
+                $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique()->values();
+                if ($masterDmcIds->count() > 0) {
+                    $masterDmcUsers = User::whereIn('userId', $masterDmcIds)
+                        ->whereIn('role_id', [10, 19])
+                        ->select('userId', 'name', 'company_name')
+                        ->get();
+                }
+            }
+            
+            $restaurant->dmcUsers = $dmcUsers;
+            $restaurant->masterDmcUsers = $masterDmcUsers;
+            
+            return $restaurant;
+        });
+
         // $restaurants = Restaurant::with('hotel')->get();
         return view('restaurants.restaurant', compact('restaurants'));
     }
@@ -282,11 +311,54 @@ class RestaurantController extends Controller
 
     public function restaurant_create($restaurant_id)
     {
+        $auth_user = Auth::user();
+        $dmcUsers = collect();
+        
+        // Decrypt the restaurant ID and get the current restaurant
         $restaurant_id = Crypt::decrypt($restaurant_id);
-        $restaurants = Restaurant::where('status', 1)->get();
         $current_restaurant = Restaurant::where('restaurant_id', $restaurant_id)->first();
-        $meals = Meal::where('restaurant_id', $restaurant_id)->get();
-        return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant'));
+        
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            // Get the restaurant's DMC IDs
+            $restaurantDmcIds = $current_restaurant ? $current_restaurant->getSelectedDmcIds() : [];
+            
+            if (!empty($restaurantDmcIds)) {
+                // Only show DMCs that are present in the restaurant's dmc_id array
+                $dmcUsers = User::where('role_id', 11)
+                    ->where('user_type', 2)
+                    ->whereIn('userId', $restaurantDmcIds)
+                    ->select('userId', 'name', 'company_name')
+                    ->orderBy('company_name', 'asc')
+                    ->get();
+            }
+            // If restaurant's dmc_id is null/empty, $dmcUsers remains empty collection
+        }
+        
+        $restaurants = Restaurant::where('status', 1)->get();
+        //$meals = Meal::where('restaurant_id', $restaurant_id)->get();
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20){
+            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+        }
+        else if($auth_user->role_id == 11){
+            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $auth_user->userId)->get();
+        }
+        else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $userdmc = User::where('userId', $auth_user->created_by)->first();
+            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $userdmc->userId)->get();
+        }
+        else if($auth_user->role_id == 78){
+            $user_product_head = User::where('userId', $auth_user->created_by)->first();    
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
+        }else if($auth_user->role_id == 120){
+            $user_product_manager = User::where('userId', $auth_user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
+        }else{
+            $meals = Meal::where('restaurant_id', $restaurant_id)->get();
+        }
+        return view('meals.create-meals', compact('restaurants', 'meals', 'current_restaurant', 'auth_user', 'dmcUsers'));
     }
 
     /*
@@ -531,7 +603,7 @@ class RestaurantController extends Controller
         //     return view('restaurants.thankyou');
         // }
         $restaurant_id = $restaurant->restaurant_id;
-        return redirect()->route('meals.restaurant_create', $restaurant_id)->with('success', 'Restaurant added successfully!');
+        return redirect()->route('meals.restaurant_create', Crypt::encrypt($restaurant_id))->with('success', 'Restaurant added successfully!');
     }
 
     /*
@@ -836,7 +908,7 @@ class RestaurantController extends Controller
     public function selectRestaurant(Request $request)
     {
         try {
-            $restaurantId = $request->input('restaurant_id');
+            $restaurantId = Crypt::decrypt($request->input('restaurant_id'));
             $user = Auth::user();
 
             $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];

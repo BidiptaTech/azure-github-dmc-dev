@@ -1174,7 +1174,6 @@ class JobSheetController extends Controller
         try {
             $user = auth()->user();
             $dmcId = null;
-            
             // Determine DMC ID based on user role
             if (in_array($user->role_id, [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])) {
                 if($user->role_id == 11 || $user->role_id == 20){
@@ -1193,10 +1192,8 @@ class JobSheetController extends Controller
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
             }
-            
             // Get all tours for the filter dropdown
-            $tours = Tour::select('tour_id', 'display_id')->get();
-            
+            $tours = Tour::select('tour_id', 'display_id')->orderBy('created_at', 'desc')->get();
             return view('CreateJobSheet.view-jobsheets', compact('tours', 'dmcId'));
             
         } catch (\Exception $e) {
@@ -1320,7 +1317,8 @@ class JobSheetController extends Controller
                         <button class="btn btn-sm btn-info view-details" data-id="'.$jobsheet->jobsheet_id.'">
                             <i class="fas fa-eye"></i> View
                         </button>
-                    '
+                    ',
+                    'created_at' => $jobsheet->created_at->format('d-m-Y')
                 ];
             });
             

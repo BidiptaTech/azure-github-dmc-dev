@@ -53,10 +53,13 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111];
+                            @endphp
 
                             @if($roleId == 10)
                                 <th>DMC</th>
-                            @elseif($roleId != 11)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
@@ -69,6 +72,7 @@
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 46  || auth()->user()->role_id == 23 || auth()->user()->role_id == 76 || auth()->user()->role_id ==109 || auth()->user()->role_id == 111 || hasPermission('edit driver') || hasPermission('delete driver'))
                                 <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -79,13 +83,16 @@
                                 @php
                                     $roleId = auth()->user()->role_id;
                                 @endphp
+                                @php
+                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111];
+                                @endphp
 
                                 @if($roleId == 10)
                                     @php
                                         $dmcUser = App\Models\User::where('userId', $driver->dmc_id)->first();
                                     @endphp
                                     <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                @elseif($roleId != 11)
+                                @elseif(!in_array($roleId, $hideRoles))
                                     @php
                                         $dmcUser = App\Models\User::where('userId', $driver->dmc_id)->first();
                                         $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
@@ -181,6 +188,12 @@
                                             </td>
                                     @endif
                                 @endif
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span>{{ $driver->created_at->format('D,  M d, Y') }}</span>
+                                        <small class="text-muted">{{ $driver->created_at->format('h:i A') }}</small>
+                                    </div>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

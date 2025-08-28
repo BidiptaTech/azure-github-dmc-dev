@@ -889,6 +889,12 @@ class HotelBookingController extends Controller
                     'booking_type' => $booking['bookingType'] ?? 'Standard',
                     'mode' => $booking['Mode'] ?? 'dmc',
                     'dmc_id' => $booking['dmc_id'] ?? $booking['dmc_Id'] ?? null,
+                    // ✅ Approval status fields from orders table
+                    'is_approve' => $guideOrder->is_approve ?? false,
+                    'reference_id' => $guideOrder->reference_id ?? null,
+                    'display_due_date' => $guideOrder->display_due_date ?? null,
+                    'actual_due_date' => $guideOrder->actual_due_date ?? null,
+                    'approval_file' => $guideOrder->approval_file ?? null,
                     // Include full booking details for comprehensive display
                     'guide_details' => $booking
                 ]
@@ -897,7 +903,10 @@ class HotelBookingController extends Controller
             Log::info('✅ Guide booking data response prepared', [
                 'guide_name' => $response['data']['guide_name'],
                 'booking_date' => $response['data']['booking_date'],
-                'total_price' => $response['data']['total_price']
+                'total_price' => $response['data']['total_price'],
+                'is_approve' => $response['data']['is_approve'],
+                'reference_id' => $response['data']['reference_id'],
+                'display_due_date' => $response['data']['display_due_date']
             ]);
 
             return response()->json($response);
@@ -1420,6 +1429,11 @@ class HotelBookingController extends Controller
                     'total_price' => $totalPrice,
                     'adults' => $adults,
                     'children' => $children,
+                    'is_approve' => $arrivalOrder->is_approve ?? false,
+                    'reference_id' => $arrivalOrder->reference_id ?? null,
+                    'display_due_date' => $arrivalOrder->display_due_date ?? null,
+                    'actual_due_date' => $arrivalOrder->actual_due_date ?? null,
+                    'approval_file' => $arrivalOrder->approval_file ?? null,
                     'arrival_details' => $specificBooking // Include full booking data for modal display
                 ]
             ]);
@@ -1673,6 +1687,11 @@ class HotelBookingController extends Controller
                     'children' => $departureData['children'],
                     'tour_start_date' => $departureData['tour_start_date'],
                     'tour_end_date' => $departureData['tour_end_date'],
+                    'is_approve' => $departureOrder->is_approve ?? false,
+                    'reference_id' => $departureOrder->reference_id ?? null,
+                    'display_due_date' => $departureOrder->display_due_date ?? null,
+                    'actual_due_date' => $departureOrder->actual_due_date ?? null,
+                    'approval_file' => $departureOrder->approval_file ?? null,
                     'departure_details' => $specificBooking // Include full booking data for detailed display
                 ]
             ]);
@@ -1927,7 +1946,13 @@ class HotelBookingController extends Controller
                     'children' => $travelPointData['children'],
                     'tour_start_date' => $travelPointData['tour_start_date'],
                     'tour_end_date' => $travelPointData['tour_end_date'],
-                    'travel_point_details' => $specificBooking // Include full booking data for detailed display
+                    'travel_point_details' => $specificBooking, // Include full booking data for detailed display
+                    // Include approval-related fields from orders table
+                    'is_approve' => $travelPointOrder->is_approve ?? 0,
+                    'reference_id' => $travelPointOrder->reference_id ?? null,
+                    'display_due_date' => $travelPointOrder->display_due_date ?? null,
+                    'actual_due_date' => $travelPointOrder->actual_due_date ?? null,
+                    'approval_file' => $travelPointOrder->approval_file ?? null
                 ]
             ]);
 
@@ -2088,7 +2113,7 @@ class HotelBookingController extends Controller
             ], 500);
         }
     }
-
+ 
     public function getTravelHourlyBookingData(Request $request)
     {
         try {
@@ -2183,6 +2208,11 @@ class HotelBookingController extends Controller
                     'selected_hours' => $travelHourlyData['selected_hours'],
                     'tour_start_date' => $travelHourlyData['tour_start_date'],
                     'tour_end_date' => $travelHourlyData['tour_end_date'],
+                    'is_approve' => $travelHourlyOrder->is_approve ?? false,
+                    'reference_id' => $travelHourlyOrder->reference_id ?? null,
+                    'display_due_date' => $travelHourlyOrder->display_due_date ?? null,
+                    'actual_due_date' => $travelHourlyOrder->actual_due_date ?? null,
+                    'approval_file' => $travelHourlyOrder->approval_file ?? null,
                     'travel_hourly_details' => $specificBooking // Include full booking data for detailed display
                 ]
             ]);
@@ -2419,7 +2449,9 @@ class HotelBookingController extends Controller
                 'adults' => $specificBooking['adults'] ?? 0,
                 'children' => $specificBooking['children'] ?? 0,
                 'tour_start_date' => $tour->check_in_time,
-                'tour_end_date' => $tour->check_out_time
+                'tour_end_date' => $tour->check_out_time,
+                // Add vehicle image if available
+                'image' => $specificBooking['image'] ?? $specificBooking['vehicles_image'] ?? $specificBooking['vehicle_image'] ?? null
             ];
 
             return response()->json([
@@ -2437,7 +2469,13 @@ class HotelBookingController extends Controller
                     'children' => $localTransportData['children'],
                     'tour_start_date' => $localTransportData['tour_start_date'],
                     'tour_end_date' => $localTransportData['tour_end_date'],
-                    'local_transport_details' => $specificBooking // Include full booking data for detailed display
+                    'local_transport_details' => $specificBooking, // Include full booking data for detailed display
+                    // Include approval-related fields from orders table
+                    'is_approve' => $localTransportOrder->is_approve ?? 0,
+                    'reference_id' => $localTransportOrder->reference_id ?? null,
+                    'display_due_date' => $localTransportOrder->display_due_date ?? null,
+                    'actual_due_date' => $localTransportOrder->actual_due_date ?? null,
+                    'approval_file' => $localTransportOrder->approval_file ?? null
                 ]
             ]);
 
@@ -3232,6 +3270,1534 @@ class HotelBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while rejecting attraction booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve guide booking and save approval data
+     * 
+     * This method saves the approval data to the orders table and sets is_approve = true
+     * for the specific guide booking.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function approveGuideBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Guide approval request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'guide_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date|after_or_equal:today',
+                'display_due_date_days' => 'required|integer|min:1',
+                'display_due_date' => 'required|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $guideOrderIndex = $request->guide_order_index;
+            $bookingIndex = $request->booking_index;
+            $referenceId = $request->reference_id;
+            $actualDueDate = $request->actual_due_date;
+            $displayDueDateDays = $request->display_due_date_days;
+            $displayDueDate = $request->display_due_date;
+
+            // Find the guide order in the orders table
+            $guideOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'guide')
+                ->orderBy('id')
+                ->skip($guideOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for guide order', [
+                'tour_id' => $tourId,
+                'guide_order_index' => $guideOrderIndex,
+                'guide_order_found' => !!$guideOrder,
+                'guide_order_id' => $guideOrder ? $guideOrder->id : null
+            ]);
+
+            if (!$guideOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Guide order not found'
+                ], 404);
+            }
+
+            // Handle file upload if provided
+            $approval_file = $guideOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Update the orders table with approval data
+            $updateData = [
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate,
+                'is_approve' => true,
+                'approval_file' => $approval_file,
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $guideOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update guide approval data'
+                ], 500);
+            }
+
+            // Log successful approval
+            Log::info('Guide booking approved successfully', [
+                'tour_id' => $tourId,
+                'guide_order_id' => $guideOrder->id,
+                'reference_id' => $referenceId,
+                'actual_due_date' => $actualDueDate,
+                'display_due_date' => $displayDueDate
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Guide booking approved successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'guide_order_id' => $guideOrder->id,
+                    'reference_id' => $referenceId,
+                    'actual_due_date' => $actualDueDate,
+                    'display_due_date' => $displayDueDate,
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error approving guide booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving guide booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject guide booking and save rejection reason with soft delete
+     * 
+     * This method saves the rejection reason to the orders table and soft deletes the booking
+     * by setting the deleted_at timestamp.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function rejectGuideBooking(Request $request): JsonResponse
+    {
+        try {
+            // Log incoming request for debugging
+            Log::info('Guide rejection request received', [
+                'request_data' => $request->all()
+            ]);
+
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'guide_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'cancel_reason' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $guideOrderIndex = $request->guide_order_index;
+            $bookingIndex = $request->booking_index;
+            $cancelReason = $request->cancel_reason;
+
+            // Find the guide order in the orders table
+            $guideOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'guide')
+                ->whereNull('deleted_at') // Only get non-deleted orders
+                ->orderBy('id')
+                ->skip($guideOrderIndex)
+                ->first();
+
+            // Log the search criteria and result
+            Log::info('Searching for guide order for rejection', [
+                'tour_id' => $tourId,
+                'guide_order_index' => $guideOrderIndex,
+                'guide_order_found' => !!$guideOrder,
+                'guide_order_id' => $guideOrder ? $guideOrder->id : null
+            ]);
+
+            if (!$guideOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Guide order not found or already deleted'
+                ], 404);
+            }
+
+            // Check if the booking is already approved
+            if ($guideOrder->is_approve == 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved booking'
+                ], 400);
+            }
+
+            // Update the orders table with rejection data and soft delete
+            $updateData = [
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now(), // Soft delete
+                'updated_at' => now()
+            ];
+
+            // Update the order
+            $updated = DB::table('orders')
+                ->where('id', $guideOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject guide booking'
+                ], 500);
+            }
+
+            // Log successful rejection
+            Log::info('Guide booking rejected successfully', [
+                'tour_id' => $tourId,
+                'guide_order_id' => $guideOrder->id,
+                'cancel_reason' => $cancelReason,
+                'deleted_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Guide booking rejected successfully',
+                'data' => [
+                    'tour_id' => $tourId,
+                    'guide_order_id' => $guideOrder->id,
+                    'cancel_reason' => $cancelReason,
+                    'deleted_at' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error rejecting guide booking', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting guide booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approveArrivalBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('🚗 ARRIVAL APPROVE: Starting arrival booking approval', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'arrival_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date',
+                'display_due_date' => 'required|string|max:20',
+                'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('🚗 ARRIVAL APPROVE: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $arrivalOrderIndex = $request->arrival_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('🚗 ARRIVAL APPROVE: Processing approval for arrival', [
+                'tour_id' => $tourId,
+                'arrival_order_index' => $arrivalOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the arrival order
+            $arrivalOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'entry_port')
+                ->skip($arrivalOrderIndex)
+                ->first();
+
+            if (!$arrivalOrder) {
+                Log::error('🚗 ARRIVAL APPROVE: Arrival order not found', [
+                    'tour_id' => $tourId,
+                    'arrival_order_index' => $arrivalOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Arrival order not found'
+                ], 404);
+            }
+
+            Log::info('🚗 ARRIVAL APPROVE: Found arrival order', [
+                'order_id' => $arrivalOrder->id,
+                'current_is_approve' => $arrivalOrder->is_approve
+            ]);
+
+            // Handle file upload if provided
+            // $fileName = null;
+            // if ($request->hasFile('reference_file')) {
+            //     $file = $request->file('reference_file');
+            //     $fileName = time() . '_arrival_' . $tourId . '_' . $arrivalOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
+            //     $file->move(public_path('uploads/arrival_approvals'), $fileName);
+            //     Log::info('🚗 ARRIVAL APPROVE: File uploaded', ['filename' => $fileName]);
+            // }
+
+            $approval_file = $arrivalOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Convert display_due_date from dd-mm-yyyy to yyyy-mm-dd for database storage
+            $displayDueDate = $request->display_due_date;
+            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $displayDueDate, $matches)) {
+                $displayDueDateForDb = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            } else {
+                $displayDueDateForDb = $displayDueDate; // fallback
+            }
+
+            // Update the arrival order with approval information
+            $updateData = [
+                'is_approve' => true,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'updated_at' => now()
+            ];
+
+            if ($approval_file) {
+                $updateData['approval_file'] = $approval_file;
+            }
+
+            $updated = DB::table('orders')
+                ->where('id', $arrivalOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                Log::error('🚗 ARRIVAL APPROVE: Failed to update arrival order', [
+                    'order_id' => $arrivalOrder->id,
+                    'update_data' => $updateData
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to approve arrival booking'
+                ], 500);
+            }
+
+            Log::info('✅ ARRIVAL APPROVE: Arrival booking approved successfully', [
+                'order_id' => $arrivalOrder->id,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'approval_file' => $approval_file
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Arrival booking approved successfully',
+                'data' => [
+                    'reference_id' => $request->reference_id,
+                    'actual_due_date' => $request->actual_due_date,
+                    'display_due_date' => $displayDueDate, // Return in original format for frontend
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('🚗 ARRIVAL APPROVE: Error approving arrival booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving arrival booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function rejectArrivalBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('🚗 ARRIVAL REJECT: Starting arrival booking rejection', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'arrival_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'cancel_reason' => 'required|string|max:1000',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('🚗 ARRIVAL REJECT: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $arrivalOrderIndex = $request->arrival_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('🚗 ARRIVAL REJECT: Processing rejection for arrival', [
+                'tour_id' => $tourId,
+                'arrival_order_index' => $arrivalOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the arrival order
+            $arrivalOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'entry_port')
+                ->skip($arrivalOrderIndex)
+                ->first();
+
+            if (!$arrivalOrder) {
+                Log::error('🚗 ARRIVAL REJECT: Arrival order not found', [
+                    'tour_id' => $tourId,
+                    'arrival_order_index' => $arrivalOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Arrival order not found'
+                ], 404);
+            }
+
+            Log::info('🚗 ARRIVAL REJECT: Found arrival order', [
+                'order_id' => $arrivalOrder->id,
+                'current_is_approve' => $arrivalOrder->is_approve
+            ]);
+
+            // Check if already approved
+            if ($arrivalOrder->is_approve) {
+                Log::warning('🚗 ARRIVAL REJECT: Attempting to reject already approved arrival', [
+                    'order_id' => $arrivalOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved arrival booking'
+                ], 400);
+            }
+
+            // Soft delete the arrival booking
+            $updated = DB::table('orders')
+                ->where('id', $arrivalOrder->id)
+                ->update([
+                    'deleted_at' => now(),
+                    'cancel_reason' => $request->cancel_reason,
+                    'updated_at' => now()
+                ]);
+
+            if (!$updated) {
+                Log::error('🚗 ARRIVAL REJECT: Failed to reject arrival order', [
+                    'order_id' => $arrivalOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject arrival booking'
+                ], 500);
+            }
+
+            Log::info('✅ ARRIVAL REJECT: Arrival booking rejected successfully', [
+                'order_id' => $arrivalOrder->id,
+                'cancel_reason' => $request->cancel_reason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Arrival booking rejected successfully',
+                'data' => [
+                    'cancel_reason' => $request->cancel_reason
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('🚗 ARRIVAL REJECT: Error rejecting arrival booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting arrival booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approveDepartureBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('✈️ DEPARTURE APPROVE: Starting departure booking approval', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'departure_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date',
+                'display_due_date' => 'required|string|max:20',
+                'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('✈️ DEPARTURE APPROVE: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $departureOrderIndex = $request->departure_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('✈️ DEPARTURE APPROVE: Processing approval for departure', [
+                'tour_id' => $tourId,
+                'departure_order_index' => $departureOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the departure order
+            $departureOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'exit_port')
+                ->skip($departureOrderIndex)
+                ->first();
+
+            if (!$departureOrder) {
+                Log::error('✈️ DEPARTURE APPROVE: Departure order not found', [
+                    'tour_id' => $tourId,
+                    'departure_order_index' => $departureOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Departure order not found'
+                ], 404);
+            }
+
+            Log::info('✈️ DEPARTURE APPROVE: Found departure order', [
+                'order_id' => $departureOrder->id,
+                'current_is_approve' => $departureOrder->is_approve
+            ]);
+
+            // Handle file upload if provided
+            // $fileName = null;
+            // if ($request->hasFile('reference_file')) {
+            //     $file = $request->file('reference_file');
+            //     $fileName = time() . '_departure_' . $tourId . '_' . $departureOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
+            //     $file->move(public_path('uploads/departure_approvals'), $fileName);
+            //     Log::info('✈️ DEPARTURE APPROVE: File uploaded', ['filename' => $fileName]);
+            // }
+
+            $approval_file = $departureOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Convert display_due_date from dd-mm-yyyy to yyyy-mm-dd for database storage
+            $displayDueDate = $request->display_due_date;
+            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $displayDueDate, $matches)) {
+                $displayDueDateForDb = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            } else {
+                $displayDueDateForDb = $displayDueDate; // fallback
+            }
+
+            // Update the departure order with approval information
+            $updateData = [
+                'is_approve' => true,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'updated_at' => now()
+            ];
+
+            if ($approval_file) {
+                $updateData['approval_file'] = $approval_file;
+            }
+
+            $updated = DB::table('orders')
+                ->where('id', $departureOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                Log::error('✈️ DEPARTURE APPROVE: Failed to update departure order', [
+                    'order_id' => $departureOrder->id,
+                    'update_data' => $updateData
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to approve departure booking'
+                ], 500);
+            }
+
+            Log::info('✅ DEPARTURE APPROVE: Departure booking approved successfully', [
+                'order_id' => $departureOrder->id,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'approval_file' => $approval_file
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Departure booking approved successfully',
+                'data' => [
+                    'reference_id' => $request->reference_id,
+                    'actual_due_date' => $request->actual_due_date,
+                    'display_due_date' => $displayDueDate, // Return in original format for frontend
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('✈️ DEPARTURE APPROVE: Error approving departure booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving departure booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function rejectDepartureBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('✈️ DEPARTURE REJECT: Starting departure booking rejection', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'departure_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'cancel_reason' => 'required|string|max:1000',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('✈️ DEPARTURE REJECT: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $departureOrderIndex = $request->departure_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('✈️ DEPARTURE REJECT: Processing rejection for departure', [
+                'tour_id' => $tourId,
+                'departure_order_index' => $departureOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the departure order
+            $departureOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'exit_port')
+                ->skip($departureOrderIndex)
+                ->first();
+
+            if (!$departureOrder) {
+                Log::error('✈️ DEPARTURE REJECT: Departure order not found', [
+                    'tour_id' => $tourId,
+                    'departure_order_index' => $departureOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Departure order not found'
+                ], 404);
+            }
+
+            Log::info('✈️ DEPARTURE REJECT: Found departure order', [
+                'order_id' => $departureOrder->id,
+                'current_is_approve' => $departureOrder->is_approve
+            ]);
+
+            // Check if already approved
+            if ($departureOrder->is_approve) {
+                Log::warning('✈️ DEPARTURE REJECT: Attempting to reject already approved departure', [
+                    'order_id' => $departureOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved departure booking'
+                ], 400);
+            }
+
+            // Soft delete the departure booking
+            $updated = DB::table('orders')
+                ->where('id', $departureOrder->id)
+                ->update([
+                    'deleted_at' => now(),
+                    'cancel_reason' => $request->cancel_reason,
+                    'updated_at' => now()
+                ]);
+
+            if (!$updated) {
+                Log::error('✈️ DEPARTURE REJECT: Failed to reject departure order', [
+                    'order_id' => $departureOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject departure booking'
+                ], 500);
+            }
+
+            Log::info('✅ DEPARTURE REJECT: Departure booking rejected successfully', [
+                'order_id' => $departureOrder->id,
+                'cancel_reason' => $request->cancel_reason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Departure booking rejected successfully',
+                'data' => [
+                    'cancel_reason' => $request->cancel_reason
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('✈️ DEPARTURE REJECT: Error rejecting departure booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting departure booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approveHourlyBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('⏰ HOURLY APPROVE: Starting hourly booking approval', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hourly_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date',
+                'display_due_date' => 'required|string|max:20',
+                'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('⏰ HOURLY APPROVE: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $hourlyOrderIndex = $request->hourly_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('⏰ HOURLY APPROVE: Processing approval for hourly booking', [
+                'tour_id' => $tourId,
+                'hourly_order_index' => $hourlyOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the hourly order
+            $hourlyOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'travel_hourly')
+                ->skip($hourlyOrderIndex)
+                ->first();
+
+            if (!$hourlyOrder) {
+                Log::error('⏰ HOURLY APPROVE: Hourly order not found', [
+                    'tour_id' => $tourId,
+                    'hourly_order_index' => $hourlyOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hourly booking order not found'
+                ], 404);
+            }
+
+            Log::info('⏰ HOURLY APPROVE: Found hourly order', [
+                'order_id' => $hourlyOrder->id,
+                'current_is_approve' => $hourlyOrder->is_approve
+            ]);
+
+            // Handle file upload if provided
+            // $fileName = null;
+            // if ($request->hasFile('reference_file')) {
+            //     $file = $request->file('reference_file');
+            //     $fileName = time() . '_hourly_' . $tourId . '_' . $hourlyOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
+            //     $file->move(public_path('uploads/hourly_approvals'), $fileName);
+            //     Log::info('⏰ HOURLY APPROVE: File uploaded', ['filename' => $fileName]);
+            // }
+
+            $approval_file = $hourlyOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+            // Convert display_due_date from dd-mm-yyyy to yyyy-mm-dd for database storage
+            $displayDueDate = $request->display_due_date;
+            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $displayDueDate, $matches)) {
+                $displayDueDateForDb = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            } else {
+                $displayDueDateForDb = $displayDueDate; // fallback
+            }
+
+            // Update the hourly order with approval information
+            $updateData = [
+                'is_approve' => true,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'updated_at' => now()
+            ];
+
+            if ($approval_file) {
+                $updateData['approval_file'] = $approval_file;
+            }
+
+            $updated = DB::table('orders')
+                ->where('id', $hourlyOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                Log::error('⏰ HOURLY APPROVE: Failed to update hourly order', [
+                    'order_id' => $hourlyOrder->id,
+                    'update_data' => $updateData
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to approve hourly booking'
+                ], 500);
+            }
+
+            Log::info('✅ HOURLY APPROVE: Hourly booking approved successfully', [
+                'order_id' => $hourlyOrder->id,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'approval_file' => $approval_file
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hourly booking approved successfully',
+                'data' => [
+                    'reference_id' => $request->reference_id,
+                    'actual_due_date' => $request->actual_due_date,
+                    'display_due_date' => $displayDueDate, // Return in original format for frontend
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('⏰ HOURLY APPROVE: Error approving hourly booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving hourly booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function rejectHourlyBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('⏰ HOURLY REJECT: Starting hourly booking rejection', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hourly_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'cancel_reason' => 'required|string|max:1000',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('⏰ HOURLY REJECT: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $hourlyOrderIndex = $request->hourly_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('⏰ HOURLY REJECT: Processing rejection for hourly booking', [
+                'tour_id' => $tourId,
+                'hourly_order_index' => $hourlyOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the hourly order
+            $hourlyOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'travel_hourly')
+                ->skip($hourlyOrderIndex)
+                ->first();
+
+            if (!$hourlyOrder) {
+                Log::error('⏰ HOURLY REJECT: Hourly order not found', [
+                    'tour_id' => $tourId,
+                    'hourly_order_index' => $hourlyOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hourly booking order not found'
+                ], 404);
+            }
+
+            Log::info('⏰ HOURLY REJECT: Found hourly order', [
+                'order_id' => $hourlyOrder->id,
+                'current_is_approve' => $hourlyOrder->is_approve
+            ]);
+
+            // Check if already approved
+            if ($hourlyOrder->is_approve) {
+                Log::warning('⏰ HOURLY REJECT: Attempting to reject already approved hourly booking', [
+                    'order_id' => $hourlyOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved hourly booking'
+                ], 400);
+            }
+
+            // Soft delete the hourly booking
+            $updated = DB::table('orders')
+                ->where('id', $hourlyOrder->id)
+                ->update([
+                    'deleted_at' => now(),
+                    'cancel_reason' => $request->cancel_reason,
+                    'updated_at' => now()
+                ]);
+
+            if (!$updated) {
+                Log::error('⏰ HOURLY REJECT: Failed to reject hourly order', [
+                    'order_id' => $hourlyOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject hourly booking'
+                ], 500);
+            }
+
+            Log::info('✅ HOURLY REJECT: Hourly booking rejected successfully', [
+                'order_id' => $hourlyOrder->id,
+                'cancel_reason' => $request->cancel_reason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hourly booking rejected successfully',
+                'data' => [
+                    'cancel_reason' => $request->cancel_reason
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('⏰ HOURLY REJECT: Error rejecting hourly booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting hourly booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approvePointToPointBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('⏰ POINT TO POINT APPROVE: Starting point to point booking approval', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hourly_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date',
+                'display_due_date' => 'required|string|max:20',
+                'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('⏰ POINT TO POINT APPROVE: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $pointOrderIndex = $request->hourly_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('⏰ POINT TO POINT APPROVE: Processing approval for point to point booking', [
+                'tour_id' => $tourId,
+                'point_order_index' => $pointOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the hourly order
+            $pointToPointOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'travel_point')
+                ->skip($pointOrderIndex)
+                ->first();
+
+            if (!$pointToPointOrder) {
+                Log::error('⏰ POINT TO POINT APPROVE: Point to point order not found', [
+                    'tour_id' => $tourId,
+                    'point_order_index' => $pointOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Point to point booking order not found'
+                ], 404);
+            }
+
+            Log::info('⏰ POINT TO POINT APPROVE: Found point to point order', [
+                'order_id' => $pointToPointOrder->id,
+                'current_is_approve' => $pointToPointOrder->is_approve
+            ]);
+
+            // Handle file upload if provided
+            // $fileName = null;
+            // if ($request->hasFile('reference_file')) {
+            //     $file = $request->file('reference_file');
+            //     $fileName = time() . '_hourly_' . $tourId . '_' . $hourlyOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
+            //     $file->move(public_path('uploads/hourly_approvals'), $fileName);
+            //     Log::info('⏰ HOURLY APPROVE: File uploaded', ['filename' => $fileName]);
+            // }
+
+            $approval_file = $pointToPointOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+            // Convert display_due_date from dd-mm-yyyy to yyyy-mm-dd for database storage
+            $displayDueDate = $request->display_due_date;
+            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $displayDueDate, $matches)) {
+                $displayDueDateForDb = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            } else {
+                $displayDueDateForDb = $displayDueDate; // fallback
+            }
+
+            // Update the hourly order with approval information
+            $updateData = [
+                'is_approve' => true,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'updated_at' => now()
+            ];
+
+            if ($approval_file) {
+                $updateData['approval_file'] = $approval_file;
+            }
+
+            $updated = DB::table('orders')
+                    ->where('id', $pointToPointOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                Log::error('⏰ POINT TO POINT APPROVE: Failed to update point to point order', [
+                    'order_id' => $pointToPointOrder->id,
+                    'update_data' => $updateData
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to approve point to point booking'
+                ], 500);
+            }
+
+            Log::info('✅ POINT TO POINT APPROVE: Point to point booking approved successfully', [
+                'order_id' => $pointToPointOrder->id,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'approval_file' => $approval_file
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Point to point booking approved successfully',
+                'data' => [
+                    'reference_id' => $request->reference_id,
+                    'actual_due_date' => $request->actual_due_date,
+                    'display_due_date' => $displayDueDate, // Return in original format for frontend
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('⏰ POINT TO POINT APPROVE: Error approving point to point booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving point to point booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function rejectPointToPointBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('⏰ POINT TO POINT REJECT: Starting point to point booking rejection', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hourly_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'cancel_reason' => 'required|string|max:1000',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('⏰ POINT TO POINT REJECT: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $pointOrderIndex = $request->hourly_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('⏰ POINT TO POINT REJECT: Processing rejection for point to point booking', [
+                'tour_id' => $tourId,
+                'point_order_index' => $pointOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the hourly order
+            $pointToPointOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'travel_point')
+                ->skip($pointOrderIndex)
+                ->first();
+
+            if (!$pointToPointOrder) {
+                Log::error('⏰ POINT TO POINT REJECT: Point to point order not found', [
+                    'tour_id' => $tourId,
+                    'point_order_index' => $pointOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Point to point booking order not found'
+                ], 404);
+            }
+
+            Log::info('⏰ POINT TO POINT REJECT: Found point to point order', [
+                'order_id' => $pointToPointOrder->id,
+                'current_is_approve' => $pointToPointOrder->is_approve
+            ]);
+
+            // Check if already approved
+                if ($pointToPointOrder->is_approve) {
+                Log::warning('⏰ POINT TO POINT REJECT: Attempting to reject already approved point to point booking', [
+                    'order_id' => $pointToPointOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved point to point booking'
+                ], 400);
+            }
+
+            // Soft delete the hourly booking
+            $updated = DB::table('orders')
+                ->where('id', $pointToPointOrder->id)
+                ->update([
+                    'deleted_at' => now(),
+                    'cancel_reason' => $request->cancel_reason,
+                    'updated_at' => now()
+                ]);
+
+            if (!$updated) {
+                Log::error('⏰ POINT TO POINT REJECT: Failed to reject point to point order', [
+                    'order_id' => $pointToPointOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject point to point booking'
+                ], 500);
+            }
+
+            Log::info('✅ POINT TO POINT REJECT: Point to point booking rejected successfully', [
+                'order_id' => $pointToPointOrder->id,
+                'cancel_reason' => $request->cancel_reason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Point to point booking rejected successfully',
+                'data' => [
+                    'cancel_reason' => $request->cancel_reason
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('⏰ POINT TO POINT REJECT: Error rejecting point to point booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting point to point booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approveLocalTransportBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('🚌 LOCAL TRANSPORT APPROVE: Starting local transport booking approval', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hourly_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'reference_id' => 'required|string|max:255',
+                'actual_due_date' => 'required|date',
+                'display_due_date' => 'required|string|max:20',
+                'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240', // 10MB max
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('🚌 LOCAL TRANSPORT APPROVE: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $localTransportOrderIndex = $request->hourly_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('🚌 LOCAL TRANSPORT APPROVE: Processing approval for local transport booking', [
+                'tour_id' => $tourId,
+                'local_transport_order_index' => $localTransportOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the local transport order
+            $localTransportOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'local_transport')
+                ->skip($localTransportOrderIndex)
+                ->first();
+
+            if (!$localTransportOrder) {
+                Log::error('🚌 LOCAL TRANSPORT APPROVE: Local transport order not found', [
+                    'tour_id' => $tourId,
+                    'local_transport_order_index' => $localTransportOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Local transport booking order not found'
+                ], 404);
+            }
+
+            Log::info('🚌 LOCAL TRANSPORT APPROVE: Found local transport order', [
+                'order_id' => $localTransportOrder->id,
+                'current_is_approve' => $localTransportOrder->is_approve
+            ]);
+
+            // Handle file upload if provided
+            $approval_file = $localTransportOrder->approval_file ?? '';
+            if ($request->hasFile('reference_file')) {
+                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
+                if (!empty($approval_file['master_value'])) {
+                    $approval_file = $approval_file['master_value'];
+                }
+            }
+
+            // Convert display_due_date from dd-mm-yyyy to yyyy-mm-dd for database storage
+            $displayDueDate = $request->display_due_date;
+            if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $displayDueDate, $matches)) {
+                $displayDueDateForDb = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            } else {
+                $displayDueDateForDb = $displayDueDate; // fallback
+            }
+
+            // Update the local transport order with approval information
+            $updateData = [
+                'is_approve' => true,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'updated_at' => now()
+            ];
+
+            if ($approval_file) {
+                $updateData['approval_file'] = $approval_file;
+            }
+
+            $updated = DB::table('orders')
+                ->where('id', $localTransportOrder->id)
+                ->update($updateData);
+
+            if (!$updated) {
+                Log::error('🚌 LOCAL TRANSPORT APPROVE: Failed to update local transport order', [
+                    'order_id' => $localTransportOrder->id,
+                    'update_data' => $updateData
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to approve local transport booking'
+                ], 500);
+            }
+
+            Log::info('✅ LOCAL TRANSPORT APPROVE: Local transport booking approved successfully', [
+                'order_id' => $localTransportOrder->id,
+                'reference_id' => $request->reference_id,
+                'actual_due_date' => $request->actual_due_date,
+                'display_due_date' => $displayDueDateForDb,
+                'approval_file' => $approval_file
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Local transport booking approved successfully',
+                'data' => [
+                    'reference_id' => $request->reference_id,
+                    'actual_due_date' => $request->actual_due_date,
+                    'display_due_date' => $displayDueDate, // Return in original format for frontend
+                    'approval_file' => $approval_file
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('🚌 LOCAL TRANSPORT APPROVE: Error approving local transport booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving local transport booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function rejectLocalTransportBooking(Request $request): JsonResponse
+    {
+        try {
+            Log::info('🚌 LOCAL TRANSPORT REJECT: Starting local transport booking rejection', $request->all());
+
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hourly_order_index' => 'required|integer',
+                'booking_index' => 'required|integer',
+                'cancel_reason' => 'required|string|max:1000',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('🚌 LOCAL TRANSPORT REJECT: Validation failed', $validator->errors()->toArray());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $localTransportOrderIndex = $request->hourly_order_index;
+            $bookingIndex = $request->booking_index;
+
+            Log::info('🚌 LOCAL TRANSPORT REJECT: Processing rejection for local transport booking', [
+                'tour_id' => $tourId,
+                'local_transport_order_index' => $localTransportOrderIndex,
+                'booking_index' => $bookingIndex
+            ]);
+
+            // Find the local transport order
+            $localTransportOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'local_transport')
+                ->skip($localTransportOrderIndex)
+                ->first();
+
+            if (!$localTransportOrder) {
+                Log::error('🚌 LOCAL TRANSPORT REJECT: Local transport order not found', [
+                    'tour_id' => $tourId,
+                    'local_transport_order_index' => $localTransportOrderIndex
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Local transport booking order not found'
+                ], 404);
+            }
+
+            Log::info('🚌 LOCAL TRANSPORT REJECT: Found local transport order', [
+                'order_id' => $localTransportOrder->id,
+                'current_is_approve' => $localTransportOrder->is_approve
+            ]);
+
+            // Check if already approved
+            if ($localTransportOrder->is_approve) {
+                Log::warning('🚌 LOCAL TRANSPORT REJECT: Attempting to reject already approved local transport booking', [
+                    'order_id' => $localTransportOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot reject an already approved local transport booking'
+                ], 400);
+            }
+
+            // Soft delete the local transport booking
+            $updated = DB::table('orders')
+                ->where('id', $localTransportOrder->id)
+                ->update([
+                    'deleted_at' => now(),
+                    'cancel_reason' => $request->cancel_reason,
+                    'updated_at' => now()
+                ]);
+
+            if (!$updated) {
+                Log::error('🚌 LOCAL TRANSPORT REJECT: Failed to reject local transport order', [
+                    'order_id' => $localTransportOrder->id
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to reject local transport booking'
+                ], 500);
+            }
+
+            Log::info('✅ LOCAL TRANSPORT REJECT: Local transport booking rejected successfully', [
+                'order_id' => $localTransportOrder->id,
+                'cancel_reason' => $request->cancel_reason
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Local transport booking rejected successfully',
+                'data' => [
+                    'cancel_reason' => $request->cancel_reason
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('🚌 LOCAL TRANSPORT REJECT: Error rejecting local transport booking', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting local transport booking: ' . $e->getMessage()
             ], 500);
         }
     }

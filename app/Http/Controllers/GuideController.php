@@ -39,22 +39,22 @@ class GuideController extends Controller
             $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
             $guides = Guide::with('languages')->whereIn('status', [4, 5, 1])
                 // ->whereIn('dmc_id', $dmc_ids)
-                ->orderBy('id', 'DESC')
+                ->orderBy('created_at', 'DESC')
                 ->get();
         } elseif ($user->role_id == 3) {
-            $guides = Guide::orderBy('updated_at', 'desc')->whereIn('status', [5, 1])->get();
+            $guides = Guide::orderBy('created_at', 'desc')->whereIn('status', [5, 1])->get();
         } elseif (in_array($user->role_id, [1, 2, 23])) {
-            $guides = Guide::orderBy('updated_at', 'desc')->whereIn('status', [1, 3])->get();
+            $guides = Guide::orderBy('created_at', 'desc')->whereIn('status', [1, 3])->get();
         }
         elseif($user->role_id == 10 || $user->role_id == 19){
             $dmc_ids = User::where('master_dmc_id', $user->userId)->get()->pluck('userId')->toArray();
-            $guides = Guide::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $guides = Guide::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
         elseif ($user->role_id == 11 || $user->role_id == 20) {
-            $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif ($user->role_id == 20) {
-            $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->userId)->get();
+            $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $user->userId)->get();
         }
         elseif(in_array($user->role_id, [25, 61, 101])){
             if($user->role_id == 25){
@@ -71,16 +71,16 @@ class GuideController extends Controller
             }
             
             $dmc_ids = User::where('master_dmc_id', $master_dmc_id)->get()->pluck('userId')->toArray();
-            $guides = Guide::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
+            $guides = Guide::orderBy('created_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
         }
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
-            $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
+            $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
         elseif($user->role_id == 75){
             $product_head = User::where('userId', $user->created_by)->first();
             $this_dmc_id = $product_head->created_by;
             if($this_dmc_id){
-                $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
+                $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
             }
         }
         elseif($user->role_id == 102){
@@ -88,7 +88,7 @@ class GuideController extends Controller
             $product_head = User::where('userId', $product_manager->created_by)->first();
             $this_dmc_id = $product_head->created_by;
             if($this_dmc_id){
-                $guides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
+                $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
             }
         }
         // $guides = Guide::where('guide_id', 40)->get();

@@ -56,6 +56,7 @@
                                 {{-- <th>Distance (miles)</th> --}}
                                 <th>Status</th>
                                 <th>Actions</th>
+                                <th>Created At</th>
                             </tr>
                         </thead>
                         <tbody class="table-border-bottom-0">
@@ -104,6 +105,12 @@
                                                 <i class="ri-delete-bin-line" style="font-size: 16px;"></i>
                                             </button>
                                         </form>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span>{{ $port->created_at->format('D,  M d, Y') }}</span>
+                                        <small class="text-muted">{{ $port->created_at->format('h:i A') }}</small>
                                     </div>
                                 </td>
                             </tr>

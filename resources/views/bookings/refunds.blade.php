@@ -186,6 +186,7 @@
                             <th>Refund Status</th>
                             <th>Cancelled Date</th>
                             <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -277,10 +278,16 @@
                                             <i class="ri-money-dollar-circle-line"></i>
                                         </button>
                                     @else
-                                        <span class="btn btn-sm btn-outline-success disabled" title="Already Refunded">
-                                            <i class="ri-check-circle-line"></i>
+                                        <span class="badge bg-success" title="Already Refunded">
+                                            ✓ Refunded
                                         </span>
                                     @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ optional($tour->created_at)->format('D, M d, Y') }}</span>
+                                    <small class="text-muted">{{ optional($tour->created_at)->format('h:i A') }}</small>
                                 </div>
                             </td>
                         </tr>
@@ -300,20 +307,20 @@
             </div>
 
             <!-- Pagination -->
-            @if($tours->hasPages())
+            {{-- @if($tours->hasPages())
             <div class="d-flex justify-content-center mt-4">
                 {{ $tours->links() }}
             </div>
-            @endif
+            @endif --}} 
             @else
             <!-- Empty State -->
             <div class="text-center py-5">
                 <div class="mb-4">
                     <i class="ri-money-dollar-circle-line ri-64px text-muted"></i>
                 </div>
-                <h4 class="text-muted mb-3">No Refunds Available</h4>
-                <p class="text-muted mb-4">Currently, there are no tours with 'Refund - Pending' status that require refund processing.</p>
-                <p class="text-muted">Refunds will appear here when tours are cancelled and marked as definite.</p>
+                <h4 class="text-muted mb-3 text-center fw-bold">No Refunds Available</h4>
+                <p class="text-muted mb-4 small text-center">Currently, there are no tours with 'Refund - Pending' status that require refund processing.</p>
+                <p class="text-muted small text-center">Refunds will appear here when tours are cancelled and marked as definite.</p>
             </div>
             @endif
         </div>
@@ -541,43 +548,421 @@
 
 // Process refund function
 function processRefund(tourId) {
-    if (confirm('Are you sure you want to process refund for this tour?')) {
-        // Show loading state
-        const button = event.target.closest('button');
-        const originalContent = button.innerHTML;
-        button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
-        button.disabled = true;
+    // Create advanced confirmation modal
+    showConfirmationModal(
+        'Process Refund Confirmation',
+        'Are you sure you want to process the refund for this tour?<br><small class="text-muted">This action cannot be undone.</small>',
+        'warning',
+        function() {
+            // Show loading modal
+            showLoadingModal('Processing Refund', 'Please wait while we process the refund...');
+            
+            const button = event.target.closest('button');
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
+            button.disabled = true;
 
-        $.ajax({
-            url: '{{ route("bookings.process-refund") }}',
-            method: 'POST',
-            data: {
-                tour_id: tourId,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    alert('Refund processed successfully!');
-                    location.reload();
-                } else {
-                    alert('Error processing refund: ' + response.message);
+            $.ajax({
+                url: '{{ route("bookings.process-refund") }}',
+                method: 'POST',
+                data: {
+                    tour_id: tourId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    hideModal();
+                    if (response.success) {
+                        showSuccessModal(
+                            'Refund Processed Successfully!',
+                            'The refund has been processed and the tour status has been updated.',
+                            function() {
+                                location.reload();
+                            }
+                        );
+                    } else {
+                        showErrorModal('Error Processing Refund', response.message || 'An error occurred while processing the refund.');
+                        // Restore button state
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    }
+                },
+                error: function(xhr) {
+                    hideModal();
+                    let errorMessage = 'Error processing refund. Please try again.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    showErrorModal('Error Processing Refund', errorMessage);
                     // Restore button state
                     button.innerHTML = originalContent;
                     button.disabled = false;
                 }
-            },
-            error: function(xhr) {
-                let errorMessage = 'Error processing refund. Please try again.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
+            });
+        }
+    );
+}
+
+// Advanced Modal Functions
+function showConfirmationModal(title, message, type, confirmCallback) {
+    const modalHtml = `
+        <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                    <div class="modal-body text-center py-5 px-4">
+                        <!-- Refund Icon with Animation -->
+                        <div class="refund-icon-wrapper mb-4">
+                            <div class="refund-circle">
+                                <i class="ri-money-dollar-circle-line ri-32px text-white"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Refund Title -->
+                        <h4 class="fw-bold text-primary mb-3" id="confirmationModalLabel">Process Refund</h4>
+                        
+                        <!-- Refund Process Message -->
+                        <div class="refund-message mb-4">
+                            <p class="text-dark mb-3 fs-6">
+                                <strong>Tour ID:</strong> <span class="text-primary">#${getTourIdFromButton()}</span>
+                            </p>
+                            <p class="text-muted mb-3">
+                                You are about to process a refund for this tour booking. 
+                                This will update the tour status and initiate the refund process.
+                            </p>
+                            <div class="alert alert-info border-0" style="background-color: #e3f2fd;">
+                                <i class="ri-information-line me-2 text-info"></i>
+                                <strong>Note:</strong> This action will mark the tour as "Refunded" and cannot be undone.
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3 justify-content-center">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn btn-primary px-4 py-2" id="confirmButton">
+                                <i class="ri-check-line me-2"></i>Process Refund
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#confirmationModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Add custom CSS for enhanced styling
+    if (!$('#confirmationModalStyles').length) {
+        $('head').append(`
+            <style id="confirmationModalStyles">
+                .refund-icon-wrapper {
+                    position: relative;
+                    display: inline-block;
                 }
-                alert(errorMessage);
-                // Restore button state
-                button.innerHTML = originalContent;
-                button.disabled = false;
-            }
-        });
+                
+                .refund-circle {
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, #007bff, #0056b3);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+                    animation: refundPulse 0.6s ease-out;
+                }
+                
+                @keyframes refundPulse {
+                    0% { transform: scale(0.8); opacity: 0; }
+                    50% { transform: scale(1.1); }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                
+                .refund-circle i {
+                    font-size: 2.5rem;
+                    animation: iconAppear 0.8s ease-out 0.3s both;
+                }
+                
+                @keyframes iconAppear {
+                    0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+                    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+                }
+                
+                .refund-message {
+                    max-width: 400px;
+                    margin: 0 auto;
+                }
+                
+                #confirmationModal .modal-content {
+                    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                }
+                
+                #confirmationModal .modal-dialog {
+                    max-width: 500px;
+                }
+                
+                #confirmationModal .btn {
+                    border-radius: 8px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                }
+                
+                #confirmationModal .btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+                
+                #confirmationModal .alert {
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                }
+            </style>
+        `);
     }
+    
+    // Show modal
+    $('#confirmationModal').modal('show');
+    
+    // Handle confirm button click
+    $('#confirmButton').off('click').on('click', function() {
+        $('#confirmationModal').modal('hide');
+        if (confirmCallback) {
+            confirmCallback();
+        }
+    });
+    
+    // Clean up when modal is hidden
+    $('#confirmationModal').on('hidden.bs.modal', function() {
+        $(this).remove();
+    });
+}
+
+// Helper function to get tour ID from the button
+function getTourIdFromButton() {
+    const button = event.target.closest('button');
+    if (button && button.onclick) {
+        const onclickStr = button.onclick.toString();
+        const match = onclickStr.match(/processRefund\((\d+)\)/);
+        return match ? match[1] : 'N/A';
+    }
+    return 'N/A';
+}
+
+function showLoadingModal(title, message) {
+    const modalHtml = `
+        <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-body text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5 class="fw-bold mb-2">${title}</h5>
+                        <p class="text-muted mb-0">${message}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#loadingModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    $('#loadingModal').modal('show');
+}
+
+function showSuccessModal(title, message, callback) {
+    const modalHtml = `
+        <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                    <div class="modal-body text-center py-5 px-4">
+                        <!-- Success Icon with Animation -->
+                        <div class="success-icon-wrapper mb-4">
+                            <div class="success-circle">
+                                <i class="ri-check-line ri-32px text-white"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Success Title -->
+                        <h4 class="fw-bold text-success mb-3" id="successModalLabel">${title}</h4>
+                        
+                        <!-- Success Message -->
+                        <p class="text-muted mb-4 fs-6">${message}</p>
+                        
+                        <!-- Progress Bar -->
+                        <div class="progress-wrapper mb-3">
+                            <div class="progress" style="height: 6px; border-radius: 3px;">
+                                <div class="progress-bar bg-success" id="successProgressBar" role="progressbar" style="width: 0%; transition: width 0.1s ease;"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Auto-close Timer -->
+                        <p class="text-muted small mb-0">
+                            <i class="ri-time-line me-1"></i>
+                            Auto-closing in <span id="countdownTimer" class="fw-bold text-success">3</span> seconds
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#successModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    $('#successModal').modal('show');
+    
+    // Add custom CSS for enhanced styling
+    if (!$('#successModalStyles').length) {
+        $('head').append(`
+            <style id="successModalStyles">
+                .success-icon-wrapper {
+                    position: relative;
+                    display: inline-block;
+                }
+                
+                .success-circle {
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, #28a745, #20c997);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+                    animation: successPulse 0.6s ease-out;
+                }
+                
+                @keyframes successPulse {
+                    0% { transform: scale(0.8); opacity: 0; }
+                    50% { transform: scale(1.1); }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                
+                .success-circle i {
+                    font-size: 2.5rem;
+                    animation: checkmarkAppear 0.8s ease-out 0.3s both;
+                }
+                
+                @keyframes checkmarkAppear {
+                    0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+                    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+                }
+                
+                .progress-wrapper {
+                    max-width: 300px;
+                    margin: 0 auto;
+                }
+                
+                .progress {
+                    background-color: #e9ecef;
+                    overflow: visible;
+                }
+                
+                .progress-bar {
+                    background: linear-gradient(90deg, #28a745, #20c997);
+                    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+                }
+                
+                #successModal .modal-content {
+                    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                }
+                
+                #successModal .modal-dialog {
+                    max-width: 450px;
+                }
+            </style>
+        `);
+    }
+    
+    // Start countdown timer and progress bar
+    let countdown = 3;
+    const countdownElement = document.getElementById('countdownTimer');
+    const progressBar = document.getElementById('successProgressBar');
+    
+    const timer = setInterval(() => {
+        countdown--;
+        if (countdownElement) countdownElement.textContent = countdown;
+        if (progressBar) progressBar.style.width = ((3 - countdown) / 3 * 100) + '%';
+        
+        if (countdown <= 0) {
+            clearInterval(timer);
+            // Auto-close modal
+            $('#successModal').modal('hide');
+            // Wait for modal to close, then refresh page
+            setTimeout(() => {
+                if (callback) {
+                    callback();
+                }
+            }, 300);
+        }
+    }, 1000);
+    
+    // Clean up when modal is hidden
+    $('#successModal').on('hidden.bs.modal', function() {
+        clearInterval(timer);
+        $(this).remove();
+    });
+}
+
+function showErrorModal(title, message) {
+    const modalHtml = `
+        <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header border-0 pb-2">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-wrapper me-3">
+                                <i class="ri-error-warning-line ri-24px text-danger"></i>
+                            </div>
+                            <h5 class="modal-title fw-bold text-danger" id="errorModalLabel">${title}</h5>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <p class="mb-0">${message}</p>
+                    </div>
+                    <div class="modal-footer border-0 pt-2">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                            <i class="ri-close-line me-1"></i>Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#errorModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    $('#errorModal').modal('show');
+    
+    // Clean up when modal is hidden
+    $('#errorModal').on('hidden.bs.modal', function() {
+        $(this).remove();
+    });
+}
+
+function hideModal() {
+    // Hide all custom modals
+    $('#loadingModal, #confirmationModal, #successModal, #errorModal').modal('hide');
 }
 </script>
 @endsection

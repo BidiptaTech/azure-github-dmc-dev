@@ -59,10 +59,13 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 75, 102];
+                            @endphp
 
                             @if($roleId == 10)
                                 <th>DMC</th>
-                            @elseif($roleId != 11)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
@@ -75,6 +78,7 @@
                              @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 75 || auth()->user()->role_id == 45 || auth()->user()->role_id ==100 || auth()->user()->role_id == 102 || hasPermission('edit guide') || hasPermission('delete guide'))
                             <th>Action</th>
                             @endif
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -85,13 +89,16 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 75, 102];
+                            @endphp
 
                             @if($roleId == 10)
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $guide->dmc_id)->first();
                                 @endphp
                                 <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                            @elseif($roleId != 11)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $guide->dmc_id)->first();
                                     $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
@@ -216,6 +223,12 @@
                                             </td>
                                         @endif
                                     @endif
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span>{{ $guide->created_at->format('D,  M d, Y') }}</span>
+                                            <small class="text-muted">{{ $guide->created_at->format('h:i A') }}</small>
+                                        </div>
+                                    </td>
                         </tr>
                         @endforeach
                     </tbody>

@@ -311,7 +311,7 @@
                             <th>Travel Dates</th>
                             <th>Payment Status</th>
                             <th>Execution Status</th>
-                            <th>Created Date</th>
+                            <th>Created At</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -660,6 +660,7 @@
                                     @endif
                                 </div>
                             </td>
+                            
                         </tr>
                         @empty
                         {{-- <tr>

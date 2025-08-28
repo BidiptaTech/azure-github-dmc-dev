@@ -184,9 +184,10 @@
                             <th>Guests</th>
                             <th>Agent</th>
                             <th>Check-in/Check-out</th>
-                            <th>Created Date</th>
+                            <th>Created At</th>
                             <th>Negotiation</th>
                             <th>Actions</th>
+                            
                         </tr>
                     </thead>
                     <tbody>

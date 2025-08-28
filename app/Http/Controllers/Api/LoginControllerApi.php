@@ -20,6 +20,7 @@ use NumberFormatter;
 use App\Helpers\CountryHelper;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\CommonHelper;
+use App\Models\Agency;
 
 class LoginControllerApi extends Controller
 {
@@ -327,7 +328,9 @@ class LoginControllerApi extends Controller
         
         if ($userModel == 'Agent' && $user->dmc_id) {
             // Parse the JSON array of DMC IDs from agent table
-            $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
+            // $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
+            $agency = Agency::where('agency_id', $user->agency_id)->first();
+            $agentDmcIds = $agency->dmc_id;
             
             if (is_array($agentDmcIds)) {
                 $dmc_ids = $agentDmcIds;
@@ -341,7 +344,10 @@ class LoginControllerApi extends Controller
                 foreach ($dmcCompanies as $dmcCompany) {
                     $dmc_company_names[] = [
                         'dmc_id' => $dmcCompany->userId,
-                        'company_name' => $dmcCompany->company_name
+                        'company_name' => $dmcCompany->company_name,
+                        'logo' => $dmcCompany->logo,
+                        'price_hide' => $dmcCompany->price_hide,
+                        'zone_on' => $dmcCompany->zone_on,
                     ];
                 }
             }

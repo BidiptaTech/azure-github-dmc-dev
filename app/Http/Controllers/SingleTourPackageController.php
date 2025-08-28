@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\Agent;
 use App\Models\SingleTourPackage;
 use App\Models\Tour;
+use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\Ticket;
 use App\Models\User;
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\CommonHelper;
 use Carbon\Carbon;
+use App\Models\EnquiryForm;
+use Illuminate\Support\Facades\Crypt;
 
 class SingleTourPackageController extends Controller
 {
