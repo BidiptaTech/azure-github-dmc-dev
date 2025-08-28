@@ -395,14 +395,11 @@ class AttractionController extends Controller
             }
             elseif(auth()->user()->role_id == 93){
                 $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
+                $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+                $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+                $dmc_id = $user_product_head_dmc->userId;
+                $status = 1;
             }
-            //     $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
-
-            //     $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-
-            //     $dmc_id = $user_product_head_dmc->userId;
-            //     $status = 1;
-            // }
             // else{
             //     $dmc_id = $request->dmc;
             // }

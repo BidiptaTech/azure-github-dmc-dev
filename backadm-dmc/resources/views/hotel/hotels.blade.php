@@ -49,10 +49,13 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                            @endphp
 
                             @if($roleId == 10 || $roleId == 19)
                                 <th>DMC</th>
-                            @elseif($roleId != 11 && $roleId != 20)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
@@ -86,13 +89,16 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                            @endphp
 
                             @if($roleId == 10 || $roleId == 19)
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
                                 @endphp
                                 <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                            @elseif($roleId != 11 && $roleId != 20)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 @php
                                     $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
                                     $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
