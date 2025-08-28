@@ -44,14 +44,17 @@
                         <thead>
                             <tr>
                                 <th>No</th>
-                                <th>Name</th>
+                                <th>Restaurant Name</th>
                                 @php
                                     $roleId = auth()->user()->role_id;
+                                @endphp
+                                @php
+                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 78, 120];
                                 @endphp
 
                                 @if($roleId == 10 || $roleId == 19)
                                     <th>DMC</th>
-                                @elseif($roleId != 11 && $roleId != 20)
+                                @elseif(!in_array($roleId, $hideRoles))
                                     <th>Master Dmc</th>
                                     <th>DMC</th>
                                 @endif
@@ -76,19 +79,54 @@
                                     @php
                                         $roleId = auth()->user()->role_id;
                                     @endphp
+                                    @php
+                                        $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 78, 120];
+                                    @endphp
 
                                     @if($roleId == 10 || $roleId == 19)
-                                        @php
-                                            $dmcUser = App\Models\User::where('userId', $restaurant->dmc_id)->first();
-                                        @endphp
-                                        <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                                    @elseif($roleId != 11 && $roleId != 20)
-                                        @php
-                                            $dmcUser = App\Models\User::where('userId', $restaurant->dmc_id)->first();
-                                            $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
-                                        @endphp
-                                        <td>{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
-                                        <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
+                                        <td>
+                                            @if($restaurant->dmcUsers->count() > 0)
+                                                <span class="text-primary">{{ $restaurant->dmcUsers->first()->company_name }}</span>
+                                                @if($restaurant->dmcUsers->count() > 1)
+                                                    <br><a href="javascript:void(0)" 
+                                                            class="btn btn-primary btn-sm text-white" 
+                                                            onclick="showDmcModal('{{ $restaurant->restaurant_id }}', 'dmc', {{ $restaurant->dmcUsers->toJson() }})">
+                                                        <small>+{{ $restaurant->dmcUsers->count() - 1 }} More</small>
+                                                    </a>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">No DMC assigned</span>
+                                            @endif
+                                        </td>
+                                    @elseif(!in_array($roleId, $hideRoles))
+                                        <td>
+                                            @if($restaurant->masterDmcUsers->count() > 0)
+                                                <span class="text-primary">{{ $restaurant->masterDmcUsers->first()->company_name }}</span>
+                                                @if($restaurant->masterDmcUsers->count() > 1)
+                                                    <br><a href="javascript:void(0)" 
+                                                            class="btn btn-primary btn-sm text-white" 
+                                                            onclick="showDmcModal('{{ $restaurant->restaurant_id }}', 'master_dmc', {{ $restaurant->masterDmcUsers->toJson() }})">
+                                                        <small>+{{ $restaurant->masterDmcUsers->count() - 1 }} More</small>
+                                                    </a>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">No DMC assigned</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($restaurant->dmcUsers->count() > 0)
+                                                <span class="text-primary">{{ $restaurant->dmcUsers->first()->company_name }}</span>
+                                                @if($restaurant->dmcUsers->count() > 1)
+                                                    <br><a href="javascript:void(0)" 
+                                                            class="btn btn-primary btn-sm text-white" 
+                                                            onclick="showDmcModal('{{ $restaurant->restaurant_id }}', 'dmc', {{ $restaurant->dmcUsers->toJson() }})">
+                                                        <small>+{{ $restaurant->dmcUsers->count() - 1 }} More</small>
+                                                    </a>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">No DMC assigned</span>
+                                            @endif
+                                        </td>
                                     @endif
                                     <td>
                                         {{ $restaurant->cuisine }}
@@ -239,6 +277,27 @@
             </div>
         </div>
         <!-- End Modal -->
+
+<!-- DMC Companies Modal -->
+<div class="modal fade" id="dmcCompaniesModal" tabindex="-1" role="dialog" aria-labelledby="dmcCompaniesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dmcCompaniesModalLabel">DMC Companies</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="closeDmcModal()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="dmcCompaniesModalBody">
+                <!-- Company names will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="closeDmcModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -294,5 +353,45 @@
     function setDeleteForm(action) {
         document.getElementById('deleteForm').action = action;
     }
+    
+    function showDmcModal(restaurantId, type, companies) {
+        // Set modal title
+        const modalTitle = document.getElementById('dmcCompaniesModalLabel');
+        modalTitle.textContent = type === 'master_dmc' ? 'Master DMC Companies' : 'DMC Companies';
+        
+        // Clear and populate modal body
+        const modalBody = document.getElementById('dmcCompaniesModalBody');
+        modalBody.innerHTML = '';
+        
+        if (companies && companies.length > 0) {
+            companies.forEach(function(company) {
+                const companyDiv = document.createElement('div');
+                companyDiv.className = 'mb-2 p-2 border-bottom';
+                companyDiv.innerHTML = `
+                    <strong>${company.company_name || 'N/A'}</strong>
+                    ${company.name ? `<br><small class="text-muted">${company.name}</small>` : ''}
+                `;
+                modalBody.appendChild(companyDiv);
+            });
+        } else {
+            modalBody.innerHTML = '<p class="text-muted">No companies found.</p>';
+        }
+        
+        // Show modal using Bootstrap 4 syntax
+        $('#dmcCompaniesModal').modal('show');
+    }
+    
+    // Add explicit close functionality
+    function closeDmcModal() {
+        $('#dmcCompaniesModal').modal('hide');
+    }
+    
+    // Ensure modal can be closed with escape key and click outside
+    $(document).ready(function() {
+        $('#dmcCompaniesModal').on('hidden.bs.modal', function () {
+            // Clean up when modal is closed
+            $('#dmcCompaniesModalBody').html('');
+        });
+    });
 </script>
 @endsection

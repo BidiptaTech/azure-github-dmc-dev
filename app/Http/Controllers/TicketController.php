@@ -22,7 +22,35 @@ class TicketController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
 
-        $tickets = Ticket::where('dmc_id', Auth::user()->userId)->get();
+        $auth_user = Auth::user();
+        $tickets = [];
+
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20){
+            // Admin and Virtual DMC can see all tickets
+            $tickets = Ticket::all();
+        }else if($auth_user->role_id == 11){
+            // Regular DMC sees only their tickets
+            $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
+        }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            // Sub-users see tickets of their parent DMC
+            $dmc_id = $auth_user->created_by;
+            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+        }else if($auth_user->role_id == 78){
+            // Sales executive sees tickets of their DMC
+            $sales_head = User::where('userId', $auth_user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+        }else if($auth_user->role_id == 120){
+            // Sales manager sees tickets of their DMC
+            $sales_manager = User::where('userId', $auth_user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+        }else{
+            // For other roles, show only their own tickets (fallback)
+            $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
+        }
+
         return view('tickets.tickets', compact('tickets'));
     }
 
@@ -171,7 +199,42 @@ class TicketController extends Controller
             // If attraction's dmc_id is null/empty, $dmcUsers remains empty collection
         }
         
-        $tickets = Ticket::where('status', 1)->where('attraction_id', $attraction_id)->get();
+        if($auth_user->role_id == 1 || $auth_user->role_id == 20){
+        $tickets = Ticket::where('status', 1)
+            ->where('attraction_id', $attraction_id)
+            ->get();
+        }else if($auth_user->role_id == 11){
+            $tickets = Ticket::where('status', 1)
+            ->where('attraction_id', $attraction_id)
+            ->where('dmc_id', $auth_user->userId)
+            ->get();
+        }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+            $userdmc = User::where('userId', $auth_user->created_by)->first();
+            $tickets = Ticket::where('status', 1)
+            ->where('attraction_id', $attraction_id)
+            ->where('dmc_id', $userdmc->userId)
+            ->get();
+        }else if($auth_user->role_id == 74){
+            $user_product_head = User::where('userId', $auth_user->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $tickets = Ticket::where('status', 1)
+            ->where('attraction_id', $attraction_id)
+            ->where('dmc_id', $user_product_head_dmc->userId)
+            ->get();
+        }else if($auth_user->role_id == 93){
+            $user_product_manager = User::where('userId', $auth_user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
+            $tickets = Ticket::where('status', 1)
+            ->where('attraction_id', $attraction_id)
+            ->where('dmc_id', $user_product_head_dmc->userId)
+            ->get();
+        }else{
+            $tickets = Ticket::where('status', 1)
+            ->where('attraction_id', $attraction_id)
+            ->where('dmc_id', $auth_user->userId)
+            ->get();
+        }
         return view('tickets.add-ticket', compact('attraction', 'tickets', 'auth_user', 'dmcUsers'));
     }
 
