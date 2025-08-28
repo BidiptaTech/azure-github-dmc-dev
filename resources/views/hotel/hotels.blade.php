@@ -121,7 +121,7 @@
                                     <i class="fa fa-calendar-alt"></i>View Calendar
                                 </a>
                             </td>
-                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || hasPermission('edit hotel') || hasPermission('delete hotel'))
+                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || in_array(auth()->user()->role_id, [130, 132, 133, 135, 136, 137, 138]) || hasPermission('edit hotel') || hasPermission('delete hotel'))
                                 @if($hotel->status == 1)
                                     <td style="display: inline-block; white-space: nowrap;">
                                         @if(hasPermission('edit hotel'))

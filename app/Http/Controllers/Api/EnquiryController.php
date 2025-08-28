@@ -998,7 +998,6 @@ class EnquiryController extends Controller
     public function agentLists(Request $request)
     {
         $user = auth()->user();
-        
         // Check if user is a DMC role (Sales Head, Sales Manager, or Asst Sales Manager)
         if (!in_array($user?->role_id, [33, 37, 38])) {
             return response()->json([
@@ -1021,7 +1020,7 @@ class EnquiryController extends Controller
             case 138: // Sales Head
                 
                 $dmc_id = $user->created_by;
-                break;    
+                break;
                 
             case 37: // Sales Manager
             
