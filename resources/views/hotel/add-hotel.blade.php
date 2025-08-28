@@ -333,7 +333,7 @@
                                 <select class="form-select" id="country" name="country" required>
                                     <option value="">Select Country</option>
                                     @foreach($country as $c)
-                                        <option value="{{ $c->country_id }}">
+                                        <option value="{{ $c->name }}">
                                             {{ $c->name }}
                                         </option>
                                     @endforeach
