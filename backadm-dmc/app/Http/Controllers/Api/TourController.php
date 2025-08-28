@@ -413,6 +413,8 @@ class TourController extends Controller
                     'bookingType' => $booking_type,
                     'dmc_id' => $tour->dmc_id,
                     'dmc_company_name' => $dmc_company_name->company_name ?? '',
+                    'zone_on' => $dmc_company_name->zone_on ?? false,
+                    'price_hide' => $dmc_company_name->price_hide ?? false,
                     'dmc_logo' => $dmc_company_name->logo ?? '',
                 ],
             ], 200);
