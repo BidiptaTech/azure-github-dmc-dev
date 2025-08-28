@@ -16,6 +16,7 @@ use App\Models\Guide;
 use App\Models\Restaurant;
 use App\Models\Meal;
 use App\Models\Zone;
+use App\Models\Port;
 use App\Models\Order;
 use App\Models\Vehicle;
 use App\Models\VehicleZoneMapping;
@@ -47,86 +48,22 @@ class SingleTourPackageController extends Controller
     /**
      * Show the form for creating a new single tour package.
      */
-    public function create($enquiry_id = null)
+    public function create(Request $request)
     {
-        // Get countries for dropdown
-        $user = Auth::user();
-
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }
-        elseif(in_array($user->role_id, [33,34, 128, 129, 130,131,132, 134, 135, 136,137, 138])){
-            $dmc_id = $user->created_by;
-        }
-        elseif(in_array($user->role_id, [37,64,65,66,67,68])){
-            $sales_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-        }
-        elseif(in_array($user->role_id, [38,81,90,108,117,124,125,126,127])){
-            $sales_manager = User::where('userId', $user->created_by)->first();
-            $sales_head = User::where('userId', $sales_manager->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-        }
-        
-        
-        
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        
-        // Get agents for the current DMC
-        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
-            ->orderBy('name')
-            ->get();
-        
-
-        $enquiry = null;
-        $hotels = collect();
-        $attractions = collect();
-        $guides = collect();
-        $vehicles = collect();
-        $meals = collect();
-        $tickets = collect();
-        $zones = collect();
-        
-        if($enquiry_id){
-            $enquiry_id = Crypt::decrypt($enquiry_id);
-            if($enquiry_id){
-                $enquiry = EnquiryForm::where('enquiry_id', $enquiry_id)->first();
-                
-                if($enquiry){
-                    // Get hotels
-                    if($enquiry->hotel_ids){
-                        $hotel_ids = json_decode($enquiry->hotel_ids, true);
-                        $hotels = Hotel::whereIn('hotel_unique_id', $hotel_ids)->get();
-                    }
-                    
-                    // Get attractions
-                    if($enquiry->attraction_ids){
-                        $attraction_ids = json_decode($enquiry->attraction_ids, true);
-                        $attractions = Attraction::whereIn('attraction_id', $attraction_ids)->get();
-                    }
-                    
-                    // Get guides
-                    if($enquiry->guide_ids){
-                        $guide_ids = json_decode($enquiry->guide_ids, true);
-                        $guides = Guide::whereIn('guide_id', $guide_ids)->get();
-                    }
-                    
-                    // Get vehicles
-                    if($enquiry->local_transport_vehicle_ids){
-                        $vehicle_ids = json_decode($enquiry->local_transport_vehicle_ids, true);
-                        $vehicles = Vehicle::whereIn('vehicle_id', $vehicle_ids)->get();
-                    }
-                    
-                    // Get restaurants as meals
-                    if($enquiry->restaurant_ids){
-                        $restaurant_ids = json_decode($enquiry->restaurant_ids, true);
-                        $meals = Restaurant::whereIn('restaurant_id', $restaurant_ids)->get();
-                    }
-                }
+        $portsQuery = Port::query();
+        if ($request->has('country') && $request->country) {
+            $country = Country::find($request->country);
+            if ($country) {
+                $portsQuery->where('country', $country->name);
             }
         }
-
-        return view('single-tour-package.create', compact('countries', 'agents', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
+        $ports = $portsQuery->orderBy('port_name')->get();
+        $agents = Agent::Where('sales_manager_dmc', Auth::id())
+            ->orderBy('name')
+            ->get();
+        $selectedCountry = $request->country;
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry'));
     }
 
     /**
@@ -356,6 +293,213 @@ class SingleTourPackageController extends Controller
                 ->get();
                  
         return response()->json(['cities' => $cities]);
+    }
+
+    /**
+     * Fetch ports by country for dynamic filtering
+     */
+    public function fetchPortsByCountry(Request $request) 
+    {
+        $countryId = $request->input('country_id');
+        
+        if (!$countryId) {
+            return response()->json(['ports' => []]);
+        }
+        
+        $country = Country::where('name', $countryId)->first();
+        if (!$country) {
+            return response()->json(['ports' => []]);
+        }
+        
+        $ports = Port::where('country', $country->name)
+                ->select('id', 'port_id', 'port_name', 'country')
+                ->orderBy('port_name')
+                ->get();
+                 
+        return response()->json(['ports' => $ports]);
+    }
+
+    /**
+     * Fetch zone-assigned locations (attractions, hotels, restaurants) by DMC ID
+     */
+    public function fetchZoneAssignedLocations(Request $request) 
+    {
+        try {
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            
+            // Debug logging
+            \Log::info('FetchZoneAssignedLocations Debug', [
+                'user_id' => Auth::user()->userId,
+                'user_created_by' => $user->created_by,
+                'dmc_id' => $dmcId
+            ]);
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            $locations = [];
+
+            // Fetch attractions that have zone assignments for this DMC
+            $attractions = Attraction::where('status', 1)
+                ->where('is_active', 1)
+                ->get()
+                ->filter(function ($attraction) use ($dmcId) {
+                    // Check if this attraction has zone assignments for the current DMC
+                    return $attraction->isAssignedToZoneByDmc($dmcId);
+                })
+                ->map(function ($attraction) {
+                    return [
+                        'id' => $attraction->attraction_id,
+                        'name' => $attraction->name,
+                        'location' => $attraction->location,
+                        'type' => 'attraction',
+                        'latitude' => $attraction->latitude,
+                        'longitude' => $attraction->longitude
+                    ];
+                });
+
+            // Fetch hotels that have zone assignments for this DMC
+            $hotels = \App\Models\Hotel::where('status', 1)
+                ->where('is_active', 1)
+                ->get()
+                ->filter(function ($hotel) use ($dmcId) {
+                    // Check if this hotel has zone assignments for the current DMC
+                    return $hotel->isAssignedToZoneByDmc($dmcId);
+                })
+                ->map(function ($hotel) {
+                    return [
+                        'id' => $hotel->hotel_unique_id,
+                        'name' => $hotel->name,
+                        'location' => $hotel->city,
+                        'type' => 'hotel',
+                        'latitude' => $hotel->latitude,
+                        'longitude' => $hotel->longitude
+                    ];
+                });
+
+            // Fetch restaurants that have zone assignments for this DMC
+            $restaurants = Restaurant::where('status', 1)
+                ->where('is_active', 1)
+                ->get()
+                ->filter(function ($restaurant) use ($dmcId) {
+                    // Check if this restaurant has zone assignments for the current DMC
+                    return $restaurant->isAssignedToZoneByDmc($dmcId);
+                })
+                ->map(function ($restaurant) {
+                    return [
+                        'id' => $restaurant->restaurant_id,
+                        'name' => $restaurant->name,
+                        'location' => $restaurant->location,
+                        'type' => 'restaurant',
+                        'latitude' => $restaurant->latitude,
+                        'longitude' => $restaurant->longitude
+                    ];
+                });
+
+            // If no zone-assigned locations found, fallback to DMC-selected locations
+            if ($attractions->count() == 0 && $hotels->count() == 0 && $restaurants->count() == 0) {
+                \Log::info('No zone-assigned locations found, falling back to DMC-selected locations');
+                
+                // Fallback: Get attractions selected by this DMC
+                $attractions = Attraction::where('status', 1)
+                    ->where('is_active', 1)
+                    ->get()
+                    ->filter(function ($attraction) use ($dmcId) {
+                        return $attraction->hasSelectedByDmc($dmcId);
+                    })
+                    ->map(function ($attraction) {
+                        return [
+                            'id' => $attraction->attraction_id,
+                            'name' => $attraction->name,
+                            'location' => $attraction->location,
+                            'type' => 'attraction',
+                            'latitude' => $attraction->latitude,
+                            'longitude' => $attraction->longitude
+                        ];
+                    });
+
+                // Fallback: Get hotels selected by this DMC
+                $hotels = \App\Models\Hotel::where('status', 1)
+                    ->where('is_active', 1)
+                    ->get()
+                    ->filter(function ($hotel) use ($dmcId) {
+                        return $hotel->hasSelectedByDmc($dmcId);
+                    })
+                    ->map(function ($hotel) {
+                        return [
+                            'id' => $hotel->hotel_unique_id,
+                            'name' => $hotel->name,
+                            'location' => $hotel->city,
+                            'type' => 'hotel',
+                            'latitude' => $hotel->latitude,
+                            'longitude' => $hotel->longitude
+                        ];
+                    });
+
+                // Fallback: Get restaurants selected by this DMC
+                $restaurants = Restaurant::where('status', 1)
+                    ->where('is_active', 1)
+                    ->get()
+                    ->filter(function ($restaurant) use ($dmcId) {
+                        return $restaurant->hasSelectedByDmc($dmcId);
+                    })
+                    ->map(function ($restaurant) {
+                        return [
+                            'id' => $restaurant->restaurant_id,
+                            'name' => $restaurant->name,
+                            'location' => $restaurant->location,
+                            'type' => 'restaurant',
+                            'latitude' => $restaurant->latitude,
+                            'longitude' => $restaurant->longitude
+                        ];
+                    });
+            }
+
+            // Combine all locations
+            $locations = $attractions->concat($hotels)->concat($restaurants)->sortBy('name');
+
+            \Log::info('Final locations result', [
+                'total_locations' => count($locations),
+                'attractions_count' => $attractions->count(),
+                'hotels_count' => $hotels->count(),
+                'restaurants_count' => $restaurants->count(),
+                'dmc_id' => $dmcId
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'locations' => $locations->values()->toArray(), // Convert collection to array
+                'total_locations' => count($locations),
+                'dmc_id' => $dmcId,
+                'breakdown' => [
+                    'attractions' => $attractions->count(),
+                    'hotels' => $hotels->count(),
+                    'restaurants' => $restaurants->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in fetchZoneAssignedLocations', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching zone-assigned locations: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
     }
 
     /**
@@ -1028,16 +1172,17 @@ class SingleTourPackageController extends Controller
     }
 
     /**
-     * Fetch vehicles based on zone mapping
+     * Fetch vehicles based on zone mapping with proper ID handling
      */
     public function fetchVehiclesByZones(Request $request)
     {
-        
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
             $fromZoneId = $request->from_zone_id;
             $toZoneId = $request->to_zone_id;
+            $fromZoneType = $request->from_zone_type;
+            $toZoneType = $request->to_zone_type;
             
             if (!$dmcId) {
                 return response()->json([
@@ -1053,19 +1198,42 @@ class SingleTourPackageController extends Controller
                 ], 400);
             }
 
-            // Fetch vehicles that have zone mappings between the selected zones
-            $vehicleMappings = VehicleZoneMapping::where('from_zone_id', $fromZoneId)
-                ->where('to_zone_id', $toZoneId)
-                ->get();
+            // Determine the correct IDs based on location types
+            $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType);
+            $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType);
+
+            // Debug logging for zone ID resolution
+            \Log::info('Zone ID Resolution Debug', [
+                'original_from_zone_id' => $fromZoneId,
+                'original_to_zone_id' => $toZoneId,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'actual_from_zone_id' => $actualFromZoneId,
+                'actual_to_zone_id' => $actualToZoneId,
+                'dmc_id' => $dmcId
+            ]);
+
+            // Fetch vehicles that have zone mappings between the actual zone IDs
+            // Try both directions to ensure bidirectional route coverage
+            $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId) {
+                $query->where(function($subQuery) use ($actualFromZoneId, $actualToZoneId) {
+                    // Original direction
+                    $subQuery->where('from_zone_id', $actualFromZoneId)
+                             ->where('to_zone_id', $actualToZoneId);
+                })->orWhere(function($subQuery) use ($actualFromZoneId, $actualToZoneId) {
+                    // Reverse direction for bidirectional routes
+                    $subQuery->where('from_zone_id', $actualToZoneId)
+                             ->where('to_zone_id', $actualFromZoneId);
+                });
+            })->get();
                 
             // Debug logging for zone mapping query
-            \Log::info('Zone Mapping Query Debug', [
-                'from_zone_id' => $fromZoneId,
-                'to_zone_id' => $toZoneId,
-                'query_sql' => VehicleZoneMapping::where('from_zone_id', $fromZoneId)
-                    ->where('to_zone_id', $toZoneId)
-                    ->toSql(),
+            \Log::info('Vehicle Zone Mapping Query Debug (Bidirectional)', [
+                'from_zone_id' => $actualFromZoneId,
+                'to_zone_id' => $actualToZoneId,
                 'mappings_found' => $vehicleMappings->count(),
+                'original_direction_count' => VehicleZoneMapping::where('from_zone_id', $actualFromZoneId)->where('to_zone_id', $actualToZoneId)->count(),
+                'reverse_direction_count' => VehicleZoneMapping::where('from_zone_id', $actualToZoneId)->where('to_zone_id', $actualFromZoneId)->count(),
                 'mappings_data' => $vehicleMappings->toArray()
             ]);
                 
@@ -1078,16 +1246,6 @@ class SingleTourPackageController extends Controller
                 if (!$vehicle) {
                     return null;
                 }
-                
-                // Debug logging
-                \Log::info('Vehicle Zone Mapping Debug', [
-                    'vehicle_id' => $mapping->vehicle_id,
-                    'from_zone_id' => $mapping->from_zone_id,
-                    'to_zone_id' => $mapping->to_zone_id,
-                    'mapping_private_price' => $mapping->private_price,
-                    'mapping_shared_price' => $mapping->shared_price,
-                    'vehicle_name' => $vehicle->vehicle_name ?? 'N/A'
-                ]);
                 
                 return [
                     'vehicle_id' => $vehicle->vehicle_id,
@@ -1110,8 +1268,8 @@ class SingleTourPackageController extends Controller
 
             // Debug logging for final response
             \Log::info('Final Vehicle Response', [
-                'from_zone_id' => $fromZoneId,
-                'to_zone_id' => $toZoneId,
+                'from_zone_id' => $actualFromZoneId,
+                'to_zone_id' => $actualToZoneId,
                 'total_vehicles' => count($vehicles),
                 'vehicles_data' => $vehicles->toArray()
             ]);
@@ -1120,8 +1278,114 @@ class SingleTourPackageController extends Controller
                 'success' => true,
                 'vehicles' => $vehicles,
                 'total_vehicles' => count($vehicles),
-                'from_zone_id' => $fromZoneId,
-                'to_zone_id' => $toZoneId
+                'from_zone_id' => $actualFromZoneId,
+                'to_zone_id' => $actualToZoneId,
+                'original_from_zone_id' => $fromZoneId,
+                'original_to_zone_id' => $toZoneId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching vehicles: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Get the actual zone ID based on location type and ID
+     */
+    private function getActualZoneId($locationId, $locationType = null)
+    {
+        // If no type specified, assume it's already the correct ID
+        if (!$locationType) {
+            return $locationId;
+        }
+
+        switch ($locationType) {
+            case 'port':
+                // For ports, get the port_id
+                $port = Port::where('id', $locationId)->first();
+                return $port ? $port->port_id : $locationId;
+                
+            case 'attraction':
+                // For attractions, use attraction_id directly
+                return $locationId;
+                
+            case 'hotel':
+                // For hotels, use hotel_unique_id directly
+                return $locationId;
+                
+            case 'restaurant':
+                // For restaurants, use restaurant_id directly
+                return $locationId;
+                
+            default:
+                // For unknown types, return the original ID
+                return $locationId;
+        }
+    }
+
+    /**
+     * Fetch vehicles based on city and dmc_id for point to point and hourly services
+     */
+    public function fetchVehiclesByCityAndDmc(Request $request)
+    {
+        try {
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            $city = $request->input('city');
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            if (!$city) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'City is required'
+                ], 400);
+            }
+
+            // Fetch vehicles for the current DMC and city
+            $vehicles = Vehicle::where('dmc_id', $dmcId)
+                ->where('city', $city)
+                ->where('is_available', 1)
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour')
+                ->orderBy('vehicle_name')
+                ->get();
+
+            $vehiclesData = $vehicles->map(function ($vehicle) {
+                return [
+                    'vehicle_id' => $vehicle->vehicle_id,
+                    'vehicle_name' => $vehicle->vehicle_name,
+                    'vehicle_type' => $vehicle->vehicle_type,
+                    'seating_capacity' => $vehicle->seating_capacity,
+                    'vehicle_model' => $vehicle->vehicle_model,
+                    'image' => $vehicle->image,
+                    'base_price' => $vehicle->base_price,
+                    'sharable_base_price' => $vehicle->sharable_base_price,
+                    'service_type' => $vehicle->service_type,
+                    'cost_per_hour' => $vehicle->cost_per_hour,
+                    'sharable_cost_per_hour' => $vehicle->sharable_cost_per_hour,
+                    'private_price' => $vehicle->base_price,
+                    'shared_price' => $vehicle->sharable_base_price
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'vehicles' => $vehiclesData,
+                'total_vehicles' => count($vehiclesData),
+                'city' => $city,
+                'dmc_id' => $dmcId
             ]);
 
         } catch (\Exception $e) {
@@ -1221,6 +1485,18 @@ class SingleTourPackageController extends Controller
                 'entry_port_data' => $request->entry_port_data,
                 'exit_port_data' => $request->exit_port_data
             ]);
+            
+            // Also log to file for debugging
+            file_put_contents(storage_path('logs/transport_debug.log'), 
+                "=== TRANSPORT DEBUG " . date('Y-m-d H:i:s') . " ===\n" .
+                "Tour ID: $tourId\n" .
+                "Agent ID: $agentId\n" .
+                "Transport Data: " . ($request->transport_data ?: 'EMPTY') . "\n" .
+                "Entry Port Data: " . ($request->entry_port_data ?: 'EMPTY') . "\n" .
+                "Exit Port Data: " . ($request->exit_port_data ?: 'EMPTY') . "\n" .
+                "=====================================\n\n", 
+                FILE_APPEND
+            );
             
             // Additional debugging for hotel data
             if ($request->hotel_data) {
@@ -1496,7 +1772,26 @@ class SingleTourPackageController extends Controller
                             
                         } elseif ($type === 'transport') {
                             // For transport, store each transport as a separate order
+                            \Log::info("Processing transport data", [
+                                'total_transports' => count($decodedData),
+                                'transport_data' => $decodedData
+                            ]);
+                            
                             foreach ($decodedData as $transport) {
+                                // Determine the correct type based on travel_type
+                                $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                
+                                \Log::info("Processing individual transport", [
+                                    'transport_id' => $transport['id'] ?? 'no_id',
+                                    'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
+                                    'travel_type' => $orderType,
+                                    'service_type' => $transport['type'] ?? 'unknown',
+                                    'pickup_coords' => $transport['PickupPlaceid'] ?? 'no_coords',
+                                    'dropoff_coords' => $transport['DropoffPlaceid'] ?? 'no_coords',
+                                    'booking_type' => $transport['bookingType'] ?? 'no_booking_type',
+                                    'full_transport_data' => $transport
+                                ]);
+                                
                                 // Create separate order for each transport
                                 $lastBooking = Order::orderBy('booking_id', 'desc')->first();
                                 $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
@@ -1507,27 +1802,80 @@ class SingleTourPackageController extends Controller
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
-                                    'type' => $type,
+                                    'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
-                                    'bookingType' => 'enquiry',
+                                    'bookingType' => $transport['bookingType'] ?? 'booking', // Use bookingType from transport data
                                 ]);
 
                                 \Log::info("Transport order created successfully", [
                                     'order_id' => $order->booking_id,
-                                    'transport_name' => $transport['vehicle_name'] ?? 'Unknown Transport',
+                                    'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
+                                    'travel_type' => $orderType,
                                     'tour_id' => $tourId
                                 ]);
 
                                 $createdOrders[] = [
-                                    'type' => $type,
+                                    'type' => $orderType,
                                     'order_id' => $order->booking_id,
-                                    'transport_name' => $transport['vehicle_name'] ?? 'Unknown Transport',
+                                    'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
+                                    'data_count' => 1
+                                ];
+                            }
+                            
+                        } elseif ($type === 'entry_port' || $type === 'exit_port') {
+                            // For entry_port and exit_port, treat them as transport data
+                            \Log::info("Processing {$type} data as transport", [
+                                'total_transports' => count($decodedData),
+                                'transport_data' => $decodedData
+                            ]);
+                            
+                            foreach ($decodedData as $transport) {
+                                // Determine the correct type based on travel_type
+                                $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                
+                                \Log::info("Processing individual {$type} transport", [
+                                    'transport_id' => $transport['id'] ?? 'no_id',
+                                    'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
+                                    'travel_type' => $orderType,
+                                    'service_type' => $transport['type'] ?? 'unknown',
+                                    'pickup_coords' => $transport['PickupPlaceid'] ?? 'no_coords',
+                                    'dropoff_coords' => $transport['DropoffPlaceid'] ?? 'no_coords',
+                                    'booking_type' => $transport['bookingType'] ?? 'no_booking_type',
+                                    'full_transport_data' => $transport
+                                ]);
+                                
+                                // Create separate order for each transport
+                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
+                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
+                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                
+                                $order = Order::create([
+                                    'booking_id' => $newBookingId,
+                                    'agent_id' => $agentId,
+                                    'tour_id' => $tourId,
+                                    'data' => [$transport], // Store transport data as array
+                                    'type' => $orderType, // Use the specific travel type
+                                    'status' => 1,
+                                    'bookingType' => $transport['bookingType'] ?? 'booking', // Use bookingType from transport data
+                                ]);
+
+                                \Log::info("{$type} transport order created successfully", [
+                                    'order_id' => $order->booking_id,
+                                    'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
+                                    'travel_type' => $orderType,
+                                    'tour_id' => $tourId
+                                ]);
+
+                                $createdOrders[] = [
+                                    'type' => $orderType,
+                                    'order_id' => $order->booking_id,
+                                    'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
                                     'data_count' => 1
                                 ];
                             }
                             
                         } else {
-                            // For other services (entry_port, exit_port), store each as a separate order
+                            // For other services, store each as a separate order
                             foreach ($decodedData as $service) {
                                 // Create separate order for each service
                                 $lastBooking = Order::orderBy('booking_id', 'desc')->first();
