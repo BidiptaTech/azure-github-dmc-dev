@@ -34,7 +34,6 @@
             <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
                 <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
                     @csrf
-            
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
                 <div class="col-12">
@@ -10530,19 +10529,19 @@ window.saveService = function(day, type) {
                      console.log('=== TRIGGERING ALL GUIDE PRICING ===');
         
                      document.querySelectorAll('.guide-select').forEach((select, index) => {
-                         if (select.value) {
-                             const nameMatch = select.name.match(/day(\d+)_guide_(\d+)/);
-                             if (nameMatch) {
-                                 const day = nameMatch[1];
-                                 const guideIndex = nameMatch[2];
+                        if (select.value) {
+                            const nameMatch = select.name.match(/day(\d+)_guide_(\d+)/);
+                            if (nameMatch) {
+                                const day = nameMatch[1];
+                                const guideIndex = nameMatch[2];
                                  
-                                 const packageSelect = document.getElementById(`day${day}_guide_${guideIndex}_package`);
-                                 if (packageSelect && packageSelect.value) {
-                                     console.log(`Triggering pricing for Day ${day}, Guide ${guideIndex}`);
-                                     updateGuidePricing(day, guideIndex);
-                                 }
-                             }
-                         }
+                                const packageSelect = document.getElementById(`day${day}_guide_{guideIndex}_package`);
+                                if (packageSelect && packageSelect.value) {
+                                    console.log(`Triggering pricing for Day ${day}, Guide ${guideIndex}`);
+                                    updateGuidePricing(day, guideIndex);
+                                }
+                            }
+                        }
                      });
                      
                      console.log('All guide pricing triggered');

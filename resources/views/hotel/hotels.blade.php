@@ -49,10 +49,13 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                            @endphp
 
                             @if($roleId == 10 || $roleId == 19)
                                 <th>DMC</th>
-                            @elseif($roleId != 11 && $roleId != 20)
+                            @elseif(!in_array($roleId, $hideRoles))
                                 <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
@@ -86,19 +89,64 @@
                             @php
                                 $roleId = auth()->user()->role_id;
                             @endphp
+                            @php
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                            @endphp
 
-                            @if($roleId == 10 || $roleId == 19)
+                            @if($roleId == 10 || $roleId == 19) {{-- Master DMC or Virtual Master DMC --}}
                                 @php
-                                    $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
+                                    $dmcIds = $hotel->getSelectedDmcIds(); // Get array of DMC IDs
+                                    $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
                                 @endphp
-                                <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
-                            @elseif($roleId != 11 && $roleId != 20)
+                                <td>
+                                    @if($dmcUsers->count() > 0)
+                                        {{ $dmcUsers->first()->company_name }}
+                                        @if($dmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="text-primary" 
+                                                   onclick="showDmcModal('{{ $hotel->hotel_unique_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                            @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
                                 @php
-                                    $dmcUser = App\Models\User::where('userId', $hotel->dmc_id)->first();
-                                    $masterdmcUser = $dmcUser ? App\Models\User::where('userId', $dmcUser->master_dmc_id)->first() : null;
+                                    $dmcIds = $hotel->getSelectedDmcIds(); // Get array of DMC IDs
+                                    $dmcUsers = App\Models\User::whereIn('userId', $dmcIds)->get();
+                                    $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
+                                    $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
                                 @endphp
-                                <td>{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
-                                <td>{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
+                                <td>
+                                    @if($masterDmcUsers->count() > 0)
+                                        <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
+                                        @if($masterDmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="btn btn-primary btn-sm text-white" 
+                                                   onclick="showDmcModal('{{ $hotel->hotel_unique_id }}', 'master_dmc', {{ $masterDmcUsers->toJson() }})">
+                                                <small>+{{ $masterDmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No DMC assigned</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($dmcUsers->count() > 0)
+                                        <span class="text-primary">{{ $dmcUsers->first()->company_name }}</span>
+                                        @if($dmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="btn btn-primary btn-sm text-white" 
+                                                   onclick="showDmcModal('{{ $hotel->hotel_unique_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No DMC assigned</span>
+                                    @endif
+                                </td>
                             @endif
 
                             {{-- <td>
@@ -138,8 +186,8 @@
                                         @if(hasPermission('delete hotel'))
                                         <button type="button"
                                             class="btn btn-danger btn-sm rounded-circle"
-                                            style="min-width: 28px; min-height: 28px; padding: 0;" data-toggle="modal"
-                                            data-target="#deleteModal"
+                                            style="min-width: 28px; min-height: 28px; padding: 0;" 
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal"
                                             onclick="setDeleteForm('{{ route('hotels.destroy', $hotel->hotel_unique_id) }}')">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
                                                 width="16px" fill="#ffffff">
@@ -204,17 +252,36 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     Are you sure you want to delete?
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <form id="deleteForm" action="" method="POST" style="display:inline">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-danger">Delete</button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DMC Modal -->
+    <div class="modal fade" id="dmcModal" tabindex="-1" role="dialog" aria-labelledby="dmcModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dmcModalLabel">DMC Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="dmcList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -268,11 +335,35 @@
 </script>
 <!-- End DataTable JS -->
  
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
     <script>
     // Set form action for delete
     function setDeleteForm(url) {
         document.getElementById('deleteForm').action = url;
+    }
+
+    // Show DMC modal with details
+    function showDmcModal(itemId, type, users) {
+        let listHtml = '<ul class="list-group">';
+        users.forEach(function(user) {
+            listHtml += `<li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${user.company_name}</strong>
+                        <br><small>${user.email || 'No email'}</small>
+                        ${user.phone ? `<br><small>${user.phone}</small>` : ''}
+                    </div>
+                </div>
+            </li>`;
+        });
+        listHtml += '</ul>';
+        
+        $('#dmcList').html(listHtml);
+        $('#dmcModalLabel').text(type === 'dmc' ? 'DMC List' : 'Master DMC List');
+        
+        // Use Bootstrap 5 modal show method
+        var myModal = new bootstrap.Modal(document.getElementById('dmcModal'));
+        myModal.show();
     }
     </script>
 
