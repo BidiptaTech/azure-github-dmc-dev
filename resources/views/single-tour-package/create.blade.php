@@ -3775,8 +3775,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification(data.message + ' Tour ID: ' + data.display_id, 'success');
                 
                 // Set tour dates for hotel section
-        tourStartDate = startDate;
-        tourEndDate = endDate;
+            tourStartDate = startDate;
+        tourEndDate = endDate; 
                 
                 // Store tour info globally
                 window.currentTourId = data.tour_id;
@@ -11967,7 +11967,7 @@ window.saveService = function(day, type) {
                              initializeGoogleMapsAutocomplete();
                          }, 100);
                      }
-                 });
+                 });  
                  
                  // Test function for Google Maps integration
                  window.testGoogleMapsIntegration = function() {
