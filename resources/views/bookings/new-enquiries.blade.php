@@ -3858,7 +3858,7 @@ function testServices() {
                 }
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
-            pageLength: 25,
+            pageLength: 50,
             // order: [[7, 'desc']], // Sort by Created Date column (index 7) in descending order
             columnDefs: [
                 {
