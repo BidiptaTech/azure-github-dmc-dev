@@ -54,7 +54,7 @@ import PortCity from "./PortCity";
 import LocationSearch from "./PortLocation";
 import SearchBar from "./PortLocation2";
 import DateSearch1 from "@/components/activity-list/common/DateSearch1";
-import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
+import Pickuptime from "./Pickuptime";
 
 const EntryPortSearchZone = ({ Location, portType}) => {
   const dispatch = useDispatch();

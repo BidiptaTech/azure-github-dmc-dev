@@ -23,7 +23,7 @@ import {
   setPortZoneType,
 } from "@/slice/port/pickupDropSlice";
 import DateSearch1 from "@/components/activity-list/common/DateSearch1";
-import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
+import Pickuptime from "./Pickuptime";
 
 const EntryPortSearch = ({ Location }) => {
   const theme = useTheme();

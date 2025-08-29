@@ -17,7 +17,9 @@ import {
   DialogActions,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Stack,
+  Avatar
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import { 
@@ -1647,19 +1649,65 @@ dispatch(fetchHotels());
                       onChange={handleAgentChange}
                       label="Select Agent *"
                       required
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "#f8fafc",
+                          borderColor: "#e2e8f0",
+                          "&:hover": {
+                            borderColor: "#94a3b8",
+                          },
+                          "&.Mui-focused": {
+                            borderColor: "#3b82f6",
+                            boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.1)",
+                          },
+                        },
+                        "& .MuiSelect-icon": {
+                          color: "#64748b",
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "#475569",
+                          "&.Mui-focused": {
+                            color: "#3b82f6",
+                          },
+                        },
+                      }}
                       MenuProps={{
                         PaperProps: {
                           sx: {
-                            maxHeight: 200,
-                            mt: 1,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            borderRadius: 2
-                          }
-                        }
+                            maxHeight: 300,
+                            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "8px",
+                            "& .MuiMenuItem-root": {
+                              fontSize: "0.9rem",
+                              padding: "12px 16px",
+                              "&:hover": {
+                                backgroundColor: "#f1f5f9",
+                              },
+                              "&.Mui-selected": {
+                                backgroundColor: "#dbeafe",
+                                color: "#1e40af",
+                                "&:hover": {
+                                  backgroundColor: "#bfdbfe",
+                                },
+                              },
+                            },
+                          },
+                        },
                       }}
                     >
                       <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
-                        Choose an agent
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PersonIcon sx={{ fontSize: 16, color: "#3b82f6" }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500, color: "#6b7280", fontStyle: 'italic' }}>
+                              Choose an agent
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "#9ca3af", fontSize: "0.7rem" }}>
+                              Select from available agents
+                            </Typography>
+                          </Box>
+                        </Stack>
                       </MenuItem>
                       {agents && agents.map((agent) => (
                         <MenuItem 
@@ -1667,18 +1715,44 @@ dispatch(fetchHotels());
                           value={agent.agent_id}
                           sx={{
                             '&:hover': {
-                              bgcolor: '#f3f4f6'
+                              bgcolor: '#f1f5f9'
                             }
                           }}
                         >
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                              {agent.name}
-                            </Typography>
-                            {/* <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
-                              ID: {agent.agent_id}
-                            </Typography> */}
-                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Avatar 
+                              sx={{ 
+                                width: 24, 
+                                height: 24, 
+                                fontSize: "0.8rem",
+                                backgroundColor: "#3b82f6",
+                                color: "white",
+                                fontWeight: 600
+                              }}
+                            >
+                              {agent.name.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2, fontSize: '0.8rem' }}>
+                                {agent.name}
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: "#059669", 
+                                  fontSize: "0.7rem",
+                                  lineHeight: 1.2,
+                                  display: "block",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontWeight: 500
+                                }}
+                              >
+                                {agent.company_name}
+                              </Typography>
+                            </Box>
+                          </Stack>
                         </MenuItem>
                       ))}
                     </Select>

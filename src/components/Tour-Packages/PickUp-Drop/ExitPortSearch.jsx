@@ -14,7 +14,7 @@ import {
   setPortZoneType,
 } from "@/slice/port/pickupDropSlice";
 import DateSearch2 from "@/components/activity-list/common/DateSearch2";
-import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
+import Pickuptime1 from "./Pickuptime1";
 import {
   Box,
   Button,
