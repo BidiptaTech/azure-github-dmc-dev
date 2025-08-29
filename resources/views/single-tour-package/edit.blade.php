@@ -1596,6 +1596,7 @@
     }
     
     function confirmGuideSelection() {
+        
         const formData = new FormData(document.getElementById('guideSelectionForm'));
         const guideId = formData.get('guide_id');
         const duration = formData.get('duration');

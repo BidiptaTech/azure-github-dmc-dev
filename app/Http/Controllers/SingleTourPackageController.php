@@ -295,7 +295,7 @@ class SingleTourPackageController extends Controller
         } else {
             $hotels = collect(); // Empty collection if no DMC ID
         }
-        $guide = Guide::where('dmc_id', $userDmcId)->get();
+        $guide = Guide::where('dmc_id', Auth::user()->created_by)->get();
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         $portsQuery = Port::query();
         if ($request->has('country') && $request->country) {

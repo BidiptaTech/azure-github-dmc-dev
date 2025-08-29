@@ -1011,6 +1011,7 @@ class EnquiryController extends Controller
 
         switch ($user->role_id) {
             case 33: // Sales Head
+            case 34: // Operation Head
             case 128: // Sales Head
             case 129: // Sales Head
             case 130: // Sales Head
@@ -1023,12 +1024,13 @@ class EnquiryController extends Controller
                 break;
                 
             case 37: // Sales Manager
-            
+            case 124: // Operation Manager
                 $sales_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $sales_head->created_by;
                 break;
                 
             case 38: // Assistant Sales Manager
+            case 125: // Operation Manager
                 $sales_manager = User::where('userId', $user->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
                 $dmc_id = $sales_head->created_by;
