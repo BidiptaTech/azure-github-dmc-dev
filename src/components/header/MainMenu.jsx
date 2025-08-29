@@ -319,7 +319,7 @@ const MainMenu = ({ style = "" }) => {
                     }`}
                     title="Reach Out for Custom Requests"
                   >
-                    Book An Enquiry
+                    Quick Enquiry
                   </span>
                 </div>
                </a>

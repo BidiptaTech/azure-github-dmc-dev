@@ -53,6 +53,7 @@ const CustomTooltip = styled(({ className, ...props }) => (
 
 // Tooltip content component
 const TooltipContent = ({ vehicle }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <Box>
       {/* Header Image Section */}
@@ -122,6 +123,8 @@ const TooltipContent = ({ vehicle }) => {
           <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
             Pricing Details
           </Typography>
+          {PriceHide !== "1" ? (
+          <>
           <Grid container spacing={2}>
             {/* DMC Prices */}
             {(vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0) && (
@@ -188,6 +191,12 @@ const TooltipContent = ({ vehicle }) => {
               }}
             >
               *Prices are subject to {vehicle.tax_percentage}% tax
+            </Typography>
+          )}
+          </>
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
             </Typography>
           )}
         </Box>
@@ -262,7 +271,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const portZoneType = useSelector((state) => state.pickupDrop.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
   // Make sure we're only working with entry ports
   const validEntryPorts = entryPorts && entryPorts.filter(port => port.type === "entry_port");
   console.log("Entry Vehicle - Filtered entryPorts:", validEntryPorts);
@@ -343,6 +353,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             dmc_id: entryData.dmc_id ? String(entryData.dmc_id) : '',
             vehicles_id: entryData.vehicles_id ? String(entryData.vehicles_id) : '',
             totalPrice: entryData.totalPrice ? Number(entryData.totalPrice) : 0,
+            seating_capacity: Number(entryData.seatingCapacity ?? entryData.seating_capacity ?? 1),
             distance: entryData.distance ? Number(entryData.distance) : 0,
             // Normalize type for case insensitivity
             type: entryData.type ? entryData.type.toLowerCase() : 'private'
@@ -359,7 +370,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
               vehicle_type: normalizedEntryData.vehicle_type || '',
               vehicle_model: normalizedEntryData.vehicle_model || '',
               model_year: normalizedEntryData.model_year || '',
-              seating_capacity: normalizedEntryData.seating_capacity || 1,
+              seating_capacity: Number(normalizedEntryData.seating_capacity) || 1,
               image: normalizedEntryData.image || '',
               city: normalizedEntryData.city || '',
               country: normalizedEntryData.country || '',
@@ -368,13 +379,13 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             vehicleData: {
               // Map the price mode to expected structure
               private_price: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
-              shared_price: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0,
+              shared_price: normalizedEntryData.type === 'shared' || normalizedEntryData.type === "sharable" ? normalizedEntryData.totalPrice : 0,
               prices: {
                 privatePrice: normalizedEntryData.type === 'private' ? normalizedEntryData.totalPrice : 0,
-                sharablePrice: normalizedEntryData.type === 'shared' ? normalizedEntryData.totalPrice : 0
+                sharablePrice: normalizedEntryData.type === 'shared' || normalizedEntryData.type === "sharable" ? normalizedEntryData.totalPrice : 0
               }
             },
-            priceMode: normalizedEntryData.type === 'shared' ? 'Sharable' : 'Private',
+            priceMode: normalizedEntryData.type === 'shared' || normalizedEntryData.type === "sharable" ? 'Sharable' : 'Private',
             isComplete: true, // Mark as complete since it's loaded data
             adults: normalizedEntryData.adults || 1,
             children: normalizedEntryData.children || 0,
@@ -1395,7 +1406,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             (booking.vehicle ? 1 : 0) + (Number(booking.adults) + Number(booking.children) > 0 ? 1 : 0) + 
             (booking.priceMode ? 1 : 0);
           const outOfTourDates = isBookingOutOfTourDates(booking);
-          
+          console.log("booking22", booking);
           return (
             <Grid item xs={12} key={booking.id}>
               <Card 
@@ -1581,7 +1592,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                       <Passenger 
                         adultsMax={adultsMax || 1} 
                         childrenMax={childrenMax || 0} 
-                        seatingCapacity={booking.vehicle?.seating_capacity || seatingCapacity || 1}
+                        seatingCapacity={Number(booking.vehicle?.seating_capacity) || Number(seatingCapacity) || 1}
                         initialAdults={Number(booking.adults) || 1}
                         initialChildren={Number(booking.children) || 0}
                         onAdultChange={(count) => handleAdultChange(index, count)}

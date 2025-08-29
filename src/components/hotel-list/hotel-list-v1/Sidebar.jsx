@@ -362,7 +362,7 @@ const Sidebar = () => {
       </div> */}
         {/* End Sidebar-checkbox */}
       {/* End popular filter */}
-      {PriceHide === "0" && (
+      {/* {PriceHide === "0" && (
       <div className="sidebar__item pb-30 pr-10">
         <div className="d-flex justify-content-between align-items-center">
           <h5 className="text-18 fw-500 mb-0">Price Range</h5>
@@ -386,7 +386,7 @@ const Sidebar = () => {
           </div>
         </div>
       </div>
-      )}
+      )} */}
       {/* End Nightly priceslider */}
 {/* 
       <div className="sidebar__item">

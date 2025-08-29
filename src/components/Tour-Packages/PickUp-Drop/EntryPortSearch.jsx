@@ -48,6 +48,8 @@ const EntryPortSearch = ({ Location }) => {
   const [pickupFromAutocomplete, setPickupFromAutocomplete] = useState(false);
   const [dropoffFromAutocomplete, setDropoffFromAutocomplete] = useState(false);
   const [time, setTime] = useState(false);
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
 
   // Update Redux store whenever local state changes
   useEffect(() => {

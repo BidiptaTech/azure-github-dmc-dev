@@ -40,8 +40,8 @@ export const fetchRestaurants = createAsyncThunk(
       if (tour_id) queryParams.append("tour_id", tour_id);
       
       // Add pagination parameters
-      queryParams.append("start", start);
-      queryParams.append("limit", limit);
+      if (start) queryParams.append("start", start);
+      if (limit) queryParams.append("limit", limit);
       
       // Add DMC ID to query parameters if available
       if (selectedDmcId) {

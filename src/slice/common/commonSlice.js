@@ -5,10 +5,11 @@ import axios from "axios";
 
 export const singleBooking = createAsyncThunk(
   "singleBooking/common",
-  async ({bookingId, tourId}, { rejectWithValue, getState }) => {
+  async ({bookingId, tourId, cancelReason}, { rejectWithValue, getState }) => {
     try {
+      const userRole = getState().auth?.userRole;
       const authToken = Cookies.get("authToken");
-      const AgentId = Cookies.get("AgentId");
+      const AgentId = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)" ? getState().editing.agentId : Cookies.get("AgentId");
       console.log("bookingIdcommon", bookingId);
       console.log("tourIdcommon", tourId);
       console.log("AgentIdcommon", AgentId);
@@ -18,6 +19,7 @@ export const singleBooking = createAsyncThunk(
         booking_id: String(bookingId),
         agent_id: String(AgentId),
         tour_id: String(tourId),
+        cancel_reason: String(cancelReason),
       }, {
         headers: {
           "Authorization": `Bearer ${authToken}`,

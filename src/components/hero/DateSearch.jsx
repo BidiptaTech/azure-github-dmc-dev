@@ -54,7 +54,7 @@ const DateSearch = ({ onDateChange }) => {
         offsetY={10}
         range
         rangeHover
-        format="MMMM DD"
+        format="MMM DD"
         minDate={today}     // Keep minimum date as today
         editable={false}    // Prevent manual typing while still allowing calendar selection
         style={{ position: 'relative', zIndex: 40 }}

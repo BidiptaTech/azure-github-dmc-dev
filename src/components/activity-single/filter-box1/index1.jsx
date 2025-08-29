@@ -52,6 +52,7 @@ const Index1 = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { vehicles } = location.state;
+  console.log("Vehiclesentry:", vehicles);
   const seatingCapacity = vehicles.seating_capacity;
   console.log("seatingCapacity", seatingCapacity);
   const navigate = useNavigate();
@@ -279,7 +280,7 @@ const Index1 = () => {
       Night_End_Time: vehicles.night_end_time,
       city: vehicles.city,
       country: vehicles.country,
-      seatingCapacity: seatingCapacity,
+      seatingCapacity: vehicles.seating_capacity,
     };
 
     dispatch(setentrydata(details));

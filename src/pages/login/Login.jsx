@@ -50,6 +50,7 @@ import {
   ArrowForward,
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
+import { ClearLists } from "@/slice/common/TourlistSlice";
 
 // Custom animations
 const float = keyframes`
@@ -168,7 +169,7 @@ function Login() {
     e.preventDefault();
     setIsLoading(true);
     dispatch(resetPackages());
-    
+    dispatch(ClearLists());
     const result = await dispatch(loginUser({ email, password }));
 
     if (loginUser.fulfilled.match(result)) {

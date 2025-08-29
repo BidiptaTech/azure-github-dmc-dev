@@ -1,7 +1,8 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk} from '@reduxjs/toolkit';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { BASE_URL } from '../../services/api';
+// import { setPriceHide, setZone_on } from '../common/authSlices';
 
 // Async thunk for fetching DMCs by country
 export const fetchDMCsByCountry = createAsyncThunk(
@@ -211,12 +212,17 @@ const dmcSlice = createSlice({
       // Extract logo and company name from DMC data
       let logo = null;
       let companyName = null;
+      let pricehide = null;
+      let zoneon=null;
       
       if (dmcData && dmcData.originalData) {
         logo = dmcData.originalData.logo || null;
         companyName = dmcData.originalData.company_name || null;
+        pricehide = dmcData.originalData.price_hide || null;
+        zoneon = dmcData.originalData.zone_on || null;
       }
-      
+      Cookies.set('PriceHide', String(pricehide));
+      Cookies.set('zone_on', zoneon);
       state.dmcId = dmcId;
       state.selectedDmcData = dmcData || null;
       state.selectedDmcLogo = logo;
@@ -393,6 +399,7 @@ const dmcSlice = createSlice({
             localStorage.setItem('selectedDmcData', JSON.stringify(state.selectedDmcData));
             localStorage.setItem('selectedDmcLogo', action.payload.dmc_logo || '');
             localStorage.setItem('selectedDmcCompanyName', action.payload.dmc_company_name || '');
+          
           } catch (error) {
             // Error handling silently
           }

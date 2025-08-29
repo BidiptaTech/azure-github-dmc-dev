@@ -147,7 +147,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
 
   // Get the search parameters from Redux store for pax counts
   const searchParams = useSelector((state) => state.restaurants.searchParams);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Update pax counts when search parameters change
   useEffect(() => {
     if (searchParams) {
@@ -540,119 +540,132 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
               flexDirection: 'column'
             }}>
               <List>
-                {selectedMealParts.map((meal, index) => (
-                  <ListItem
-                    key={meal.meal_id}
-                    sx={{
-                      mb: 1.5,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 1.5,
-                      backgroundColor: selectedMealIndex === index ? 'rgba(76, 175, 80, 0.04)' : 'transparent',
-                    }}
-                  >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.8 }}>
-                          <Radio
-                            checked={specificMealType.toLowerCase() === 'buffet' ? 
-                              selectedMealIndex === index : 
-                              selectedMealIndexes.includes(index)}
-                            onChange={() => handleRadioChange(index)}
-                            size="small"
-                          />
-                          <Box sx={{ ml: 1 }}>
-                            <MealDescription
-                              description={meal.name}
-                              expanded={expandedDescriptions[index]}
-                              onToggle={() => toggleDescription(index)}
-                            />
-                          </Box>
-                        </Box>
-                      }
-                      secondary={
-                        <Box sx={{ ml: 3 }}>
-                          {specificMealType.toLowerCase() === 'buffet' ? (
-                            <Box>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                Adult: {formatCurrency(meal.adult_price)} × {paxCounts.Adults} = {formatCurrency(meal.adult_price * paxCounts.Adults)}
-                              </Typography>
-                              {paxCounts.Children > 0 && (
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                  Child: {formatCurrency(meal.child_price)} × {paxCounts.Children} = {formatCurrency(meal.child_price * paxCounts.Children)}
-                                </Typography>
-                              )}
-                            </Box>
-                          ) : (
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                {formatCurrency(meal.price)}
-                              </Typography>
-                              
-                              {/* Quantity controls for Set Menu and A la carte */}
-                              {(specificMealType.toLowerCase() === 'set menu' || 
-                                specificMealType.toLowerCase() === 'a la carte') && 
-                               selectedMealIndexes.includes(index) && (
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center',
-                                  gap: 0.5,
-                                  ml: 1.5
-                                }}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleQuantityChange(index, -1)}
-                                    disabled={meal.quantity <= 1}
-                                    sx={{
-                                      border: '1px solid',
-                                      borderColor: 'divider',
-                                      '&:hover': {
-                                        backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                                      },
-                                    }}
-                                  >
-                                    <RemoveIcon fontSize="small" />
-                                  </IconButton>
-                                  <Typography 
-                                    variant="caption" 
-                                    sx={{ 
-                                      minWidth: '24px', 
-                                      textAlign: 'center',
-                                      fontWeight: 500,
-                                      fontSize: '0.7rem'
-                                    }}
-                                  >
-                                    {meal.quantity}
-                                  </Typography>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleQuantityChange(index, 1)}
-                                    sx={{
-                                      border: '1px solid',
-                                      borderColor: 'divider',
-                                      '&:hover': {
-                                        backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                                      },
-                                    }}
-                                  >
-                                    <AddIcon fontSize="small" />
-                                  </IconButton>
-                                  <Typography 
-                                    variant="caption" 
-                                    sx={{ ml: 1.5, fontWeight: 500, color: '#4caf50', fontSize: '0.7rem' }}
-                                  >
-                                    = {formatCurrency(meal.price * meal.quantity)}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          )}
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))}
+              {selectedMealParts.map((meal, index) => (
+  <ListItem
+    key={meal.meal_id}
+    sx={{
+      mb: 1.5,
+      border: '1px solid',
+      borderColor: 'divider',
+      borderRadius: 1,
+      p: 1.5,
+      backgroundColor: selectedMealIndex === index ? 'rgba(76, 175, 80, 0.04)' : 'transparent',
+    }}
+  >
+    <ListItemText
+      primary={
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.8 }}>
+          <Radio
+            checked={
+              specificMealType.toLowerCase() === 'buffet'
+                ? selectedMealIndex === index
+                : selectedMealIndexes.includes(index)
+            }
+            onChange={() => handleRadioChange(index)}
+            size="small"
+          />
+          <Box sx={{ ml: 1 }}>
+            <MealDescription
+              description={meal.name}
+              expanded={expandedDescriptions[index]}
+              onToggle={() => toggleDescription(index)}
+            />
+          </Box>
+        </Box>
+      }
+                             secondary={
+                         <Box sx={{ ml: 3 }}>
+                           {specificMealType.toLowerCase() === 'buffet' ? (
+                             <Box>
+                               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                 Adult: {PriceHide !== "1" ? formatCurrency(meal.adult_price) : "Price hidden"} × {paxCounts.Adults} = {PriceHide !== "1" ? formatCurrency(meal.adult_price * paxCounts.Adults) : "Price hidden"}
+                               </Typography>
+                               {paxCounts.Children > 0 && (
+                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                   Child: {PriceHide !== "1" ? formatCurrency(meal.child_price) : "Price hidden"} × {paxCounts.Children} = {PriceHide !== "1" ? formatCurrency(meal.child_price * paxCounts.Children) : "Price hidden"}
+                                 </Typography>
+                               )}
+                             </Box>
+                           ) : (
+                             <>
+                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                   {PriceHide !== "1" ? formatCurrency(meal.price) : "Price hidden"}
+                                 </Typography>
+                               </Box>
+
+                               {/* Quantity controls for Set Menu and A la carte */}
+                               {(specificMealType.toLowerCase() === 'set menu' ||
+                                 specificMealType.toLowerCase() === 'a la carte') &&
+                                 selectedMealIndexes.includes(index) && (
+                                   <Box
+                                     sx={{
+                                       display: 'flex',
+                                       alignItems: 'center',
+                                       gap: 0.5,
+                                       ml: 1.5,
+                                     }}
+                                   >
+                                     <IconButton
+                                       size="small"
+                                       onClick={() => handleQuantityChange(index, -1)}
+                                       disabled={meal.quantity <= 1}
+                                       sx={{
+                                         border: '1px solid',
+                                         borderColor: 'divider',
+                                         '&:hover': {
+                                           backgroundColor: 'rgba(76, 175, 80, 0.04)',
+                                         },
+                                       }}
+                                     >
+                                       <RemoveIcon fontSize="small" />
+                                     </IconButton>
+                                     <Typography
+                                       variant="caption"
+                                       sx={{
+                                         minWidth: '24px',
+                                         textAlign: 'center',
+                                         fontWeight: 500,
+                                         fontSize: '0.7rem',
+                                       }}
+                                     >
+                                       {meal.quantity}
+                                     </Typography>
+                                     <IconButton
+                                       size="small"
+                                       onClick={() => handleQuantityChange(index, 1)}
+                                       sx={{
+                                         border: '1px solid',
+                                         borderColor: 'divider',
+                                         '&:hover': {
+                                           backgroundColor: 'rgba(76, 175, 80, 0.04)',
+                                         },
+                                       }}
+                                     >
+                                       <AddIcon fontSize="small" />
+                                     </IconButton>
+                                     {PriceHide !== "1" ? (
+                                       <Typography
+                                         variant="caption"
+                                         sx={{ ml: 1.5, fontWeight: 500, color: '#4caf50', fontSize: '0.7rem' }}
+                                       >
+                                         = {formatCurrency(meal.price * meal.quantity)}
+                                       </Typography>
+                                     ) : (
+                                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                         = Price hidden
+                                       </Typography>
+                                     )}
+                                   </Box>
+                                 )}
+                             </>
+                           )}
+                         </Box>
+                       }
+    />
+  </ListItem>
+))}
+
               </List>
             </Box>
 
@@ -664,22 +677,22 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                 alignItems: 'center',
                 py: 1.5
               }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <ShoppingCartIcon sx={{ mr: 1.5, color: '#4caf50', fontSize: 20 }} />
-                  <Typography variant="subtitle1" component="div" sx={{ fontSize: '0.9rem' }}>
-                    Total Price:
-                  </Typography>
-                </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#4caf50', fontSize: '1.1rem' }}>
-                    {formatCurrency(totalPrice)}
-                  </Typography>
-                  {specificMealType.toLowerCase() === 'buffet' && (
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                      {paxCounts.Adults} Adult{paxCounts.Adults !== 1 ? 's' : ''}{paxCounts.Children > 0 ? ` + ${paxCounts.Children} Child${paxCounts.Children !== 1 ? 'ren' : ''}` : ''}
-                    </Typography>
-                  )}
-                </Box>
+                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                   <ShoppingCartIcon sx={{ mr: 1.5, color: '#4caf50', fontSize: 20 }} />
+                   <Typography variant="subtitle1" component="div" sx={{ fontSize: '0.9rem' }}>
+                     Total Price:
+                   </Typography>
+                 </Box>
+                 <Box sx={{ textAlign: 'right' }}>
+                   <Typography variant="h6" sx={{ fontWeight: 600, color: '#4caf50', fontSize: '1.1rem' }}>
+                     {PriceHide !== "1" ? formatCurrency(totalPrice) : "Price hidden"}
+                   </Typography>
+                   {specificMealType.toLowerCase() === 'buffet' && (
+                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                       {paxCounts.Adults} Adult{paxCounts.Adults !== 1 ? 's' : ''}{paxCounts.Children > 0 ? ` + ${paxCounts.Children} Child${paxCounts.Children !== 1 ? 'ren' : ''}` : ''}
+                     </Typography>
+                   )}
+                 </Box>
               </CardContent>
             </PriceSummaryCard>
 

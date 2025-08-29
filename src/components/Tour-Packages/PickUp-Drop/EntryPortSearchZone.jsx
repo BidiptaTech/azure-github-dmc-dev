@@ -64,6 +64,8 @@ const EntryPortSearchZone = ({ Location, portType}) => {
   const [exitpickUpLocation, setexitPickUpLocation] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [entryytime, setentryytime] = useState("");
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
 
   const TourId = useSelector((state) => state.hotels.id);
   console.log("TourId", TourId);

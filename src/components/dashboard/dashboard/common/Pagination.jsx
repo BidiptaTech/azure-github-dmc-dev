@@ -6,9 +6,16 @@ const Pagination = ({ currentPage, setCurrentPage, totalPages }) => {
   const dispatch = useDispatch();
   const { start, limit, type } = useSelector((state) => state.lists);
   
-    const handlePageClick = (pageNumber) => {
+  const handlePageClick = (pageNumber) => {
     // console.log('Pagination: handlePageClick called with:', { pageNumber, currentPage, totalPages });
     
+    // For normal page navigation (not the last page), just update the page without API call
+    if (pageNumber !== totalPages) {
+      setCurrentPage(pageNumber);
+      return;
+    }
+    
+    // Only call API when reaching the last page
     // Calculate how many items we need to skip to reach this page
     // Since UI shows 5 items per page but API fetches 30 at a time
     const itemsPerPage = 5; // This should match rowsPerPage in the component
@@ -19,39 +26,36 @@ const Pagination = ({ currentPage, setCurrentPage, totalPages }) => {
     // For example: if we want page 7 (items 30-34), we need to fetch starting from position 30
     const newStart = Math.floor(itemsToSkip / limit) * limit;
     
-    // console.log('Pagination: Dispatching fetchLists with:', { newStart, limit, type, reset: false });
+    // console.log('Pagination: Dispatching fetchLists for last page with:', { newStart, limit, type, reset: false });
     
-    // Always fetch data when jumping to a new page to ensure we have enough data
-    // This handles the case where we jump to the last page and need more data
+    // Fetch data when reaching the last page to ensure we have enough data
     dispatch(fetchLists({ start: newStart, limit, type, reset: false })).then(() => {
       // console.log('Pagination: First fetchLists completed successfully');
       
       // Only update the current page after the data is fetched successfully
       setCurrentPage(pageNumber);
       
-      // If we're going to the last page, always fetch the next chunk of data
+      // Since we're on the last page, always fetch the next chunk of data
       // This ensures that when you reach the last page, more pages will be added if available
-      if (pageNumber === totalPages) {
-        // Calculate the next chunk start position
-        const nextStart = Math.ceil(itemsToSkip / limit) * limit ;
-        
-        // Fetch the next chunk to see if more data is available
-        // Make sure we're using the correct type for the current component
-        const currentType = type || "past"; // Default to "past" for Deleted.jsx
-        
-        // console.log('Fetching next chunk of data:', { 
-          currentPage: pageNumber, 
-        //   totalPages, 
-        //   nextStart,
-        //   limit,
-        //   type,
-        //   currentType
-        // });
-        
-        dispatch(fetchLists({ start: nextStart, limit, type: currentType, reset: false }));
-      }
+      // Calculate the next chunk start position
+      const nextStart = Math.ceil(itemsToSkip / limit) * limit;
+      
+      // Fetch the next chunk to see if more data is available
+      // Make sure we're using the correct type for the current component
+      const currentType = type || "past"; // Default to "past" for Deleted.jsx
+      
+      // console.log('Fetching next chunk of data for last page:', { 
+      //   currentPage: pageNumber, 
+      //   totalPages, 
+      //   nextStart,
+      //   limit,
+      //   type,
+      //   currentType
+      // });
+      
+      dispatch(fetchLists({ start: nextStart, limit, type: currentType, reset: false }));
     }).catch((error) => {
-      console.error('Failed to fetch data for page:', pageNumber, error);
+      console.error('Failed to fetch data for last page:', pageNumber, error);
       // Don't update the page if the fetch failed
     });
   };

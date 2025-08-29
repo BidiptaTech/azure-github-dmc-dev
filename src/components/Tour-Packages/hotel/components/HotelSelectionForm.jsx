@@ -32,13 +32,13 @@ const HotelSelectionForm = ({
   searchCriteria
 }) => {
   
-  console.log("HotelSelectionForm render:", {
-    selectedHotel,
-    roomType,
-    roomTypes,
-    roomDataStatus,
-    roomTypesCount: roomTypes?.length || 0
-  });
+  // console.log("HotelSelectionForm render:", {
+  //   selectedHotel,
+  //   roomType,
+  //   roomTypes,
+  //   roomDataStatus,
+  //   roomTypesCount: roomTypes?.length || 0
+  // });
   
   // Handle room type selection
   const handleRoomTypeChange = (e) => {

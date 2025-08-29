@@ -148,7 +148,7 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
   const currencyCode = useSelector((state) => state.auth.currencyCode) || "SGD";
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
-  
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   // Get booking date from section if not provided as prop
   const sectionBookingDate = formSections && formSections[sectionIndex] ? formSections[sectionIndex].bookingDate : null;
   const effectiveBookingDate = bookingDate || sectionBookingDate;
@@ -599,27 +599,40 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Chip
-                  icon={<PersonIcon sx={{ fontSize: 14 }} />}
-                  label={`Adult: ${formatPrice(getPrice(option, "adult"), "main")}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 20 }}
-                />
-                <Chip
-                  icon={<GroupIcon sx={{ fontSize: 14 }} />}
-                  label={`Child: ${formatPrice(getPrice(option, "child"), "main")}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 20 }}
-                />
-                <Chip
-                  icon={<ElderlyIcon sx={{ fontSize: 14 }} />}
-                  label={`Senior: ${formatPrice(getPrice(option, "senior"), "main")}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem', height: 20 }}
-                />
+                {PriceHide !== "1" ? (
+                  <>
+                    <Chip
+                      icon={<PersonIcon sx={{ fontSize: 14 }} />}
+                      label={`Adult: ${formatPrice(getPrice(option, "adult"), "main")}`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 20 }}
+                    />
+                    <Chip
+                      icon={<GroupIcon sx={{ fontSize: 14 }} />}
+                      label={`Child: ${formatPrice(getPrice(option, "child"), "main")}`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 20 }}
+                    />
+                    <Chip
+                      icon={<ElderlyIcon sx={{ fontSize: 14 }} />}
+                      label={`Senior: ${formatPrice(getPrice(option, "senior"), "main")}`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 20 }}
+                    />
+                  </>
+                ) : (
+                  <Chip
+                    icon={<AttachMoneyIcon sx={{ fontSize: 14 }} />}
+                    label="Pricing hidden"
+                    size="small"
+                    variant="outlined"
+                    color="default"
+                    sx={{ fontSize: '0.7rem', height: 20 }}
+                  />
+                )}
               </Box>
               {isPackage(option) && option.attractions && (
                 <Box sx={{ mt: 1 }}>
@@ -841,85 +854,103 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                 )}
 
                 {/* Price Cards in Grid */}
-                <Box 
-                  textAlign="center" 
-                  mb={1.5} 
-                  py={0.8} 
-                  bgcolor={alpha('#3554D1', 0.05)} 
-                  borderRadius={1}
-                >
-                  <Typography variant="subtitle1" display="flex" alignItems="center" justifyContent="center" sx={{ fontSize: '0.9rem' }}>
-                    <AttachMoneyIcon sx={{ mr: 1, fontSize: 18 }} />
-                    {isPackage(selectedTicket) ? 'Package Pricing' : (nriStatus === "residential" ? "Local Prices" : "Foreigner Prices")}
-                    </Typography>
-                </Box>
+                {PriceHide !== "1" ? (
+                  <>
+                    <Box 
+                      textAlign="center" 
+                      mb={1.5} 
+                      py={0.8} 
+                      bgcolor={alpha('#3554D1', 0.05)} 
+                      borderRadius={1}
+                    >
+                      <Typography variant="subtitle1" display="flex" alignItems="center" justifyContent="center" sx={{ fontSize: '0.9rem' }}>
+                        <AttachMoneyIcon sx={{ mr: 1, fontSize: 18 }} />
+                        {isPackage(selectedTicket) ? 'Package Pricing' : (nriStatus === "residential" ? "Local Prices" : "Foreigner Prices")}
+                        </Typography>
+                    </Box>
 
-                    <Grid container spacing={1.5}>
-                  {['adult', 'child', 'senior'].map(priceType => (
-                    <Grid item xs={12} sm={4} key={`${priceType}-${nriStatus}`}>
-                      <Fade in={true} timeout={500}>
-                        <PriceCard>
-                          <PriceCardHeader type={priceType}>
-                            <Box display="flex" alignItems="center">
-                              {getPriceIcon(priceType)}
-                              <Typography 
-                                variant="body2" 
-                                fontWeight={500}
-                                sx={{ ml: 1, fontSize: '0.8rem' }}
-                              >
-                                {priceType.charAt(0).toUpperCase() + priceType.slice(1)} Price
-                              </Typography>
-                            </Box>
-                            <Avatar 
-                              className="price-icon"
-                              sx={{ 
-                                width: 28, 
-                                height: 28, 
-                                bgcolor: `${getPriceColor(priceType)}.main`,
-                              }}
-                            >
-                              {priceType === 'adult' ? 'A' : priceType === 'child' ? 'C' : 'S'}
-                              </Avatar>
-                          </PriceCardHeader>
-                          
-                          <CardContent sx={{ p: 1.5 }}>                          
-                            <Typography 
-                              variant="h6" 
-                              component="div" 
-                              fontWeight={600}
-                              color={`${getPriceColor(priceType)}.main`}
-                              textAlign="center"
-                              mb={1}
-                              sx={{ fontSize: '1.1rem' }}
-                            >
-                              {formatPrice(getPrice(selectedTicket, priceType), "main")}
-                              </Typography>
-                            
-                            <Divider sx={{ mb: 1 }} />
-                            
-                            <Box>
-                              {currencyCode !== "USD" && (
-                                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-                                  <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.7rem' }}>
-                                    {formatPrice(getPrice(selectedTicket, priceType), "usd")}
-                                </Typography>
+                        <Grid container spacing={1.5}>
+                      {['adult', 'child', 'senior'].map(priceType => (
+                        <Grid item xs={12} sm={4} key={`${priceType}-${nriStatus}`}>
+                          <Fade in={true} timeout={500}>
+                            <PriceCard>
+                              <PriceCardHeader type={priceType}>
+                                <Box display="flex" alignItems="center">
+                                  {getPriceIcon(priceType)}
+                                  <Typography 
+                                    variant="body2" 
+                                    fontWeight={500}
+                                    sx={{ ml: 1, fontSize: '0.8rem' }}
+                                  >
+                                    {priceType.charAt(0).toUpperCase() + priceType.slice(1)} Price
+                                  </Typography>
                                 </Box>
-                              )}
+                                <Avatar 
+                                  className="price-icon"
+                                  sx={{ 
+                                    width: 28, 
+                                    height: 28, 
+                                    bgcolor: `${getPriceColor(priceType)}.main`,
+                                  }}
+                                >
+                                  {priceType === 'adult' ? 'A' : priceType === 'child' ? 'C' : 'S'}
+                                  </Avatar>
+                              </PriceCardHeader>
+                              
+                              <CardContent sx={{ p: 1.5 }}>                          
+                                <Typography 
+                                  variant="h6" 
+                                  component="div" 
+                                  fontWeight={600}
+                                  color={`${getPriceColor(priceType)}.main`}
+                                  textAlign="center"
+                                  mb={1}
+                                  sx={{ fontSize: '1.1rem' }}
+                                >
+                                  {formatPrice(getPrice(selectedTicket, priceType), "main")}
+                                  </Typography>
+                                
+                                <Divider sx={{ mb: 1 }} />
+                                
+                                <Box>
+                                  {currencyCode !== "USD" && (
+                                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+                                      <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.7rem' }}>
+                                        {formatPrice(getPrice(selectedTicket, priceType), "usd")}
+                                    </Typography>
+                                    </Box>
+                                  )}
 
-                              {currencyCode !== "SGD" && (
-                                <Box display="flex" alignItems="center" justifyContent="space-between">
-                                  <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.7rem' }}>
-                                    {formatPrice(getPrice(selectedTicket, priceType), "sgd")}
-                                </Typography>
+                                  {currencyCode !== "SGD" && (
+                                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                                      <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.7rem' }}>
+                                        {formatPrice(getPrice(selectedTicket, priceType), "sgd")}
+                                    </Typography>
+                                    </Box>
+                                  )}
                                 </Box>
-                              )}
-                            </Box>
-                            </CardContent>
-                        </PriceCard>
-                      </Fade>
+                                </CardContent>
+                            </PriceCard>
+                          </Fade>
+                            </Grid>
+                          ))}
                         </Grid>
-                      ))}
-                    </Grid>
+                  </>
+                ) : (
+                  <Box 
+                    textAlign="center" 
+                    mb={1.5} 
+                    py={2} 
+                    bgcolor={alpha('#f5f5f5', 0.8)} 
+                    borderRadius={1}
+                    border="1px dashed"
+                    borderColor="grey.300"
+                  >
+                    <Typography variant="subtitle1" color="text.secondary" sx={{ fontSize: '0.9rem' }}>
+                      Pricing information is currently hidden
+                    </Typography>
+                  </Box>
+                )}
                 
                 {/* Package Info - If selected ticket is a package */}
                 {isPackage(selectedTicket) && selectedTicket.attractions && selectedTicket.attractions.length > 0 && (
@@ -1071,22 +1102,31 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
                         </Typography>
                       </Box>
                       
-                      <Box display="flex" flexDirection="column" mt={0.8}>
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5, fontSize: '0.65rem' }}>
-                          <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'primary.main', fontSize: 12 }} />
-                          Adult: {formatPrice(getPrice(item, "adult"), "main")}
-                        </Typography>
-                        
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5, fontSize: '0.65rem' }}>
-                          <ChildCareIcon fontSize="small" sx={{ mr: 0.5, color: 'success.main', fontSize: 12 }} />
-                          Child: {formatPrice(getPrice(item, "child"), "main")}
-                        </Typography>
-                        
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem' }}>
-                          <AccessibilityNewIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main', fontSize: 12 }} />
-                          Senior: {formatPrice(getPrice(item, "senior"), "main")}
-                        </Typography>
-                      </Box>
+                      {PriceHide !== "1" ? (
+                        <Box display="flex" flexDirection="column" mt={0.8}>
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5, fontSize: '0.65rem' }}>
+                            <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'primary.main', fontSize: 12 }} />
+                            Adult: {formatPrice(getPrice(item, "adult"), "main")}
+                          </Typography>
+                          
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', mb: 0.5, fontSize: '0.65rem' }}>
+                            <ChildCareIcon fontSize="small" sx={{ mr: 0.5, color: 'success.main', fontSize: 12 }} />
+                            Child: {formatPrice(getPrice(item, "child"), "main")}
+                          </Typography>
+                          
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem' }}>
+                            <AccessibilityNewIcon fontSize="small" sx={{ mr: 0.5, color: 'warning.main', fontSize: 12 }} />
+                            Senior: {formatPrice(getPrice(item, "senior"), "main")}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box display="flex" flexDirection="column" mt={0.8}>
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem', color: 'text.secondary' }}>
+                            <AttachMoneyIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary', fontSize: 12 }} />
+                            Pricing hidden
+                          </Typography>
+                        </Box>
+                      )}
                       
                       {isPackage(item) && item.attractions && (
                         <Box mt={0.8}>

@@ -70,6 +70,7 @@ const PortSummaryModal = ({
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   // Determine color theme based on port type
   const getColorTheme = () => {
@@ -367,7 +368,13 @@ const PortSummaryModal = ({
                     </Box>
                   </Box>
                   <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)', mb: 1 }} />
-                  {formatPrice(bookingData.price)}
+                  {PriceHide !== "1" ? (
+                    formatPrice(bookingData.price)
+                  ):(
+                    <Typography variant="caption" color="text.secondary">
+                      Pricing hidden
+                    </Typography>
+                  )}
                   {bookingData.taxPercentage && (
                     <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 0.5 }}>
                       *Inc. {bookingData.taxPercentage}% tax
