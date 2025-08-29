@@ -180,7 +180,21 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
               if (Array.isArray(tour.child_ages)) {
                 return tour.child_ages;
               } else if (typeof tour.child_ages === 'string') {
-                return JSON.parse(tour.child_ages || '[]');
+                // Handle comma-separated string format like "16, 14, 14"
+                if (tour.child_ages.includes(',')) {
+                  return tour.child_ages.split(',').map(age => age.trim()).filter(age => age !== '');
+                }
+                // Handle single child age like "5" - convert to array
+                if (tour.child_ages.trim() !== '') {
+                  return [tour.child_ages.trim()];
+                }
+                // Try to parse as JSON first (for backward compatibility)
+                try {
+                  return JSON.parse(tour.child_ages);
+                } catch {
+                  // If JSON parsing fails, return empty array
+                  return [];
+                }
               } else if (tour.child_ages) {
                 return [tour.child_ages];
               }
@@ -209,7 +223,21 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
               if (Array.isArray(enquirydetail.child_ages)) {
                 return enquirydetail.child_ages;
               } else if (typeof enquirydetail.child_ages === 'string') {
-                return JSON.parse(enquirydetail.child_ages || '[]');
+                // Handle comma-separated string format like "16, 14, 14"
+                if (enquirydetail.child_ages.includes(',')) {
+                  return enquirydetail.child_ages.split(',').map(age => age.trim()).filter(age => age !== '');
+                }
+                // Handle single child age like "5" - convert to array
+                if (enquirydetail.child_ages.trim() !== '') {
+                  return [enquirydetail.child_ages.trim()];
+                }
+                // Try to parse as JSON first (for backward compatibility)
+                try {
+                  return JSON.parse(enquirydetail.child_ages);
+                } catch {
+                  // If JSON parsing fails, return empty array
+                  return [];
+                }
               } else if (enquirydetail.child_ages) {
                 return [enquirydetail.child_ages];
               }

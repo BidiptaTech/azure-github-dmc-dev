@@ -60,7 +60,7 @@ const SearchLocation = ({ Location, portType, portType1 }) => {
   const activePortsCount = (portType === "Entry Port" ? 1 : 0) + (portType1 === "Exit Port" ? 1 : 0);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
+    <Container  maxWidth="xl" sx={{ py: 0.1, position: 'relative' }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}

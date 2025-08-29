@@ -41,6 +41,12 @@ const StyledSelect = styled(Select)(({ theme, disabled }) => ({
   height: "48px",
   borderRadius: "8px",
   fontSize: "16px",
+  overflow: "hidden",
+  position: "relative",
+  maxHeight: "240px",
+  width: "100%", // Full width to fill parent container
+  minWidth: "120px", // Minimum width for very small containers
+  fontFamily: "inherit",
   padding: "0 10px",
   backgroundColor: disabled ? "#f0f0f0" : "#f5f7fb",
   opacity: disabled ? 0.8 : 1,
@@ -58,6 +64,40 @@ const StyledSelect = styled(Select)(({ theme, disabled }) => ({
     alignItems: "center",
     gap: "8px",
     color: disabled ? "#999" : "inherit",
+  },
+  
+  // Media queries for responsive design
+  [theme.breakpoints.down('xl')]: {
+    height: "46px",
+    fontSize: "15px",
+    padding: "0 8px",
+  },
+  
+  [theme.breakpoints.down('lg')]: {
+    height: "44px",
+    fontSize: "14px",
+    padding: "0 8px",
+  },
+  
+  [theme.breakpoints.down('md')]: {
+    height: "42px",
+    fontSize: "14px",
+    padding: "0 6px",
+    borderRadius: "6px",
+  },
+  
+  [theme.breakpoints.down('sm')]: {
+    height: "40px",
+    fontSize: "13px",
+    padding: "0 6px",
+    borderRadius: "6px",
+  },
+  
+  [theme.breakpoints.down('xs')]: {
+    height: "38px",
+    fontSize: "12px",
+    padding: "0 5px",
+    borderRadius: "5px",
   },
 }));
 
@@ -114,7 +154,7 @@ const Pickuptime1 = ({
   };
 
   return (
-    <FormControl>
+    <FormControl fullWidth>
       <StyledSelect
         value={entryytime || ''}
         onChange={handleTimeChange}
