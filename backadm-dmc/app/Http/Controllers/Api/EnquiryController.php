@@ -999,7 +999,7 @@ class EnquiryController extends Controller
     {
         $user = auth()->user();
         // Check if user is a DMC role (Sales Head, Sales Manager, or Asst Sales Manager)
-        if (!in_array($user?->role_id, [33, 37, 38])) {
+        if (!in_array($user?->role_id, [33, 37, 38, 34, 124, 125])) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized access. Only DMC roles can access this endpoint.',

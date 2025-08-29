@@ -26,6 +26,7 @@ use App\Helpers\CommonHelper;
 use Carbon\Carbon;
 use App\Models\EnquiryForm;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 
 class SingleTourPackageController extends Controller
 {
@@ -269,6 +270,111 @@ class SingleTourPackageController extends Controller
         return view('single-tour-package.create', compact('countries', 'agents', 'enquiry', 'hotels', 
             'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'existingTour', 'tourData',
             'restaurants', 'serviceData'));
+    }
+
+
+    public function editpackage(Request $request, $tour_id)
+    {
+        if (!$tour_id) {
+            \Log::error('No tour_id provided');
+            return redirect()->back()->with('error', 'Tour ID is required to edit tour services.');
+        }
+        $tour = Tour::where('tour_id', $tour_id)->first();
+        $agent_name = Agent::where('agent_id', $tour->agent_id)->first()->name;
+        if (!$tour) {
+            \Log::error('Tour not found with tour_id: ' . $tour_id);
+            return redirect()->back()->with('error', 'Tour not found.');
+        }
+        
+        // Get hotels based on user's DMC ID
+        $userDmcId = Auth::user()->created_by;
+        if ($userDmcId) {
+            $hotels = Hotel::with(['rooms.bed'])->where('country', $tour->destination)
+                        //   ->whereJsonContains('dmc_id', $userDmcId)
+                          ->get();
+        } else {
+            $hotels = collect(); // Empty collection if no DMC ID
+        }
+        $guide = Guide::where('dmc_id', $userDmcId)->get();
+        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        $portsQuery = Port::query();
+        if ($request->has('country') && $request->country) {
+            $country = Country::find($request->country);
+            if ($country) {
+                $portsQuery->where('country', $country->name);
+            }
+        }
+        $ports = $portsQuery->orderBy('port_name')->get();
+        $agents = Agent::Where('sales_manager_dmc', Auth::id())
+            ->orderBy('name')
+            ->get();
+        $selectedCountry = $request->country;
+        // Fetch all orders for this tour
+        $orders = Order::where('tour_id', $tour_id)
+            ->whereNull('deleted_at')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Group orders by type and process the data
+        $ordersByType = [];
+        foreach ($orders as $order) {
+            $type = $order->type;
+            if (!isset($ordersByType[$type])) {
+                $ordersByType[$type] = [];
+            }
+            
+            // Parse the JSON data
+            $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            
+            // Add processed data to the order
+            $order->processed_data = $orderData;
+            $ordersByType[$type][] = $order;
+        }
+        
+        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guide'));
+    }
+
+    /**
+     * Get order details for editing
+     */
+    public function getOrder($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+            
+            return response()->json([
+                'success' => true,
+                'order' => $order
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+    }
+
+    /**
+     * Cancel an order
+     */
+    public function cancelOrder(Request $request, $id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+            
+            // Soft delete the order
+            $order->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Order cancelled successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel order: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -2179,4 +2285,5 @@ class SingleTourPackageController extends Controller
             ], 422);
         }
     }
+    
 } 
