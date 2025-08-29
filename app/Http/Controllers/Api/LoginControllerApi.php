@@ -49,6 +49,363 @@ class LoginControllerApi extends Controller
         }
     }
     
+    // public function login(Request $request)
+    // {
+    //     function getCurrencySymbolByCode($currencyCode) {
+    //         $formatter = new NumberFormatter('en', NumberFormatter::CURRENCY);
+            
+    //         try {
+    //             $symbol = $formatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
+    //             // Format 0 amount just to get the symbol from the currency code
+    //             $formatted = $formatter->formatCurrency(0, $currencyCode);
+                
+    //             // Extract the symbol from the formatted string
+    //             $symbol = preg_replace('/[0-9,. ]/', '', $formatted);
+                
+    //             return $symbol ?: $currencyCode; // Fallback to currency code if symbol not found
+    //         } catch (\Exception $e) {
+    //             return $currencyCode; // Return code if formatter fails
+    //         }
+    //     }
+    //     $request->validate([
+    //         'email' => 'required|email',
+    //         'password' => 'required|string|min:6',
+    //     ]);
+    //     $email = $request->input('email');
+    //     $password = $request->input('password');
+    //     // $user = User::where('email', $email)->first();
+    //     $user = Agent::where('email', $email)->first();
+    //     $userModel = 'Agent';
+
+    //     if (!$user) {
+    //         $user = User::where('email', $email)
+    //         ->wherein('role_id', [33,37,38])
+    //         ->first();
+    //         $userModel = 'User';
+    //     }
+    //     $user_role = $user->role_id ?? 0;
+    //     if($userModel == 'User' && in_array($user_role, [33,37,38])){
+    //         $userRoleId = $user->role_id;
+    //         $userRole = Role::where('role_id', $userRoleId)->first()->name; 
+            
+    //     }else{
+    //         $userRole = "Agent";
+    //     }
+    //     if(!$user){
+    //         return response()->json(['error' => 'This email is  not registered.'], 401);
+    //     }
+
+    //     if($user->role_id == 20 && $user->status == 2){
+    //         return response()->json(['error' => 'Your account is not verified.'], 401);
+    //     }
+    //     if (!$user || !Hash::check($password, $user->password)) {
+    //         return response()->json(['error' => 'Invalid credentials.'], 401);
+    //     }
+        
+    //     // Initialize variables to avoid undefined errors
+    //     $dmc_id = null;
+    //     $dmc_users = null;
+        
+    //     if ($user) {
+    //         // Get the appropriate creator ID based on user model
+    //         $creatorId = ($userModel == 'Agent') ? $user->sales_manager_dmc : $user->created_by;
+            
+    //         switch ($user->role_id) {
+    //             case 11: // Agent is a DMC
+    //                 $dmc_id = $user->userId; // For DMC, the user itself is the DMC
+    //                 $dmc_users = $user; // DMC is its own reference
+    //                 $dmc_logo = $user->logo;
+    //                 break;
+    //                 case 33: 
+    //                 case 128: 
+    //                 case 129: 
+    //                 case 130: 
+    //                 case 134: 
+    //                 case 135: 
+    //                 case 136: 
+    //                 case 138: // Sales Head
+    //                 if ($userModel == 'User') {
+    //                     // For SH, creator should be DMC
+    //                     $dmc_users = User::where('userId', $creatorId)->first(); // DMC
+    //                     if ($dmc_users && $dmc_users->role_id == 11) {
+    //                         $dmc_id = $dmc_users->userId;
+    //                         $dmc_logo = $dmc_users->logo;
+    //                     } else {
+    //                         // If creator is not DMC, look for their creator
+    //                         $superiorUser = User::where('userId', $creatorId)->first();
+    //                         if ($superiorUser) {
+    //                             $dmc_users = User::where('userId', $superiorUser->created_by)->first();
+    //                             if ($dmc_users && $dmc_users->role_id == 11) {
+    //                                 $dmc_id = $dmc_users->userId;
+    //                                 $dmc_logo = $dmc_users->logo;
+    //                             }
+    //                         }
+    //                     }
+    //                 } else {
+    //                     // Agent case - use sales_manager_dmc reference
+    //                     $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first();
+    //                     if ($saleshead_dmc) {
+    //                         $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
+    //                         if ($dmc_users && $dmc_users->role_id == 11) {
+    //                             $dmc_id = $dmc_users->userId;
+    //                             $dmc_logo = $dmc_users->logo;
+    //                         }
+    //                     }
+    //                 }
+    //                 break;
+    //             case 12:
+    //             case 37: // Sales Manager
+    //                 if ($userModel == 'User') {
+    //                     // First, get Sales Head (creator of Sales Manager)
+    //                     $saleshead = User::where('userId', $creatorId)->first();
+    //                     if ($saleshead) {
+    //                         // Then get DMC (creator of Sales Head)
+    //                         $dmc_users = User::where('userId', $saleshead->created_by)->first();
+    //                         if ($dmc_users && $dmc_users->role_id == 11) {
+    //                             $dmc_id = $dmc_users->userId;
+    //                             $dmc_logo = $dmc_users->logo;
+    //                         }
+    //                     }
+    //                 } else {
+    //                     // Agent case - using the original code path
+    //                     $salesmng_dmc = User::where('userId', $user->sales_manager_dmc)->first();
+    //                     if ($salesmng_dmc) {
+    //                         $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first();
+    //                         if ($saleshead_dmc) {
+    //                             $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
+    //                             if ($dmc_users && $dmc_users->role_id == 11) {
+    //                                 $dmc_id = $dmc_users->userId;
+    //                                 $dmc_logo = $dmc_users->logo;
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //                 break;
+    //             case 38: // Assistant Manager
+    //                 if ($userModel == 'User') {
+    //                     // First, get Sales Manager (creator of Asst Manager)
+    //                     $salesManager = User::where('userId', $creatorId)->first();
+    //                     if ($salesManager) {
+    //                         // Then get Sales Head (creator of Sales Manager)
+    //                         $salesHead = User::where('userId', $salesManager->created_by)->first();
+    //                         if ($salesHead) {
+    //                             // Finally get DMC (creator of Sales Head)
+    //                             $dmc_users = User::where('userId', $salesHead->created_by)->first();
+    //                             if ($dmc_users && $dmc_users->role_id == 11) {
+    //                                 $dmc_id = $dmc_users->userId;
+    //                                 $dmc_logo = $dmc_users->logo;
+    //                             }
+    //                         }
+    //                     }
+    //                 } else {
+    //                     // Original path for Agent
+    //                     $asmng_dmc = User::where('userId', $user->sales_manager_dmc)->first();
+    //                     if ($asmng_dmc) {
+    //                         $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first();
+    //                         if ($salesmng_dmc) {
+    //                             $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first();
+    //                             if ($saleshead_dmc && $saleshead_dmc->role_id == 11) {
+    //                                 $dmc_users = $saleshead_dmc;
+    //                                 $dmc_id = $saleshead_dmc->userId;
+    //                                 $dmc_logo = $saleshead_dmc->logo;
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //                 break;
+    //         }
+            
+    //         // Fallback mechanism for all roles if DMC is still not found
+    //         if (!isset($dmc_users) || !isset($dmc_id)) {
+    //             // Try to find DMC by traversing up the hierarchy
+    //             $currentUser = User::where('userId', $creatorId)->first();
+    //             $maxDepth = 5; // Prevent infinite loops by setting a maximum depth
+    //             $depth = 0;
+                
+    //             while ($currentUser && $depth < $maxDepth) {
+    //                 if ($currentUser->role_id == 11) {
+    //                     $dmc_users = $currentUser;
+    //                     $dmc_id = $currentUser->userId;
+    //                     $dmc_logo = $currentUser->logo;
+    //                     break;
+    //                 }
+    //                 $currentUser = User::where('userId', $currentUser->created_by)->first();
+    //                 $depth++;
+    //             }
+                
+    //             // If still not found, try the basic fallback
+    //             if (!isset($dmc_users) || !isset($dmc_id)) {
+    //                 $dmc_users = User::where('userId', $creatorId)->first();
+    //                 if ($dmc_users && $dmc_users->role_id == 11) {
+    //                     $dmc_id = $dmc_users->userId;
+    //                     $dmc_logo = $dmc_users->logo;
+    //                 }
+    //             }
+    //         }
+    //     }
+        
+    //     // Ensure $dmc_id and $dmc_users are valid
+    //     if (!$dmc_id) {
+    //         // Default fallback if $dmc_id is still not set
+    //         $dmc_id = $user->userId ?? $user->agent_id ?? null;
+    //         $dmc_logo = $user->logo;
+    //     }
+        
+    //     $dmc = User::where('userId', $dmc_id)->first(); //For Dmc Company Name
+        
+    //     // Handle case where $dmc might be null
+    //     $master_dmc = null;
+    //     if ($dmc) {
+    //         $master_dmc = User::where('userId', $dmc->master_dmc_id)->first(); //For MDMC Logo
+    //     }
+        
+    //     $token = $user->createToken('react-login')->plainTextToken;
+    //     $tokenId = explode('|', $token)[0];
+    //     $hashToken = PersonalAccessToken::where('id',$tokenId)->latest()->first();
+    //     try {
+    //         $countryName = $request->header('user-country');
+    
+    //         if (!$countryName) {
+    //             return response()->json(['message' => 'Country header is missing'], 400);
+    //         }
+    //         $iso3166 = new ISO3166();
+    
+    //         // Search country by name
+    //         $country = collect($iso3166->all())->firstWhere('name', $countryName);
+    
+    //         if (!$country) {
+    //             $currencyCode = 'Country not found';
+    //         }
+
+    //         $currencyCode = $country['currency'][0]; // Some countries have multiple currencies
+    //         $symbol = getCurrencySymbolByCode($currencyCode);
+            
+    //     } catch (\Exception $e) {
+    //         $symbol = $e->getMessage();
+    //     }
+
+    //     $setting = Setting::where('name', 'currency')->where('status', 1)->first();
+    //     $country_wise_rate = $this->currencyService->getExchangeRate('SGD', $currencyCode);
+
+    //     $inr_rate = $this->currencyService->getExchangeRate('SGD', 'INR');
+    //     $usd_rate = $this->currencyService->getExchangeRate('SGD', 'USD');
+        
+    //     if ($country_wise_rate) {
+    //         $exchangeRate = $country_wise_rate;
+    //     } else {
+    //         $exchangeRate= "Exchange rate unavailable";
+    //     }
+    //     $country = $country;
+    //     $userCountry = $user->country;
+    //     $userCountryData = [];
+
+    //     if ($userCountry) {
+    //         // Split by comma and trim whitespace
+    //         $countries = array_map('trim', explode(',', $userCountry));
+            
+    //         foreach ($countries as $countryName) {
+    //             $countryCode = CountryHelper::getCountryCode($countryName);
+    //             if ($countryCode) {
+    //                 $countryInfos = Country::where('name', $countryName)->first();
+    //                 $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
+    //                 $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
+    //                 $userCountryData[] = [
+    //                     'name' => $countryName,
+    //                     'code' => $countryCode,
+    //                     'country_code' => $countryInfos->country_code,
+    //                     'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
+    //                     'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
+    //                 ];
+    //             }
+    //         }
+    //     }
+
+    //     $countryInfo = Country::where('name', $country)->first();
+        
+    //     // Handle multiple DMC IDs and company names
+    //     $dmc_ids = [];
+    //     $dmc_company_names = [];
+        
+    //     if ($userModel == 'Agent' && $user->dmc_id) {
+    //         // Parse the JSON array of DMC IDs from agent table
+    //         // $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
+    //         $agency = Agency::where('agency_id', $user->agency_id)->first();
+    //         $agentDmcIds = $agency->dmc_id;
+            
+    //         if (is_array($agentDmcIds)) {
+    //             $dmc_ids = $agentDmcIds;
+                
+    //             // Fetch company names for all DMC IDs
+    //             $dmcCompanies = User::whereIn('userId', $agentDmcIds)
+    //                 ->where('role_id', 11) // DMC role
+    //                 ->select('userId', 'company_name')
+    //                 ->get();
+                
+    //             foreach ($dmcCompanies as $dmcCompany) {
+    //                 $dmc_company_names[] = [
+    //                     'dmc_id' => $dmcCompany->userId,
+    //                     'company_name' => $dmcCompany->company_name,
+    //                     'logo' => $dmcCompany->logo,
+    //                     'price_hide' => $dmcCompany->price_hide,
+    //                     'zone_on' => $dmcCompany->zone_on,
+    //                 ];
+    //             }
+    //         }
+    //     } else {
+    //         // For User model or single DMC case, use existing logic
+    //         if($dmc_id){
+    //             $dmc_ids = [$dmc_id];
+    //             $dmc_company_names = [[
+    //                 'dmc_id' => $dmc_id,
+    //                 'company_name' => $dmc->company_name ?? ''
+    //             ]];
+    //         }
+    //     }
+        
+    //     $agent_country_tax = $countryInfo->tax_percentage ?? 0;
+    //     $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
+    //     $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Login successful',
+    //         'user' => [
+    //             'agent_id' => $user->agent_id,
+    //             'agent_company_name' => $user->company_name,
+    //             'name' => $user->name,
+    //             'email' => $user->email,
+    //             'agent_address' => $user->agent_address,
+    //             'profile_picture' => $user->image ?? '',
+    //             'logo' => $master_dmc->logo ?? '', 
+    //             'dmc_logo' => $dmc_logo ?? '',
+    //             'agency_logo' => $user->agent_image ?? '',
+    //             'dmc_name' => $dmc->company_name ?? '', 
+    //             'country' => $country ?? '',
+    //             'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
+    //             'token' => $token,
+    //             'current_exchange_rate' => round($exchangeRate, 2),
+    //             'current_currency_code' => $currencyCode,
+    //             'current_currency_symbol' => $symbol,
+    //             'inr_exchange_rate' => round($inr_rate, 2),
+    //             'inr_currency_code' => 'INR',
+    //             'inr_currency_symbol' => '₹',
+    //             'usd_exchange_rate' => round($usd_rate, 2),
+    //             'usd_currency_code' => 'USD',
+    //             'usd_currency_symbol' => '$',
+    //             'usd_tax' => round($usd_tax, 2),
+    //             'sgd_tax' => round($sgd_tax, 2),
+    //             'agent_country_tax' => round($agent_country_tax, 2),
+    //             'phone_no' => $user->phone,
+    //             'price_hide' => $dmc_users->price_hide ?? 0,
+    //             'user_role' => $userRole,
+    //             'dmc_id' => $dmc_id ?? '',
+    //             'dmc_company_name' => $dmc->company_name ?? '',
+    //             'dmc_ids' => $dmc_ids,
+    //             'dmc_companies' => $dmc_company_names,
+    //             'zone_on' => $dmc_users->zone_on ?? 0,
+    //         ],
+    //     ]);
+    // }
+
     public function login(Request $request)
     {
         function getCurrencySymbolByCode($currencyCode) {
@@ -56,82 +413,72 @@ class LoginControllerApi extends Controller
             
             try {
                 $symbol = $formatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
-                // Format 0 amount just to get the symbol from the currency code
                 $formatted = $formatter->formatCurrency(0, $currencyCode);
-                
-                // Extract the symbol from the formatted string
                 $symbol = preg_replace('/[0-9,. ]/', '', $formatted);
-                
-                return $symbol ?: $currencyCode; // Fallback to currency code if symbol not found
+                return $symbol ?: $currencyCode;
             } catch (\Exception $e) {
-                return $currencyCode; // Return code if formatter fails
+                return $currencyCode;
             }
         }
+
         $request->validate([
             'email' => 'required|email',
             'password' => 'required|string|min:6',
         ]);
+
         $email = $request->input('email');
         $password = $request->input('password');
-        // $user = User::where('email', $email)->first();
+
         $user = Agent::where('email', $email)->first();
         $userModel = 'Agent';
 
         if (!$user) {
             $user = User::where('email', $email)
-            ->wherein('role_id', [33,37,38])
-            ->first();
+                ->whereIn('role_id', [33,37,38,34,124,125]) // added new roles
+                ->first();
             $userModel = 'User';
         }
+
         $user_role = $user->role_id ?? 0;
-        if($userModel == 'User' && in_array($user_role, [33,37,38])){
+        if ($userModel == 'User' && in_array($user_role, [33,37,38,34,124,125])) {
             $userRoleId = $user->role_id;
             $userRole = Role::where('role_id', $userRoleId)->first()->name; 
-            
-        }else{
+        } else {
             $userRole = "Agent";
         }
-        if(!$user){
-            return response()->json(['error' => 'This email is  not registered.'], 401);
+
+        if (!$user) {
+            return response()->json(['error' => 'This email is not registered.'], 401);
         }
 
-        if($user->role_id == 20 && $user->status == 2){
+        if ($user->role_id == 20 && $user->status == 2) {
             return response()->json(['error' => 'Your account is not verified.'], 401);
         }
         if (!$user || !Hash::check($password, $user->password)) {
             return response()->json(['error' => 'Invalid credentials.'], 401);
         }
-        
-        // Initialize variables to avoid undefined errors
+
         $dmc_id = null;
         $dmc_users = null;
-        
+
         if ($user) {
-            // Get the appropriate creator ID based on user model
             $creatorId = ($userModel == 'Agent') ? $user->sales_manager_dmc : $user->created_by;
-            
+
             switch ($user->role_id) {
-                case 11: // Agent is a DMC
-                    $dmc_id = $user->userId; // For DMC, the user itself is the DMC
-                    $dmc_users = $user; // DMC is its own reference
+                case 11: // DMC
+                    $dmc_id = $user->userId;
+                    $dmc_users = $user;
                     $dmc_logo = $user->logo;
                     break;
-                    case 33: 
-                    case 128: 
-                    case 129: 
-                    case 130: 
-                    case 134: 
-                    case 135: 
-                    case 136: 
-                    case 138: // Sales Head
+
+                case 33: case 128: case 129: case 130: 
+                case 134: case 135: case 136: case 138: // Sales Head
                     if ($userModel == 'User') {
-                        // For SH, creator should be DMC
-                        $dmc_users = User::where('userId', $creatorId)->first(); // DMC
+                        $dmc_users = User::where('userId', $creatorId)->first();
                         if ($dmc_users && $dmc_users->role_id == 11) {
                             $dmc_id = $dmc_users->userId;
                             $dmc_logo = $dmc_users->logo;
                         } else {
-                            // If creator is not DMC, look for their creator
                             $superiorUser = User::where('userId', $creatorId)->first();
                             if ($superiorUser) {
                                 $dmc_users = User::where('userId', $superiorUser->created_by)->first();
@@ -142,7 +489,6 @@ class LoginControllerApi extends Controller
                             }
                         }
                     } else {
-                        // Agent case - use sales_manager_dmc reference
                         $saleshead_dmc = User::where('userId', $user->sales_manager_dmc)->first();
                         if ($saleshead_dmc) {
                             $dmc_users = User::where('userId', $saleshead_dmc->created_by)->first();
@@ -153,13 +499,12 @@ class LoginControllerApi extends Controller
                         }
                     }
                     break;
-                case 12:
-                case 37: // Sales Manager
+
+                case 12: case 37: // Sales Manager
+                case 34: case 124: case 125: // Operational Manager roles
                     if ($userModel == 'User') {
-                        // First, get Sales Head (creator of Sales Manager)
                         $saleshead = User::where('userId', $creatorId)->first();
                         if ($saleshead) {
-                            // Then get DMC (creator of Sales Head)
                             $dmc_users = User::where('userId', $saleshead->created_by)->first();
                             if ($dmc_users && $dmc_users->role_id == 11) {
                                 $dmc_id = $dmc_users->userId;
@@ -167,7 +512,6 @@ class LoginControllerApi extends Controller
                             }
                         }
                     } else {
-                        // Agent case - using the original code path
                         $salesmng_dmc = User::where('userId', $user->sales_manager_dmc)->first();
                         if ($salesmng_dmc) {
                             $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first();
@@ -181,15 +525,13 @@ class LoginControllerApi extends Controller
                         }
                     }
                     break;
+
                 case 38: // Assistant Manager
                     if ($userModel == 'User') {
-                        // First, get Sales Manager (creator of Asst Manager)
                         $salesManager = User::where('userId', $creatorId)->first();
                         if ($salesManager) {
-                            // Then get Sales Head (creator of Sales Manager)
                             $salesHead = User::where('userId', $salesManager->created_by)->first();
                             if ($salesHead) {
-                                // Finally get DMC (creator of Sales Head)
                                 $dmc_users = User::where('userId', $salesHead->created_by)->first();
                                 if ($dmc_users && $dmc_users->role_id == 11) {
                                     $dmc_id = $dmc_users->userId;
@@ -198,7 +540,6 @@ class LoginControllerApi extends Controller
                             }
                         }
                     } else {
-                        // Original path for Agent
                         $asmng_dmc = User::where('userId', $user->sales_manager_dmc)->first();
                         if ($asmng_dmc) {
                             $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first();
@@ -214,14 +555,11 @@ class LoginControllerApi extends Controller
                     }
                     break;
             }
-            
-            // Fallback mechanism for all roles if DMC is still not found
+
+            // Fallback DMC traversal
             if (!isset($dmc_users) || !isset($dmc_id)) {
-                // Try to find DMC by traversing up the hierarchy
                 $currentUser = User::where('userId', $creatorId)->first();
-                $maxDepth = 5; // Prevent infinite loops by setting a maximum depth
-                $depth = 0;
-                
+                $maxDepth = 5; $depth = 0;
                 while ($currentUser && $depth < $maxDepth) {
                     if ($currentUser->role_id == 11) {
                         $dmc_users = $currentUser;
@@ -232,115 +570,77 @@ class LoginControllerApi extends Controller
                     $currentUser = User::where('userId', $currentUser->created_by)->first();
                     $depth++;
                 }
-                
-                // If still not found, try the basic fallback
-                if (!isset($dmc_users) || !isset($dmc_id)) {
-                    $dmc_users = User::where('userId', $creatorId)->first();
-                    if ($dmc_users && $dmc_users->role_id == 11) {
-                        $dmc_id = $dmc_users->userId;
-                        $dmc_logo = $dmc_users->logo;
-                    }
-                }
             }
         }
-        
-        // Ensure $dmc_id and $dmc_users are valid
+
         if (!$dmc_id) {
-            // Default fallback if $dmc_id is still not set
             $dmc_id = $user->userId ?? $user->agent_id ?? null;
             $dmc_logo = $user->logo;
         }
-        
-        $dmc = User::where('userId', $dmc_id)->first(); //For Dmc Company Name
-        
-        // Handle case where $dmc might be null
-        $master_dmc = null;
-        if ($dmc) {
-            $master_dmc = User::where('userId', $dmc->master_dmc_id)->first(); //For MDMC Logo
-        }
-        
+
+        $dmc = User::where('userId', $dmc_id)->first();
+        $master_dmc = $dmc ? User::where('userId', $dmc->master_dmc_id)->first() : null;
+
         $token = $user->createToken('react-login')->plainTextToken;
         $tokenId = explode('|', $token)[0];
         $hashToken = PersonalAccessToken::where('id',$tokenId)->latest()->first();
+
         try {
             $countryName = $request->header('user-country');
-    
             if (!$countryName) {
                 return response()->json(['message' => 'Country header is missing'], 400);
             }
             $iso3166 = new ISO3166();
-    
-            // Search country by name
             $country = collect($iso3166->all())->firstWhere('name', $countryName);
-    
             if (!$country) {
                 $currencyCode = 'Country not found';
             }
-
-            $currencyCode = $country['currency'][0]; // Some countries have multiple currencies
+            $currencyCode = $country['currency'][0];
             $symbol = getCurrencySymbolByCode($currencyCode);
-            
         } catch (\Exception $e) {
             $symbol = $e->getMessage();
         }
 
         $setting = Setting::where('name', 'currency')->where('status', 1)->first();
         $country_wise_rate = $this->currencyService->getExchangeRate('SGD', $currencyCode);
-
         $inr_rate = $this->currencyService->getExchangeRate('SGD', 'INR');
         $usd_rate = $this->currencyService->getExchangeRate('SGD', 'USD');
-        
-        if ($country_wise_rate) {
-            $exchangeRate = $country_wise_rate;
-        } else {
-            $exchangeRate= "Exchange rate unavailable";
-        }
-        $country = $country;
+        $exchangeRate = $country_wise_rate ?: "Exchange rate unavailable";
+
         $userCountry = $user->country;
         $userCountryData = [];
-
         if ($userCountry) {
-            // Split by comma and trim whitespace
             $countries = array_map('trim', explode(',', $userCountry));
-            
             foreach ($countries as $countryName) {
                 $countryCode = CountryHelper::getCountryCode($countryName);
                 if ($countryCode) {
                     $countryInfos = Country::where('name', $countryName)->first();
-                    $agent_country_max_length = $countryInfos->max_length ?? 10;  // Default to 10 if null
-                    $agent_country_min_length = $countryInfos->min_length ?? 10;  // Default to 10 if null
+                    $agent_country_max_length = $countryInfos->max_length ?? 10;
+                    $agent_country_min_length = $countryInfos->min_length ?? 10;
                     $userCountryData[] = [
                         'name' => $countryName,
                         'code' => $countryCode,
                         'country_code' => $countryInfos->country_code,
-                        'contact_max_length' => $agent_country_max_length, // Will be 10 if null in database
-                        'contact_min_length' => $agent_country_min_length, // Will be 10 if null in database
+                        'contact_max_length' => $agent_country_max_length,
+                        'contact_min_length' => $agent_country_min_length,
                     ];
                 }
             }
         }
 
         $countryInfo = Country::where('name', $country)->first();
-        
-        // Handle multiple DMC IDs and company names
+
         $dmc_ids = [];
         $dmc_company_names = [];
-        
         if ($userModel == 'Agent' && $user->dmc_id) {
-            // Parse the JSON array of DMC IDs from agent table
-            // $agentDmcIds = is_string($user->dmc_id) ? json_decode($user->dmc_id, true) : $user->dmc_id;
             $agency = Agency::where('agency_id', $user->agency_id)->first();
             $agentDmcIds = $agency->dmc_id;
-            
             if (is_array($agentDmcIds)) {
                 $dmc_ids = $agentDmcIds;
-                
-                // Fetch company names for all DMC IDs
                 $dmcCompanies = User::whereIn('userId', $agentDmcIds)
-                    ->where('role_id', 11) // DMC role
+                    ->where('role_id', 11)
                     ->select('userId', 'company_name')
                     ->get();
-                
                 foreach ($dmcCompanies as $dmcCompany) {
                     $dmc_company_names[] = [
                         'dmc_id' => $dmcCompany->userId,
@@ -352,8 +652,7 @@ class LoginControllerApi extends Controller
                 }
             }
         } else {
-            // For User model or single DMC case, use existing logic
-            if($dmc_id){
+            if ($dmc_id) {
                 $dmc_ids = [$dmc_id];
                 $dmc_company_names = [[
                     'dmc_id' => $dmc_id,
@@ -361,10 +660,11 @@ class LoginControllerApi extends Controller
                 ]];
             }
         }
-        
+
         $agent_country_tax = $countryInfo->tax_percentage ?? 0;
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
@@ -375,10 +675,10 @@ class LoginControllerApi extends Controller
                 'email' => $user->email,
                 'agent_address' => $user->agent_address,
                 'profile_picture' => $user->image ?? '',
-                'logo' => $master_dmc->logo ?? '', 
+                'logo' => $master_dmc->logo ?? '',
                 'dmc_logo' => $dmc_logo ?? '',
                 'agency_logo' => $user->agent_image ?? '',
-                'dmc_name' => $dmc->company_name ?? '', 
+                'dmc_name' => $dmc->company_name ?? '',
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
                 'token' => $token,
@@ -405,6 +705,7 @@ class LoginControllerApi extends Controller
             ],
         ]);
     }
+
 
     public function logout(Request $request)
     {
