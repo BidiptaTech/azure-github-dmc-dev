@@ -155,8 +155,11 @@
             </div>
         </div>
 
-        <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
-            @csrf
+        <div class="row">
+            <!-- Main Form Column -->
+            <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
+                <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
+                    @csrf
             
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
@@ -174,15 +177,15 @@
                                     <label for="user_country" class="form-label fw-semibold">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
-                                    <select name="user_country" id="user_country" class="form-select" required>
+                                    <select name="user_country" id="user_country" class="form-select" required {{ ($enquiry && $enquiry->country) ? 'disabled' : '' }}>
                                         <option value="">Choose a country...</option>
                                         @foreach($countries as $country)
-                                            <option value="{{ $country->name }}" 
-                                                @if(isset($selectedCountry) && $selectedCountry == $country->country_id) selected @endif>
-                                                {{ $country->name }}
-                                            </option>
+                                            <option value="{{ $country->name }}" {{ ($enquiry && $enquiry->country == $country->name) ? 'selected' : '' }}>{{ $country->name }}</option>
                                         @endforeach
                                     </select>
+                                    @if($enquiry && $enquiry->country)
+                                        <input type="hidden" name="user_country" value="{{ $enquiry->country }}">
+                                    @endif
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
 
@@ -191,9 +194,16 @@
                                     <label for="city" class="form-label fw-semibold">
                                         <i class="ri-building-line me-1"></i>City
                                     </label>
-                                    <select name="city" id="city" class="form-select" required disabled>
-                                        <option value="">Select country first</option>
+                                    <select name="city" id="city" class="form-select" required {{ ($enquiry && $enquiry->city) ? 'disabled' : ($enquiry ? '' : 'disabled') }}>
+                                        @if($enquiry && $enquiry->city)
+                                            <option value="{{ $enquiry->city }}" selected>{{ $enquiry->city }}</option>
+                                        @else
+                                            <option value="">Select country first</option>
+                                        @endif
                                     </select>
+                                    @if($enquiry && $enquiry->city)
+                                        <input type="hidden" name="city" value="{{ $enquiry->city }}">
+                                    @endif
                                     <input type="hidden" name="city_id" id="city_id">
                                     <div id="cityLoader" class="text-center mt-1" style="display: none;">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
@@ -205,9 +215,12 @@
                                     <label for="travel_dates" class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
-                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly>
-                                    <input type="hidden" name="start_date" id="start_date">
-                                    <input type="hidden" name="end_date" id="end_date">
+                                    <input type="text" id="travel_dates" class="form-control" placeholder="Select dates" readonly
+                                           value="@if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time){{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}@endif"
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'style=background-color:#f8f9fa;cursor:not-allowed;pointer-events:none;' : '' }}
+                                           {{ ($enquiry && $enquiry->check_in_time && $enquiry->check_out_time) ? 'data-locked=true' : 'data-locked=false' }}>
+                                    <input type="hidden" name="start_date" id="start_date" value="{{ $enquiry && $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') : '' }}">
+                                    <input type="hidden" name="end_date" id="end_date" value="{{ $enquiry && $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') : '' }}">
                                 </div>
 
                                 <!-- Guests -->
@@ -216,33 +229,43 @@
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
                                     <div class="guest-selector">
-                                        <div class="guest-display p-2 border rounded bg-light">
+                                        <div class="guest-display p-2 border rounded {{ $enquiry ? 'bg-light' : 'bg-light' }}" {{ $enquiry ? 'style=cursor:not-allowed;opacity:0.8;' : '' }}>
                                             <div class="d-flex align-items-center justify-content-between">
                                                 <div class="guest-info">
                                                     <span id="mainGuestSummary" class="text-muted small">
-                                                        1 adults (0 male, 0 female), 0 children - 0 infants
+                                                        @if($enquiry)
+                                                            {{ $enquiry->adult ?? 1 }} adults ({{ $enquiry->male_count ?? 0 }} male, {{ $enquiry->female_count ?? 0 }} female), {{ $enquiry->child ?? 0 }} children - {{ $enquiry->infant ?? 0 }} infants
+                                                        @else
+                                                            1 adults (0 male, 0 female), 0 children - 0 infants
+                                                        @endif
                                                     </span>
                                                 </div>
+                                                @if(!$enquiry)
                                                 <button type="button" class="btn btn-sm btn-outline-primary" onclick="openMainGuestSelector()">
                                                     <i class="ri-edit-line"></i>
-                                        </button>
+                                                </button>
+                                                @else
+                                                <span class="text-muted small">
+                                                    <i class="ri-lock-line"></i>
+                                                </span>
+                                                @endif
                                     </div>
                                             <div class="guest-badges mt-1">
-                                                <span class="badge bg-primary">1</span>
-                                                <span class="badge bg-success">0</span>
-                                                <span class="badge bg-warning text-dark">0</span>
+                                                <span class="badge bg-primary">{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}</span>
+                                                <span class="badge bg-success">{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}</span>
+                                                <span class="badge bg-warning text-dark">{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     
                                     <!-- Hidden Fields -->
-                                    <input type="hidden" name="adults" id="adults" value="1">
-                                    <input type="hidden" name="male" id="male" value="0">
-                                    <input type="hidden" name="female" id="female" value="0">
-                                    <input type="hidden" name="children" id="children" value="0">
-                                    <input type="hidden" name="infants" id="infants" value="0">
-                                    <input type="hidden" name="child_ages" id="child_ages" value="[]">
+                                    <input type="hidden" name="adults" id="adults" value="{{ $enquiry ? ($enquiry->adult ?? 1) : 1 }}">
+                                    <input type="hidden" name="male" id="male" value="{{ $enquiry ? ($enquiry->male_count ?? 0) : 0 }}">
+                                    <input type="hidden" name="female" id="female" value="{{ $enquiry ? ($enquiry->female_count ?? 0) : 0 }}">
+                                    <input type="hidden" name="children" id="children" value="{{ $enquiry ? ($enquiry->child ?? 0) : 0 }}">
+                                    <input type="hidden" name="infants" id="infants" value="{{ $enquiry ? ($enquiry->infant ?? 0) : 0 }}">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
 
                                 <!-- Agent Selection -->
@@ -250,12 +273,15 @@
                                     <label for="agent_id" class="form-label fw-semibold">
                                         <i class="ri-user-star-line me-1"></i>Agent
                                     </label>
-                                    <select name="agent_id" id="agent_id" class="form-select" required>
+                                    <select name="agent_id" id="agent_id" class="form-select" required {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agent...</option>
                                         @foreach($agents as $agent)
-                                            <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
+                                            <option value="{{ $agent->agent_id }}" {{ ($enquiry && $enquiry->agent_id == $agent->agent_id) ? 'selected' : '' }}>{{ $agent->name }}</option>
                                         @endforeach
                                     </select>
+                                    @if($enquiry && $enquiry->agent_id)
+                                        <input type="hidden" name="agent_id" value="{{ $enquiry->agent_id }}">
+                                    @endif
                                 </div>
 
                                 <!-- Create Button -->
@@ -326,6 +352,41 @@
                                 <div class="col-md-1 d-flex align-items-end">
                                     <button type="button" class="btn btn-success w-100" onclick="addHotel()">
                                         <i class="ri-add-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-info btn-sm" onclick="testMealPricing()" title="Test meal pricing calculation">
+                                        <i class="ri-test-tube-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="debugRoomData()" title="Debug room data and meal prices">
+                                        <i class="ri-bug-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="testMealPriceFetching()" title="Test meal price fetching from options">
+                                        <i class="ri-price-tag-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-success btn-sm" onclick="testMealPricing()" title="Test corrected meal pricing with rooms">
+                                        <i class="ri-calculator-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-info btn-sm" onclick="testCurrentMealPricing()" title="Test current meal prices from dataset">
+                                        <i class="ri-test-tube-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="testGuidePricing()" title="Test guide pricing calculation">
+                                        <i class="ri-user-star-line"></i>
+                                    </button>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="ensureGuideHiddenFields()" title="Ensure guide hidden fields exist">
+                                        <i class="ri-settings-line"></i>
                                     </button>
                                 </div>
                             </div>
@@ -466,7 +527,7 @@
             <input type="hidden" id="hotelBookings" name="hotel_bookings" value="[]">
             <input type="hidden" id="guideBookings" name="guide_bookings" value="[]">
             <input type="hidden" id="vehicleBookings" name="vehicle_bookings" value="[]">
-            <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
+                        <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
             <input type="hidden" id="portBookings" name="port_bookings" value="[]">
             
             <!-- DMC Information -->
@@ -1808,12 +1869,12 @@
                 }
 
                 // Function to collect transport data (including entry/exit ports)
-                    function updateTransportDataField() {
+                function updateTransportDataField() {
                         console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
-                        const transportDataArray = [];
-                        const entryPortArray = [];
-                        const exitPortArray = [];
-                                
+                    const transportDataArray = [];
+                    const entryPortArray = [];
+                    const exitPortArray = [];
+                    
                     // Get customer information from the Customer Information form
                     const customerData = getCustomerData();
                     
@@ -2027,7 +2088,7 @@
                                         pickupCoords = {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_pickup_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_pickup_lng`)?.value || ""
-                                        };
+                                    };
                                         dropoffCoords = {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lng`)?.value || ""
@@ -2638,7 +2699,7 @@
                     updateGuideDataField();
                     updateRestaurantDataField();
                     updateTransportDataField();
-                    
+
                     // Debug: Log transport data after collection
                     console.log('=== TRANSPORT DATA DEBUG AFTER COLLECTION ===');
                     const transportDataDebug = document.getElementById('transport_data')?.value;
@@ -2815,12 +2876,385 @@
                     }
                 }
             </script>
-        </form>
+                </form>
+            </div>
+            
+            <!-- Enquiry Details Sidebar -->
+            @if($enquiry)
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 20px;">
+                    <!-- Enquiry Overview Card -->
+                    <div class="card border-0 shadow-lg mb-4 enquiry-sidebar">
+                        <div class="card-header bg-gradient-info text-white">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+                                    <i class="ri-file-list-3-line fs-5 text-white"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-1 text-white fw-bold">Enquiry Details</h5>
+                                    <p class="mb-0 opacity-75 small">{{ $enquiry->display_id ?? 'N/A' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Basic Info Section -->
+                            <div class="border-bottom p-3">
+                                <h6 class="text-primary fw-bold mb-3">
+                                    <i class="ri-information-line me-2"></i>Basic Information
+                                </h6>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Destination</small>
+                                            <strong class="text-dark">{{ $enquiry->country ?? 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">City</small>
+                                            <strong class="text-dark">{{ $enquiry->city ?? 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-primary bg-opacity-10 rounded p-2">
+                                            <small class="text-primary d-block">Check-in</small>
+                                            <strong class="text-dark">{{ $enquiry->check_in_time ? \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d, Y') : 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-warning bg-opacity-10 rounded p-2">
+                                            <small class="text-warning d-block">Check-out</small>
+                                            <strong class="text-dark">{{ $enquiry->check_out_time ? \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') : 'N/A' }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Guests Section -->
+                            <div class="border-bottom p-3">
+                                <h6 class="text-success fw-bold mb-3">
+                                    <i class="ri-group-line me-2"></i>Guest Information
+                                </h6>
+                                <div class="row g-2">
+                                    <div class="col-3">
+                                        <div class="text-center bg-success bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-success fs-5">{{ $enquiry->adult ?? 0 }}</div>
+                                            <small class="text-muted">Adults</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-info bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-info fs-5">{{ $enquiry->child ?? 0 }}</div>
+                                            <small class="text-muted">Children</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-warning bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-warning fs-5">{{ $enquiry->infant ?? 0 }}</div>
+                                            <small class="text-muted">Infants</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="text-center bg-purple bg-opacity-10 rounded p-2">
+                                            <div class="fw-bold text-purple fs-5">${{ number_format($enquiry->approx_price ?? 0) }}</div>
+                                            <small class="text-muted">Budget</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Male</small>
+                                            <strong class="text-dark">{{ $enquiry->male_count ?? 0 }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-light rounded p-2">
+                                            <small class="text-muted d-block">Female</small>
+                                            <strong class="text-dark">{{ $enquiry->female_count ?? 0 }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Services Section -->
+                            @if($hotels->count() > 0 || $attractions->count() > 0 || $guides->count() > 0 || $vehicles->count() > 0 || $meals->count() > 0)
+                            <div class="p-3">
+                                <h6 class="text-warning fw-bold mb-3">
+                                    <i class="ri-service-line me-2"></i>Selected Services
+                                </h6>
+                                
+                                @if($hotels->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-primary rounded-circle p-1 me-2">
+                                            <i class="ri-hotel-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-primary">Hotels ({{ $hotels->count() }})</strong>
+                                    </div>
+                                    @foreach($hotels as $hotel)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $hotel->name ?? 'Hotel Name' }}</div>
+                                        <div class="text-muted small">{{ $hotel->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->hotel_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->hotel_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($attractions->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-success rounded-circle p-1 me-2">
+                                            <i class="ri-map-pin-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-success">Attractions ({{ $attractions->count() }})</strong>
+                                    </div>
+                                    @foreach($attractions as $attraction)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $attraction->name ?? 'Attraction Name' }}</div>
+                                        <div class="text-muted small">{{ $attraction->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->attraction_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->attraction_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($meals->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-warning rounded-circle p-1 me-2">
+                                            <i class="ri-restaurant-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-warning">Restaurants ({{ $meals->count() }})</strong>
+                                    </div>
+                                    @foreach($meals as $meal)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $meal->name ?? 'Restaurant Name' }}</div>
+                                        <div class="text-muted small">{{ $meal->location ?? 'Location' }}</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->restaurant_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->restaurant_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
+                                @if($vehicles->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-info rounded-circle p-1 me-2">
+                                            <i class="ri-car-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-info">Vehicles ({{ $vehicles->count() }})</strong>
+                                    </div>
+                                    @foreach($vehicles as $vehicle)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $vehicle->vehicle_name ?? 'Vehicle Name' }}</div>
+                                        <div class="text-muted small">{{ $vehicle->seating_capacity ?? 'N/A' }} seats</div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @endif
+
+                                @if($guides->count() > 0)
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-purple rounded-circle p-1 me-2">
+                                            <i class="ri-user-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-purple">Guides ({{ $guides->count() }})</strong>
+                                    </div>
+                                    @foreach($guides as $guide)
+                                    <div class="bg-light rounded p-2 mb-1">
+                                        <div class="small fw-semibold text-dark">{{ $guide->name ?? 'Guide Name' }}</div>
+                                        <div class="text-muted small">{{ $guide->experience ?? 'N/A' }} years exp.</div>
+                                    </div>
+                                    @endforeach
+                                    @if($enquiry->guide_remarks)
+                                    <div class="small text-muted mt-1">
+                                        <i class="ri-chat-quote-line me-1"></i>{{ $enquiry->guide_remarks }}
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+        </div>
     </div>
 </div>
 @endsection
 
 @section('scripts')
+<!-- Custom Styles for Enquiry Sidebar -->
+<style>
+    .enquiry-sidebar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+        overflow: hidden;
+    }
+    
+    .enquiry-sidebar .card-header {
+        background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%) !important;
+        border: none;
+        position: relative;
+    }
+    
+    .enquiry-sidebar .card-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.3;
+    }
+    
+    .enquiry-sidebar .card-body {
+        background: #ffffff;
+    }
+    
+    .service-item {
+        border-left: 4px solid transparent;
+        padding-left: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .service-item:hover {
+        transform: translateX(5px);
+        border-left-color: #667eea;
+    }
+    
+    .bg-purple {
+        background-color: #8b5cf6 !important;
+    }
+    
+    .text-purple {
+        color: #8b5cf6 !important;
+    }
+    
+    .bg-purple.bg-opacity-10 {
+        background-color: rgba(139, 92, 246, 0.1) !important;
+    }
+    
+    .sticky-top {
+        transition: all 0.3s ease;
+    }
+    
+    .enquiry-sidebar .service-item .bg-light {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e8eaff 100%) !important;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .enquiry-sidebar .service-item .bg-light:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+        .sticky-top {
+            position: relative !important;
+            top: auto !important;
+        }
+        
+        .col-lg-4 {
+            margin-top: 20px;
+        }
+    }
+    
+    /* Animation for cards */
+    .enquiry-sidebar {
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Hover effects for info boxes */
+    .enquiry-sidebar .bg-light,
+    .enquiry-sidebar .bg-primary.bg-opacity-10,
+    .enquiry-sidebar .bg-warning.bg-opacity-10,
+    .enquiry-sidebar .bg-success.bg-opacity-10,
+    .enquiry-sidebar .bg-info.bg-opacity-10,
+    .enquiry-sidebar .bg-purple.bg-opacity-10 {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .enquiry-sidebar .bg-light:hover {
+        background: linear-gradient(135deg, #e8eaff 0%, #d1d5ff 100%) !important;
+    }
+    
+    .enquiry-sidebar .bg-primary.bg-opacity-10:hover {
+        background-color: rgba(13, 110, 253, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-warning.bg-opacity-10:hover {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-success.bg-opacity-10:hover {
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-info.bg-opacity-10:hover {
+        background-color: rgba(13, 202, 240, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    .enquiry-sidebar .bg-purple.bg-opacity-10:hover {
+        background-color: rgba(139, 92, 246, 0.2) !important;
+        transform: scale(1.02);
+    }
+    
+    /* Add pulse animation to budget */
+    .enquiry-sidebar .text-purple.fs-5 {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+</style>
+
 <!-- jQuery (required for date range picker and AJAX) -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -3342,7 +3776,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const userCountrySelect = document.getElementById('user_country');
     const citySelect = document.getElementById('city');
     const cityLoader = document.getElementById('cityLoader');
-    
+
     // Auto-load cities if country is pre-selected
     if (userCountrySelect.value) {
         userCountrySelect.dispatchEvent(new Event('change'));
@@ -3425,48 +3859,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
          // Wait for all dependencies to load
     $(document).ready(function() {
-        console.log('Initializing date range picker...');
-        // Date Range Picker Initialization
-        $('#travel_dates').daterangepicker({
-            opens: 'left',
-            autoUpdateInput: false,
-            minDate: moment(),
-            locale: {
-                format: 'MMM DD, YYYY',
-                cancelLabel: 'Clear'
-            }
-        });
+        // Date Range Picker Initialization - only if not locked
+        const travelDatesField = $('#travel_dates');
+        if (travelDatesField.attr('data-locked') !== 'true') {
+            travelDatesField.daterangepicker({
+                opens: 'left',
+                autoUpdateInput: false,
+                minDate: moment(),
+                locale: {
+                    format: 'MMM DD, YYYY',
+                    cancelLabel: 'Clear'
+                }
+            });
+        }
 
-        $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
-            $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
-            
-            // Set hidden date fields
-            document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
-            document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
-            
-            // Update global variables
-            tourStartDate = picker.startDate;
-            tourEndDate = picker.endDate;
-            tourNights = picker.endDate.diff(picker.startDate, 'days');
+        // Only attach event handlers if field is not locked
+        if (travelDatesField.attr('data-locked') !== 'true') {
+            $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
+                
+                // Set hidden date fields
+                document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
+                document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
+                
+                // Update global variables
+                tourStartDate = picker.startDate;
+                tourEndDate = picker.endDate;
+                tourNights = picker.endDate.diff(picker.startDate, 'days');
+                
+                // Update the hotel section date display
+                document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+                
+                        // Generate night selection buttons
+                generateNightSelection();
+                // Initialize night display
+                updateNightDisplay();
+            });
+
+            $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
+                $(this).val('');
+                document.getElementById('start_date').value = '';
+                document.getElementById('end_date').value = '';
+                tourStartDate = null;
+                tourEndDate = null;
+                tourNights = 0;
+            });
+        } else {
+            // If field is locked with enquiry data, set the global variables
+            @if($enquiry && $enquiry->check_in_time && $enquiry->check_out_time)
+            tourStartDate = moment('{{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d') }}');
+            tourEndDate = moment('{{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d') }}');
+            tourNights = tourEndDate.diff(tourStartDate, 'days');
             
             // Update the hotel section date display
-            document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
-            document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            if (document.getElementById('tourDates')) {
+                document.getElementById('tourDates').textContent = '{{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('M d') }} - {{ \Carbon\Carbon::parse($enquiry->check_out_time)->format('M d, Y') }}';
+            }
+            if (document.getElementById('hotelNights')) {
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+            }
             
-                    // Generate night selection buttons
+            // Generate night selection buttons for enquiry data
             generateNightSelection();
-            // Initialize night display
             updateNightDisplay();
-        });
-
-        $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
-            $(this).val('');
-            document.getElementById('start_date').value = '';
-            document.getElementById('end_date').value = '';
-            tourStartDate = null;
-            tourEndDate = null;
-            tourNights = 0;
-        });
+            @endif
+        }
     });
 
         // Update total adults count and hidden field
@@ -4972,7 +5430,7 @@ document.addEventListener('DOMContentLoaded', function() {
              `;
             // Entry Port Services (Only on Day 1)
               if (day === 1) {
-                    servicesHTML += `
+                                   servicesHTML += `
                       <div class="service-card mb-4">
                           <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-primary">
                               <div>
@@ -5273,7 +5731,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                  </div>
                                  
-                                <!-- Vehicle Results Section (Hidden Initially) -->
+                                                                 <!-- Vehicle Results Section (Hidden Initially) -->
                                 <div class="row mt-4" id="day${day}_exit_vehicle_results" style="display: none;">
                                     <div class="col-12">
                                         <div class="alert alert-info">
@@ -6032,8 +6490,8 @@ document.addEventListener('DOMContentLoaded', function() {
         selectElement.innerHTML = '<option value="">Loading attractions...</option>';
         
         fetch('{{ route('fetch-attractions-by-dmc') }}')
-                            .then(response => response.json())
-                .then(data => {
+            .then(response => response.json())
+            .then(data => {
                 selectElement.innerHTML = '<option value="">Search Attraction</option>';
                 
                 if (data.success && data.attractions) {
@@ -6238,8 +6696,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ticketSelect.innerHTML = '<option value="">Loading tickets...</option>';
         
         fetch('{{ route('fetch-tickets-by-attraction') }}?attraction_id=' + attractionId)
-                            .then(response => response.json())
-                .then(data => {
+            .then(response => response.json())
+            .then(data => {
                 ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
                 
                 if (data.success && data.tickets) {
@@ -6475,8 +6933,8 @@ document.addEventListener('DOMContentLoaded', function() {
         selectElement.innerHTML = '<option value="">Loading restaurants...</option>';
         
         fetch('{{ route('fetch-restaurants-by-dmc') }}')
-                            .then(response => response.json())
-                .then(data => {
+            .then(response => response.json())
+            .then(data => {
                 selectElement.innerHTML = '<option value="">Search Restaurant</option>';
                 
                 if (data.success && data.restaurants) {
@@ -7226,8 +7684,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         fetch(url)
-                            .then(response => response.json())
-                .then(data => {
+            .then(response => response.json())
+            .then(data => {
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
                 
                 if (data.success && data.meals) {
@@ -7431,8 +7889,8 @@ document.addEventListener('DOMContentLoaded', function() {
         selectElement.innerHTML = '<option value="">Loading guides...</option>';
         
         fetch('{{ route('fetch-guides-by-dmc') }}')
-                            .then(response => response.json())
-                .then(data => {
+            .then(response => response.json())
+            .then(data => {
                 selectElement.innerHTML = '<option value="">Search Guide</option>';
                 
                                  if (data.success && data.guides) {
@@ -8229,19 +8687,19 @@ document.addEventListener('DOMContentLoaded', function() {
                          <div class="col-12">
                              <div class="row g-3">
                                  <div class="col-md-8">
-                                     <label class="form-label fw-semibold">Vehicle</label>
-                                     <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}')">
-                                         <option value="">Choose vehicle</option>
-                                     </select>
-                                 </div>
+                             <label class="form-label fw-semibold">Vehicle</label>
+                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}')">
+                                 <option value="">Choose vehicle</option>
+                             </select>
+                         </div>
                                  <div class="col-md-4">
-                                     <label class="form-label fw-semibold">Service Type</label>
-                                     <select class="form-select" name="day${day}_transport_${newIndex}_service_type" onchange="updatePricing(${day}, 'transport_${newIndex}')">
-                                         <option value="">Select service type</option>
-                                         <option value="Shared">Shared</option>
-                                         <option value="Private">Private</option>
-                                     </select>
-                                 </div>
+                             <label class="form-label fw-semibold">Service Type</label>
+                             <select class="form-select" name="day${day}_transport_${newIndex}_service_type" onchange="updatePricing(${day}, 'transport_${newIndex}')">
+                                 <option value="">Select service type</option>
+                                 <option value="Shared">Shared</option>
+                                 <option value="Private">Private</option>
+                             </select>
+                         </div>
                              </div>
                          </div>
                          <div class="col-12 mt-3">
@@ -9380,7 +9838,7 @@ document.addEventListener('DOMContentLoaded', function() {
        console.log('Locations data received:', locationsData);
        
        if (zonesData.success && zonesData.zones) {
-           // Store zones data globally for use in other functions
+                 // Store zones data globally for use in other functions
            window.allZonesData = zonesData.zones;
        }
        
@@ -9388,12 +9846,12 @@ document.addEventListener('DOMContentLoaded', function() {
            // Store locations data globally for use in other functions
            window.allLocationsData = locationsData.locations;
        }
-       
-       // Update all pickup zone selects
-       const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
-       console.log('Found pickup zone selects:', pickupZoneSelects.length);
-       
-       pickupZoneSelects.forEach((select, index) => {
+                 
+                 // Update all pickup zone selects
+                 const pickupZoneSelects = document.querySelectorAll('.pickup-zone-select');
+                 console.log('Found pickup zone selects:', pickupZoneSelects.length);
+                 
+                 pickupZoneSelects.forEach((select, index) => {
            // Skip entry port pickup dropdowns (they should show ports, not zones)
            if (select.name && select.name.includes('_entry_pickup_zone_id')) {
                console.log(`Skipping entry port pickup select ${index}:`, select.name);
@@ -9442,14 +9900,14 @@ document.addEventListener('DOMContentLoaded', function() {
            } else if (zonesData.success && zonesData.zones) {
                // For other pickup selects, use zone data
                console.log(`Updating pickup zone select ${index} with zones:`, select.name);
-               select.innerHTML = '<option value="">Select pickup zone</option>';
+                     select.innerHTML = '<option value="">Select pickup zone</option>';
                zonesData.zones.forEach(zone => {
-                   select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-               });
-               select.disabled = false;
+                         select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                     });
+                     select.disabled = false;
            }
-       });
-                
+                 });
+                 
                 // Populate exit port pickup dropdowns with zone-assigned locations
                 const exitPickupSelects = document.querySelectorAll('select[name*="_exit_pickup_zone_id"]');
                 console.log('Found exit port pickup selects:', exitPickupSelects.length);
@@ -9536,11 +9994,11 @@ document.addEventListener('DOMContentLoaded', function() {
                      } else if (zonesData.success && zonesData.zones) {
                          // For other dropoff selects, use zone data
                          console.log(`Updating dropoff zone select ${index} with zones:`, select.name);
-                         select.innerHTML = '<option value="">Select pickup zone first</option>';
+                     select.innerHTML = '<option value="">Select pickup zone first</option>';
                          zonesData.zones.forEach(zone => {
-                             select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                         });
-                         select.disabled = true;
+                         select.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                     });
+                     select.disabled = true;
                          console.log(`Dropoff select ${index} has ${zonesData.zones.length} zones but is disabled`);
                      }
                  });
@@ -9551,7 +10009,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     select.disabled = true;
                 });
                  
-                                const serviceTypeSelects = document.querySelectorAll('.service-type-select');
+                const serviceTypeSelects = document.querySelectorAll('.service-type-select');
                 serviceTypeSelects.forEach(select => {
                     // Keep hardcoded options, just disable and reset selection
                     select.disabled = true;
@@ -9560,8 +10018,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Populate ports dropdowns after zones are loaded
                 populatePortsDropdowns();
-       })
-       .catch(error => {
+         })
+         .catch(error => {
            console.error('Error fetching zones and locations:', error);
            
            // Reset all selects in case of error
@@ -9581,7 +10039,7 @@ document.addEventListener('DOMContentLoaded', function() {
                    select.disabled = true;
                }
            });
-       });
+         });
  }
 
  function loadDropoffZones(day, section) {
@@ -9706,26 +10164,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         } else {
             // For all other dropoffs, use zones
-            const citySelect = document.getElementById('city');
-            const city = citySelect ? citySelect.value : '';
-            
-            fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
-                                .then(response => response.json())
-               .then(data => {
-                    if (data.success && data.zones) {
-                       dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
-                       // Show all zones except the selected pickup zone
-                       data.zones.forEach(zone => {
-                           if (zone.zone_id !== pickupZoneId) {
-                               dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                           }
-                       });
-                       dropoffZoneSelect.disabled = false;
-                   }
-                })
-                .catch(error => {
-                    console.error('Error fetching dropoff zones:', error);
-                });
+         const citySelect = document.getElementById('city');
+         const city = citySelect ? citySelect.value : '';
+         
+         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.zones) {
+                    dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+                    // Show all zones except the selected pickup zone
+                    data.zones.forEach(zone => {
+                        if (zone.zone_id !== pickupZoneId) {
+                            dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                        }
+                    });
+                    dropoffZoneSelect.disabled = false;
+                }
+            })
+             .catch(error => {
+                 console.error('Error fetching dropoff zones:', error);
+             });
          }
      } else {
          dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
@@ -9751,19 +10209,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
  // New function to handle pickup zone changes with section-specific exclusion
  function handlePickupZoneChange(day, section) {
-    console.log(`handlePickupZoneChange called for day ${day}, section ${section}`);
-    const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
-    const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
-    
-    console.log('Pickup zone select found:', !!pickupZoneSelect);
-    console.log('Dropoff zone select found:', !!dropoffZoneSelect);
-    
-    if (!pickupZoneSelect || !dropoffZoneSelect) return;
-    
-    const pickupZoneId = pickupZoneSelect.value;
-    console.log('Selected pickup zone ID:', pickupZoneId);
-    
-    if (pickupZoneId) {
+     console.log(`handlePickupZoneChange called for day ${day}, section ${section}`);
+     const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+     const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+     
+     console.log('Pickup zone select found:', !!pickupZoneSelect);
+     console.log('Dropoff zone select found:', !!dropoffZoneSelect);
+     
+     if (!pickupZoneSelect || !dropoffZoneSelect) return;
+     
+     const pickupZoneId = pickupZoneSelect.value;
+     console.log('Selected pickup zone ID:', pickupZoneId);
+     
+     if (pickupZoneId) {
         // Check if this is an entry port dropoff (should show zone-assigned locations, not zones)
         if (section === 'entry' && dropoffZoneSelect.name.includes('_entry_dropoff_zone_id')) {
             // For entry port dropoff, populate with zone-assigned locations
@@ -9899,17 +10357,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         } else {
             // For all other dropoffs, use zones
-            const allZones = window.allZonesData || [];
-            console.log('Using stored zones data:', allZones.length, 'zones');
-            console.log('Zones to exclude:', pickupZoneId);
-            
-            // Update dropoff select with all zones except the selected pickup zone
-            dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
-            allZones.forEach(zone => {
-                if (zone.zone_id != pickupZoneId) {
-                    dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                }
-            });
+         const allZones = window.allZonesData || [];
+         console.log('Using stored zones data:', allZones.length, 'zones');
+         console.log('Zones to exclude:', pickupZoneId);
+         
+         // Update dropoff select with all zones except the selected pickup zone
+         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+         allZones.forEach(zone => {
+             if (zone.zone_id != pickupZoneId) {
+                 dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+             }
+         });
         }
          
          dropoffZoneSelect.disabled = false;
@@ -9967,8 +10425,8 @@ document.addEventListener('DOMContentLoaded', function() {
          vehicleSelect.disabled = true;
          
          fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
-                             .then(response => response.json())
-                .then(data => {
+             .then(response => response.json())
+             .then(data => {
                  if (data.success && data.vehicles && data.vehicles.length > 0) {
                      vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
                      
@@ -10135,12 +10593,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
                 `;
             } else {
-                pricingDescription = `
-                    <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
-                    <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                    <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
-                `;
+            pricingDescription = `
+                <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
+            `;
             }
         } else if (selectedServiceType === 'Shared') {
             // For shared service: price is per person
@@ -10155,12 +10613,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
                 `;
             } else {
-                pricingDescription = `
-                    <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
-                    <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
-                `;
-            }
+            pricingDescription = `
+                <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
+            `;
+        }
         }
         
         priceDisplay.style.display = 'block';
@@ -10420,8 +10878,8 @@ window.saveService = function(day, type) {
         },
         body: JSON.stringify(requestData)
     })
-                    .then(response => response.json())
-                .then(data => {
+    .then(response => response.json())
+    .then(data => {
         if (data.success) {
             showNotification(`${type.replace('_', ' ').toUpperCase()} service saved successfully!`, 'success');
             
@@ -10618,13 +11076,13 @@ window.saveService = function(day, type) {
              });
      } else {
          // For local_transfer, use zone-based endpoint (existing logic)
-         if (!pickupZoneSelect || !dropoffZoneSelect || !pickupZoneSelect.value || !dropoffZoneSelect.value) {
-             alert('Please select both pickup and dropoff zones');
-             return;
-         }
+     if (!pickupZoneSelect || !dropoffZoneSelect || !pickupZoneSelect.value || !dropoffZoneSelect.value) {
+         alert('Please select both pickup and dropoff zones');
+         return;
+     }
 
-         const fromZoneId = pickupZoneSelect.value;
-         const toZoneId = dropoffZoneSelect.value;
+     const fromZoneId = pickupZoneSelect.value;
+     const toZoneId = dropoffZoneSelect.value;
 
                  // Get location types from the selected options
         // For exit port: pickup should be attraction/restaurant, dropoff should be port
@@ -10668,9 +11126,9 @@ window.saveService = function(day, type) {
          console.log('Dropoff Zone Selected Text:', dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text);
          console.log('==============================');
 
-         // Show loading state
-         searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
-         searchBtn.disabled = true;
+     // Show loading state
+     searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+     searchBtn.disabled = true;
 
                  // Build query parameters with actual zone IDs and location types
         const params = new URLSearchParams({
@@ -10692,49 +11150,49 @@ window.saveService = function(day, type) {
         });
 
                          fetch(`{{ route('fetch-vehicles-by-zones') }}?${params}`)
-                            .then(response => response.json())
-               .then(data => {
+         .then(response => response.json())
+         .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
-                if (data.success && data.vehicles && data.vehicles.length > 0) {
-                    // Populate vehicle dropdown
-                    if (vehicleSelect) {
-                        vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                        data.vehicles.forEach(vehicle => {
-                            const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                            
-                            // Debug logging for vehicle data
+             if (data.success && data.vehicles && data.vehicles.length > 0) {
+                 // Populate vehicle dropdown
+                 if (vehicleSelect) {
+                     vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                     data.vehicles.forEach(vehicle => {
+                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                         
+                         // Debug logging for vehicle data
                             console.log('=== VEHICLE DATA DEBUG (zone-based) ===');
-                            console.log('Vehicle:', vehicle);
-                            console.log('Private price:', vehicle.private_price);
-                            console.log('Shared price:', vehicle.shared_price);
-                            
-                            vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                                data-private-price="${vehicle.private_price || ''}" 
-                                data-shared-price="${vehicle.shared_price || ''}"
-                                data-service-type="${vehicle.service_type || ''}"
-                                data-mapping-id="${vehicle.mapping_id || ''}">
-                                ${vehicleInfo}
-                            </option>`;
-                        });
-                        
-                        // Enable the vehicle select
-                        vehicleSelect.disabled = false;
+                         console.log('Vehicle:', vehicle);
+                         console.log('Private price:', vehicle.private_price);
+                         console.log('Shared price:', vehicle.shared_price);
+                         
+                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                             data-private-price="${vehicle.private_price || ''}" 
+                             data-shared-price="${vehicle.shared_price || ''}"
+                             data-service-type="${vehicle.service_type || ''}"
+                             data-mapping-id="${vehicle.mapping_id || ''}">
+                             ${vehicleInfo}
+                         </option>`;
+                     });
+                     
+                     // Enable the vehicle select
+                     vehicleSelect.disabled = false;
                         console.log('Vehicle dropdown populated successfully (zone-based)');
-                        
-                        // Reset service type select and price display when vehicles are loaded
+                     
+                     // Reset service type select and price display when vehicles are loaded
                         updateVehicleDetails(day, baseSection);
-                    } else {
-                        console.error('Vehicle select element not found!');
-                    }
+                 } else {
+                     console.error('Vehicle select element not found!');
+                 }
 
-                    // Show results section
-                    vehicleResultsDiv.style.display = 'block';
-                    vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                 // Show results section
+                 vehicleResultsDiv.style.display = 'block';
+                 vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-                    // Reset search button
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
-                    searchBtn.disabled = false;
-                    
+                 // Reset search button
+                 searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                 searchBtn.disabled = false;
+                 
                     console.log(`Populated ${data.vehicles.length} vehicles in dropdown (zone-based)`);
                     
                     // Add info message for exit port to indicate bidirectional search
@@ -10752,19 +11210,19 @@ window.saveService = function(day, type) {
                         `;
                         vehicleResultsDiv.insertBefore(messageDiv, vehicleResultsDiv.firstChild);
                     }
-                } else {
-                    alert('No vehicles available for this route. Please try different zones.');
-                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
-                    searchBtn.disabled = false;
-                }
-             })
-             .catch(error => {
-                 console.error('Error searching vehicles (zone-based):', error);
-                 alert('Error searching vehicles. Please try again.');
+             } else {
+                 alert('No vehicles available for this route. Please try different zones.');
                  searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                  searchBtn.disabled = false;
-             });
-     }
+             }
+         })
+         .catch(error => {
+                 console.error('Error searching vehicles (zone-based):', error);
+             alert('Error searching vehicles. Please try again.');
+             searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+             searchBtn.disabled = false;
+         });
+ }
  }
 
   function clearDropoffZone(day, section) {
@@ -10840,28 +11298,28 @@ window.saveService = function(day, type) {
                  });
          } else {
              // For all other dropoffs, use zones
-             const citySelect = document.getElementById('city');
-             const city = citySelect ? citySelect.value : '';
+         const citySelect = document.getElementById('city');
+         const city = citySelect ? citySelect.value : '';
 
-             fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
-                                 .then(response => response.json())
-                .then(data => {
-                     if (data.success && data.zones) {
-                         dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
+         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success && data.zones) {
+                     dropoffZoneSelect.innerHTML = '<option value="">Select dropoff zone</option>';
 
-                         // Show all zones except the selected pickup zone
-                         data.zones.forEach(zone => {
-                             if (zone.zone_id !== pickupZoneId) {
-                                 dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                             }
-                         });
+                     // Show all zones except the selected pickup zone
+                     data.zones.forEach(zone => {
+                         if (zone.zone_id !== pickupZoneId) {
+                             dropoffZoneSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                         }
+                     });
 
-                         dropoffZoneSelect.disabled = false;
-                     }
-                 })
-                 .catch(error => {
-                     console.error('Error fetching dropoff zones:', error);
-                 });
+                     dropoffZoneSelect.disabled = false;
+                 }
+             })
+             .catch(error => {
+                 console.error('Error fetching dropoff zones:', error);
+             });
          }
      } else {
          dropoffZoneSelect.innerHTML = '<option value="">Select pickup zone first</option>';
@@ -10923,6 +11381,560 @@ window.saveService = function(day, type) {
 @endsection
 
 @section('styles')
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.text-purple {
+    color: #8b5cf6 !important;
+}
+
+.guest-counter .btn-counter {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.guest-counter input {
+    border: 2px solid #e9ecef;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.input-group-text {
+    font-weight: 600;
+}
+
+.btn-lg {
+    padding: 12px 30px;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+.alert {
+    border-radius: 10px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    animation: fadeIn 0.6s ease-out;
+}
+
+.badge {
+    font-size: 1.2em !important;
+    padding: 8px 12px;
+}
+
+/* Guest dropdown styles */
+.dropdown-menu {
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border: none;
+}
+
+.guest-btn-plus, .guest-btn-minus {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Badge styles for male/female */
+.badge.bg-pink {
+    background-color: #e91e63 !important;
+}
+
+/* Guest summary section */
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+/* Guest counter alignment */
+
+
+
+
+.guest-btn-plus:hover, .guest-btn-minus:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+/* Night selection buttons */
+.night-btn {
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+    font-size: 0.85rem;
+}
+
+.night-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.night-btn.active {
+    transform: translateY(-2px) scale(1.02);
+    border-width: 2px;
+}
+
+/* Manually selected nights - Green */
+.night-btn.manually-selected {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    box-shadow: 0 6px 12px rgba(40, 167, 69, 0.3);
+}
+
+.night-btn.manually-selected:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+/* Auto-selected nights - Orange/Warning */
+.night-btn.auto-selected {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+    box-shadow: 0 6px 12px rgba(255, 193, 7, 0.3);
+    position: relative;
+}
+
+.night-btn.auto-selected:hover {
+    background-color: #ffb300;
+    border-color: #ff8f00;
+}
+
+/* Add a small icon to auto-selected nights */
+.night-btn.auto-selected::after {
+    content: "⚡";
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+.night-btn small {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+/* Date range picker styles */
+.daterangepicker {
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+/* Prevent dropdown from closing when clicking inside */
+.dropdown-menu {
+    cursor: default;
+}
+
+.dropdown-menu button {
+    cursor: pointer;
+}
+
+/* Loading animation */
+.spinner-border-sm {
+    width: 0.75rem;
+    height: 0.75rem;
+}
+
+/* Daily Services Styling */
+.daily-service-section {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.daily-service-section:last-child {
+    border-bottom: none !important;
+    margin-bottom: 0;
+}
+
+.day-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+    border-radius: 12px 12px 0 0;
+}
+
+.day-content {
+    background: #f8f9fa !important;
+    min-height: 200px;
+}
+
+.service-card {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+}
+
+.service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.service-header {
+    background: #fff !important;
+    border-radius: 8px 8px 0 0;
+}
+
+.service-icon {
+    width: 45px;
+    height: 45px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.services-container {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+/* Guest Display Styling */
+.guest-display {
+    background: #f8f9fa !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.guest-display:hover {
+    border-color: #007bff !important;
+    background: #fff !important;
+}
+
+.guest-info span {
+    font-size: 0.85rem;
+    color: #6c757d;
+    line-height: 1.2;
+}
+
+.guest-badges {
+    gap: 4px;
+}
+
+.guest-badges .badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+
+.guest-selector .btn {
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Service type specific borders */
+.border-primary {
+    border-color: #007bff !important;
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.border-info {
+    border-color: #17a2b8 !important;
+}
+
+.border-success {
+    border-color: #28a745 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+/* Badge styling for service status */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+
+/* Form styling in services */
+.daily-service-section .form-control,
+.daily-service-section .form-select {
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    font-size: 0.9rem;
+}
+
+.daily-service-section .form-control:focus,
+.daily-service-section .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Button styling in services */
+.daily-service-section .btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.daily-service-section .btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Day header styling */
+.daily-service-section .bg-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+}
+
+/* Guest Selection Dropdown Styles */
+.guest-section {
+    padding: 1rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.guest-section:last-child {
+    border-bottom: none;
+}
+
+.section-header h6 {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.guest-item {
+    padding: 0.5rem 0;
+}
+
+.guest-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.guest-label {
+    color: #333;
+    font-weight: 500;
+}
+
+.guest-section .btn-light {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.guest-section .btn-light:hover {
+    background: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.guest-section .btn-light:active,
+.guest-section .btn-light:focus {
+    background: #dee2e6;
+    border-color: #adb5bd;
+    box-shadow: none;
+}
+
+.guest-section .btn-light i {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* Guest dropdown menu styling */
+.dropdown-menu {
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border-radius: 8px;
+}
+
+
+
+/* Loading spinner animation */
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .pickup-time-dropdown {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .pickup-time-option {
+            transition: all 0.15s ease-in-out;
+        }
+        
+        .pickup-time-option:hover {
+            background-color: #e9ecef !important;
+            border-color: #0d6efd !important;
+        }
+        
+        .pickup-time-option.bg-danger:hover {
+            background-color: #dc3545 !important;
+            opacity: 0.9;
+        }
+        
+        .dish-options-container {
+            margin-top: 8px;
+        }
+        
+        .dish-option-btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .dish-option-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .dish-option-btn.selected {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+/* Disabled field styles */
+.form-select:disabled,
+.form-control:disabled {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+    border-color: #dee2e6 !important;
+}
+
+.form-select:disabled option {
+    color: #6c757d;
+}
+
+/* Disabled button styles */
+.btn:disabled {
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+}
+
+.btn-outline-secondary:disabled {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    color: #6c757d !important;
+}
+
+/* Guest display disabled state */
+.guest-display.disabled {
+    background-color: #f8f9fa !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+/* Loading spinner animation */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* New transportation section styles */
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.form-select.border-2,
+.form-control.border-2 {
+    border-width: 2px !important;
+    border-color: #e0e0e0 !important;
+    transition: all 0.3s ease;
+}
+
+.form-select.border-2:focus,
+.form-control.border-2:focus {
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15) !important;
+}
+
+.form-select:disabled.border-2 {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    opacity: 0.7;
+}
+
+.position-relative .ri-map-pin-fill,
+.position-relative .ri-time-fill,
+.position-relative .ri-calendar-fill {
+    pointer-events: none;
+}
+
+.alert-info {
+    background-color: #e7f3ff !important;
+    border-color: #b8daff !important;
+    color: #0c63e4 !important;
+}
+
+/* Hotel loading status styles */
+#hotelLoadingStatus {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+#hotelLoadingStatus i {
+    font-size: 1rem;
+}
+</style>
+
 <!-- Dish Selection Modal -->
 <div class="modal fade" id="dishSelectionModal" tabindex="-1" aria-labelledby="dishSelectionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -10959,7 +11971,7 @@ window.saveService = function(day, type) {
     </div>
 
 
-                                    </div>
+</div>
 
 
 

@@ -836,6 +836,7 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     
+                                    
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment History
