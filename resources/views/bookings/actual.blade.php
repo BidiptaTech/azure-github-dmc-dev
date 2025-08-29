@@ -567,7 +567,7 @@
 
     <!-- Hotel Details Modal -->
     @if(isset($svc['hotel']) && $svc['hotel'] > 0)
-    <div class="modal fade" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+     <div class="modal fade" id="hotelDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="hotelDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
@@ -948,12 +948,12 @@
                 </div>
             </div>
         </div>
-    </div>
+     </div>
     @endif
 
      <!-- Attraction Details Modal -->
      @if(isset($svc['attraction']) && $svc['attraction'] > 0)
-     <div class="modal fade" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal fade" id="attractionDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="attractionDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
          <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
              <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                  <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%);">
@@ -1246,12 +1246,12 @@
                  </div>
              </div>
          </div>
-     </div>
+      </div>
      @endif
 
      <!-- Restaurant Details Modal -->
      @if(isset($svc['restaurant']) && $svc['restaurant'] > 0)
-     <div class="modal fade" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal fade" id="restaurantDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="restaurantDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
          <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
              <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                  <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);">
@@ -1412,7 +1412,7 @@
                                                          <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                                                              <div class="text-white">
                                                                  <h5 class="mb-2 fw-bold">
-                                                                     <i class="ri-restaurant-2-line me-2"></i>{{ $meal['name'] ?? $meal['item_name'] ?? 'Menu Item' }}
+                                                                     <i class="ri-restaurant-2-line me-2"></i>{{ 'Menu Item' }}
                                                                  </h5>
                                                                  <div class="d-flex flex-wrap gap-2">
                                                                      <span class="badge bg-opacity-20 text-white border border-white border-opacity-50 px-3 py-1">
@@ -1627,13 +1627,13 @@
                  </div>
              </div>
          </div>
-     </div>
+      </div>
      @endif
  
 
     <!-- Guide Details Modal -->
     @if(isset($svc['guide']) && $svc['guide'] > 0)
-    <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+     <div class="modal fade" id="guideDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="guideDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%);">
@@ -1921,12 +1921,12 @@
                 </div>
             </div>
         </div>
-    </div>
+     </div>
     @endif
 
     <!-- Entry Port (Arrival) Details Modal -->
     @if(isset($svc['entry_port']) && $svc['entry_port'] > 0)
-    <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+     <div class="modal fade" id="entry_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="entry_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #00b894 0%, #55a3ff 100%);">
@@ -2196,12 +2196,12 @@
                 </div>
             </div>
         </div>
-    </div>
+     </div>
     @endif
 
     <!-- Exit Port (Departure) Details Modal -->
     @if(isset($svc['exit_port']) && $svc['exit_port'] > 0)
-    <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+     <div class="modal fade" id="exit_portDetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="exit_portDetailsModalLabel{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
             <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
                 <div class="modal-header p-0 border-0 position-relative" style="height: 180px; background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%);">
@@ -2463,7 +2463,7 @@
                 </div>
             </div>
         </div>
-    </div>
+     </div>
     @endif
 
     <!-- Travel Hourly Details Modal -->
