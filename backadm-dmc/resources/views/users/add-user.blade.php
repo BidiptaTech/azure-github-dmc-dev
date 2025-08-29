@@ -294,8 +294,8 @@
                         <label for="phone" class="form-label"><strong>Phone No</strong>
                             <span style="color: red; font-weight: bold;">*</span>
                         </label>
-                        <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone"
-                            name="phone" placeholder="Phone No" required oninput="validatePhoneNumber(this)">
+                        <input type="number" class="form-control @error('phone') is-invalid @enderror" id="phone"
+                            name="phone" placeholder="Phone No" required oninput="">
                         <small class="validation-message text-danger" id="phone-validation-message"></small>
                         @error('phone')
                         <div class="text-danger mt-1">{{ $message }}</div>
