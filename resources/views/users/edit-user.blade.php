@@ -232,7 +232,7 @@
                     <!-- Phone -->
                     <div class="col-md-4 mb-3">
                         <label class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="phone" name="phone" value="{{ $users->phone }}" required oninput="validatePhoneNumber(this)">
+                        <input type="number" class="form-control" id="phone" name="phone" value="{{ $users->phone }}" required oninput="">
                         <small class="validation-message text-danger" id="phone-validation-message"></small>
                     </div>
 

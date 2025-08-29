@@ -2182,14 +2182,15 @@ class UserController extends Controller
             ['model' => Guide::class, 'field' => 'dmc_id', 'message' => 'guides'],
             ['model' => Agent::class, 'field' => 'sales_manager_dmc', 'message' => 'agents']
         ];
-
+        
         foreach ($dependencies as $dependency) {
-            $count = $dependency['model']::where($dependency['field'], $id)->count();
+            $count = $dependency['model']::whereRaw("{$dependency['field']}::text = ?", [$id])->count();
+        
             if ($count > 0) {
                 return redirect()->route('users.index')
                     ->with('error', "User has dependent {$dependency['message']}, please delete dependent {$dependency['message']} first");
             }
-        }
+        }        
 
         // If no dependencies found, proceed with deletion
         try {
