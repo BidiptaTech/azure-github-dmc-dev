@@ -48,8 +48,27 @@ class SingleTourPackageController extends Controller
     /**
      * Show the form for creating a new single tour package.
      */
-    public function create(Request $request)
+    public function create(Request $request, $enquiry_id = null)
     {
+
+        $user = Auth::user();
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }
+        elseif(in_array($user->role_id, [33,34, 128, 129, 130,131,132, 134, 135, 136,137, 138])){
+            $dmc_id = $user->created_by;
+        }
+        elseif(in_array($user->role_id, [37,64,65,66,67,68])){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        elseif(in_array($user->role_id, [38,81,90,108,117,124,125,126,127])){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         $portsQuery = Port::query();
         if ($request->has('country') && $request->country) {
@@ -58,12 +77,198 @@ class SingleTourPackageController extends Controller
                 $portsQuery->where('country', $country->name);
             }
         }
-        $ports = $portsQuery->orderBy('port_name')->get();
-        $agents = Agent::Where('sales_manager_dmc', Auth::id())
+        $ports = $portsQuery->orderBy('port_name')->get();        
+        // Get agents for the current DMC
+        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
             ->orderBy('name')
             ->get();
         $selectedCountry = $request->country;
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry'));
+
+        $enquiry = null;
+        $hotels = collect();
+        $attractions = collect();
+        $guides = collect();
+        $vehicles = collect();
+        $meals = collect();
+        $tickets = collect();
+        $zones = collect();
+        
+        if($enquiry_id){
+            $enquiry_id = Crypt::decrypt($enquiry_id);
+            if($enquiry_id){
+                $enquiry = EnquiryForm::where('enquiry_id', $enquiry_id)->first();
+                $selectedCountry = $enquiry->country;
+                if($enquiry){
+                    // Get hotels
+                    if($enquiry->hotel_ids){
+                        $hotel_ids = json_decode($enquiry->hotel_ids, true);
+                        $hotels = Hotel::whereIn('hotel_unique_id', $hotel_ids)->get();
+                    }
+                    
+                    // Get attractions
+                    if($enquiry->attraction_ids){
+                        $attraction_ids = json_decode($enquiry->attraction_ids, true);
+                        $attractions = Attraction::whereIn('attraction_id', $attraction_ids)->get();
+                    }
+                    
+                    // Get guides
+                    if($enquiry->guide_ids){
+                        $guide_ids = json_decode($enquiry->guide_ids, true);
+                        $guides = Guide::whereIn('guide_id', $guide_ids)->get();
+                    }
+                    
+                    // Get vehicles
+                    if($enquiry->local_transport_vehicle_ids){
+                        $vehicle_ids = json_decode($enquiry->local_transport_vehicle_ids, true);
+                        $vehicles = Vehicle::whereIn('vehicle_id', $vehicle_ids)->get();
+                    }
+                    
+                    // Get restaurants as meals
+                    if($enquiry->restaurant_ids){
+                        $restaurant_ids = json_decode($enquiry->restaurant_ids, true);
+                        $meals = Restaurant::whereIn('restaurant_id', $restaurant_ids)->get();
+                    }
+                }
+            }
+        }
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
+    }
+    
+    /**
+     * Add more services to an existing tour package.
+     */
+    public function addServices($tour_id)
+    {
+        // Get countries for dropdown
+        $user = Auth::user();
+
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }
+        elseif(in_array($user->role_id, [33,34, 128, 129, 130,131,132, 134, 135, 136,137, 138])){
+            $dmc_id = $user->created_by;
+        }
+        elseif(in_array($user->role_id, [37,64,65,66,67,68])){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        elseif(in_array($user->role_id, [38,81,90,108,117,124,125,126,127])){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        
+        $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        
+        // Get agents for the current DMC
+        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
+            ->orderBy('name')
+            ->get();
+        
+        // Find the existing tour
+        $existingTour = Tour::with(['agent'])->where('tour_id', $tour_id)->first();
+        if (!$existingTour) {
+            return redirect()->route('single-tour-package.index')->with('error', 'Tour not found');
+        }
+        
+        // Prepare tour data for the view
+        $tourData = [
+            'id' => $existingTour->tour_id,
+            'display_id' => $existingTour->display_id,
+            'country' => $existingTour->destination,
+            'city' => $existingTour->city,
+            'agent_id' => $existingTour->agent_id,
+            'adults' => $existingTour->adult,
+            'children' => $existingTour->child,
+            'infants' => $existingTour->infant,
+            'male_count' => $existingTour->male_count,
+            'female_count' => $existingTour->female_count,
+            'check_in_time' => $existingTour->check_in_time,
+            'check_out_time' => $existingTour->check_out_time
+        ];
+            
+        $enquiry = null;
+        
+        // Get hotels for this DMC and city
+        $cityName = $existingTour->city;
+        $hotels = Hotel::whereJsonContains('dmc_id', (int) $dmc_id)
+            ->where('status', 1)
+            ->where('is_active', 1)
+            ->where(function ($q) use ($cityName) {
+                $q->whereRaw('LOWER(city) = ?', [strtolower($cityName)]);
+            })
+            ->select('hotel_unique_id', 'name', 'city', 'main_image', 'hotel_star_rating', 
+                     'latitude', 'longitude', 'check_in_time', 'check_out_time')
+            ->orderBy('name')
+            ->get();
+            
+        // Get attractions for this DMC
+        $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmc_id)
+            ->select('attraction_id', 'name', 'open_time', 'close_time', 'location', 
+                     'adult_price', 'child_price', 'senior_adult_price')
+            ->get();
+            
+        // Get attraction tickets
+        $attractionIds = $attractions->pluck('attraction_id')->toArray();
+        $tickets = Ticket::whereIn('attraction_id', $attractionIds)
+            ->select('ticket_id', 'attraction_id', 'name', 'child_price', 'adult_price', 
+                     'senior_adult_price', 'description')
+            ->get();
+        
+        // Get guides for this DMC
+        $guides = Guide::where('dmc_id', $dmc_id)
+            ->where('status', 1)
+            ->select('guide_id', 'name', 'night_start_time', 'night_end_time', 
+                    'day_rate', 'night_surcharge', 'hourly_price', 
+                    'two_hour_price', 'four_hour_price', 'six_hour_price', 
+                    'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
+            ->get();
+            
+        // Get restaurants and meals
+        $restaurants = Restaurant::whereJsonContains('dmc_id', (int) $dmc_id)
+            ->select('restaurant_id', 'name', 'breakfast_available', 'lunch_available', 'dinner_available',
+                     'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 'closing_time_lunch',
+                     'opening_time_dinner', 'closing_time_dinner')
+            ->get();
+            
+        $restaurantIds = $restaurants->pluck('restaurant_id')->toArray();
+        $meals = Meal::whereIn('restaurant_id', $restaurantIds)
+            ->select('meal_id', 'restaurant_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
+            ->get();
+            
+        // Get zones for transport
+        $cityId = City::where('name', $cityName)->first()->city_id ?? null;
+        $zones = Zone::where('dmc_id', $dmc_id)
+            ->where('status', 1)
+            ->where('city', $cityId)
+            ->select('zone_id', 'zone_name', 'zone_type', 'city', 'description')
+            ->orderBy('zone_name')
+            ->get();
+            
+        // Get vehicles based on zones
+        $zoneIds = $zones->pluck('zone_id')->toArray();
+        $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', $zoneIds)
+            ->whereIn('to_zone_id', $zoneIds)
+            ->get();
+            
+        $vehicleIds = $vehicleMappings->pluck('vehicle_id')->unique()->toArray();
+        $vehicles = Vehicle::whereIn('vehicle_id', $vehicleIds)
+            ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 
+                     'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type')
+            ->get();
+            
+        // Additional data for the view
+        $serviceData = [
+            'city_name' => $cityName,
+            'dmc_id' => $dmc_id,
+            'start_date' => $existingTour->check_in_time,
+            'end_date' => $existingTour->check_out_time,
+            'tour_id' => $existingTour->tour_id
+        ];
+
+        return view('single-tour-package.create', compact('countries', 'agents', 'enquiry', 'hotels', 
+            'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'existingTour', 'tourData',
+            'restaurants', 'serviceData'));
     }
 
     /**
