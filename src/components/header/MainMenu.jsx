@@ -47,8 +47,10 @@ const MainMenu = ({ style = "" }) => {
   const isManagerOrSalesHead =
     userRole === "Sales Head(DMC)" ||
     userRole === "Sales Manager (DMC)" ||
-    userRole === "Assistant Manager (DMC)";
-    
+    userRole === "Assistant Manager (DMC)" ||
+    userRole === "Operational Head(DMC)" ||
+    userRole === "DMC Operational Manager" ||
+    userRole === "DMC Assistant Operational Manager";
   // Determine packages path based on user role
   const packagesPath = userRole === "Agent" 
     ? "/dashboard/pre-define-packages" 
@@ -324,34 +326,36 @@ const MainMenu = ({ style = "" }) => {
           </li>
         )}
 
-        <li
-          className={`menu-item ${
-            pathname === packagesPath ? "current" : ""
-          }`}
-        >
-                     <a
-             href="#"
-             onClick={handlePackagesClick}
-             className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
-             style={{ flexDirection: "column", alignItems: "flex-start" }}
-           >
-                           <div style={{ display: "flex", alignItems: "center" }}>
-                <FaBoxOpen 
-                  className="text-28 text-green-1" 
-                  style={{ marginRight: "12px" }} 
-                  title="Custom Travel Bundles"
-                />
-                <span
-                  className={`fw-700 text-18 ${
-                    pathname === packagesPath ? "text-green-1" : ""
-                  }`}
-                  title="Custom Travel Bundles"
-                >
-                  Packages
-                </span>
-              </div>
-           </a>
-        </li>
+        {!(userRole === "Operational Head(DMC)" || userRole === "DMC Operational Manager" || userRole === "DMC Assistant Operational Manager") && (
+          <li
+            className={`menu-item ${
+              pathname === packagesPath ? "current" : ""
+            }`}
+          >
+                       <a
+               href="#"
+               onClick={handlePackagesClick}
+               className="d-flex items-center px-20 py-15 text-decoration-none hover:bg-green-1/5 rounded-4 transition-all"
+               style={{ flexDirection: "column", alignItems: "flex-start" }}
+             >
+                             <div style={{ display: "flex", alignItems: "center" }}>
+                  <FaBoxOpen 
+                    className="text-28 text-green-1" 
+                    style={{ marginRight: "12px" }} 
+                    title="Custom Travel Bundles"
+                  />
+                  <span
+                    className={`fw-700 text-18 ${
+                      pathname === packagesPath ? "text-green-1" : ""
+                    }`}
+                    title="Custom Travel Bundles"
+                  >
+                    Packages
+                  </span>
+                </div>
+             </a>
+          </li>
+        )}
       </ul>
     </nav>
 

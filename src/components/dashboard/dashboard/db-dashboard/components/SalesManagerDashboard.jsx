@@ -148,7 +148,7 @@ function a11yProps(index) {
                           fontSize: { xs: "1.5rem", sm: "1.8rem" },
                         }}
                       >
-                        Sales Management Hub
+                        Management Hub
                       </Typography>
                       <Stack direction="row" alignItems="center" spacing={1}>
                         <TrendingUp sx={{ fontSize: 16, color: "text.secondary" }} />
