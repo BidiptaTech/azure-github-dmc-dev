@@ -1235,20 +1235,20 @@ class CommonHelper
             }
         }
         elseif($auth_user->userId){
-            $user = User::where('userId', $auth_user->userId)->first();
+            $user = $auth_user;
             if($user->role_id == 11){
                 return $user->created_by;
             }
-            elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            elseif(in_array($user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])){
                 $sales_head = User::where('userId', $user->userId)->first();
                 return $sales_head->created_by;
             }
-            elseif($user->role_id == 37){
+            elseif($user->role_id == 37 || in_array($user->role_id, [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78])){
                 $sales_manager = User::where('userId', $user->userId)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
                 return $sales_head->created_by;
             }
-            elseif($user->role_id == 38){
+            elseif(in_array($user->role_id, [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127])){
                 $assistant_sales_manager = User::where('userId', $user->userId)->first();
                 $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();

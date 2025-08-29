@@ -712,7 +712,7 @@ class BookingsController extends Controller
         }
 
         // Parse payment details for each tour
-        $tours->getCollection()->transform(function ($tour) {
+        $tours->transform(function ($tour) {
             if ($tour->payment_details) {
                 try {
                     $tour->parsed_payment_details = json_decode($tour->payment_details, true);
