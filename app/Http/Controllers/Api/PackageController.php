@@ -576,25 +576,7 @@ class PackageController extends Controller
 
         if($user->userId){
             // Check user role and determine DMC ID based on role hierarchy
-            if($user->role_id == 11){
-                $dmc_id = $user->userId;
-            }
-            elseif ($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) { // Sales Head
-                $sales_head = User::where('userId', $user->userId)->first();
-                $dmc_id = $sales_head->created_by;
-            } elseif ($user->role_id == 37) { // Sales Manager
-                $product_head = User::where('userId', $user->userId)->first();
-                $sales_head_id = $product_head->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            } elseif ($user->role_id == 38) { // Assistant Sales Manager
-                $assistant_sales_manager = User::where('userId', $user->userId)->first();
-                $sales_manager_id = $assistant_sales_manager->created_by;
-                $sales_manager = User::where('userId', $sales_manager_id)->first();
-                $sales_head_id = $sales_manager->created_by;
-                $sales_head = User::where('userId', $sales_head_id)->first();
-                $dmc_id = $sales_head->created_by;
-            }
+            $dmc_id = CommonHelper::getDmcId($user);
         }
 
         // Convert string "null" to actual null value
