@@ -323,8 +323,8 @@
                             <th>#</th>
                             <th>Tour Details</th>
                             <th>Destination</th>
-                            <th>Services</th>
                             <th>Guests</th>
+                            <th>Services</th>
                             <th>Agent</th>
                             <th>Travel Dates</th>
                             <th>Payment Status</th>
@@ -363,6 +363,12 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
                                     <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
+                                    <small class="text-muted">ID: {{ $tour->agent_id ?? 'N/A' }}</small>
                                 </div>
                             </td>
                             <td>
@@ -663,12 +669,7 @@
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">ID: {{ $tour->agent_id ?? 'N/A' }}</small>
-                                </div>
-                            </td>
+                            
                             <td>
                                 <div class="d-flex flex-column">
                                     @if($tour->check_in_time)
@@ -836,6 +837,10 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     
+                                    <a href="{{ route('tour.editpackage', $tour->tour_id) }}" 
+                                       class="btn btn-outline-warning btn-sm rounded-pill">
+                                        <i class="ri-settings-3-line"></i> Edit Tour
+                                    </a>
                                     
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
@@ -2054,7 +2059,7 @@
                                                         <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-between p-4">
                                                             <div class="text-white">
                                                                 <h5 class="mb-2 fw-bold">
-                                                                    <i class="ri-restaurant-2-line me-2"></i>{{ $meal['name'] ?? $meal['item_name'] ?? 'Menu Item' }}
+                                                                    <i class="ri-restaurant-2-line me-2"></i>{{ 'Menu Item' }}
                                                                 </h5>
                                                                 <div class="d-flex flex-wrap gap-2">
                                                                     <span class="badge bg-opacity-20 text-white border border-white border-opacity-50 px-3 py-1">

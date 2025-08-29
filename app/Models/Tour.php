@@ -14,6 +14,14 @@ class Tour extends Model
     use SoftDeletes;
     protected $table = 'tours'; 
     protected $guarded = []; 
+    
+    protected $casts = [
+        'check_in_time' => 'datetime',
+        'check_out_time' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
 
     protected static $TourStatus = [
         '0' => 'Not Started',
