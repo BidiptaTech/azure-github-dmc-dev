@@ -110,7 +110,10 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {

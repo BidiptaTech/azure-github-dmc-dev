@@ -50,6 +50,15 @@ import {
   RotateLeft,
   RotateRight,
   CropFree,
+  AdminPanelSettings,
+  Engineering,
+  SupportAgent,
+  Dashboard,
+  Analytics,
+  Monitor,
+  MilitaryTech,
+  WorkspacePremium,
+  Verified,
 } from "@mui/icons-material";
 import EnquiryList from "./components/EnquiryList";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
@@ -474,7 +483,7 @@ const DashboardLayout = () => {
   // Render appropriate dashboard based on user role
   const renderDashboardContent = () => {
     // If the role is 'Manager' or 'Sales Manager', render the Sales Manager dashboard
-    if (userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)") {
+    if (userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)" || userRole === "Operational Head(DMC)" || userRole === "DMC Operational Manager" || userRole === "DMC Assistant Operational Manager") {
       return <SalesManagerDashboard />;
     }
 
@@ -646,7 +655,13 @@ const DashboardLayout = () => {
                               ? "linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)" // Teal gradient for Sales Manager
                               : userRole === "Assistant Manager (DMC)"
                                 ? "linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)" // Yellow-Pink gradient for Assistant Manager
-                                : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", // Default blue-purple gradient for Agent
+                                : userRole === "Operational Head(DMC)"
+                                  ? "linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)" // Purple gradient for Operational Head
+                                  : userRole === "DMC Operational Manager"
+                                    ? "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)" // Dark red gradient for DMC Operational Manager
+                                                                    : userRole === "DMC Assistant Operational Manager"
+                                  ? "linear-gradient(135deg, #3498db 0%, #2980b9 100%)" // Blue gradient for DMC Assistant Operational Manager
+                                      : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", // Default blue-purple gradient for Agent
                         borderRadius: "16px",
                         marginBottom: "30px",
                         overflow: "hidden",
@@ -687,6 +702,12 @@ const DashboardLayout = () => {
                                   <ManageAccounts sx={{ fontSize: 32, color: "white" }} />
                                 ) : userRole === "Assistant Manager (DMC)" ? (
                                   <Business sx={{ fontSize: 32, color: "white" }} />
+                                ) : userRole === "Operational Head(DMC)" ? (
+                                  <AdminPanelSettings sx={{ fontSize: 32, color: "white" }} />
+                                ) : userRole === "DMC Operational Manager" ? (
+                                  <Engineering sx={{ fontSize: 32, color: "white" }} />
+                                ) : userRole === "DMC Assistant Operational Manager" ? (
+                                  <SupportAgent sx={{ fontSize: 32, color: "white" }} />
                                 ) : (
                                   <Person sx={{ fontSize: 32, color: "white" }} />
                                 )}
@@ -703,6 +724,12 @@ const DashboardLayout = () => {
                                       <BarChart sx={{ fontSize: 32, color: "white" }} />
                                     ) : userRole === "Assistant Manager (DMC)" ? (
                                       <Settings sx={{ fontSize: 32, color: "white" }} />
+                                    ) : userRole === "Operational Head(DMC)" ? (
+                                      <Dashboard sx={{ fontSize: 32, color: "white" }} />
+                                    ) : userRole === "DMC Operational Manager" ? (
+                                      <Analytics sx={{ fontSize: 32, color: "white" }} />
+                                    ) : userRole === "DMC Assistant Operational Manager" ? (
+                                      <Monitor sx={{ fontSize: 32, color: "white" }} />
                                     ) : (
                                       <WorkOutline sx={{ fontSize: 32, color: "white" }} />
                                     )}
@@ -722,7 +749,13 @@ const DashboardLayout = () => {
                                           ? "Manager Dashboard"
                                           : userRole === "Assistant Manager (DMC)"
                                             ? "Assistant Dashboard"
-                                            : "Agent Dashboard"}
+                                            : userRole === "Operational Head(DMC)"
+                                              ? "Operational Dashboard"
+                                              : userRole === "DMC Operational Manager"
+                                                ? "Operational Manager Dashboard"
+                                                : userRole === "DMC Assistant Operational Manager"
+                                                  ? "Assistant Operational Dashboard"
+                                                  : "Agent Dashboard"}
                                     </Typography>
                                   </Stack>
 
@@ -734,7 +767,13 @@ const DashboardLayout = () => {
                                           ? "Sales Manager"
                                           : userRole === "Assistant Manager (DMC)"
                                             ? "Assistant Manager"
-                                            : "Agent"
+                                            : userRole === "Operational Head(DMC)"
+                                              ? "Operational Head"
+                                              : userRole === "DMC Operational Manager"
+                                                ? "Operational Manager"
+                                                : userRole === "DMC Assistant Operational Manager"
+                                                  ? "Assistant Operational Manager"
+                                                  : "Agent"
                                     }
                                     size="small"
                                     sx={{
@@ -745,7 +784,13 @@ const DashboardLayout = () => {
                                             ? "rgba(255, 255, 255, 0.22)" // Balanced for teal bg
                                             : userRole === "Assistant Manager (DMC)"
                                               ? "rgba(255, 255, 255, 0.28)" // More opaque for yellow bg
-                                              : "rgba(255, 255, 255, 0.2)", // Default for blue bg
+                                              : userRole === "Operational Head(DMC)"
+                                                ? "rgba(255, 255, 255, 0.26)" // Balanced for purple bg
+                                                : userRole === "DMC Operational Manager"
+                                                  ? "rgba(255, 255, 255, 0.24)" // Balanced for dark red bg
+                                                  : userRole === "DMC Assistant Operational Manager"
+                                                    ? "rgba(255, 255, 255, 0.23)" // Balanced for blue bg
+                                                    : "rgba(255, 255, 255, 0.2)", // Default for blue bg
                                       color: "white",
                                       fontWeight: 600,
                                       fontSize: "0.75rem",
@@ -756,7 +801,13 @@ const DashboardLayout = () => {
                                             ? "1px solid rgba(255, 255, 255, 0.35)" // Medium border for teal
                                             : userRole === "Assistant Manager (DMC)"
                                               ? "1px solid rgba(255, 255, 255, 0.45)" // Strongest border for yellow
-                                              : "1px solid rgba(255, 255, 255, 0.3)", // Default border
+                                              : userRole === "Operational Head(DMC)"
+                                                ? "1px solid rgba(255, 255, 255, 0.38)" // Medium-strong border for purple
+                                                : userRole === "DMC Operational Manager"
+                                                  ? "1px solid rgba(255, 255, 255, 0.42)" // Strong border for dark red
+                                                  : userRole === "DMC Assistant Operational Manager"
+                                                    ? "1px solid rgba(255, 255, 255, 0.36)" // Medium border for blue
+                                                    : "1px solid rgba(255, 255, 255, 0.3)", // Default border
                                       backdropFilter: "blur(10px)",
                                       textShadow: "0 1px 2px rgba(0,0,0,0.1)",
                                     }}
@@ -779,7 +830,13 @@ const DashboardLayout = () => {
                                         ? "Team performance monitoring and sales analytics"
                                         : userRole === "Assistant Manager (DMC)"
                                           ? "Operational management and team coordination"
-                                          : "Booking management and client services"}
+                                          : userRole === "Operational Head(DMC)"
+                                            ? "Operational strategy and executive oversight"
+                                            : userRole === "DMC Operational Manager"
+                                              ? "Operational performance and team management"
+                                              : userRole === "DMC Assistant Operational Manager"
+                                                ? "Operational coordination and support management"
+                                                : "Booking management and client services"}
                                   </Typography>
                                 </Stack>
                               </Stack>
@@ -805,6 +862,12 @@ const DashboardLayout = () => {
                                     <EmojiEvents sx={{ fontSize: 18, color: "white" }} />
                                   ) : userRole === "Assistant Manager (DMC)" ? (
                                     <Star sx={{ fontSize: 18, color: "white" }} />
+                                  ) : userRole === "Operational Head(DMC)" ? (
+                                    <MilitaryTech sx={{ fontSize: 18, color: "white" }} />
+                                  ) : userRole === "DMC Operational Manager" ? (
+                                    <WorkspacePremium sx={{ fontSize: 18, color: "white" }} />
+                                                                     ) : userRole === "DMC Assistant Operational Manager" ? (
+                                     <Verified sx={{ fontSize: 18, color: "white" }} />
                                   ) : (
                                     <Badge sx={{ fontSize: 18, color: "white" }} />
                                   )}
@@ -823,13 +886,19 @@ const DashboardLayout = () => {
                                         ? "Management Level"
                                         : userRole === "Assistant Manager (DMC)"
                                           ? "Supervisor Level"
-                                          : "Agent Level"}
+                                          : userRole === "Operational Head(DMC)"
+                                            ? "Executive Level"
+                                            : userRole === "DMC Operational Manager"
+                                              ? "Management Level"
+                                              : userRole === "DMC Assistant Operational Manager"
+                                                ? "Supervisor Level"
+                                                : "Agent Level"}
                                   </Typography>
                                 </Stack>
                               </Box>
 
                               {/* Agent Profile Button - Only for Agent */}
-                              {userRole !== "Sales Head(DMC)" && userRole !== "Sales Manager (DMC)" && userRole !== "Assistant Manager (DMC)" && (
+                              {userRole !== "Sales Head(DMC)" && userRole !== "Sales Manager (DMC)" && userRole !== "Assistant Manager (DMC)" && userRole !== "Operational Head(DMC)" && userRole !== "DMC Operational Manager" && userRole !== "DMC Assistant Operational Manager" && (
                                 <>
                                   <Tooltip title="Agent Profile">
                                     <IconButton

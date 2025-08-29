@@ -257,15 +257,15 @@ const MainFilterSearchBox = () => {
     // );
 
     // Add this line to ensure restaurants aren't loaded
-    dispatch(
-      fetchRestaurants({
-        city: selectedLocation,
-        date: formattedCheckIn,
-        adults: guestCounts.Adults,
-        children: guestCounts.Children,
-        fromMainSearch: true,
-      })
-    );
+    // dispatch(
+    //   fetchRestaurants({
+    //     city: selectedLocation,
+    //     date: formattedCheckIn,
+    //     adults: guestCounts.Adults,
+    //     children: guestCounts.Children,
+    //     fromMainSearch: true,
+    //   })
+    // );
 
     // Step 4: Fetch Booking ID
     dispatch(fetchBookingid({
