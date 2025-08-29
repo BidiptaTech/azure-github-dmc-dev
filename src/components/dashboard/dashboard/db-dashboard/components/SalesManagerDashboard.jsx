@@ -251,24 +251,100 @@ function a11yProps(index) {
                           onChange={handleChange}
                           label="Select Agent"
                           sx={{
-                            "& .MuiMenuItem-root": {
-                              fontSize: "0.9rem",
+                            "& .MuiOutlinedInput-root": {
+                              backgroundColor: "#f8fafc",
+                              borderColor: "#e2e8f0",
+                              "&:hover": {
+                                borderColor: "#94a3b8",
+                              },
+                              "&.Mui-focused": {
+                                borderColor: "#3b82f6",
+                                boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.1)",
+                              },
+                            },
+                            "& .MuiSelect-icon": {
+                              color: "#64748b",
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "#475569",
+                              "&.Mui-focused": {
+                                color: "#3b82f6",
+                              },
+                            },
+                          }}
+                          MenuProps={{
+                            PaperProps: {
+                              sx: {
+                                maxHeight: 300,
+                                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px",
+                                "& .MuiMenuItem-root": {
+                                  fontSize: "0.9rem",
+                                  padding: "12px 16px",
+                                  "&:hover": {
+                                    backgroundColor: "#f1f5f9",
+                                  },
+                                  "&.Mui-selected": {
+                                    backgroundColor: "#dbeafe",
+                                    color: "#1e40af",
+                                    "&:hover": {
+                                      backgroundColor: "#bfdbfe",
+                                    },
+                                  },
+                                },
+                              },
                             },
                           }}
                         >
                           <MenuItem value="">
                             <Stack direction="row" alignItems="center" spacing={1}>
-                              <Assessment sx={{ fontSize: 16, color: "primary.main" }} />
-                              <span>All Agents</span>
+                              <Assessment sx={{ fontSize: 18, color: "#3b82f6" }} />
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: "#1e293b" }}>
+                                  All Agents
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: "#64748b", fontSize: "0.75rem" }}>
+                                  View all agents
+                                </Typography>
+                              </Box>
                             </Stack>
                           </MenuItem>
                           {agents.map((agent) => (
                             <MenuItem key={agent.id} value={agent.agent_id}>
                               <Stack direction="row" alignItems="center" spacing={1}>
-                                <Avatar sx={{ width: 20, height: 20, fontSize: "0.7rem" }}>
+                                <Avatar 
+                                  sx={{ 
+                                    width: 24, 
+                                    height: 24, 
+                                    fontSize: "0.8rem",
+                                    backgroundColor: "#3b82f6",
+                                    color: "white",
+                                    fontWeight: 600
+                                  }}
+                                >
                                   {agent.name.charAt(0).toUpperCase()}
                                 </Avatar>
-                                <span>{agent.name}</span>
+                                <Box sx={{ minWidth: 0, flex: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2 }}>
+                                    {agent.name}
+                                  </Typography>
+                                  <Typography 
+                                    variant="caption" 
+                                    sx={{ 
+                                      color: "#059669", 
+                                      fontSize: "0.7rem",
+                                      lineHeight: 1.2,
+                                      display: "block",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      fontWeight: 500
+                                    }}
+                                  >
+                                    {agent.company_name}
+                                  </Typography>
+                                </Box>
                               </Stack>
                             </MenuItem>
                           ))}

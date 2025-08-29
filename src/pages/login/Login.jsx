@@ -201,23 +201,23 @@ function Login() {
         }));
         
         // Also dispatch the existing action for backward compatibility
-        dispatch(setSelectedDmcId({
-          dmcId: dmcId,
-          dmcData: {
-            id: `dmc-auth-${dmcId}`,
-            dmcId: dmcId,
-            name: dmcCompanyName || `DMC ${dmcId}`,
-            location: 'Auth-selected',
-            logo: dmcLogo || '',
-            rating: 4.5,
-            description: 'DMC from authentication',
-            originalData: { 
-              dmcId: dmcId,
-              logo: dmcLogo,
-              company_name: dmcCompanyName
-            }
-          }
-        }));
+        // dispatch(setSelectedDmcId({
+        //   dmcId: dmcId,
+        //   dmcData: {
+        //     id: `dmc-auth-${dmcId}`,
+        //     dmcId: dmcId,
+        //     name: dmcCompanyName || `DMC ${dmcId}`,
+        //     location: 'Auth-selected',
+        //     logo: dmcLogo || '',
+        //     rating: 4.5,
+        //     description: 'DMC from authentication',
+        //     originalData: { 
+        //       dmcId: dmcId,
+        //       logo: dmcLogo,
+        //       company_name: dmcCompanyName
+        //     }
+        //   }
+        // }));
       }
 
       // Trigger door animation
