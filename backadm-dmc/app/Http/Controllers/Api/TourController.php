@@ -2325,7 +2325,7 @@ class TourController extends Controller
                 if($tour){
                     Order::where('tour_id', $tour_id)->update(['bookingType' => 'booking']);
                     $tourStatus = Tour::where('tour_id',$tour_id)->first();
-                    if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
+                    if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "New Enquiry" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
                         $tour = Tour::where('tour_id', $tour_id)->update([
                             'tour_status' => "Confirmed",
                         ]);
