@@ -1670,7 +1670,7 @@
                 </li>
             @endif --}}
 
-                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 11 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38)
+                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
                 <!-- Agency Management -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
@@ -1736,12 +1736,12 @@
                 @if(!(auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123 ))
                 @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent'))
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="User Management">User Management</span>
+                    <span class="menu-header-text" data-i18n="User & Agent Management">User & Agent Management</span>
                 </li>
                 <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
-                        <div data-i18n="All Users">All Users</div>
+                        <div data-i18n="All Users & Agents">All Users & Agents</div>
                     </a>
                     <ul class="menu-sub">
                         @php
