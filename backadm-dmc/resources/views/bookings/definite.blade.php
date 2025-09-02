@@ -6303,7 +6303,6 @@ window.calculateHourlyDisplayDueDate = function(tourId, travelHourlyOrderIndex, 
             hiddenDisplayDueDateField.value = '';
         }
     }
-<<<<<<< HEAD
 }
 
 function confirmHourlyApproval(tourId, hourlyOrderIndex, bookingIndex) {
@@ -20455,10 +20454,8 @@ function getAttractionServiceData(tourId, attractionOrderIndex, bookingIndex) {
         });
     });
 }
-=======
-    }
 </script>
->>>>>>> c1a6bb7aeed746b5772857578a3af651134946e5
+<script>
 
 function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
     try {
