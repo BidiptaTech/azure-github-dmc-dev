@@ -101,28 +101,29 @@ class BookingsController extends Controller
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
         $tours = Tour::where('tour_status', 'New Enquiry')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-            ->select([
-                'tours.tour_id',
-                'tours.display_id',
-                'tours.multi_enq_id',
-                'tours.adult',
-                'tours.child',
-                'tours.hotel',
-                'tours.attraction',
-                'tours.travel',
-                'tours.restaurent',
-                'tours.guide',
-                'tours.port',
-                'tours.destination',
-                'tours.city',
-                'tours.check_in_time',
-                'tours.check_out_time',
-                'tours.tour_status',
-                'tours.created_at',
-                'tours.updated_at',
-                'tours.agent_id',
-                'agents.name as agent_name'
-                ])
+                            ->select([
+                    'tours.tour_id',
+                    'tours.display_id',
+                    'tours.multi_enq_id',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.hotel',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.agent_id',
+                    'agents.name as agent_name',
+                    'agents.company_name as agent_company_name'
+                    ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
         }
@@ -165,7 +166,8 @@ class BookingsController extends Controller
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.agent_id',
-                    'agents.name as agent_name'
+                    'agents.name as agent_name',
+                    'agents.company_name as agent_company_name'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
@@ -317,6 +319,7 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.agent_id',
                 'agents.name as agent_name',
+                'agents.company_name as agent_company_name',
                 'enquiry_comments.enquiry_id as enquiry_id',
                 'enquiry_comments.comment as enquiry_comment',
                 'enquiry_comments.amount as enquiry_comment_amount',
@@ -373,6 +376,7 @@ class BookingsController extends Controller
                     'tours.updated_at',
                     'tours.agent_id',
                     'agents.name as agent_name',
+                    'agents.company_name as agent_company_name',
                     'enquiry_comments.enquiry_id as enquiry_id',
                     'enquiry_comments.comment as enquiry_comment',
                     'enquiry_comments.amount as enquiry_comment_amount',
@@ -462,7 +466,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -512,7 +517,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -561,7 +567,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->where(function ($query) use ($today) {
                 $query->where('tours.tour_status', 'Definite');
@@ -619,7 +626,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -661,7 +669,8 @@ class BookingsController extends Controller
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.agent_id',
-                    'agents.name as agent_name'
+                    'agents.name as agent_name',
+                    'agents.company_name as agent_company_name'
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
@@ -705,7 +714,8 @@ class BookingsController extends Controller
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.agent_id',
-                    'agents.name as agent_name'
+                    'agents.name as agent_name',
+                    'agents.company_name as agent_company_name'
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
@@ -764,7 +774,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -805,7 +816,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -854,7 +866,8 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.agent_id',
                 'tours.dmc_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -905,7 +918,8 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.agent_id',
                 'tours.dmc_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
@@ -987,7 +1001,8 @@ class BookingsController extends Controller
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.agent_id',
-                'agents.name as agent_name'
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();

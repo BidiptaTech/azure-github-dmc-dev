@@ -1670,7 +1670,7 @@
                 </li>
             @endif --}}
 
-                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
+            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 11 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38)
                 <!-- Agency Management -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
