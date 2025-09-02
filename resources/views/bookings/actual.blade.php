@@ -284,7 +284,10 @@
                             <td>
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">ID: {{ $tour->agent_id ?? 'N/A' }}</small>
+                                    <small class="text-muted">
+                                        <i class="fas fa-building me-1"></i>
+                                        {{ $tour->agent_company_name ?? 'N/A' }}
+                                    </small>
                                 </div>
                             </td>
                             <td>
