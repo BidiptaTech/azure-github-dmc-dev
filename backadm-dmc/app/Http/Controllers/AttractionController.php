@@ -487,7 +487,7 @@ class AttractionController extends Controller
     */
     public function update(Request $request, $id)
     {
-        $attraction = Attraction::where('attraction_id',$id)->first();
+        $attraction = Attraction::where('attraction_id',Crypt::decrypt($id))->first();
 
         // dd($request->all());
         $request->validate([

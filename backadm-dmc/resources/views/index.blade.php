@@ -451,8 +451,8 @@
     <div class="dashboard-header">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h1 class="welcome-text mb-2">Welcome back  {{ Auth::user()->first_name }}! 👋</h1>
-                <p class="subtitle mb-0">Here's what's happening with your travel management system today.</p>
+                    <h1 class="welcome-text mb-2">Welcome back, {{ Auth::user()->name }}! 👋</h1>
+                    <p class="subtitle mb-0">Here's what's happening with your travel management system today.</p>
             </div>
             <div class="col-lg-4 text-end">
                 <div class="text-white">
@@ -866,14 +866,14 @@
         </div>
         @endif
 
-        <div class="col-lg-2 col-md-4 col-sm-6">
+        {{-- <div class="col-lg-2 col-md-4 col-sm-6">
             <a href="{{ route('mail.index') }}" class="quick-action-btn">
                 <div class="quick-action-icon">
                     <i class="ri-mail-send-line"></i>
                 </div>
                 <span>Email Templates</span>
             </a>
-        </div>
+        </div> --}}
 
         @if(Auth::user()->role_id == 1)
         <div class="col-lg-2 col-md-4 col-sm-6">
