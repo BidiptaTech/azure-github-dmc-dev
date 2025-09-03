@@ -73,6 +73,7 @@ import {
   StaggeredContainer,
   AnimatedGrid
 } from "@/components/dashboard/DashboardAnimations";
+import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
 
 // Custom Tab Panel component
 function TabPanel(props) {
@@ -405,6 +406,7 @@ const DashboardLayout = () => {
 
   const handleLogout = () => {
     dispatch(logoutUser());
+    dispatch(setAgentIdEdit(null));
     dispatch(clearSelectedDmc()); // Clear DMC selection on logout
     handleProfileClose();
   };

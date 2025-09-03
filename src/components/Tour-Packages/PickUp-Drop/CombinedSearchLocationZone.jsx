@@ -133,7 +133,7 @@ const CombinedSearchLocationZone = ({ Location, portType, portType1, entryPorts,
               }}>
                 <FlightLandIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
                 <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#3b82f6', fontSize: '0.9rem' }}>
-                  Entry Port Services (Zone)
+                  Arrival Port Services (Zone)
                 </Typography>
                 <Chip 
                   label="Arrival"
@@ -201,7 +201,7 @@ const CombinedSearchLocationZone = ({ Location, portType, portType1, entryPorts,
               }}>
                 <FlightTakeoffIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
                 <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#3b82f6', fontSize: '0.9rem' }}>
-                  Exit Port Services (Zone)
+                  Departure Port Services (Zone)
                 </Typography>
                 <Chip 
                   label="Departure"

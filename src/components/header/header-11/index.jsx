@@ -10,6 +10,7 @@ import { logout, logoutUser } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import LogoutIcon from '@mui/icons-material/Logout';
+import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
 
 import MobileMenu from "../MobileMenu";
 
@@ -23,7 +24,9 @@ const Header1 = () => {
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
 
   const handleLogout = () => {
+    dispatch(setAgentIdEdit(null));
     dispatch(logoutUser());
+  
     dispatch(clearSelectedDmc()); // Clear DMC selection on logout
   };
 
