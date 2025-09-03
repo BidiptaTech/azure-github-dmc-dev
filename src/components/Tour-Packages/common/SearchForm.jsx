@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Box, 
   Paper, 
@@ -19,7 +19,9 @@ import {
   ListItem,
   ListItemText,
   Stack,
-  Avatar
+  Avatar,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import { 
@@ -28,7 +30,8 @@ import {
   CalendarToday as CalendarIcon,
   People as PeopleIcon,
   Person as PersonIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Clear
 } from '@mui/icons-material';
 import LocationSearch from './LocationSearch';
 import DateRangePicker from './DateRangePicker';
@@ -56,6 +59,7 @@ import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
 import {
   fetchRestaurants,
   clearRestaurants,
+  setSearchParams as setRestaurantSearchParams,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
@@ -337,12 +341,44 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedAgentName, setSelectedAgentName] = useState('');
   const [isAgentFromPackageData, setIsAgentFromPackageData] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef(null);
   const { agents } = useSelector((state) => state.agentList);
   
   // Fetch agents on component mount
   React.useEffect(() => {
     dispatch(fetchAgentList());
   }, [dispatch]);
+
+  // Filter agents based on search term
+  const filteredAgents = agents.filter(agent => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      agent.name.toLowerCase().includes(searchLower) ||
+      (agent.company_name && agent.company_name.toLowerCase().includes(searchLower))
+    );
+  });
+
+  // Handle search input change
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchTerm('');
+  };
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (searchInputRef.current) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   console.log("guestCounts",guestCounts);
   console.log("guestCounts.ages type:", typeof guestCounts.ages, "value:", guestCounts.ages);
   if (guestCounts.ages && Array.isArray(guestCounts.ages)) {
@@ -924,6 +960,19 @@ dispatch(fetchHotels());
       children: guestCounts.Children,
       tour_id: tourId // Use tour_id from packageData
     }));
+    dispatch(setRestaurantSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
 
     // Update the guide search params and fetch guides
     dispatch(setGuideSearchParams({
@@ -1194,6 +1243,19 @@ dispatch(fetchHotels());
     const formattedAttractionDate = moment(startDate).format("YYYY-MM-DD"); // Format date for attraction API
     
     dispatch(setAttractionSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+    dispatch(setRestaurantSearchParams({
       location: {
         country: country,
         city: `${city}, (${country})`,
@@ -1674,7 +1736,7 @@ dispatch(fetchHotels());
                       MenuProps={{
                         PaperProps: {
                           sx: {
-                            maxHeight: 300,
+                            maxHeight: 400,
                             boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
                             border: "1px solid #e2e8f0",
                             borderRadius: "8px",
@@ -1694,8 +1756,86 @@ dispatch(fetchHotels());
                             },
                           },
                         },
+                        MenuListProps: {
+                          sx: {
+                            padding: 0,
+                          },
+                          onKeyDown: (e) => {
+                            // Allow typing in search input
+                            if (e.target.tagName === 'INPUT') {
+                              e.stopPropagation();
+                            }
+                          },
+                        },
+                        disableAutoFocus: true,
+                        disableEnforceFocus: true,
+                        disableRestoreFocus: true,
                       }}
                     >
+                      {/* Search Input in Dropdown */}
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderBottom: "1px solid #e2e8f0", 
+                          backgroundColor: "#f8fafc",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <TextField
+                          ref={searchInputRef}
+                          fullWidth
+                          size="small"
+                          placeholder="Search agents or companies..."
+                          value={searchTerm}
+                          onChange={handleSearchChange}
+                          autoFocus={false}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: searchTerm && (
+                              <InputAdornment position="end">
+                                <Clear 
+                                  sx={{ 
+                                    fontSize: 18, 
+                                    color: "#64748b", 
+                                    cursor: "pointer",
+                                    "&:hover": { color: "#374151" }
+                                  }} 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleClearSearch();
+                                  }}
+                                />
+                              </InputAdornment>
+                            ),
+                            sx: {
+                              "& fieldset": { border: "1px solid #e2e8f0" },
+                              "&:hover fieldset": { border: "1px solid #94a3b8" },
+                              "&.Mui-focused fieldset": { border: "1px solid #3b82f6" },
+                              "& input": {
+                                padding: "8px 12px",
+                                fontSize: "0.9rem",
+                                color: "#1e293b",
+                                "&::placeholder": {
+                                  color: "#64748b",
+                                  opacity: 1,
+                                },
+                              },
+                            },
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          onKeyUp={(e) => e.stopPropagation()}
+                          onKeyPress={(e) => e.stopPropagation()}
+                        />
+                      </Box>
+                      
                       <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <PersonIcon sx={{ fontSize: 16, color: "#3b82f6" }} />
@@ -1709,7 +1849,8 @@ dispatch(fetchHotels());
                           </Box>
                         </Stack>
                       </MenuItem>
-                      {agents && agents.map((agent) => (
+                      {filteredAgents.length > 0 ? (
+                        filteredAgents.map((agent) => (
                         <MenuItem 
                           key={agent.id} 
                           value={agent.agent_id}
@@ -1754,7 +1895,17 @@ dispatch(fetchHotels());
                             </Box>
                           </Stack>
                         </MenuItem>
-                      ))}
+                        ))
+                      ) : searchTerm ? (
+                        <MenuItem disabled>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <SearchIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                            <Typography variant="body2" sx={{ color: "#64748b", fontStyle: "italic" }}>
+                              No agents found matching "{searchTerm}"
+                            </Typography>
+                          </Stack>
+                        </MenuItem>
+                      ) : null}
                     </Select>
                   )}
                 </FormControl>

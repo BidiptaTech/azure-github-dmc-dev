@@ -413,7 +413,16 @@ const EntryPortSearchZone = ({ Location, portType}) => {
                 <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 5 }}>
                   <DateSearch1
                     selectedDate={selectedDate}
-                    setSelectedDate={setSelectedDate}
+                    setSelectedDate={(date) => {
+                      console.log("Selected Pickup Date:", date);
+                      if (date && date._isAMomentObject) {
+                        const formattedDate = date.format('YYYY-MM-DD');
+                        console.log("Formatted date:", formattedDate);
+                        setSelectedDate(formattedDate);
+                      } else {
+                        setSelectedDate(date);
+                      }
+                    }}
                     disabled={!isDropoffLocationEnabled}
                   />
                 </Box> 

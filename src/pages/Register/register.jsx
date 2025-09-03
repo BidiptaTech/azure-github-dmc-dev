@@ -712,9 +712,9 @@ const RegistrationForm = () => {
     >
       <GradientPaper
         sx={{
-          maxWidth: 900,
+           maxWidth: 900,
           mx: 'auto',
-          position: 'relative',
+         position: 'relative',
           zIndex: 1,
         }}
       >

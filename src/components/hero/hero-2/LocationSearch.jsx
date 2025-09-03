@@ -23,23 +23,44 @@ const SearchBar = ({ onLocationSelect }) => {
   
   // Get user_country from Redux state
   const user_country = useSelector((state) => state.auth.user_country);
-  
+
+  console.log('user_country123',user_country);
   // Default countries if user_country isn't available
   const defaultCountries = [
-    { name: "India", code: "in" },
+    { name: "United States", code: "US" },
     { name: "Singapore", code: "SG" },
     // More countries can be added here
   ];
 
   // Process available countries from user_country
   const availableCountries = useMemo(() => {
-    return user_country && typeof user_country === 'string'
-      ? user_country.split(',').map((country, index) => ({ 
+    if (user_country) {
+      // Handle object format (current data structure)
+      if (typeof user_country === 'object' && user_country.name) {
+        return [{
+          name: user_country.name,
+          code: user_country.code || user_country.country_code,
+          key: `country-0`
+        }];
+      }
+      // Handle string format (comma-separated countries)
+      else if (typeof user_country === 'string') {
+        return user_country.split(',').map((country, index) => ({ 
           name: country.trim(),
           code: country.trim().toLowerCase(), 
           key: `country-${index}`
-        }))
-      : defaultCountries;
+        }));
+      }
+      // Handle array format
+      else if (Array.isArray(user_country)) {
+        return user_country.map((country, index) => ({
+          name: country.name || country,
+          code: country.code || country.country_code || country.toLowerCase(),
+          key: `country-${index}`
+        }));
+      }
+    }
+    return defaultCountries;
   }, [user_country]);
 
   // Filter and suggest countries based on search input

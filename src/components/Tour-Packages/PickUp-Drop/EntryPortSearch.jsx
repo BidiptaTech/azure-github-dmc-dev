@@ -174,7 +174,16 @@ const EntryPortSearch = ({ Location }) => {
               </Typography>
               <DateSearch1
                 selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
+                setSelectedDate={(date) => {
+                  console.log("Selected Pickup Date:", date);
+                  if (date && date._isAMomentObject) {
+                    const formattedDate = date.format('YYYY-MM-DD');
+                    console.log("Formatted date:", formattedDate);
+                    setSelectedDate(formattedDate);
+                  } else {
+                    setSelectedDate(date);
+                  }
+                }}
               />
             </Box>
           </Grid>

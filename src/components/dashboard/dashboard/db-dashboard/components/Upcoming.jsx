@@ -77,6 +77,10 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(76, 175, 80, 0.06)"; // Professional light green
     case "Actual":
       return "rgba(60, 140, 65, 0.06)"; // Professional light green
+    case "Refund - Pending":
+      return "rgba(255, 103, 2, 0.66)"; // Professional light deep orange
+    case "Refunded":
+      return "rgba(2, 255, 15, 0.53)"; // Professional light deep orange
     case "Pending":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Tentative":
@@ -87,10 +91,13 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(255, 87, 34, 0.06)"; // Professional light deep orange
     case "Closed":
       return "rgb(237,237,237)"; // Professional light gray
+    case "On Hold":
+      return "#000000"; // Professional light orange
     default:
-      return "transparent";
+      return "#a9a9a9";
   }
 };
+
 
 // Text color function for booking status styling
 const getTextColor = (tour_status) => {
@@ -107,6 +114,10 @@ const getTextColor = (tour_status) => {
       return "#4CAF50"; // Green
     case "Pending":
       return "#F44336"; // Red
+    case "Refund - Pending":
+      return "#FFFFFF"; // Deep Orange
+    case "Refunded":
+      return "#FFFFFF"; // Deep Orange
     case "Tentative":
       return "#7E57C2"; // Violet
     case "New Enquiry":
@@ -115,8 +126,10 @@ const getTextColor = (tour_status) => {
       return "#FF5722"; // Deep Orange
     case "Closed":
       return "#000000"; // Black
+    case "On Hold":
+      return "#FFFFFF"; // Black
     default:
-      return "#CCCCCC"; // Default gray
+      return "#ffffff"; // Default gray
   }
 };
 
