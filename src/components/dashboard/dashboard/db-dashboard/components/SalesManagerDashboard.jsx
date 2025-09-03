@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchLists } from "@/slice/common/TourlistSlice";
 import { fetchAgentList } from '@/slice/common/agentListSlice';
@@ -19,7 +19,9 @@ import {
   Divider,
   Avatar,
   Fade,
-  Grow
+  Grow,
+  TextField,
+  InputAdornment
 } from "@mui/material";
 import { Grid, Tab, Tabs } from "@mui/material";
 import {
@@ -30,7 +32,9 @@ import {
   FilterList,
   Analytics,
   TrendingUp,
-  Assessment
+  Assessment,
+  Search,
+  Clear
 } from "@mui/icons-material";
 import BasicTabs from "./TabStatus";
 
@@ -43,6 +47,8 @@ import { AnimatedBox, StaggeredContainer } from "@/components/dashboard/Dashboar
 const SalesManagerDashboard = () => {
   const dispatch = useDispatch();
     const [mainTabValue, setMainTabValue] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const searchInputRef = useRef(null);
 
       const handleMainTabChange = (event, newValue) => {
     setMainTabValue(newValue);
@@ -82,6 +88,36 @@ const SalesManagerDashboard = () => {
       }
       console.log('Selected agent:', agentId);
     };
+
+    // Filter agents based on search term
+    const filteredAgents = agents.filter(agent => {
+      if (!searchTerm) return true;
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        agent.name.toLowerCase().includes(searchLower) ||
+        (agent.company_name && agent.company_name.toLowerCase().includes(searchLower))
+      );
+    });
+
+    // Handle search input change
+    const handleSearchChange = (event) => {
+      setSearchTerm(event.target.value);
+    };
+
+    // Clear search
+    const handleClearSearch = () => {
+      setSearchTerm('');
+    };
+
+    // Focus search input when dropdown opens
+    useEffect(() => {
+      if (searchInputRef.current) {
+        const timer = setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }, []);
   // We've moved the fetchLists call to the first useEffect where we can include agentId
   function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -194,6 +230,7 @@ function a11yProps(index) {
                       />
                     </Stack>
                     
+
                     <Paper
                       elevation={0}
                       sx={{
@@ -275,7 +312,7 @@ function a11yProps(index) {
                           MenuProps={{
                             PaperProps: {
                               sx: {
-                                maxHeight: 300,
+                                maxHeight: 400,
                                 boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
                                 border: "1px solid #e2e8f0",
                                 borderRadius: "8px",
@@ -295,8 +332,86 @@ function a11yProps(index) {
                                 },
                               },
                             },
+                            MenuListProps: {
+                              sx: {
+                                padding: 0,
+                              },
+                              onKeyDown: (e) => {
+                                // Allow typing in search input
+                                if (e.target.tagName === 'INPUT') {
+                                  e.stopPropagation();
+                                }
+                              },
+                            },
+                            disableAutoFocus: true,
+                            disableEnforceFocus: true,
+                            disableRestoreFocus: true,
                           }}
                         >
+                          {/* Search Input in Dropdown */}
+                          <Box 
+                            sx={{ 
+                              p: 2, 
+                              borderBottom: "1px solid #e2e8f0", 
+                              backgroundColor: "#f8fafc",
+                              position: "sticky",
+                              top: 0,
+                              zIndex: 1
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <TextField
+                              ref={searchInputRef}
+                              fullWidth
+                              size="small"
+                              placeholder="Search agents or companies..."
+                              value={searchTerm}
+                              onChange={handleSearchChange}
+                              autoFocus={false}
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <Search sx={{ fontSize: 18, color: "#64748b" }} />
+                                  </InputAdornment>
+                                ),
+                                endAdornment: searchTerm && (
+                                  <InputAdornment position="end">
+                                    <Clear 
+                                      sx={{ 
+                                        fontSize: 18, 
+                                        color: "#64748b", 
+                                        cursor: "pointer",
+                                        "&:hover": { color: "#374151" }
+                                      }} 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleClearSearch();
+                                      }}
+                                    />
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  "& fieldset": { border: "1px solid #e2e8f0" },
+                                  "&:hover fieldset": { border: "1px solid #94a3b8" },
+                                  "&.Mui-focused fieldset": { border: "1px solid #3b82f6" },
+                                  "& input": {
+                                    padding: "8px 12px",
+                                    fontSize: "0.9rem",
+                                    color: "#1e293b",
+                                    "&::placeholder": {
+                                      color: "#64748b",
+                                      opacity: 1,
+                                    },
+                                  },
+                                },
+                              }}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              onKeyUp={(e) => e.stopPropagation()}
+                              onKeyPress={(e) => e.stopPropagation()}
+                            />
+                          </Box>
+                          
                           <MenuItem value="">
                             <Stack direction="row" alignItems="center" spacing={1}>
                               <Assessment sx={{ fontSize: 18, color: "#3b82f6" }} />
@@ -310,44 +425,55 @@ function a11yProps(index) {
                               </Box>
                             </Stack>
                           </MenuItem>
-                          {agents.map((agent) => (
-                            <MenuItem key={agent.id} value={agent.agent_id}>
-                              <Stack direction="row" alignItems="center" spacing={1}>
-                                <Avatar 
-                                  sx={{ 
-                                    width: 24, 
-                                    height: 24, 
-                                    fontSize: "0.8rem",
-                                    backgroundColor: "#3b82f6",
-                                    color: "white",
-                                    fontWeight: 600
-                                  }}
-                                >
-                                  {agent.name.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Box sx={{ minWidth: 0, flex: 1 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2 }}>
-                                    {agent.name}
-                                  </Typography>
-                                  <Typography 
-                                    variant="caption" 
+                          {filteredAgents.length > 0 ? (
+                            filteredAgents.map((agent) => (
+                              <MenuItem key={agent.id} value={agent.agent_id}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <Avatar 
                                     sx={{ 
-                                      color: "#059669", 
-                                      fontSize: "0.7rem",
-                                      lineHeight: 1.2,
-                                      display: "block",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                      fontWeight: 500
+                                      width: 24, 
+                                      height: 24, 
+                                      fontSize: "0.8rem",
+                                      backgroundColor: "#3b82f6",
+                                      color: "white",
+                                      fontWeight: 600
                                     }}
                                   >
-                                    {agent.company_name}
-                                  </Typography>
-                                </Box>
+                                    {agent.name.charAt(0).toUpperCase()}
+                                  </Avatar>
+                                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2 }}>
+                                      {agent.name}
+                                    </Typography>
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{ 
+                                        color: "#059669", 
+                                        fontSize: "0.7rem",
+                                        lineHeight: 1.2,
+                                        display: "block",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        fontWeight: 500
+                                      }}
+                                    >
+                                      {agent.company_name}
+                                    </Typography>
+                                  </Box>
+                                </Stack>
+                              </MenuItem>
+                            ))
+                          ) : searchTerm ? (
+                            <MenuItem disabled>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Search sx={{ fontSize: 18, color: "#64748b" }} />
+                                <Typography variant="body2" sx={{ color: "#64748b", fontStyle: "italic" }}>
+                                  No agents found matching "{searchTerm}"
+                                </Typography>
                               </Stack>
                             </MenuItem>
-                          ))}
+                          ) : null}
                         </Select>
                       </FormControl>
                     </Paper>
@@ -395,7 +521,7 @@ function a11yProps(index) {
                 </Stack>
                 
                 <Chip
-                  label={`${agents.length} Agent${agents.length !== 1 ? 's' : ''}`}
+                  label={`${filteredAgents.length} Agent${filteredAgents.length !== 1 ? 's' : ''}${searchTerm ? ' (filtered)' : ''}`}
                   size="small"
                   sx={{
                     backgroundColor: "rgba(102, 126, 234, 0.1)",

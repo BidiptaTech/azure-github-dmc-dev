@@ -582,7 +582,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
       <style jsx>{`
         .single-row-container {
           display: grid;
-          grid-template-columns: 140px 1fr 2fr 2fr 2fr 1fr 140px;
+          grid-template-columns: 140px 160px 2fr 2fr 2fr 1fr 140px;
           flex-wrap: nowrap;
           width: 100%;
           gap: 5px;
