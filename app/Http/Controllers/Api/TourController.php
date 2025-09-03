@@ -793,10 +793,10 @@ class TourController extends Controller
             'bookingType.required' => 'The type field is required.',
         ]);
 
-        if($request->bookingType == 'enquiry'){
-            $bookingType = 'enquiry';
-        }else{
+        if($request->bookingType == 'booking'){
             $bookingType = 'booking';
+        }else{
+            $bookingType = 'enquiry';
         }
 
         $commission = $request->commission ?? 0;
