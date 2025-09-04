@@ -84,6 +84,7 @@ const BookingSummaryModal = ({
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   console.log("bookingData", bookingData);
   if (!bookingData) return null;
 
@@ -152,21 +153,23 @@ const BookingSummaryModal = ({
               <Typography variant="subtitle1" color="text.secondary">
                 Booking #{bookingIndex + 1}
               </Typography>
-              <Typography
-                component="span"
-                sx={{
-                  px: 1.5,
-                  py: 0.5,
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  borderRadius: 1,
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  ml: 1
-                }}
-              >
-                {bookingData.priceType === 'nri' ? 'Foreigner Pricing' : 'Local Pricing'}
-              </Typography>
+              {PriceHide !== "1" && (
+                <Typography
+                  component="span"
+                  sx={{
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    borderRadius: 1,
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    ml: 1
+                  }}
+                >
+                  {bookingData.priceType === 'nri' ? 'Foreigner Pricing' : 'Local Pricing'}
+                </Typography>
+              )}
             </Box>
           </Box>
 
@@ -526,7 +529,7 @@ const BookingSummaryModal = ({
           <SummarySection>
             <Typography variant="h6" gutterBottom>
               <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Guest Details & Price
+              {PriceHide !== "1" ? 'Guest Details & Price' : 'Guest Details'}
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={8}>
@@ -555,19 +558,43 @@ const BookingSummaryModal = ({
                   </Box>
                 </PriceCard>
               </Grid>
-              <Grid item xs={12} md={4}>
-                <PriceCard>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Total Price
-                  </Typography>
-                  {formatPrice(calculateTotalPrice())}
-                  {/* {bookingData.tax_percentage && (
-                    <Typography variant="caption" color="text.secondary">
-                      *Prices are subject to {bookingData.tax_percentage}% tax
+              {PriceHide !== "1" ? (
+                <Grid item xs={12} md={4}>
+                  <PriceCard>
+                    <Typography variant="subtitle1" color="primary" gutterBottom>
+                      Total Price
                     </Typography>
-                  )} */}
-                </PriceCard>
-              </Grid>
+                    {formatPrice(calculateTotalPrice())}
+                    {/* {bookingData.tax_percentage && (
+                      <Typography variant="caption" color="text.secondary">
+                        *Prices are subject to {bookingData.tax_percentage}% tax
+                      </Typography>
+                    )} */}
+                  </PriceCard>
+                </Grid>
+              ) : (
+                <Grid item xs={12} md={4}>
+                  <PriceCard>
+                    <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                      Price Information
+                    </Typography>
+                    <Box 
+                      sx={{ 
+                        textAlign: 'center', 
+                        py: 2,
+                        bgcolor: 'grey.50',
+                        borderRadius: 1,
+                        border: '1px dashed',
+                        borderColor: 'grey.300'
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        Pricing information is currently hidden
+                      </Typography>
+                    </Box>
+                  </PriceCard>
+                </Grid>
+              )}
             </Grid>
           </SummarySection>
 

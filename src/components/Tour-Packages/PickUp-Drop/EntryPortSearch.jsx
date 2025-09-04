@@ -23,7 +23,7 @@ import {
   setPortZoneType,
 } from "@/slice/port/pickupDropSlice";
 import DateSearch1 from "@/components/activity-list/common/DateSearch1";
-import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
+import Pickuptime from "./Pickuptime";
 
 const EntryPortSearch = ({ Location }) => {
   const theme = useTheme();
@@ -48,6 +48,8 @@ const EntryPortSearch = ({ Location }) => {
   const [pickupFromAutocomplete, setPickupFromAutocomplete] = useState(false);
   const [dropoffFromAutocomplete, setDropoffFromAutocomplete] = useState(false);
   const [time, setTime] = useState(false);
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
 
   // Update Redux store whenever local state changes
   useEffect(() => {
@@ -172,7 +174,16 @@ const EntryPortSearch = ({ Location }) => {
               </Typography>
               <DateSearch1
                 selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
+                setSelectedDate={(date) => {
+                  console.log("Selected Pickup Date:", date);
+                  if (date && date._isAMomentObject) {
+                    const formattedDate = date.format('YYYY-MM-DD');
+                    console.log("Formatted date:", formattedDate);
+                    setSelectedDate(formattedDate);
+                  } else {
+                    setSelectedDate(date);
+                  }
+                }}
               />
             </Box>
           </Grid>

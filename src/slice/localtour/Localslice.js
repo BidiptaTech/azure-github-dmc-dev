@@ -157,7 +157,10 @@ export const fetchVehicleDetails = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -276,7 +279,10 @@ export const Localtourslice = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -868,6 +874,7 @@ const LocalSlice = createSlice({
         if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
           console.log("fetchVehicles - Error response received:", action.payload.message);
           state.vehicles = [];
+          state.error = action.payload.message;
           console.log("fetchVehicles - Set Entry Port vehicles to empty array");
         } else {
           // Support infinite scrolling - check if it's initial load or subsequent load
@@ -893,7 +900,7 @@ const LocalSlice = createSlice({
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
+        state.error = action.payload.message; // Save the error in state
         console.error("Error fetching attractions:", action.payload); // Log error details
       });
 
@@ -907,6 +914,7 @@ const LocalSlice = createSlice({
         if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
           console.log("fetchZoneVehicles - Error response received:", action.payload.message);
           state.vehicles = [];
+          state.error = action.payload.message;
           console.log("fetchZoneVehicles - Set Entry Port vehicles to empty array");
         } else {
           // Support infinite scrolling - check if it's initial load or subsequent load
@@ -933,7 +941,7 @@ const LocalSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
+        state.error = action.payload.message; // Save the error in state
         console.error("Error fetching attractions:", action.payload); // Log error details
       });
 

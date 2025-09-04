@@ -159,7 +159,10 @@ export const fetchVehicleDetails = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -338,7 +341,10 @@ export const fetchLocalZone = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {
@@ -542,7 +548,8 @@ export const submitPickupDrop = createAsyncThunk(
       let formData1 = {};
       console.log("abc", typeof details);
       console.log(typeof details);
-
+      console.log("details", details);
+      console.log("details1", details1);
       // Create JSON objects based on the provided conditions
       //let json0 = {};
       //let json1 = {};
@@ -1102,15 +1109,17 @@ const pickupDropSlice = createSlice({
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
         // Check if response is an error message
-        if (action.payload && typeof action.payload === 'object' && action.payload.success === false) {
+        if (action.payload && typeof action.payload === 'object' && (action.payload.success === false)) {
           console.log("fetchVehicles - Error response received:", action.payload.message);
           // Set empty array for vehicles based on selection type
           if(state.selectionType === "Entry Port"){
             state.vehicles = [];
+            state.error = action.payload.message;
             console.log("fetchVehicles - Set Entry Port vehicles to empty array");
           }
           if(state.selectionType === "Exit Port"){
             state.vehicles1 = [];
+            state.error = action.payload.message;
             console.log("fetchVehicles - Set Exit Port vehicles to empty array");
           }
         } else {
@@ -1147,7 +1156,7 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
+        state.error = action.payload.message; // Save the error in state
         console.error("Error fetching attractions:", action.payload); // Log error details
       })
       // Handle fetchPortCity actions
@@ -1173,14 +1182,16 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
-        if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
+        if(action.payload && typeof action.payload === 'object' && (action.payload.success === false)){
           console.log("fetchZoneVehicles - Error response received:", action.payload.message);
           if(state.selectionType === "Entry Port"){
             state.vehicles = [];
+            state.error = action.payload.message;
             console.log("fetchZoneVehicles - Set Entry Port vehicles to empty array");
           }
           if(state.selectionType === "Exit Port"){
             state.vehicles1 = [];
+            state.error = action.payload.message;
             console.log("fetchZoneVehicles - Set Exit Port vehicles to empty array");
           }
         } else {
@@ -1224,7 +1235,7 @@ const pickupDropSlice = createSlice({
       })
       .addCase(fetchZoneVehicles.rejected, (state, action) => {
         state.status = "failed";
-        state.error = action.payload; // Save the error in state
+        state.error = action.payload.message; // Save the error in state
         console.error("Error fetching attractions:", action.payload); // Log error details
       });
 

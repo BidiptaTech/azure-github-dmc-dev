@@ -54,7 +54,7 @@ import PortCity from "./PortCity";
 import LocationSearch from "./PortLocation";
 import SearchBar from "./PortLocation2";
 import DateSearch1 from "@/components/activity-list/common/DateSearch1";
-import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
+import Pickuptime from "./Pickuptime";
 
 const EntryPortSearchZone = ({ Location, portType}) => {
   const dispatch = useDispatch();
@@ -64,6 +64,8 @@ const EntryPortSearchZone = ({ Location, portType}) => {
   const [exitpickUpLocation, setexitPickUpLocation] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [entryytime, setentryytime] = useState("");
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
 
   const TourId = useSelector((state) => state.hotels.id);
   console.log("TourId", TourId);
@@ -275,9 +277,9 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             backdropFilter: 'blur(10px)'
           }}
         >
-                    <Grid container spacing={1.5} alignItems="flex-end">
+                    <Grid container spacing={3.5} alignItems="flex-end">
             {/* City Selection */}
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <Business sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
@@ -302,7 +304,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Pick Up Location */}
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <LocationOn sx={{ mr: 0.8, color: '#2e7d32', fontSize: 18 }} />
@@ -334,7 +336,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Drop Off Location */}
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <FlightLand sx={{ mr: 0.8, color: '#d32f2f', fontSize: 18 }} />
@@ -367,7 +369,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Time Selection */}
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <Schedule sx={{ mr: 0.8, color: '#ff9800', fontSize: 18 }} />
@@ -380,7 +382,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
                     Pick Up Time
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15300 }}>
+                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 5 }}>
                   <Pickuptime
                     entryytime={entryytime}
                     setentryytime={setentryytime}
@@ -390,9 +392,12 @@ const EntryPortSearchZone = ({ Location, portType}) => {
                 </Box>
               </Box>
             </Grid>
+          </Grid>
 
+          {/* Second Row - Only Date field */}
+          <Grid container spacing={1.5} alignItems="flex-end" sx={{ mt: 1.5 }}>
             {/* Date Selection */}
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <CalendarToday sx={{ mr: 0.8, color: '#9c27b0', fontSize: 18 }} />
@@ -405,15 +410,25 @@ const EntryPortSearchZone = ({ Location, portType}) => {
                     Pick Up Date
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15200 }}>
+                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 5 }}>
                   <DateSearch1
                     selectedDate={selectedDate}
-                    setSelectedDate={setSelectedDate}
+                    setSelectedDate={(date) => {
+                      console.log("Selected Pickup Date:", date);
+                      if (date && date._isAMomentObject) {
+                        const formattedDate = date.format('YYYY-MM-DD');
+                        console.log("Formatted date:", formattedDate);
+                        setSelectedDate(formattedDate);
+                      } else {
+                        setSelectedDate(date);
+                      }
+                    }}
                     disabled={!isDropoffLocationEnabled}
                   />
                 </Box> 
               </Box>
             </Grid>
+          </Grid>
 
             {/* Search Button - Separate Row */}
             <Grid item xs={12} sx={{ mt: 1.5 }}>
@@ -446,7 +461,6 @@ const EntryPortSearchZone = ({ Location, portType}) => {
                 </Button>
               </Box>
             </Grid>
-          </Grid>
         </Paper>
     
       

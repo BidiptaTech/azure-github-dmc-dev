@@ -95,7 +95,7 @@ export default function TabStatus() {
             label={
               <Box sx={{ position: 'relative', pr: 3 }}>
                 Ongoing
-                <Badge
+                {/* <Badge
                   badgeContent={tabCounts.ongoing}
                   color="primary"
                   sx={{
@@ -108,7 +108,7 @@ export default function TabStatus() {
                       minWidth: '20px'
                     }
                   }}
-                />
+                /> */}
               </Box>
             }
             iconPosition="start"
@@ -119,7 +119,7 @@ export default function TabStatus() {
             label={
               <Box sx={{ position: 'relative', pr: 3 }}>
                 Upcoming
-                <Badge
+                {/* <Badge
                   badgeContent={tabCounts.upcoming}
                   color="primary"
                   sx={{
@@ -132,7 +132,7 @@ export default function TabStatus() {
                       minWidth: '20px'
                     }
                   }}
-                />
+                /> */}
               </Box>
             }
             iconPosition="start"
@@ -143,7 +143,7 @@ export default function TabStatus() {
             label={
               <Box sx={{ position: 'relative', pr: 3 }}>
                 Past
-                <Badge
+                {/* <Badge
                   badgeContent={tabCounts.past}
                   color="primary"
                   sx={{
@@ -156,7 +156,7 @@ export default function TabStatus() {
                       minWidth: '20px'
                     }
                   }}
-                />
+                /> */}
               </Box>
             }
             iconPosition="start"

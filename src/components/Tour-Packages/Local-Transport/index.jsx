@@ -82,7 +82,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const searchDayIndex = useSelector((state) => state.localtour.searchDayIndex);
-
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   
   // Location data from Redux
@@ -90,7 +90,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const dropoffLocation = useSelector(state => state.localtour.entrydropoff || '');
   const exitPickupLocation = useSelector(state => state.localtour.exitpickup || '');
   const pickupTime = useSelector(state => state.localtour.entrytime || '');
-  const pickupTime1 = useSelector(state => state.localtour.entrytime1 || '');
+  const pickupTime1 = useSelector(state => state.localtour.entrytime || '');
   const pickupTimeZone = useSelector(state => state.localtour.entrytime || '');
   const pickupDate = useSelector(state => state.localtour.pickdate || '');
   const exitPickupDate = useSelector(state => state.localtour.exitpickupdate || '');
@@ -1909,7 +1909,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           <CardContent sx={{height: '52px', py: 0.1}}>
             <Box display="flex" alignItems="center" justifyContent="space-between">
               <Box display="flex" alignItems="center">
-                <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 28, color: '#FFD700' }} />
+                <DirectionsCarIcon sx={{ mr: 1.5, fontSize: "1.1rem", color: '#FFD700' }} />
                 <Box>
                   <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                     Book Transport Services
@@ -1957,7 +1957,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 0.9, position: 'relative' }}>
+    <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}
@@ -1972,7 +1972,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         <CardContent sx={{ py: 0.5}}>
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center">
-              <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 24, color: '#FFD700' }} />
+              <DirectionsCarIcon sx={{ mr: 1.5, fontSize: '1.1rem', color: '#FFD700' }} />
               <Box>
                 <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '0.9rem' }}>
                   Book Transport Services
@@ -2085,7 +2085,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         variant="outlined"
                         sx={{ fontSize: '0.75rem', height: '24px' }}
                       />
-                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && (
+                      {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && PriceHide !== "1" && (
                         <Chip
                           label={`$${(
                             !isNaN(Number(booking.price)) && Number(booking.price) > 0

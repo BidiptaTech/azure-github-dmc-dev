@@ -115,6 +115,10 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(76, 175, 80, 0.06)"; // Professional light green
     case "Actual":
       return "rgba(60, 140, 65, 0.06)"; // Professional light green
+    case "Refund - Pending":
+      return "rgba(255, 103, 2, 0.66)"; // Professional light deep orange
+    case "Refunded":
+      return "rgba(2, 255, 15, 0.53)"; // Professional light deep orange
     case "Pending":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Tentative":
@@ -147,6 +151,10 @@ const getTextColor = (tour_status) => {
       return "#4CAF50"; // Green
     case "Pending":
       return "#F44336"; // Red
+    case "Refund - Pending":
+      return "#FFFFFF"; // Deep Orange
+    case "Refunded":
+      return "#FFFFFF"; // Deep Orange
     case "Tentative":
       return "#7E57C2"; // Violet
     case "New Enquiry":
@@ -156,7 +164,7 @@ const getTextColor = (tour_status) => {
     case "Closed":
       return "#000000"; // Black
     case "On Hold":
-      return "#ffffff"; // Black
+      return "#FFFFFF"; // Black
     default:
       return "#ffffff"; // Default gray
   }
@@ -860,10 +868,11 @@ export default function Pending() {
     dispatch(UpdateCustomPackage({ tour_id: tourId }))
       .unwrap()
       .then((response) => {
+        dispatch(setSelectedDmcId({ dmcId: response.dmc_id , dmcData: {originalData: {price_hide: response.price_hide, zone_on: response.zone_on}}}));
         dispatch(resetPackages());
         navigate("/dashboard/tour-packages");
         console.log("Full Response Data:", response);
-        dispatch(setSelectedDmcId({ dmcId: response.dmc_id }));
+        
       })
       .catch((error) => {
         console.error("Error fetching booking:", error);

@@ -130,7 +130,10 @@ export const UpdateCustomPackage = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "Operational Head(DMC)" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "DMC Assistant Operational Manager"
       ) {
         AgentId = agentID;
       } else {

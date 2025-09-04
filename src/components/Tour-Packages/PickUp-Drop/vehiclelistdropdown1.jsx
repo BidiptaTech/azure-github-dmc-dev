@@ -53,6 +53,7 @@ const CustomTooltip = styled(({ className, ...props }) => (
 
 // Tooltip content component
 const TooltipContent = ({ vehicle }) => {
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <Box>
       {/* Header Image Section */}
@@ -122,6 +123,8 @@ const TooltipContent = ({ vehicle }) => {
           <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
             Pricing Details
           </Typography>
+          {PriceHide !== "1" ? (
+          <>
           <Grid container spacing={2}>
             {/* DMC Prices */}
             {(vehicle.dmc_private_price > 0 || vehicle.dmc_sharable_price > 0) && (
@@ -188,6 +191,12 @@ const TooltipContent = ({ vehicle }) => {
               }}
             >
               *Prices are subject to {vehicle.tax_percentage}% tax
+            </Typography>
+          )}
+          </>
+          ):(
+            <Typography variant="caption" gutterBottom sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.75rem' }}>
+              Pricing hidden
             </Typography>
           )}
         </Box>
@@ -336,6 +345,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           dmc_id: exitData.dmc_id ? String(exitData.dmc_id) : '',
           vehicles_id: exitData.vehicles_id ? String(exitData.vehicles_id) : '',
           totalPrice: exitData.totalPrice ? Number(exitData.totalPrice) : 0,
+          seating_capacity: Number(exitData.seatingCapacity ?? exitData.seating_capacity ?? 1),
           distance: exitData.distance ? Number(exitData.distance) : 0,
           // Normalize type for case insensitivity
           type: exitData.type ? exitData.type.toLowerCase() : 'private'
@@ -352,7 +362,7 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
             vehicle_type: normalizedExitData.vehicle_type || '',
             vehicle_model: normalizedExitData.vehicle_model || '',
             model_year: normalizedExitData.model_year || '',
-            seating_capacity: normalizedExitData.seating_capacity || 1,
+            seating_capacity: Number(normalizedExitData.seating_capacity) || 1,
             image: normalizedExitData.image || '',
             city: normalizedExitData.city || '',
             country: normalizedExitData.country || '',
@@ -361,14 +371,14 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
           vehicleData: {
             // Map the price mode to expected structure
             private_price: normalizedExitData.type === 'private' || normalizedExitData.type === "Private" ? normalizedExitData.totalPrice : 0,
-            shared_price: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? normalizedExitData.totalPrice : 0,
+            shared_price: normalizedExitData.type === 'shared' || normalizedExitData.type === "sharable" ? normalizedExitData.totalPrice : 0,
             prices: {
               privatePrice: normalizedExitData.type === 'private' || normalizedExitData.type === "Private" ? normalizedExitData.totalPrice : 0,
-              sharablePrice: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? normalizedExitData.totalPrice : 0
+              sharablePrice: normalizedExitData.type === 'shared' || normalizedExitData.type === "sharable" ? normalizedExitData.totalPrice : 0
             },
             $distanceInKM: normalizedExitData.distance || null
           },
-          priceMode: normalizedExitData.type === 'shared' || normalizedExitData.type === "Sharable" ? 'Sharable' : 'Private',
+          priceMode: normalizedExitData.type === 'shared' || normalizedExitData.type === "sharable" ? 'Sharable' : 'Private',
           isComplete: true, // Mark as complete since it's loaded data
           adults: normalizedExitData.adults || 1,
           children: normalizedExitData.children || 0,

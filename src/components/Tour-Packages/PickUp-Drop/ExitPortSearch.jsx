@@ -14,7 +14,7 @@ import {
   setPortZoneType,
 } from "@/slice/port/pickupDropSlice";
 import DateSearch2 from "@/components/activity-list/common/DateSearch2";
-import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
+import Pickuptime1 from "./Pickuptime1";
 import {
   Box,
   Button,
@@ -40,6 +40,8 @@ const ExitPortSearch = ({ Location }) => {
   const reduxExitTime = useSelector((state) => state.pickupDrop.exittime || "");
   const reduxPickUpLatLng = useSelector((state) => state.pickupDrop.PickupPlaceid1 || "");
   const reduxDropOffLatLng = useSelector((state) => state.pickupDrop.DropoffPlaceid1 || "");
+  const errorMessage = useSelector((state) => state.pickupDrop.error);
+  console.log("errorMessage", errorMessage);
   
   // Log Redux values for debugging
   console.log("Redux values in ExitPortSearch:", {

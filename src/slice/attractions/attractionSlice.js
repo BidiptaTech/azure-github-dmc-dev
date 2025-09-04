@@ -52,8 +52,8 @@ export const fetchAttractions = createAsyncThunk(
       if (tour_id) queryParams.append("tour_id", tour_id);
       
       // Add pagination parameters
-      queryParams.append("start", start);
-      queryParams.append("limit", limit);
+      if (start) queryParams.append("start", start);
+      if (limit) queryParams.append("limit", limit);
       
       // Add DMC ID to query parameters if available
       if (selectedDmcId) {
@@ -155,7 +155,10 @@ export const createBooking = createAsyncThunk(
       if (
         userRole === "Sales Head(DMC)" ||
         userRole === "Sales Manager (DMC)" ||
-        userRole === "Assistant Manager (DMC)"
+        userRole === "Assistant Manager (DMC)" ||
+        userRole === "DMC Assistant Operational Manager" ||
+        userRole === "DMC Operational Manager" ||
+        userRole === "Operational Head(DMC)"
       ) {
         AgentId = agentID;
       } else {

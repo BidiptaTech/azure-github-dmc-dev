@@ -82,6 +82,7 @@ const TransportSummaryModal = ({
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   const vehicleDetails = useSelector((state) => state.localtour.vehicleDetails);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   if (!bookingData) return null;
 
@@ -441,7 +442,13 @@ const TransportSummaryModal = ({
                   <Typography variant="subtitle1" color="primary" gutterBottom>
                     Total Price
                   </Typography>
-                  {formatPrice(bookingData.price)}
+                  {PriceHide !== "1" ? (
+                    formatPrice(bookingData.price)
+                  ):(
+                    <Typography variant="caption" color="text.secondary">
+                      Pricing hidden
+                    </Typography>
+                  )}
                   {selectedVehicle.tax_percentage && (
                     <Typography variant="caption" color="text.secondary">
                       *Prices are subject to {selectedVehicle.tax_percentage}% tax

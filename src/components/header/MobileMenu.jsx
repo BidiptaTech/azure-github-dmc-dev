@@ -18,6 +18,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { logoutUser } from "@/slice/common/authSlices";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 import LogoutIcon from '@mui/icons-material/Logout';
+import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
 
 const MobileMenu = () => {
   const { pathname } = useLocation();
@@ -35,6 +36,7 @@ const MobileMenu = () => {
 
   const handleLogout = async () => {
     dispatch(clearSelectedDmc()); // Clear DMC selection on logout
+    dispatch(setAgentIdEdit(null));
     const result = await dispatch(logoutUser());
     if (logoutUser.fulfilled.match(result)) {
       navigate("/login");
@@ -118,7 +120,7 @@ const MobileMenu = () => {
               }
               style={{ margin: "5px 0" }}
             >
-              Book An Enquiry
+              Quick Enquiry
             </MenuItem>
           )}
           
