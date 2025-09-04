@@ -850,7 +850,7 @@ class PackageController extends Controller
                     'tour_id' => $tourId,
                     'data' => $data,
                     'type' => $type,
-                    'bookingType' => $data[0]['bookingType'] ?? 'booking',
+                    'bookingType' => $data[0]['bookingType'] ?? 'enquiry',
                     'status' => 1,
                 ]);
             }
