@@ -112,10 +112,10 @@
                                     <div class="d-flex flex-column">
                                         <span class="fw-semibold mb-1 text-primary">{{ $enquiry->agent->name ?? 'N/A' }}</span>
                                         <div class="d-flex align-items-center">
-                                            {{-- <span class="badge bg-primary bg-opacity-10 text-primary small">
-                                                <i class="fas fa-id-badge me-1"></i>
-                                                {{ $enquiry->agent->agent_id ?? 'N/A' }}
-                                            </span> --}}
+                                            <span class="text-muted small">
+                                                <i class="fas fa-building me-1"></i>
+                                                {{ $enquiry->agent->company_name ?? 'N/A' }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

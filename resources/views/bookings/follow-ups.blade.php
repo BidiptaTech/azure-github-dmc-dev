@@ -364,7 +364,10 @@
                                 <div class="d-flex flex-column">
                                     @if($tour->agent_name)
                                         <span class="fw-medium">{{ $tour->agent_name }}</span>
-                                        <small class="text-muted">ID: {{ $tour->agent_id }}</small>
+                                        <small class="text-muted">
+                                            <i class="fas fa-building me-1"></i>
+                                            {{ $tour->agent_company_name ?? 'N/A' }}
+                                        </small>
                                     @else
                                         <span class="text-muted">No agent assigned</span>
                                     @endif

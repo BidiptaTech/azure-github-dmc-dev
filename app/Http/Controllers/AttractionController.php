@@ -306,7 +306,7 @@ class AttractionController extends Controller
                 'location' => 'required|string|max:255',
                 'master_image' => 'required|file|image',
                 'all_images' => 'nullable|array',
-                'all_images.*' => 'nullable|file|image',
+                // 'all_images.*' => 'nullable|file|image',
                 
                 'latitude' => 'required|numeric|min:0',
                 'longitude' => 'required|numeric|min:0',
@@ -487,7 +487,7 @@ class AttractionController extends Controller
     */
     public function update(Request $request, $id)
     {
-        $attraction = Attraction::where('attraction_id',$id)->first();
+        $attraction = Attraction::where('attraction_id',Crypt::decrypt($id))->first();
 
         // dd($request->all());
         $request->validate([
