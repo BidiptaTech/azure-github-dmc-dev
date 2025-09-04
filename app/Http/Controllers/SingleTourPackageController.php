@@ -1797,6 +1797,33 @@ class SingleTourPackageController extends Controller
                 'exit_port_data' => $request->exit_port_data
             ]);
             
+            // Debug: Log transport data specifically
+            $transportData = $request->transport_data;
+            if ($transportData) {
+                try {
+                    $decodedTransport = json_decode($transportData, true);
+                    \Log::info("Transport data decoded successfully", [
+                        'count' => count($decodedTransport),
+                        'data' => $decodedTransport
+                    ]);
+                    
+                    // Log each transport item
+                    foreach ($decodedTransport as $index => $transport) {
+                        \Log::info("Transport item {$index} details:", [
+                            'id' => $transport['id'] ?? 'no_id',
+                            'travel_type' => $transport['travel_type'] ?? 'no_travel_type',
+                            'type' => $transport['type'] ?? 'no_type',
+                            'vehicles_name' => $transport['vehicles_name'] ?? 'no_vehicle_name',
+                            'bookingType' => $transport['bookingType'] ?? 'no_booking_type'
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    \Log::error("Error decoding transport data: " . $e->getMessage());
+                }
+            } else {
+                \Log::info("No transport data received");
+            }
+            
             // Also log to file for debugging
             file_put_contents(storage_path('logs/transport_debug.log'), 
                 "=== TRANSPORT DEBUG " . date('Y-m-d H:i:s') . " ===\n" .
@@ -2087,10 +2114,32 @@ class SingleTourPackageController extends Controller
                                 'total_transports' => count($decodedData),
                                 'transport_data' => $decodedData
                             ]);
+                            // Debug: Log each transport item individually
+                            foreach ($decodedData as $index => $transport) {
+                                \Log::info("Transport item {$index}", [
+                                    'id' => $transport['id'] ?? 'no_id',
+                                    'travel_type' => $transport['travel_type'] ?? 'no_travel_type',
+                                    'type' => $transport['type'] ?? 'no_type',
+                                    'vehicles_name' => $transport['vehicles_name'] ?? 'no_vehicle_name',
+                                    'bookingType' => $transport['bookingType'] ?? 'no_booking_type',
+                                    'pickup_coords' => $transport['PickupPlaceid'] ?? 'no_pickup_coords',
+                                    'dropoff_coords' => $transport['DropoffPlaceid'] ?? 'no_dropoff_coords'
+                                ]);
+                            }
                             
                             foreach ($decodedData as $transport) {
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                
+                                if ($orderType === 'travel_point') {
+                                    \Log::info("✅ PROCESSING POINT-TO-POINT TRANSPORT", [
+                                        'transport_id' => $transport['id'] ?? 'no_id',
+                                        'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
+                                        'pickup_location' => $transport['entrypickup'] ?? 'no_pickup',
+                                        'dropoff_location' => $transport['entrydropoff'] ?? 'no_dropoff',
+                                        'travel_type' => $orderType
+                                    ]);
+                                }
                                 
                                 \Log::info("Processing individual transport", [
                                     'transport_id' => $transport['id'] ?? 'no_id',
@@ -2115,7 +2164,7 @@ class SingleTourPackageController extends Controller
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
-                                    'bookingType' => $transport['bookingType'] ?? 'booking', // Use bookingType from transport data
+                                    'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                 ]);
 
                                 \Log::info("Transport order created successfully", [
@@ -2167,7 +2216,7 @@ class SingleTourPackageController extends Controller
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
-                                    'bookingType' => $transport['bookingType'] ?? 'booking', // Use bookingType from transport data
+                                    'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                 ]);
 
                                 \Log::info("{$type} transport order created successfully", [

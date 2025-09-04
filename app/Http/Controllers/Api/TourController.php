@@ -793,10 +793,10 @@ class TourController extends Controller
             'bookingType.required' => 'The type field is required.',
         ]);
 
-        if($request->bookingType == 'enquiry'){
-            $bookingType = 'enquiry';
-        }else{
+        if($request->bookingType == 'booking'){
             $bookingType = 'booking';
+        }else{
+            $bookingType = 'enquiry';
         }
 
         $commission = $request->commission ?? 0;
@@ -2347,6 +2347,7 @@ class TourController extends Controller
                             
                     return response()->json([
                         'success' => true,
+                        'actual_amount' => $currentEnquiry->actual_amount,
                         'message' => 'Booking accepted successfully.'
                     ], 200);
                 }
