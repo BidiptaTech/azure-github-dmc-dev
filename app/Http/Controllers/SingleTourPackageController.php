@@ -2114,7 +2114,6 @@ class SingleTourPackageController extends Controller
                                 'total_transports' => count($decodedData),
                                 'transport_data' => $decodedData
                             ]);
-                            
                             // Debug: Log each transport item individually
                             foreach ($decodedData as $index => $transport) {
                                 \Log::info("Transport item {$index}", [
@@ -2131,6 +2130,16 @@ class SingleTourPackageController extends Controller
                             foreach ($decodedData as $transport) {
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                
+                                if ($orderType === 'travel_point') {
+                                    \Log::info("✅ PROCESSING POINT-TO-POINT TRANSPORT", [
+                                        'transport_id' => $transport['id'] ?? 'no_id',
+                                        'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
+                                        'pickup_location' => $transport['entrypickup'] ?? 'no_pickup',
+                                        'dropoff_location' => $transport['entrydropoff'] ?? 'no_dropoff',
+                                        'travel_type' => $orderType
+                                    ]);
+                                }
                                 
                                 \Log::info("Processing individual transport", [
                                     'transport_id' => $transport['id'] ?? 'no_id',

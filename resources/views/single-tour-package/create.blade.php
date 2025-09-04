@@ -419,8 +419,6 @@
                                 </div>
                             </div>
 
-                            
-
                             <!-- Package Total Price Summary -->
                             <div class="row mt-3">
                                 <div class="col-12">
@@ -465,8 +463,6 @@
                 </div>
             </div>
 
-            
-
             <!-- Transports and Other Services Section (Hidden Initially) -->
             <div class="row mb-4" id="transportSection" style="display: none;">
                 <div class="col-12">
@@ -493,7 +489,7 @@
             <input type="hidden" id="hotelBookings" name="hotel_bookings" value="[]">
             <input type="hidden" id="guideBookings" name="guide_bookings" value="[]">
             <input type="hidden" id="vehicleBookings" name="vehicle_bookings" value="[]">
-                        <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
+            <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
             <input type="hidden" id="portBookings" name="port_bookings" value="[]">
             
             <!-- DMC Information -->
@@ -1652,12 +1648,14 @@
                 // Function to collect transport data (including entry/exit ports)
                 function updateTransportDataField() {
                         console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
-                    const transportDataArray = [];
-                    const entryPortArray = [];
-                    const exitPortArray = [];
                     
                     // Get customer information from the Customer Information form
                     const customerData = getCustomerData();
+                    
+                    // Initialize arrays for different transport types
+                    let transportDataArray = [];
+                    let entryPortArray = [];
+                    let exitPortArray = [];
                     
                     // Get current DMC information
                     const dmcInfo = {
@@ -1671,7 +1669,8 @@
                     const allPickupSelects = document.querySelectorAll('select[name*="_pickup_zone_id"]');
                     const allPickupLocationInputs = document.querySelectorAll('input[name*="_pickup_location"]');
                     const allDropoffLocationInputs = document.querySelectorAll('input[name*="_dropoff_location"]');
-                    const allPickupFields = [...allPickupSelects, ...allPickupLocationInputs, ...allDropoffLocationInputs];
+                    // Only include pickup fields for processing, dropoff fields will be handled separately
+                    const allPickupFields = [...allPickupSelects, ...allPickupLocationInputs];
                     console.log(`Found ${allPickupSelects.length} pickup zone selects and ${allPickupLocationInputs.length} pickup location inputs:`, Array.from(allPickupFields).map(s => s.name));
                     
                     // Debug: Check all input fields that might be transport-related
@@ -1716,276 +1715,319 @@
                     
                     console.log('All transport-related fields found:', transportFields);
                     
-                    allPickupFields.forEach(pickupField => {
-                        console.log(`Processing pickup field: ${pickupField.name}, value: ${pickupField.value}`);
-                        if (pickupField.value) {
-                            const nameMatch = pickupField.name.match(/day(\d+)_(\w+)(?:_(\d+))?_(?:pickup_zone_id|pickup_location|dropoff_location|additional_pickup_location|hourly_pickup_location)/);
+                    // Keep track of processed transports to avoid duplicates
+                    const processedTransports = new Set();
+                    
+                    // Keep track of processed fields to avoid processing the same field multiple times
+                    const processedFields = new Set();
+                    
+                    // SEGREGATED TRANSPORT COLLECTION: Handle each transport type separately
+                    // This ensures all transport types are collected correctly
+                    
+                    // 1. Collect Point-to-Point Transport Data
+                    console.log('=== COLLECTING POINT-TO-POINT TRANSPORTS ===');
+                    const pointToPointFields = document.querySelectorAll('input[name*="transport"][name*="pickup_location"]:not([name*="hourly"])');
+                    console.log(`Found ${pointToPointFields.length} point-to-point pickup fields`);
+                    
+                    pointToPointFields.forEach(field => {
+                        if (field.value) {
+                            console.log(`Processing P2P field: ${field.name} = ${field.value}`);
+                            const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_pickup_location/);
                             if (nameMatch) {
                                 const day = nameMatch[1];
-                                const section = nameMatch[2]; // entry, exit, transport
-                                const transportIndex = nameMatch[3]; // undefined for single transport, number for multiple
-                                
+                                const section = nameMatch[2];
+                                const transportIndex = nameMatch[3];
                                 const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
                                 
-                                // Determine the transport type based on the field name
-                                let transportType = 'local_transfer'; // default
-                                if (pickupField.name.includes('additional_pickup_location')) {
-                                    transportType = 'point_to_point';
-                                } else if (pickupField.name.includes('hourly_pickup_location')) {
-                                    transportType = 'hourly';
-                                } else if (pickupField.name.includes('pickup_location') && !pickupField.name.includes('additional')) {
-                                    transportType = 'point_to_point';
-                                } else if (pickupField.name.includes('dropoff_location')) {
-                                    transportType = 'point_to_point';
-                                } else if (section === 'entry') {
-                                    transportType = 'entry_port';
-                                } else if (section === 'exit') {
-                                    transportType = 'exit_port';
+                                // Check if point-to-point service type is selected
+                                const serviceTypeRadio = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_service_type"][value="point_to_point"]:checked`);
+                                if (!serviceTypeRadio) {
+                                    console.log(`Skipping field ${field.name} - point-to-point service type not selected`);
+                                    return;
                                 }
                                 
-                                // For multiple transports, we need to check different field patterns based on service type
-                                let dropoffField, vehicleSelect, serviceTypeSelect, timeSelect, dateInput;
+                                console.log(`Point-to-point service type confirmed for ${field.name}`);
                                 
-                                if (transportIndex) {
-                                    // Multiple transport - check different patterns based on transport type
-                                    if (transportType === 'point_to_point') {
-                                        console.log(`Point to point transport type found`);
-                                        dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_additional_date"]`);
-                                        
-                                        // If not found, try alternative field names
-                                        if (!dropoffField) {
-                                            dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
-                                        }
-                                        if (!timeSelect) {
-                                            timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_pickup_time"]`);
-                                        }
-                                        if (!dateInput) {
-                                            dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_date"]`);
-                                        }
-                                    } else if (transportType === 'hourly') {
-                                        dropoffField = null; // Hourly doesn't have dropoff
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
-                                    } else if (transportType === 'entry_port' || transportType === 'exit_port') {
-                                        // Entry/Exit ports - use zone selects
-                                        dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_pickup_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_pickup_date"]`);
-                                    } else {
-                                        // Local transfer
-                                        dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_pickup_time"], select[name="day${day}_${section}${fieldSuffix}_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_date"], input[name="day${day}_${section}${fieldSuffix}_pickup_date"]`);
-                                    }
-                                    vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
-                                    serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                } else {
-                                    // Single transport - use original patterns
-                                    if (transportType === 'point_to_point') {
-                                        dropoffField = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}_additional_pickup_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}_additional_date"]`);
-                                        
-                                        // If not found, try alternative field names
-                                        if (!dropoffField) {
-                                            dropoffField = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
-                                        }
-                                        if (!timeSelect) {
-                                            timeSelect = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
-                                        }
-                                        if (!dateInput) {
-                                            dateInput = document.querySelector(`input[name="day${day}_${section}_date"]`);
-                                        }
-                                    } else if (transportType === 'hourly') {
-                                        dropoffField = null; // Hourly doesn't have dropoff
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}_hourly_pickup_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}_hourly_date"]`);
-                                    } else if (transportType === 'entry_port' || transportType === 'exit_port') {
-                                        // Entry/Exit ports - use zone selects
-                                        dropoffField = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}_pickup_date"]`);
-                                    } else {
-                                        // Local transfer
-                                        dropoffField = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
-                                        timeSelect = document.querySelector(`select[name="day${day}_${section}_pickup_time"], select[name="day${day}_${section}_time"]`);
-                                        dateInput = document.querySelector(`input[name="day${day}_${section}_date"], input[name="day${day}_${section}_pickup_date"]`);
-                                    }
-                                    vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
-                                    serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
-                                }
+                                const dropoffField = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_dropoff_location"]`);
+                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
+                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_additional_pickup_time"]`);
+                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_additional_date"]`);
                                 
-                                console.log(`Checking required fields for ${pickupField.name}:`);
-                                console.log(`- dropoffField: ${dropoffField?.name} = ${dropoffField?.value}`);
-                                console.log(`- vehicleSelect: ${vehicleSelect?.name} = ${vehicleSelect?.value}`);
-                                console.log(`- serviceTypeSelect: ${serviceTypeSelect?.name} = ${serviceTypeSelect?.value}`);
-                                console.log(`- transportType: ${transportType}`);
-                                console.log(`- pickupField value: ${pickupField.value}`);
-                                
-                                // For hourly transport, dropoff is not required
-                                // For point to point transport, dropoff is required but might be in different field
-                                // For entry/exit ports, dropoff is required
-                                let hasRequiredFields = vehicleSelect?.value && serviceTypeSelect?.value;
-                                
-                                if (transportType === 'hourly') {
-                                    // Hourly doesn't need dropoff
-                                    hasRequiredFields = hasRequiredFields && true;
-                                } else if (transportType === 'point_to_point') {
-                                    // Point to point needs dropoff field to have a value
-                                    hasRequiredFields = hasRequiredFields && (dropoffField?.value || pickupField.value);
-                                } else {
-                                    // Other transports need dropoff field
-                                    hasRequiredFields = hasRequiredFields && dropoffField?.value;
-                                }
-                                
-                                console.log(`- hasRequiredFields: ${hasRequiredFields}`);
-                                
-                                if (hasRequiredFields) {
-                                    // Get pickup and dropoff details based on field type
-                                    let pickupZone, dropoffZone, vehicle;
-                                    
-                                    if (pickupField.tagName === 'SELECT') {
-                                        // Zone select field
-                                        pickupZone = pickupField.options[pickupField.selectedIndex];
-                                    } else {
-                                        // Location input field - create a mock zone object
-                                        pickupZone = {
-                                            text: pickupField.value,
-                                            value: pickupField.value,
-                                            dataset: {
-                                                city: '',
-                                                country: ''
-                                            }
-                                        };
-                                    }
-                                    
-                                    if (dropoffField && dropoffField.tagName === 'SELECT') {
-                                        // Zone select field
-                                        dropoffZone = dropoffField.options[dropoffField.selectedIndex];
-                                    } else if (dropoffField) {
-                                        // Location input field - create a mock zone object
-                                        dropoffZone = {
-                                            text: dropoffField.value,
-                                            value: dropoffField.value,
-                                            dataset: {
-                                                city: '',
-                                                country: ''
-                                            }
-                                        };
-                                    } else {
-                                        // Hourly transport - no dropoff
-                                        dropoffZone = {
-                                            text: 'N/A',
-                                            value: 'N/A',
-                                            dataset: {
-                                                city: '',
-                                                country: ''
-                                            }
-                                        };
-                                    }
-                                    
-                                    vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    
-                                    // Get guest counts from the form
+                                if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                     const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                    
-                                    // Get pricing data from hidden fields (this is the correct way)
-                                    const basePrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_base_price`)?.value || 0);
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
-                                    // Map transport type to service type for backend compatibility
-                                    let serviceType = serviceTypeSelect?.value || '';
-                                    if (transportType === 'point_to_point') {
-                                        serviceType = 'Point To Point';
-                                    } else if (transportType === 'hourly') {
-                                        serviceType = 'Hourly';
-                                    } else if (transportType === 'entry_port') {
-                                        serviceType = 'Entry Port';
-                                    } else if (transportType === 'exit_port') {
-                                        serviceType = 'Exit Port';
-                                    } else {
-                                        serviceType = 'Local Transfer';
-                                    }
+                                    const formatEntryTime = (time) => {
+                                        if (!time) return "12:00 PM";
+                                        if (time.includes('AM') || time.includes('PM')) return time;
+                                        const [hours, minutes] = time.split(':');
+                                        const hour = parseInt(hours);
+                                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                        return `${displayHour}:${minutes} ${ampm}`;
+                                    };
                                     
-                                    console.log(`Transport pricing for day ${day}, section ${section}${fieldSuffix}:`);
-                                    console.log(`- Base Price: $${basePrice}`);
-                                    console.log(`- Total Price: $${totalPrice}`);
-                                    console.log(`- Service Type: ${serviceType}`);
-                                    console.log(`- Guest Count: ${adultCount + childCount}`);
-                                    console.log(`- Transport Index: ${transportIndex || 'single'}`);
-                                    
-                                    // Get pickup and dropoff coordinates from hidden fields
-                                    let pickupCoords, dropoffCoords;
-                                    
-                                    if (transportType === 'point_to_point') {
-                                        pickupCoords = {
+                                    const transportData = {
+                                        id: `point-to-point-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                        Mode: "dmc",
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        country: "Singapore",
+                                        countryCode: customerData.countryCode,
+                                        state: customerData.state || null,
+                                        city: "Singapore",
+                                        zip: customerData.zip,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        entrytime: formatEntryTime(timeSelect?.value),
+                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                        vehicles_name: vehicle.text,
+                                        type: serviceTypeSelect.value || "Private",
+                                        travel_type: "travel_point",
+                                        adults: parseInt(adultCount) || 0,
+                                        children: parseInt(childCount) || 0,
+                                        specialRequests: customerData.specialRequests || null,
+                                        image: vehicle.dataset.image || null,
+                                        totalPrice: parseFloat(totalPrice) || 0,
+                                        componentDayIndex: parseInt(day) - 1,
+                                        entrypickup: field.value,
+                                        entrydropoff: dropoffField.value,
+                                        PickupPlaceid: {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_additional_pickup_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_additional_pickup_lng`)?.value || ""
-                                        };
-                                        dropoffCoords = {
+                                        },
+                                        DropoffPlaceid: {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lng`)?.value || ""
-                                        };
-                                    } else if (transportType === 'hourly') {
-                                        pickupCoords = {
+                                        },
+                                        distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                        Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                        Night_Start_Time: null,
+                                        Night_End_Time: null,
+                                        bookingType: "enquiry"
+                                    };
+                                    
+                                    transportDataArray.push(transportData);
+                                    console.log(`✅ Added point-to-point transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 2. Collect Hourly Transport Data
+                    console.log('=== COLLECTING HOURLY TRANSPORTS ===');
+                    const hourlyFields = document.querySelectorAll('input[name*="hourly_pickup_location"]');
+                    console.log(`Found ${hourlyFields.length} hourly pickup fields`);
+                    
+                    hourlyFields.forEach(field => {
+                        if (field.value) {
+                            console.log(`Processing Hourly field: ${field.name} = ${field.value}`);
+                            const nameMatch = field.name.match(/day(\d+)_(\w+)(?:_(\d+))?_(?:hourly_pickup_location)/);
+                            if (nameMatch) {
+                                const day = nameMatch[1];
+                                const section = nameMatch[2];
+                                const transportIndex = nameMatch[3];
+                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                
+                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
+                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_hourly_pickup_time"]`);
+                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_hourly_date"]`);
+                                const selectedHours = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_selected_hours"]`);
+                                
+                                if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                    
+                                    const formatEntryTime = (time) => {
+                                        if (!time) return "12:00 PM";
+                                        if (time.includes('AM') || time.includes('PM')) return time;
+                                        const [hours, minutes] = time.split(':');
+                                        const hour = parseInt(hours);
+                                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                        return `${displayHour}:${minutes} ${ampm}`;
+                                    };
+                                    
+                                    const transportData = {
+                                        id: `hourly-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                        Mode: "dmc",
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        country: "Singapore",
+                                        countryCode: customerData.countryCode,
+                                        state: customerData.state || null,
+                                        city: "Singapore",
+                                        zip: customerData.zip,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        entrytime: formatEntryTime(timeSelect?.value),
+                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                        vehicles_name: vehicle.text,
+                                        type: serviceTypeSelect.value || "Private",
+                                        travel_type: "travel_hourly",
+                                        adults: parseInt(adultCount) || 0,
+                                        children: parseInt(childCount) || 0,
+                                        specialRequests: customerData.specialRequests || null,
+                                        image: vehicle.dataset.image || null,
+                                        totalPrice: parseFloat(totalPrice) || 0,
+                                        componentDayIndex: parseInt(day) - 1,
+                                        entrypickup: field.value,
+                                        entrydropoff: 'N/A',
+                                        PickupPlaceid: {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_hourly_pickup_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_hourly_pickup_lng`)?.value || ""
-                                        };
-                                        dropoffCoords = {
-                                            lat: "",
-                                            lng: ""
-                                        };
-                                    } else if (transportType === 'entry_port' || transportType === 'exit_port') {
-                                        // Entry/Exit ports - coordinates come from zone data, not separate fields
-                                        pickupCoords = {
-                                            lat: pickupZone.dataset.lat || "",
-                                            lng: pickupZone.dataset.lng || ""
-                                        };
-                                        dropoffCoords = {
-                                            lat: dropoffZone.dataset.lat || "",
-                                            lng: dropoffZone.dataset.lng || ""
-                                        };
-                                    } else {
-                                        // Local transfer
-                                        pickupCoords = {
+                                        },
+                                        DropoffPlaceid: null,
+                                        distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                        Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                        Night_Start_Time: null,
+                                        Night_End_Time: null,
+                                        selectedHours: parseInt(selectedHours?.value || 1),
+                                        bookingType: "enquiry"
+                                    };
+                                    
+                                    transportDataArray.push(transportData);
+                                    console.log(`✅ Added hourly transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 3. Collect Local Transfer Transport Data
+                    console.log('=== COLLECTING LOCAL TRANSFER TRANSPORTS ===');
+                    const localTransferFields = document.querySelectorAll('select[name*="_pickup_zone_id"]');
+                    console.log(`Found ${localTransferFields.length} local transfer pickup fields`);
+                    
+                    localTransferFields.forEach(field => {
+                        if (field.value) {
+                            console.log(`Processing Local Transfer field: ${field.name} = ${field.value}`);
+                            const nameMatch = field.name.match(/day(\d+)_(transport)(?:_(\d+))?_(?:pickup_zone_id)/);
+                            if (nameMatch) {
+                                const day = nameMatch[1];
+                                const section = nameMatch[2];
+                                const transportIndex = nameMatch[3];
+                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                
+                                const dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
+                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
+                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_pickup_time"], select[name="day${day}_${section}${fieldSuffix}_time"]`);
+                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_date"], input[name="day${day}_${section}${fieldSuffix}_pickup_date"]`);
+                                
+                                if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                    const pickupZone = field.options[field.selectedIndex];
+                                    const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
+                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                    
+                                    const formatEntryTime = (time) => {
+                                        if (!time) return "12:00 PM";
+                                        if (time.includes('AM') || time.includes('PM')) return time;
+                                        const [hours, minutes] = time.split(':');
+                                        const hour = parseInt(hours);
+                                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                                        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                        return `${displayHour}:${minutes} ${ampm}`;
+                                    };
+                                    
+                                    const transportData = {
+                                        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                        Mode: "dmc",
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        fullName: customerData.fullName,
+                                        email: customerData.email,
+                                        phone: customerData.phone,
+                                        country: pickupZone.dataset.country || "Singapore",
+                                        countryCode: customerData.countryCode,
+                                        state: customerData.state || null,
+                                        city: pickupZone.dataset.city || "Singapore",
+                                        zip: customerData.zip,
+                                        address1: customerData.address1,
+                                        address2: customerData.address2 || null,
+                                        bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        entrytime: formatEntryTime(timeSelect?.value),
+                                        vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                        vehicles_name: vehicle.text,
+                                        type: serviceTypeSelect.value || "Private",
+                                        travel_type: "local_transfer",
+                                        adults: parseInt(adultCount) || 0,
+                                        children: parseInt(childCount) || 0,
+                                        specialRequests: customerData.specialRequests || null,
+                                        image: vehicle.dataset.image || null,
+                                        totalPrice: parseFloat(totalPrice) || 0,
+                                        componentDayIndex: parseInt(day) - 1,
+                                        entrypickup: pickupZone.text,
+                                        entrydropoff: dropoffZone.text,
+                                        PickupPlaceid: {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_pickup_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_pickup_lng`)?.value || ""
-                                    };
-                                        dropoffCoords = {
+                                        },
+                                        DropoffPlaceid: {
                                             lat: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lat`)?.value || "",
                                             lng: document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lng`)?.value || ""
-                                        };
-                                    }
+                                        },
+                                        distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                        Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
+                                        Night_Start_Time: null,
+                                        Night_End_Time: null,
+                                        bookingType: "enquiry"
+                                    };
                                     
-                                    console.log(`Coordinates for day ${day}, section ${section}${fieldSuffix}:`);
-                                    console.log(`- Pickup: ${pickupCoords.lat}, ${pickupCoords.lng}`);
-                                    console.log(`- Dropoff: ${dropoffCoords.lat}, ${dropoffCoords.lng}`);
-                                    
-                                    // Debug: Check if coordinates are empty
-                                    if (!pickupCoords.lat || !pickupCoords.lng) {
-                                        console.warn(`⚠️ WARNING: Pickup coordinates are empty for day ${day}, section ${section}${fieldSuffix}`);
-                                        console.log('Available pickup coordinate fields:');
-                                        console.log(`- day${day}_${section}${fieldSuffix}_pickup_lat: ${document.getElementById(`day${day}_${section}${fieldSuffix}_pickup_lat`)?.value || 'NOT FOUND'}`);
-                                        console.log(`- day${day}_${section}${fieldSuffix}_pickup_lng: ${document.getElementById(`day${day}_${section}${fieldSuffix}_pickup_lng`)?.value || 'NOT FOUND'}`);
-                                    }
-                                    
-                                    if (!dropoffCoords.lat || !dropoffCoords.lng) {
-                                        console.warn(`⚠️ WARNING: Dropoff coordinates are empty for day ${day}, section ${section}${fieldSuffix}`);
-                                        console.log('Available dropoff coordinate fields:');
-                                        console.log(`- day${day}_${section}${fieldSuffix}_dropoff_lat: ${document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lat`)?.value || 'NOT FOUND'}`);
-                                        console.log(`- day${day}_${section}${fieldSuffix}_dropoff_lng: ${document.getElementById(`day${day}_${section}${fieldSuffix}_dropoff_lng`)?.value || 'NOT FOUND'}`);
-                                    }
-                                    
-                                    // Create transport data based on section type
-                                    let transportData;
+                                    transportDataArray.push(transportData);
+                                    console.log(`✅ Added local transfer transport: ${transportData.vehicles_name} (ID: ${transportData.id})`);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // 4. Collect Entry/Exit Port Transport Data
+                    console.log('=== COLLECTING ENTRY/EXIT PORT TRANSPORTS ===');
+                    const entryExitFields = document.querySelectorAll('select[name*="_pickup_zone_id"]');
+                    entryExitFields.forEach(field => {
+                        if (field.value) {
+                            const nameMatch = field.name.match(/day(\d+)_(entry|exit)(?:_(\d+))?_(?:pickup_zone_id)/);
+                            if (nameMatch) {
+                                const day = nameMatch[1];
+                                const section = nameMatch[2]; // entry or exit
+                                const transportIndex = nameMatch[3];
+                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                
+                                console.log(`Processing ${section} port field: ${field.name} = ${field.value}`);
+                                
+                                const dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
+                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
+                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
+                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_pickup_time"]`);
+                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_pickup_date"]`);
+                                
+                                if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                    const pickupZone = field.options[field.selectedIndex];
+                                    const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
+                                    const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                    const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                    const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
                                     if (section === 'entry') {
-                                        // Entry Port Data Structure
-                                        transportData = {
-                                            // Transport Information
+                                        const transportData = {
+                                            id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                             bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
                                             vehicles_id: parseInt(vehicleSelect.value) || 0,
                                             image: vehicle.dataset.image || "",
@@ -1993,59 +2035,42 @@
                                             vehicles_name: vehicle.text,
                                             Mode: "dmc",
                                             type: serviceTypeSelect.value || "",
-                                            
-                                            // Vehicle Details
                                             vehicle_type: vehicle.dataset.vehicle_type || "",
                                             vehicle_model: vehicle.dataset.vehicle_model || "",
                                             model_year: vehicle.dataset.model_year || "",
                                             seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
-                                            
-                                            // Set the correct type based on service type
-                                            travel_type: serviceType === "Hourly" ? "travel_hourly" : serviceType === "Local Transfer" ? "local_transport" : "entry_port",
-                                            
-                                            // Generate unique ID with correct prefix for point-to-point
-                                            id: `${serviceType === "Point To Point" ? "point-to-point" : serviceType === "Hourly" ? "hourly" : "entry"}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                            
-                                            // Pickup and Dropoff Information
+                                            travel_type: "entry_port",
                                             entrypickup: pickupZone.text,
                                             entrydropoff: dropoffZone.text,
-                                            PickupPlaceid: pickupCoords.lat && pickupCoords.lng ? pickupCoords : null,
-                                            DropoffPlaceid: dropoffCoords.lat && dropoffCoords.lng ? dropoffCoords : null,
+                                            PickupPlaceid: {
+                                                lat: pickupZone.dataset.lat || "",
+                                                lng: pickupZone.dataset.lng || ""
+                                            },
+                                            DropoffPlaceid: {
+                                                lat: dropoffZone.dataset.lat || "",
+                                                lng: dropoffZone.dataset.lng || ""
+                                            },
                                             pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
                                             entrytime: timeSelect?.value || "",
-                                            
-                                            // Add selectedHours for hourly transport
-                                            selectedHours: serviceType === "Hourly" ? 
-                                                parseInt(document.getElementById(`day${day}_${section}${fieldSuffix}_selected_hours`)?.value || 1) : null,
-                                            
-                                            // Guest Information
                                             adults: parseInt(adultCount) || 0,
                                             children: parseInt(childCount) || 0,
-                                            
-                                            // Component day index
                                             componentDayIndex: parseInt(day) - 1,
-                                            
-                                            // Pricing and Details
                                             totalPrice: parseFloat(totalPrice) || 0,
                                             Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
                                             distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
-                                            Night_Start_Time: null, // Set to null for entry ports
-                                            Night_End_Time: null, // Set to null for entry ports
+                                            Night_Start_Time: null,
+                                            Night_End_Time: null,
                                             city: pickupZone.dataset.city || "",
                                             country: pickupZone.dataset.country || "",
-                                            
-                                            // Customer Information (from Customer Information form)
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
                                             countryCode: customerData.countryCode,
                                             address1: customerData.address1,
-                                            address2: customerData.address2 || null, // Allow null for empty values
-                                            state: customerData.state || null, // Allow null for empty values
+                                            address2: customerData.address2 || null,
+                                            state: customerData.state || null,
                                             zip: customerData.zip,
-                                            specialRequests: customerData.specialRequests || null, // Allow null for empty values
-                                            
-                                            // User Info (duplicate for compatibility)
+                                            specialRequests: customerData.specialRequests || null,
                                             userInfo: {
                                                 fullName: customerData.fullName,
                                                 email: customerData.email,
@@ -2057,13 +2082,13 @@
                                                 zip: customerData.zip,
                                                 specialRequests: customerData.specialRequests || null
                                             },
-                                            
                                             bookingType: "enquiry"
                                         };
+                                        entryPortArray.push(transportData);
+                                        console.log(`✅ Added entry port transport: ${transportData.vehicles_name}`);
                                     } else if (section === 'exit') {
-                                        // Exit Port Data Structure
-                                        transportData = {
-                                            // Transport Information
+                                        const transportData = {
+                                            id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                             bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
                                             vehicles_id: parseInt(vehicleSelect.value) || 0,
                                             vehicles_name: vehicle.text,
@@ -2071,29 +2096,25 @@
                                             Mode: "dmc",
                                             type: serviceTypeSelect.value || "",
                                             image: vehicle.dataset.image || "",
-                                            // Set the correct travel_type for exit ports
                                             travel_type: "exit_port",
                                             vehicle_type: vehicle.dataset.vehicle_type || "SUV",
                                             vehicle_model: vehicle.dataset.vehicle_model || "",
                                             model_year: parseInt(vehicle.dataset.model_year) || 0,
                                             seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 7,
-                                            
-                                            // Generate unique ID for exit port
-                                            id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                            
-                                            // Pickup and Dropoff Information
                                             exitpickup: pickupZone.text,
                                             exitdropoff: dropoffZone.text,
-                                            PickupPlaceid: pickupCoords.lat && pickupCoords.lng ? pickupCoords : null,
-                                            DropoffPlaceid: dropoffCoords.lat && dropoffCoords.lng ? dropoffCoords : null,
+                                            PickupPlaceid: {
+                                                lat: pickupZone.dataset.lat || "",
+                                                lng: pickupZone.dataset.lng || ""
+                                            },
+                                            DropoffPlaceid: {
+                                                lat: dropoffZone.dataset.lat || "",
+                                                lng: dropoffZone.dataset.lng || ""
+                                            },
                                             exitpickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
                                             entrytime: timeSelect?.value || "",
-                                            
-                                            // Guest Information
                                             adults: parseInt(adultCount) || 0,
                                             children: parseInt(childCount) || 0,
-                                            
-                                            // Pricing and Details
                                             totalPrice: parseFloat(totalPrice) || 0,
                                             Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
                                             distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
@@ -2111,84 +2132,71 @@
                                             zip: customerData.zip,
                                             specialRequests: customerData.specialRequests
                                         };
-                                    } else {
-                                        // Format entry time to 12-hour format with AM/PM
-                                        const formatEntryTime = (time) => {
-                                            if (!time) return "12:00 PM";
-                                            // If already in 12-hour format, return as is
-                                            if (time.includes('AM') || time.includes('PM')) return time;
-                                            // Convert 24-hour to 12-hour format
-                                            const [hours, minutes] = time.split(':');
-                                            const hour = parseInt(hours);
-                                            const ampm = hour >= 12 ? 'PM' : 'AM';
-                                            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                                            return `${displayHour}:${minutes} ${ampm}`;
-                                        };
-
-                                        // Check if this is point-to-point service
-                                        console.log(`=== SERVICE TYPE CHECK ===`);
-                                        console.log(`Service Type: "${serviceType}"`);
-                                        console.log(`Transport Type: "${transportType}"`);
-                                        console.log(`Is Point to Point: ${serviceType === "Point To Point"}`);
-                                        
-                                        // All transport types now use the same format with proper ID generation
-                                            // Use standard transport format for other services
-                                            transportData = {
-                                                // Required fields for backend format
-                                                id: `${serviceType === "Hourly" ? "hourly" : serviceType === "Local Transfer" ? "local" : serviceType === "Point To Point" ? "point-to-point" : "transport"}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                                Mode: "dmc",
-                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                                fullName: customerData.fullName,
-                                                email: customerData.email,
-                                                phone: customerData.phone,
-                                                country: pickupZone.dataset.country || "Singapore",
-                                                countryCode: customerData.countryCode,
-                                                state: customerData.state || null,
-                                                city: pickupZone.dataset.city || "Singapore",
-                                                zip: customerData.zip,
-                                                address1: customerData.address1,
-                                                address2: customerData.address2 || null,
-                                                bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
-                                                pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
-                                                entrytime: formatEntryTime(timeSelect?.value),
-                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                                vehicles_name: vehicle.text,
-                                                type: serviceTypeSelect.value || "Private",
-                                                travel_type: serviceType === "Hourly" ? "travel_hourly" : 
-                                                           serviceType === "Local Transfer" ? "local_transfer" : "travel_point",
-                                                adults: parseInt(adultCount) || 0,
-                                                children: parseInt(childCount) || 0,
-                                                specialRequests: customerData.specialRequests || null,
-                                                image: vehicle.dataset.image || null,
-                                                totalPrice: parseFloat(totalPrice) || 0,
-                                                componentDayIndex: parseInt(day) - 1,
-                                                entrypickup: pickupZone.text || null,
-                                                entrydropoff: dropoffZone.text || null,
-                                                PickupPlaceid: pickupCoords.lat && pickupCoords.lng ? pickupCoords : null,
-                                                DropoffPlaceid: dropoffCoords.lat && dropoffCoords.lng ? dropoffCoords : null,
-                                                distance: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
-                                                Tax: parseFloat(document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
-                                                Night_Start_Time: null,
-                                                Night_End_Time: null,
-                                                bookingType: "booking"
-                                            };
-                                    }
-                                    
-                                    if (section === 'entry') {
-                                        entryPortArray.push(transportData);
-                                        console.log(`Added to entryPortArray: ${transportData.vehicles_name || transportData.guide_name}`);
-                                    } else if (section === 'exit') {
                                         exitPortArray.push(transportData);
-                                        console.log(`Added to exitPortArray: ${transportData.vehicles_name || transportData.guide_name}`);
-                                    } else {
-                                        transportDataArray.push(transportData);
-                                        console.log(`Added to transportDataArray: ${transportData.vehicles_name || transportData.guide_name}`);
-                                        console.log(`Transport Data Type: ${transportData.id ? transportData.id.split('-')[0] : 'unknown'}`);
+                                        console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`);
                                     }
                                 }
                             }
                         }
                     });
+                    
+                    // ===== FINAL SUMMARY =====
+                    console.log('=== SEGREGATED TRANSPORT COLLECTION SUMMARY ===');
+                    console.log(`✅ Point-to-Point Transports: ${transportDataArray.filter(t => t.travel_type === 'travel_point').length}`);
+                    console.log(`✅ Hourly Transports: ${transportDataArray.filter(t => t.travel_type === 'travel_hourly').length}`);
+                    console.log(`✅ Local Transfer Transports: ${transportDataArray.filter(t => t.travel_type === 'local_transfer').length}`);
+                    console.log(`✅ Entry Ports: ${entryPortArray.length}`);
+                    console.log(`✅ Exit Ports: ${exitPortArray.length}`);
+                    console.log(`✅ Total Transports Collected: ${transportDataArray.length}`);
+                    
+                    // Enhanced Breakdown by Type and ID
+                    console.log('=== DETAILED TRANSPORT BREAKDOWN ===');
+                    transportDataArray.forEach((transport, index) => {
+                        console.log(`Transport ${index + 1}:`, {
+                            id: transport.id,
+                            type: transport.travel_type,
+                            vehicle: transport.vehicles_name,
+                            pickup: transport.entrypickup,
+                            dropoff: transport.entrydropoff,
+                            price: transport.totalPrice
+                        });
+                    });
+                    
+                    // Remove duplicate entries based on multiple criteria
+                    const removeDuplicates = (array) => {
+                        const seen = new Set();
+                        return array.filter(item => {
+                            // Create a unique key based on multiple fields to catch different types of duplicates
+                            const key = `${item.vehicles_name || ''}_${item.entrypickup || ''}_${item.entrydropoff || ''}_${item.travel_type || ''}_${item.componentDayIndex || ''}`;
+                            if (seen.has(key)) {
+                                console.log(`Removing duplicate entry:`, {
+                                    vehicles_name: item.vehicles_name,
+                                    entrypickup: item.entrypickup,
+                                    entrydropoff: item.entrydropoff,
+                                    travel_type: item.travel_type,
+                                    componentDayIndex: item.componentDayIndex
+                                });
+                                return false;
+                            }
+                            seen.add(key);
+                            return true;
+                        });
+                    };
+                    
+                    // Remove duplicates from all arrays
+                    console.log('=== BEFORE DUPLICATE REMOVAL ===');
+                    console.log('Transport array length:', transportDataArray.length);
+                    console.log('Entry port array length:', entryPortArray.length);
+                    console.log('Exit port array length:', exitPortArray.length);
+                    
+                    transportDataArray = removeDuplicates(transportDataArray);
+                    entryPortArray = removeDuplicates(entryPortArray);
+                    exitPortArray = removeDuplicates(exitPortArray);
+                    
+                    console.log('=== AFTER DUPLICATE REMOVAL ===');
+                    console.log('Transport array length:', transportDataArray.length);
+                    console.log('Entry port array length:', entryPortArray.length);
+                    console.log('Exit port array length:', exitPortArray.length);
                     
                     // Update all transport-related fields
                     const transportDataField = document.getElementById('transport_data');
@@ -2285,6 +2293,78 @@
                         );
                         
                         console.log('Point to point related fields:', pointToPointFields);
+                    };
+                    
+                    // Test function to verify all transport bookings are collected
+                    window.testAllTransportBookings = function() {
+                        console.log('=== TESTING ALL TRANSPORT BOOKINGS ===');
+                        
+                        // Force update transport data
+                        updateTransportDataField();
+                        
+                        // Get the final transport data from hidden fields
+                        const transportData = document.getElementById('transport_data')?.value;
+                        const entryPortData = document.getElementById('entry_port_data')?.value;
+                        const exitPortData = document.getElementById('exit_port_data')?.value;
+                        
+                        console.log('=== FINAL COLLECTED DATA ===');
+                        
+                        if (transportData && transportData !== '[]') {
+                            const transports = JSON.parse(transportData);
+                            console.log(`✅ Regular Transports Found: ${transports.length}`);
+                            transports.forEach((transport, index) => {
+                                console.log(`Transport ${index + 1}:`, {
+                                    id: transport.id,
+                                    type: transport.travel_type,
+                                    vehicle: transport.vehicles_name,
+                                    pickup: transport.entrypickup,
+                                    dropoff: transport.entrydropoff,
+                                    price: transport.totalPrice
+                                });
+                            });
+                        } else {
+                            console.log('❌ No regular transport data found');
+                        }
+                        
+                        if (entryPortData && entryPortData !== '[]') {
+                            const entryPorts = JSON.parse(entryPortData);
+                            console.log(`✅ Entry Ports Found: ${entryPorts.length}`);
+                            entryPorts.forEach((port, index) => {
+                                console.log(`Entry Port ${index + 1}:`, {
+                                    id: port.id,
+                                    vehicle: port.vehicles_name,
+                                    pickup: port.entrypickup,
+                                    dropoff: port.entrydropoff
+                                });
+                            });
+                        } else {
+                            console.log('❌ No entry port data found');
+                        }
+                        
+                        if (exitPortData && exitPortData !== '[]') {
+                            const exitPorts = JSON.parse(exitPortData);
+                            console.log(`✅ Exit Ports Found: ${exitPorts.length}`);
+                            exitPorts.forEach((port, index) => {
+                                console.log(`Exit Port ${index + 1}:`, {
+                                    id: port.id,
+                                    vehicle: port.vehicles_name,
+                                    pickup: port.exitpickup,
+                                    dropoff: port.exitdropoff
+                                });
+                            });
+                        } else {
+                            console.log('❌ No exit port data found');
+                        }
+                        
+                        // Return summary
+                        const summary = {
+                            regularTransports: transportData ? JSON.parse(transportData).length : 0,
+                            entryPorts: entryPortData ? JSON.parse(entryPortData).length : 0,
+                            exitPorts: exitPortData ? JSON.parse(exitPortData).length : 0
+                        };
+                        
+                        console.log('=== SUMMARY ===', summary);
+                        return summary;
                     };
                     
                     // Quick test function for point to point fields
@@ -11449,10 +11529,6 @@ window.saveService = function(day, type) {
 }
 
 /* Guest counter alignment */
-
-
-
-
 .guest-btn-plus:hover, .guest-btn-minus:hover {
     transform: scale(1.1);
     transition: transform 0.2s ease;
@@ -11755,8 +11831,6 @@ window.saveService = function(day, type) {
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     border-radius: 8px;
 }
-
-
 
 /* Loading spinner animation */
         .spin {
