@@ -387,10 +387,10 @@ const HotelConfigSummary = ({
     // Hotel nights should be the same for all rooms in the same hotel, so take from first room
     const hotelNights = configurations.length > 0 ? (configurations[0].nights || 0) : 0;
     const totalGuests = configurations.reduce((sum, config) => sum + (config.selectedGuests || 0), 0);
-    const totalMealPlanCost = configurations.reduce((sum, config) => {
-      // Use new meal plan structure - single meal plan per room
-      const mealPlanCost = config.mealPlanDetails?.price || 0;
-      return sum + mealPlanCost;
+    const totalRoomCost = configurations.reduce((sum, config) => {
+      // Use total price (room + meals) for hotel summary
+      const roomTotalPrice = config.mealPlanDetails?.totalPrice || 0;
+      return sum + roomTotalPrice;
     }, 0);
     
     const dateRanges = configurations
@@ -423,7 +423,7 @@ const HotelConfigSummary = ({
       totalRooms: configurations.length,
       hotelNights, 
       totalGuests, 
-      totalMealPlanCost, 
+      totalRoomCost, // Updated variable name to reflect total room cost (room + meals)
       dateRanges,
       overallCheckIn,
       overallCheckOut,
@@ -685,24 +685,24 @@ const HotelConfigSummary = ({
                    </Box>
                  </Box>
                  
-                 {/* Price Display - Compact */}
-                 {hotelSummary.totalMealPlanCost > 0 && PriceHide === "0" ? (
-                   <Chip
-                     label={`$${hotelSummary.totalMealPlanCost.toFixed(2)}`}
-                     size="small"
-                     color="success"
-                     variant="filled"
-                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
-                   />
-                 ):(
-                   <Chip
-                     label="Price hide"
-                     size="small"
-                     color="success"
-                     variant="filled"
-                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
-                   />
-                   )}
+                                 {/* Price Display - Compact */}
+                {hotelSummary.totalRoomCost > 0 && PriceHide === "0" ? (
+                  <Chip
+                    label={`$${hotelSummary.totalRoomCost.toFixed(2)}`}
+                    size="small"
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                ):(
+                  <Chip
+                    label="Price hide"
+                    size="small"
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                  )}
                </Box>
             </AccordionSummary>
 
@@ -824,13 +824,13 @@ const HotelConfigSummary = ({
                                     }}>
                                       {config.mealPlanDetails.title || 'Room Only'}
                                     </Typography>
-                                    {config.mealPlanDetails.price > 0 && PriceHide === "0" ? (
+                                    {config.mealPlanDetails.totalPrice > 0 && PriceHide === "0" ? (
                                       <Typography variant="caption" sx={{ 
                                         color: 'success.main',
                                         fontSize: '0.6rem',
                                         fontWeight: 600
                                       }}>
-                                        ${config.mealPlanDetails.price.toFixed(2)}
+                                        ${config.mealPlanDetails.totalPrice.toFixed(2)}
                                       </Typography>
                                     ) : PriceHide !== "0" ? (
                                       <Typography variant="caption" sx={{ 
@@ -844,7 +844,7 @@ const HotelConfigSummary = ({
                                   </Box>
                                   
                                   {/* Guest Count & Per Person Price Info */}
-                                  {config.selectedGuests > 1 && config.mealPlanDetails.price > 0 && (
+                                  {config.selectedGuests > 1 && config.mealPlanDetails.totalPrice > 0 && (
                                     <Box sx={{ 
                                       pt: 0.4, 
                                       borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
@@ -863,14 +863,39 @@ const HotelConfigSummary = ({
                                           fontSize: '0.6rem',
                                           color: 'success.main'
                                         }}>
-                                          ${(config.mealPlanDetails.price / config.selectedGuests).toFixed(2)} per guest
+                                          ${(config.mealPlanDetails.totalPrice / config.selectedGuests).toFixed(2)} per guest
                                         </Typography>
                                       )}
                                     </Box>
                                   )}
                                   
-                                  {/* Room Total with Meal Plan */}
-                                  {config.mealPlanDetails.price > 0 && (
+                                  {/* Meal Plan Breakdown */}
+                                  {config.mealPlanDetails.price > 0 && PriceHide === "0" && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      mt: 0.4,
+                                      borderTop: '1px dashed rgba(76, 175, 80, 0.2)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        Meals only:
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        ${config.mealPlanDetails.price.toFixed(2)}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                  
+                                  {/* Room + Meal Total */}
+                                  {config.mealPlanDetails.totalPrice > 0 && (
                                     <Box sx={{ 
                                       pt: 0.4, 
                                       mt: 0.4,
@@ -884,11 +909,11 @@ const HotelConfigSummary = ({
                                         fontSize: '0.65rem',
                                         color: 'success.main'
                                       }}>
-                                        Room Total:
+                                        Room + Meal Total:
                                       </Typography>
                                       {PriceHide === "0" ? (
                                         <Chip 
-                                          label={`$${config.mealPlanDetails.price.toFixed(2)}`}
+                                          label={`$${config.mealPlanDetails.totalPrice.toFixed(2)}`}
                                           size="small" 
                                           color="success"
                                           variant="filled"
