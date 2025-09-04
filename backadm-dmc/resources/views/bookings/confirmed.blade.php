@@ -366,12 +366,13 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
+                                <div class="d-flex gap-2">
+                                    @if($tour->adult > 0)
+                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
+                                    @endif
+                                    @if($tour->child > 0)
+                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -663,16 +664,14 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex gap-2">
-                                    @if($tour->adult > 0)
-                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
-                                    @endif
-                                    @if($tour->child > 0)
-                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
-                                    @endif
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
+                                    <small class="text-muted">
+                                        <i class="fas fa-building me-1"></i>
+                                        {{ $tour->agent_company_name ?? 'N/A' }}
+                                    </small>
                                 </div>
                             </td>
-                            
                             <td>
                                 <div class="d-flex flex-column">
                                     @if($tour->check_in_time)
@@ -21390,15 +21389,14 @@ function generateVouchers() {
 }
 
 function showUpcomingTours() {
-    // Filter to show only upcoming tours
-    document.getElementById('timeFilter').value = 'this_week';
+    // Filter to show only upcoming tours based on current date logic
     filterTable();
 }
 
 function resetFilters() {
     document.getElementById('searchInput').value = '';
-    document.getElementById('timeFilter').value = '';
     document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
     const dr = document.getElementById('dateRange');
     const ds = document.getElementById('dateRangeStart');
     const de = document.getElementById('dateRangeEnd');
@@ -21413,7 +21411,6 @@ window.filterTable = function() {
     // const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const timeFilter = document.getElementById('timeFilter')?.value || '';
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
@@ -21475,35 +21472,6 @@ window.filterTable = function() {
                 show = false;
             }
         }
-        
-        if (timeFilter) {
-             const daysToGoMatch = travelDates.match(/(\d+) days to go/);
-             const daysToGo = daysToGoMatch ? parseInt(daysToGoMatch[1]) : null;
-             const isStartingToday = travelDates.includes('starting today');
-             const isInProgress = travelDates.includes('started') || travelDates.includes('days ago');
-             
-             if (timeFilter === 'this_week') {
-                 // Show tours starting within 7 days or starting today
-                 if (!((daysToGo !== null && daysToGo <= 7) || isStartingToday)) {
-                     show = false;
-                 }
-             } else if (timeFilter === 'next_week') {
-                 // Show tours starting in 8-14 days
-                 if (!(daysToGo !== null && daysToGo >= 8 && daysToGo <= 14)) {
-                     show = false;
-                 }
-             } else if (timeFilter === 'this_month') {
-                 // Show tours starting within 30 days
-                 if (!((daysToGo !== null && daysToGo <= 30) || isStartingToday)) {
-                     show = false;
-                 }
-             } else if (timeFilter === 'next_month') {
-                 // Show tours starting in 31-60 days
-                 if (!(daysToGo !== null && daysToGo >= 31 && daysToGo <= 60)) {
-                     show = false;
-                 }
-             }
-         }
         
         row.style.display = show ? '' : 'none';
     });
@@ -21568,20 +21536,6 @@ window.filterTable = function() {
     }
 };
 
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    // document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    document.getElementById('timeFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
-    filterTable();
-}
 
 // Filter functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -21589,7 +21543,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const timeFilter = document.getElementById('timeFilter');
     const dateRange = document.getElementById('dateRange');
     const dateRangeStart = document.getElementById('dateRangeStart');
     const dateRangeEnd = document.getElementById('dateRangeEnd');
@@ -21599,7 +21552,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    if (timeFilter) timeFilter.addEventListener('change', filterTable);
     // Date range picker will be initialized in scripts section where jQuery is available
     
     // Apply initial filter on page load to show today's data
