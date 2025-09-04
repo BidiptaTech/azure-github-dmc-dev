@@ -492,28 +492,7 @@ export default function HotelComponent({ searchParams }) {
     setActiveHotelIndex(prevIndex => prevIndex + 1);
   };
 
-  // Handler for removing hotel
-  const handleRemoveHotel = () => {
-    console.log("Remove hotel clicked");
-    
-    setHotelConfigurations(prevConfigurations => {
-      if (prevConfigurations.length <= 1) {
-        console.log("Cannot remove hotel: Only one configuration remaining");
-        return prevConfigurations; // Don't remove if it's the last one
-      }
-      
-      const newConfigurations = prevConfigurations.filter((_, index) => index !== activeHotelIndex);
-      console.log("Hotel configuration removed. New configurations count:", newConfigurations.length);
-      return newConfigurations;
-    });
-    
-    // Update active index after removal
-    setActiveHotelIndex(prevIndex => {
-      const newIndex = Math.max(0, prevIndex - 1);
-      console.log("Active hotel index updated from", prevIndex, "to", newIndex);
-      return newIndex;
-    });
-  };
+
 
   // Handler for removing hotel configuration by specific index (for HotelConfigSummary)
   const removeHotelConfiguration = (index) => {
@@ -584,22 +563,18 @@ export default function HotelComponent({ searchParams }) {
     else if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
       checkInDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
       checkOutDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
-      console.log("Hotel component dates - Using search criteria (fallback):", {
-        checkIn: checkInDate.format('YYYY-MM-DD'),
-        checkOut: checkOutDate.format('YYYY-MM-DD')
-      });
     } 
     // PRIORITY 4: Fallback to current hotel configuration
     else if (hotelConfigurations.length > 0 && hotelConfigurations[activeHotelIndex]?.nights) {
       checkInDate = moment();
       checkOutDate = moment().add(hotelConfigurations[activeHotelIndex].nights, 'days');
-      console.log("Hotel component dates - Using hotel configuration");
+      //console.log("Hotel component dates - Using hotel configuration");
     }
     // Default fallback
     else {
       checkInDate = moment();
       checkOutDate = moment().add(3, 'days'); // Default 3 nights
-      console.log("Hotel component dates - Using default dates (3 nights from today)");
+      //console.log("Hotel component dates - Using default dates (3 nights from today)");
     }
     
     const datesArray = [];
@@ -611,7 +586,7 @@ export default function HotelComponent({ searchParams }) {
       current.add(1, 'day');
     }
     
-    console.log("Hotel component - Generated dates for night selection (full tour range):", datesArray.map(d => d.format('YYYY-MM-DD')));
+    //console.log("Hotel component - Generated dates for night selection (full tour range):", datesArray.map(d => d.format('YYYY-MM-DD')));
     return datesArray;
   }, [
     tourSearchCriteria, 
@@ -623,7 +598,7 @@ export default function HotelComponent({ searchParams }) {
   useEffect(() => {
     if (!dates || dates.length === 0 || !hotelConfigurations.length) return;
     
-    console.log("Recalculating night indices for all hotels based on new tour date range");
+    //console.log("Recalculating night indices for all hotels based on new tour date range");
     
     // Update all hotel configurations with correct night indices within the tour range
     setHotelConfigurations(prevConfigurations => {
@@ -646,53 +621,13 @@ export default function HotelComponent({ searchParams }) {
     });
   }, [dates]); // Only depend on dates array changes
 
-  // Handler for updating individual hotel dates
-  const updateHotelDates = (checkIn, checkOut) => {
-    console.log("Manually updating hotel dates:", { checkIn, checkOut });
-    
-    setHotelConfigurations(prevConfigurations => {
-      if (!prevConfigurations[activeHotelIndex]) {
-        return prevConfigurations;
-      }
-      
-      // Calculate nights based on new dates
-      const nights = moment(checkOut, 'DD/MM/YYYY').diff(moment(checkIn, 'DD/MM/YYYY'), 'days');
-      
-      // Create new night indices array based on the new date range
-      const newNightIndices = [];
-      for (let i = 0; i < nights; i++) {
-        newNightIndices.push(i);
-      }
-      
-      const updatedConfig = {
-        ...prevConfigurations[activeHotelIndex],
-        hotelCheckIn: checkIn,
-        hotelCheckOut: checkOut,
-        nights: nights,
-        selectedNightIndices: newNightIndices
-      };
-      
-      const updatedConfigurations = [...prevConfigurations];
-      updatedConfigurations[activeHotelIndex] = updatedConfig;
-      
-      console.log("Updated hotel configuration with new dates:", {
-        hotelName: updatedConfig.hotelDetails?.hotel_name,
-        checkIn,
-        checkOut,
-        nights
-      });
-      
-      return updatedConfigurations;
-    });
-  };
-
   // Sync hotel configurations to setAllServices in Redux
   useEffect(() => {
     // Only sync if there is at least one valid hotel configuration
     if (!hotelConfigurations || hotelConfigurations.length === 0) return;
 
-    console.log("%c Redux Sync Started", "background: #e74c3c; color: white; padding: 4px;");
-    console.log("Syncing hotel configurations to Redux:", hotelConfigurations);
+    // console.log("%c Redux Sync Started", "background: #e74c3c; color: white; padding: 4px;");
+    // console.log("Syncing hotel configurations to Redux:", hotelConfigurations);
     
     // Remove all previous hotel services (both 'hotel' and 'Hotel' types)
     const servicesWithoutHotels = allServices.filter(service => 
@@ -715,7 +650,7 @@ export default function HotelComponent({ searchParams }) {
       hotelGroups[config.hotelId].push(config);
     });
     
-    console.log("Hotel groups:", hotelGroups);
+    // console.log("Hotel groups:", hotelGroups);
     
     // Create hotel services array - one service per hotel
     const hotelServices = [];
@@ -724,36 +659,10 @@ export default function HotelComponent({ searchParams }) {
     Object.entries(hotelGroups).forEach(([hotelId, configs]) => {
       // Use the first config as the base for hotel details
       const baseConfig = configs[0];
-      
-      console.log("Processing hotel group:", {
-        hotelId,
-        hotelName: baseConfig.hotelDetails?.hotel_name,
-        configsCount: configs.length,
-        baseConfigDates: {
-          hotelCheckIn: baseConfig.hotelCheckIn,
-          hotelCheckOut: baseConfig.hotelCheckOut
-        },
-        allConfigs: configs.map(c => ({
-          id: c.id,
-          hotelCheckIn: c.hotelCheckIn,
-          hotelCheckOut: c.hotelCheckOut,
-          nights: c.nights
-        }))
-      });
-      
-      // Debug the hotel details structure
-      // console.log("Hotel details for transformation:", {
-      //   hotelId: baseConfig.hotelId,
-      //   hotelDetails: baseConfig.hotelDetails,
-      //   hotelName: baseConfig.hotelDetails?.hotel_name,
-      //   name: baseConfig.hotelDetails?.name
-      // });
-      
-      // Ensure hotelDetails has the required fields
       if (baseConfig.hotelDetails) {
         if (!baseConfig.hotelDetails.hotel_name) {
           baseConfig.hotelDetails.hotel_name = baseConfig.hotelDetails.name || "Unknown Hotel";
-          console.log("Added missing hotel_name:", baseConfig.hotelDetails.hotel_name);
+          //console.log("Added missing hotel_name:", baseConfig.hotelDetails.hotel_name);
         }
         
         if (!baseConfig.hotelDetails.image) {
@@ -761,36 +670,21 @@ export default function HotelComponent({ searchParams }) {
             baseConfig.hotelDetails.main_image || 
             baseConfig.hotelDetails.logo || 
             (baseConfig.hotelDetails.site_image?.[0] || "");
-          console.log("Added missing image:", baseConfig.hotelDetails.image);
+          //console.log("Added missing image:", baseConfig.hotelDetails.image);
         }
       }
       
       // Check for valid dates - prioritize individual hotel configuration dates
       let startDate, endDate;
       
-      console.log("%c Date Selection Debug", "background: #9b59b6; color: white; padding: 4px;");
-      console.log("baseConfig dates:", {
-        hotelCheckIn: baseConfig.hotelCheckIn,
-        hotelCheckOut: baseConfig.hotelCheckOut,
-        hasIndividualDates: !!(baseConfig.hotelCheckIn && baseConfig.hotelCheckOut)
-      });
-      console.log("tourSearchCriteria:", tourSearchCriteria);
-      console.log("searchState dates:", {
-        ucheckIn: searchState?.ucheckIn,
-        ucheckOut: searchState?.ucheckOut
-      });
+
       
       // PRIORITY 1: Use individual hotel configuration dates if available
       if (baseConfig.hotelCheckIn && baseConfig.hotelCheckOut) {
         // Convert DD/MM/YYYY format to YYYY-MM-DD for booking
         startDate = moment(baseConfig.hotelCheckIn, 'DD/MM/YYYY').format('YYYY-MM-DD');
         endDate = moment(baseConfig.hotelCheckOut, 'DD/MM/YYYY').format('YYYY-MM-DD');
-        console.log("%c Using Individual Hotel Dates", "background: #27ae60; color: white; padding: 4px;");
-        console.log("Hotel booking sync - Using individual hotel config dates:", { 
-          original: { checkIn: baseConfig.hotelCheckIn, checkOut: baseConfig.hotelCheckOut },
-          formatted: { startDate, endDate },
-          hotelName: baseConfig.hotelDetails?.hotel_name
-        });
+    
       }
       // PRIORITY 2: Fall back to tour package search criteria dates
       else if (tourSearchCriteria?.checkIn && tourSearchCriteria?.checkOut) {
@@ -803,15 +697,12 @@ export default function HotelComponent({ searchParams }) {
           startDate = moment(tourSearchCriteria.checkIn, 'DD/MM/YYYY').format('YYYY-MM-DD');
           endDate = moment(tourSearchCriteria.checkOut, 'DD/MM/YYYY').format('YYYY-MM-DD');
         }
-        console.log("%c Using Tour Package Dates", "background: #f39c12; color: white; padding: 4px;");
-        console.log("Hotel booking sync - Using tour package dates as fallback:", { startDate, endDate });
       }
       // PRIORITY 3: Fall back to hotel search state
       else if (searchState?.ucheckIn && searchState?.ucheckOut) {
         startDate = searchState.ucheckIn;
         endDate = searchState.ucheckOut;
-        console.log("%c Using Search State Dates", "background: #3498db; color: white; padding: 4px;");
-        console.log("Hotel booking sync - Using hotel search state dates as fallback:", { startDate, endDate });
+        
       }
       // PRIORITY 4: Fall back to generated dates array
       else {
@@ -819,8 +710,7 @@ export default function HotelComponent({ searchParams }) {
         // Use the max nights for end date calculation
         const maxNights = Math.max(...configs.map(c => c.nights || 0));
         endDate = dates.length > maxNights ? dates[maxNights].format('YYYY-MM-DD') : null;
-        console.log("%c Using Generated Dates", "background: #95a5a6; color: white; padding: 4px;");
-        console.log("Hotel booking sync - Using generated dates as fallback:", { startDate, endDate, maxNights });
+    
       }
       
       // Skip if we can't determine dates
@@ -837,14 +727,14 @@ export default function HotelComponent({ searchParams }) {
         const existingBookingId = getBookingIdForConfig(config);
         if (existingBookingId) {
           bookingId = existingBookingId;
-          console.log("Hotel sync - Using existing booking ID from response:", bookingId);
+          //console.log("Hotel sync - Using existing booking ID from response:", bookingId);
           break;
         }
       }
       
       // For new hotels, we don't create a booking ID - it will be provided by the backend response
       if (!bookingId) {
-        console.log("Hotel sync - No existing booking ID found for hotel, will be created by backend");
+        //console.log("Hotel sync - No existing booking ID found for hotel, will be created by backend");
       }
       
       // Create rooms array from all configurations for this hotel
@@ -948,37 +838,20 @@ export default function HotelComponent({ searchParams }) {
       // Only add booking_id if it exists from a previous response (not for new hotels)
       if (bookingId) {
         hotelService.booking_id = bookingId;
-        console.log("Hotel sync - Added existing booking_id to hotel service:", bookingId);
+        //console.log("Hotel sync - Added existing booking_id to hotel service:", bookingId);
       }
       
       // Add this hotel service to our array of hotel services
       hotelServices.push(hotelService);
     });
     
-    console.log("Transformed hotel services for Redux:", hotelServices);
+    //console.log("Transformed hotel services for Redux:", hotelServices);
     
     // Merge and dispatch - add ALL hotel services to the services without hotels
     const updatedServices = [...servicesWithoutHotels, ...hotelServices];
     dispatch(setAllServices(updatedServices));
   }, [hotelConfigurations, tourId]); // Simplified dependencies to avoid loops
 
-  useEffect(() => {
-    console.log("%c Hotel Component Rendered", "background: #6a89cc; color: white; padding: 4px;");
-    console.log("Current services in Redux:", allServices);
-  }, [allServices]);
-
-  useEffect(() => {
-    console.log("%c Hotel Configurations Updated", "background: #f39c12; color: white; padding: 4px;");
-    console.log("Hotel configurations:", hotelConfigurations.map((config, index) => ({
-      index,
-      id: config.id,
-      hotelName: config.hotelDetails?.hotel_name || 'Not selected',
-      hotelCheckIn: config.hotelCheckIn,
-      hotelCheckOut: config.hotelCheckOut,
-      nights: config.nights,
-      selectedNightIndices: config.selectedNightIndices
-    })));
-  }, [hotelConfigurations.length, activeHotelIndex]); // Only log when length or active index changes
   return (
     <Box sx={{ '& > *': { mb: 1 } }}>
       {/* Debug/alert panel */}

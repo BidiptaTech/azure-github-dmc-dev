@@ -80,26 +80,40 @@ const useMealPlanData = (roomType, bedType, personCount = 1) => {
     // Extract base price from room data (API returns prices as strings)
     const singlePrice = parseFloat(roomData?.single_price || 0);
     const doublePrice = parseFloat(roomData?.double_price || singlePrice * 2);
-    const extraBedPrice = parseFloat(roomData?.bed_details?.[0]?.extra_bed_price || 0);
+    const extraBedPrice = parseFloat(roomData?.bed_details?.[0]?.extra_bed_price || roomData?.extra_bed_price || 0);
+    const extraBedAvailable = roomData?.extra_bed !== false && parseFloat(roomData?.extra_bed_price || roomData?.bed_details?.[0]?.extra_bed_price || 0) > 0;
     
     console.log("useMealPlanData - Raw price data from API:", {
       single_price: roomData?.single_price,
       double_price: roomData?.double_price,
-      extra_bed_price: roomData?.bed_details?.[0]?.extra_bed_price,
+      extra_bed_price: roomData?.bed_details?.[0]?.extra_bed_price || roomData?.extra_bed_price,
+      extra_bed: roomData?.extra_bed,
       rooms_only: roomData?.rooms_only,
       breakfast: roomData?.breakfast,
       complemenatry_breakfast_included: roomData?.complemenatry_breakfast_included
     });
     
-    console.log("useMealPlanData - Parsed prices:", { singlePrice, doublePrice, extraBedPrice });
+    console.log("useMealPlanData - Parsed prices:", { singlePrice, doublePrice, extraBedPrice, extraBedAvailable });
     
     // Calculate base price based on person count for room
-    // 1 guest: single price, 2 guests: double price, 3+ guests: double + extra bed price
+    // 1 guest: single price, 2 guests: double price, 3+ guests: handle extra bed logic
     const getBasePriceForPersonCount = (count) => {
       if (count <= 1) return singlePrice;
       if (count === 2) return doublePrice;
-      // For 3+ guests: double price + extra bed price for each additional person beyond 2
-      return doublePrice + (extraBedPrice * (count - 2));
+      
+      // For 3+ guests: check extra bed availability
+      if (count >= 3) {
+        // If extra bed is available and has a price, use it
+        if (extraBedAvailable) {
+          // For each additional person beyond 2, add extra bed price
+          return doublePrice + (extraBedPrice * (count - 2));
+        } else {
+          // If extra bed is not available or free, use single price for additional guests
+          return doublePrice + (singlePrice * (count - 2));
+        }
+      }
+      
+      return doublePrice;
     };
     
     // Calculate base room price for the given person count
