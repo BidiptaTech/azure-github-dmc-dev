@@ -1466,15 +1466,15 @@ class HotelController extends Controller
             'is_active' => $request->season_status == 1 ? 1 : 0
         ]);
 
-        // if ($rate->save()) {
-        //     LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
-        //     return redirect()->back()
-        //         ->with('success', 'Rates details saved successfully!');
-        // } else {
-        //     LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
-        //     return redirect()->back()
-        //         ->with('error', 'An error occurred while saving the room details.');
-        // }
+        if ($rate->save()) {
+            LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
+            return redirect()->back()
+                ->with('success', 'Rates details saved successfully!');
+        } else {
+            LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
+            return redirect()->back()
+                ->with('error', 'An error occurred while saving the room details.');
+        }
     }
 
     /*
