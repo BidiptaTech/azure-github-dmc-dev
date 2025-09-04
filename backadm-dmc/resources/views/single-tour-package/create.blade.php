@@ -9745,7 +9745,13 @@ document.addEventListener('DOMContentLoaded', function() {
          transportType = 'local_transfer';
      }
      
-     console.log('enableSearchButton - Transport type:', transportType);
+     console.log('enableSearchButton called:', {
+         day: day,
+         section: section,
+         baseSection: baseSection,
+         transportType: transportType,
+         buttonExists: !!searchBtn
+     });
      
          // For point_to_point, only need city (pickup time is optional)
     if (transportType === 'point_to_point') {
@@ -9777,28 +9783,50 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Search button disabled for hourly - missing city');
         }
     } else if (transportType === 'local_transfer') {
-         // For local_transfer, need both zones (pickup time is optional)
+         // For local_transfer, only need pickup zone selected (dropoff will be populated based on pickup)
          const pickupZoneSelect = document.querySelector(`select[name="day${day}_${baseSection}_pickup_zone_id"]`);
          const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${baseSection}_dropoff_zone_id"]`);
          
-         if (pickupZoneSelect && pickupZoneSelect.value && 
-             dropoffZoneSelect && dropoffZoneSelect.value) {
+         console.log('Local transfer validation:', {
+             pickup: pickupZoneSelect?.value,
+             dropoff: dropoffZoneSelect?.value,
+             baseSection: baseSection
+         });
+         
+         if (pickupZoneSelect && pickupZoneSelect.value) {
              searchBtn.disabled = false;
              searchBtn.classList.remove('btn-secondary');
              searchBtn.classList.add('btn-primary');
-             console.log('Search button enabled for local_transfer');
+             console.log('Search button enabled for local_transfer - pickup zone selected');
          } else {
              searchBtn.disabled = true;
              searchBtn.classList.remove('btn-primary');
              searchBtn.classList.add('btn-secondary');
-             console.log('Search button disabled for local_transfer - missing zones');
+             console.log('Search button disabled for local_transfer - no pickup zone selected');
          }
      } else {
-         // Default behavior for other sections (entry, exit)
-         searchBtn.disabled = false;
-         searchBtn.classList.remove('btn-secondary');
-         searchBtn.classList.add('btn-primary');
-         console.log('Search button enabled for default section');
+         // Default behavior for other sections (entry, exit) or when no transport type is detected
+         // If this is a transport section and no specific type is detected, check if we have pickup zones
+         if (baseSection.includes('transport')) {
+             const pickupZoneSelect = document.querySelector(`select[name="day${day}_${baseSection}_pickup_zone_id"]`);
+             if (pickupZoneSelect && pickupZoneSelect.value) {
+                 searchBtn.disabled = false;
+                 searchBtn.classList.remove('btn-secondary');
+                 searchBtn.classList.add('btn-primary');
+                 console.log('Search button enabled for transport (default/local transfer with pickup zone)');
+             } else {
+                 searchBtn.disabled = true;
+                 searchBtn.classList.remove('btn-primary');
+                 searchBtn.classList.add('btn-secondary');
+                 console.log('Search button disabled for transport (no pickup zone selected)');
+             }
+         } else {
+             // For non-transport sections (entry, exit)
+             searchBtn.disabled = false;
+             searchBtn.classList.remove('btn-secondary');
+             searchBtn.classList.add('btn-primary');
+             console.log('Search button enabled for default section');
+         }
      }
  }
  
