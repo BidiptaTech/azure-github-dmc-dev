@@ -178,7 +178,7 @@ export default function HotelComponent({ searchParams }) {
   //   searchStateGuests: searchState?.guests,
   //   finalSelectedGuests: selectedGuests
   // });
-  const guestMealPlans = hotelConfigurations[activeHotelIndex]?.guestMealPlans || [];
+  const selectedMealPlan = hotelConfigurations[activeHotelIndex]?.selectedMealPlan || null;
   const selectedNightIndices = new Set(hotelConfigurations[activeHotelIndex]?.selectedNightIndices || []);
   const selectedNights = hotelConfigurations[activeHotelIndex]?.nights || 1;
   
@@ -207,7 +207,7 @@ export default function HotelComponent({ searchParams }) {
   //   console.log("selectedHotel:", selectedHotel);
   // }, [roomTypes, roomDataStatus, selectedHotel]);
 
-  const mealPlans = useMealPlanData(roomType, bedType);
+  const mealPlans = useMealPlanData(roomType, bedType, selectedGuests);
 
   // Debug: Track state changes
   // useEffect(() => {
@@ -220,34 +220,31 @@ export default function HotelComponent({ searchParams }) {
     setActiveHotelIndex(index);
   };
 
-  // Handler for guest meal plan change
-  const handleGuestMealPlanChange = (guestIndex, newMealPlanId) => {
+  // Handler for room meal plan change
+  const handleMealPlanChange = (newMealPlanId) => {
+    console.log("Changing meal plan to:", newMealPlanId);
+    
     setHotelConfigurations(prevConfigurations => {
       if (!prevConfigurations[activeHotelIndex]) {
         return prevConfigurations;
       }
       
-      // Find the meal plan details to store both ID and name
-      const selectedMealPlan = mealPlans.find(plan => plan.id === newMealPlanId);
-      const mealPlanData = {
-        id: newMealPlanId,
-        name: selectedMealPlan?.title || 'Unknown Meal Plan',
-        price: selectedMealPlan?.price || 0
-      };
+      // Find the meal plan details to store the meal plan ID
+      const selectedMealPlanData = mealPlans.find(plan => plan.id === newMealPlanId);
       
-      const currentGuestMealPlans = prevConfigurations[activeHotelIndex].guestMealPlans || [];
-      const updatedGuestMealPlans = [...currentGuestMealPlans];
-      updatedGuestMealPlans[guestIndex] = mealPlanData;
-      
-      console.log("Storing meal plan data:", { guestIndex, mealPlanData, selectedMealPlan });
+      console.log("Selected meal plan data:", selectedMealPlanData);
       
       const updatedConfig = {
         ...prevConfigurations[activeHotelIndex],
-        guestMealPlans: updatedGuestMealPlans
+        selectedMealPlan: newMealPlanId,
+        // Store meal plan details for pricing calculations
+        mealPlanDetails: selectedMealPlanData || null
       };
       
       const updatedConfigurations = [...prevConfigurations];
       updatedConfigurations[activeHotelIndex] = updatedConfig;
+      
+      console.log("Updated hotel configuration with new meal plan:", updatedConfig);
       return updatedConfigurations;
     });
   };
@@ -261,23 +258,12 @@ export default function HotelComponent({ searchParams }) {
         return prevConfigurations;
       }
       
-      // Create new meal plans array with the correct length (using proper data structure)
-      const defaultMealPlan = { id: 'self', name: 'Room Only', price: 0 };
-      const newGuestMealPlans = Array(newGuestCount).fill(defaultMealPlan);
-      
-      // If we had previous meal plans and we're not reducing the count,
-      // preserve the existing selections
-      const currentGuestMealPlans = prevConfigurations[activeHotelIndex].guestMealPlans || [];
-      for (let i = 0; i < Math.min(newGuestCount, currentGuestMealPlans.length); i++) {
-        if (currentGuestMealPlans[i]) {
-          newGuestMealPlans[i] = currentGuestMealPlans[i];
-        }
-      }
-      
       const updatedConfig = {
         ...prevConfigurations[activeHotelIndex],
         selectedGuests: newGuestCount,
-        guestMealPlans: newGuestMealPlans
+        // Reset meal plan selection when guest count changes to recalculate pricing
+        selectedMealPlan: prevConfigurations[activeHotelIndex].selectedMealPlan || null,
+        mealPlanDetails: null // Will be recalculated with new pricing
       };
       
       const updatedConfigurations = [...prevConfigurations];
@@ -476,7 +462,7 @@ export default function HotelComponent({ searchParams }) {
       adultDistribution: { male: 0, female: 0 },
       expanded: true,
       selectedGuests: currentConfig.selectedGuests, // Keep same guest count
-      guestMealPlans: Array(currentConfig.selectedGuests).fill({ id: 'self', name: 'Room Only', price: 0 })
+      selectedMealPlan: 'self' // Default to room only
     };
     
     console.log("Creating new room configuration for same hotel:", newRoomConfig);
@@ -863,16 +849,22 @@ export default function HotelComponent({ searchParams }) {
       
       // Create rooms array from all configurations for this hotel
       const rooms = configs.map(config => {
-        // Transform meal plans data for this room
-        const guestMealPlans = config.guestMealPlans || [];
-        const selectedMeals = {};
+        // Transform meal plan data for this room
+        const selectedMealPlan = config.selectedMealPlan || 'self';
+        const mealPlanDetails = config.mealPlanDetails || null;
         
-        guestMealPlans.forEach((meal, idx) => {
-          selectedMeals[`meal_${idx + 1}`] = {
-            type: meal.name || "Room Only",
-            price: meal.price || 0
-          };
-        });
+        // Get meal plan information
+        const mealPlanName = mealPlanDetails?.title || "Room Only";
+        const mealPlanPrice = mealPlanDetails?.price || 0;
+        
+        // Create meal info for all guests in the room
+        const selectedMeals = {
+          meal_plan: {
+            type: mealPlanName,
+            price: mealPlanPrice,
+            guest_count: config.selectedGuests || 1
+          }
+        };
         
         // Create room entry
         return {
@@ -886,7 +878,7 @@ export default function HotelComponent({ searchParams }) {
               head_count: config.selectedGuests || 1,
               max_occupancy: config.max_occupancy || 2,
               price: config.bedPrice || 0,
-              mealTypes: guestMealPlans.map(meal => meal.name || "Room Only"),
+              mealType: mealPlanName,
               selectedMeals: selectedMeals
             }
           ]
@@ -897,9 +889,9 @@ export default function HotelComponent({ searchParams }) {
       const totalPrice = configs.reduce((sum, config) => {
         // Add bed price
         let roomPrice = config.bedPrice || 0;
-        // Add meal plan prices
-        if (config.guestMealPlans) {
-          roomPrice += config.guestMealPlans.reduce((mealSum, meal) => mealSum + (meal.price || 0), 0);
+        // Add meal plan price (already calculated for all guests in the room)
+        if (config.mealPlanDetails) {
+          roomPrice += config.mealPlanDetails.price || 0;
         }
         return sum + roomPrice;
       }, 0);
@@ -1034,8 +1026,8 @@ export default function HotelComponent({ searchParams }) {
         renderMealPlanSection={() => (
           <MealPlanSelection
             selectedGuests={selectedGuests}
-            guestMealPlans={guestMealPlans}
-            handleGuestMealPlanChange={handleGuestMealPlanChange}
+            selectedMealPlan={selectedMealPlan}
+            handleMealPlanChange={handleMealPlanChange}
             handleGuestCountChange={handleGuestCountChange}
             bedType={selectedBedType}
             searchCriteria={searchCriteria}
