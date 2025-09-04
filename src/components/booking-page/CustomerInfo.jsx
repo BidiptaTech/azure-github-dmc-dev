@@ -231,18 +231,18 @@ const CustomerInfo = forwardRef(
           }
           break;
 
-        case "state":
-          if (!value.trim()) {
-            error = "State is required";
-          }
-          break;
+        // case "state":
+        //   if (!value.trim()) {
+        //     error = "State is required";
+        //   }
+        //   break;
 
-        case "zip":
-          // Less strict ZIP validation, similar to activity-single component
-          if (value && !/^\d{5,8}$/.test(value)) {
-            error = "Please enter a valid ZIP code (5-8 digits)";
-          }
-          break;
+        // case "zip":
+        //   // Less strict ZIP validation, similar to activity-single component
+        //   if (value && !/^\d{5,8}$/.test(value)) {
+        //     error = "Please enter a valid ZIP code (5-8 digits)";
+        //   }
+        //   break;
 
         default:
           break;
@@ -280,8 +280,7 @@ const CustomerInfo = forwardRef(
           "email",
           "phone",
           "address1",
-          "state",
-          "zip",
+         
         ];
         const newErrors = {};
         let isValid = true;
@@ -470,7 +469,7 @@ const CustomerInfo = forwardRef(
                     onBlur={handleBlur}
                     error={touched.state && Boolean(errors.state)}
                     helperText={touched.state && errors.state}
-                    required
+                   
                   />
                 </Grid>
 

@@ -110,7 +110,8 @@ const useHotelData = (mealPlanOptions) => {
       adultDistribution: { male: 0, female: 0 },
       expanded: true,
       selectedGuests: initialGuests,
-      guestMealPlans: Array(initialGuests).fill('self'),
+      selectedMealPlan: 'self', // Single meal plan for the entire room
+      mealPlanDetails: null, // Will be populated when meal plan is selected
       customerDetails: {
         fullName: "",
         email: "",
