@@ -2240,6 +2240,12 @@ class TourController extends Controller
         $salesManagerId = $user->sales_manager_dmc;
  
         $userId = $user->agent_id;
+        if(!$userId){
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authorized.'
+            ], 404);
+        }
         switch ($type) {
             case 'enquiry':
                 // Generate a unique enquiry ID

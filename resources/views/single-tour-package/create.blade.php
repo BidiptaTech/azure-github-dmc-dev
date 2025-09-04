@@ -4148,7 +4148,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         const agent = document.getElementById('agent_id').value;
-        
+        const enquiryId = @json($enquiry->enquiry_id);
         if (!country || !city || !startDate || !endDate || !agent) {
             alert('Please fill in all required fields (Country, City, Travel Dates, Agent, and Guests) before creating the tour package.');
             return;
@@ -4206,6 +4206,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('infants', infants);
         formData.append('child_ages', childAgesData);
         formData.append('agent_id', agent);
+        formData.append('enquiry_id', enquiryId);
         
         // Send AJAX request to create tour
         fetch('{{ route('single-tour-package.store') }}', {
@@ -13028,4 +13029,4 @@ window.saveService = function(day, type) {
                      console.log('Manually initializing Google Maps autocomplete...');
                      initializeGoogleMapsAutocomplete();
                  };
-</script> 
+</script>

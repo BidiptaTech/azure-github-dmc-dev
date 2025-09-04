@@ -3259,7 +3259,7 @@ class HotelController extends Controller
      * Select Individual Hotel for DMC
      * Handle individual hotel selection with AJAX
      */
-    public function selectHotel(Request $request)
+        public function selectHotel(Request $request)
     {
         try {
             $hotelId = $request->input('hotel_id');
@@ -3392,6 +3392,13 @@ class HotelController extends Controller
     }
 
 
-
+    public function orderSelectHotel(Request $request)
+    {
+        dd($request->all());
+        $hotelId = $request->input('hotel_id');
+        $user = Auth::user();
+        $hotel = Hotel::find($hotelId);
+        $hotel->addDmcId($user->userId);
+    }
     
 }
