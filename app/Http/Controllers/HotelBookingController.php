@@ -61,7 +61,7 @@ class HotelBookingController extends Controller
             $hotelOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'hotel')
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($hotelOrderIndex)
                 ->first();
 
@@ -215,7 +215,7 @@ class HotelBookingController extends Controller
             $attractionOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'attraction')
-                ->orderBy('id')
+                // ->orderBy('id') 
                 ->skip($attractionOrderIndex)
                 ->first();
 
@@ -361,7 +361,8 @@ class HotelBookingController extends Controller
             $attractionOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'attraction')
-                ->orderBy('id')
+                // ->orderBy('id')
+                ->whereNull('deleted_at')
                 ->skip($attractionOrderIndex)
                 ->first();
 
@@ -494,7 +495,7 @@ class HotelBookingController extends Controller
             $restaurantOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'restaurant')
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($restaurantOrderIndex)
                 ->first();
 
@@ -646,7 +647,8 @@ class HotelBookingController extends Controller
             $allRestaurantOrders = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'restaurant')
-                ->orderBy('id')
+                // ->orderBy('id')
+                ->whereNull('deleted_at')
                 ->get();
 
             Log::info('📋 All restaurant orders found', [
@@ -793,7 +795,8 @@ class HotelBookingController extends Controller
             $allGuideOrders = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'guide')
-                ->orderBy('id')
+                // ->orderBy('id')
+                ->whereNull('deleted_at')
                 ->get();
 
             Log::info('📋 All guide orders found', [
@@ -1111,7 +1114,8 @@ class HotelBookingController extends Controller
             $hotelOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'hotel')
-                ->orderBy('id')
+                // ->orderBy('id')
+                ->whereNull('deleted_at')
                 ->skip($hotelOrderIndex)
                 ->first();
 
@@ -1378,6 +1382,7 @@ class HotelBookingController extends Controller
             $arrivalOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'entry_port')
+                ->whereNull('deleted_at')
                 ->skip($arrivalOrderIndex)
                 ->first();
 
@@ -1629,6 +1634,7 @@ class HotelBookingController extends Controller
             $departureOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'exit_port')
+                ->whereNull('deleted_at')
                 ->skip($departureOrderIndex)
                 ->first();
 
@@ -1829,7 +1835,7 @@ class HotelBookingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Travel point booking updated successfully'
+                    'message' => '✅ Travel point booking updated successfully'
                 ]);
             } else {
                 return response()->json([
@@ -1888,6 +1894,7 @@ class HotelBookingController extends Controller
             $travelPointOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'travel_point')
+                ->whereNull('deleted_at')
                 ->skip($travelPointOrderIndex)
                 ->first();
 
@@ -2089,7 +2096,7 @@ class HotelBookingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Travel hourly booking updated successfully'
+                    'message' => '✅ Travel hourly booking updated successfully'
                 ]);
             } else {
                 return response()->json([
@@ -2148,6 +2155,7 @@ class HotelBookingController extends Controller
             $travelHourlyOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'travel_hourly')
+                ->whereNull('deleted_at')
                 ->skip($travelHourlyOrderIndex)
                 ->first();
 
@@ -2350,7 +2358,7 @@ class HotelBookingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Local transport booking updated successfully'
+                    'message' => '✅ Local transport booking updated successfully'
                 ]);
             } else {
                 return response()->json([
@@ -2545,7 +2553,7 @@ class HotelBookingController extends Controller
             $hotelOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'hotel')
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($hotelOrderIndex)
                 ->first();
 
@@ -2688,7 +2696,7 @@ class HotelBookingController extends Controller
                 ->where('tour_id', $tourId)
                 ->where('type', 'hotel')
                 ->whereNull('deleted_at') // Only get non-deleted orders
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($hotelOrderIndex)
                 ->first();
 
@@ -2816,7 +2824,7 @@ class HotelBookingController extends Controller
             $attractionOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'attraction')
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($attractionOrderIndex)
                 ->first();
 
@@ -2951,7 +2959,7 @@ class HotelBookingController extends Controller
             $restaurantOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'restaurant')
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($restaurantOrderIndex)
                 ->first();
 
@@ -3081,7 +3089,7 @@ class HotelBookingController extends Controller
                 ->where('tour_id', $tourId)
                 ->where('type', 'restaurant')
                 ->whereNull('deleted_at') // Only get non-deleted orders
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($restaurantOrderIndex)
                 ->first();
 
@@ -3194,7 +3202,7 @@ class HotelBookingController extends Controller
                 ->where('tour_id', $tourId)
                 ->where('type', 'attraction')
                 ->whereNull('deleted_at') // Only get non-deleted orders
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($attractionOrderIndex)
                 ->first();
 
@@ -3322,7 +3330,7 @@ class HotelBookingController extends Controller
             $guideOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'guide')
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($guideOrderIndex)
                 ->first();
 
@@ -3452,7 +3460,7 @@ class HotelBookingController extends Controller
                 ->where('tour_id', $tourId)
                 ->where('type', 'guide')
                 ->whereNull('deleted_at') // Only get non-deleted orders
-                ->orderBy('id')
+                // ->orderBy('id')
                 ->skip($guideOrderIndex)
                 ->first();
 
@@ -3968,6 +3976,7 @@ class HotelBookingController extends Controller
             $departureOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'exit_port')
+                ->whereNull('deleted_at')
                 ->skip($departureOrderIndex)
                 ->first();
 
@@ -4223,6 +4232,7 @@ class HotelBookingController extends Controller
             $hourlyOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'travel_hourly')
+                ->whereNull('deleted_at')
                 ->skip($hourlyOrderIndex)
                 ->first();
 
@@ -4478,6 +4488,7 @@ class HotelBookingController extends Controller
             $pointToPointOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'travel_point')
+                ->whereNull('deleted_at')
                 ->skip($pointOrderIndex)
                 ->first();
 
