@@ -2347,6 +2347,7 @@ class TourController extends Controller
                             
                     return response()->json([
                         'success' => true,
+                        'actual_amount' => $currentEnquiry->actual_amount,
                         'message' => 'Booking accepted successfully.'
                     ], 200);
                 }
