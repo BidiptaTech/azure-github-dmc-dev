@@ -114,6 +114,12 @@ Route::get('/clear', function () {
             Route::post('/services/hotels/update', [HotelController::class, 'updateDmcHotels'])->name('services.hotels.update');
             Route::post('/services/hotels/select', [HotelController::class, 'selectHotel'])->name('services.hotels.select');
             Route::post('/services/hotels/remove', [HotelController::class, 'removeHotel'])->name('services.hotels.remove');
+
+            Route::post('/orders/hotels/select', [HotelController::class, 'orderSelectHotel'])->name('orders.hotels.select');
+            Route::post('/orders/guides/select', [SingleTourPackageController::class, 'orderSelectGuide'])->name('orders.guides.select');
+            Route::post('/orders/restaurants/select', [SingleTourPackageController::class, 'orderSelectRestaurant'])->name('orders.restaurants.select');
+            Route::post('/orders/attractions/select', [SingleTourPackageController::class, 'orderSelectAttraction'])->name('orders.attractions.select');
+            Route::post('/orders/transport/select', [SingleTourPackageController::class, 'orderSelectTransport'])->name('orders.transport.select');
             
             Route::get('/services/attractions', [AttractionController::class, 'dmcAttractionsSelection'])->name('services.attractions');
             Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');
