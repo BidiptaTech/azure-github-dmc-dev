@@ -527,11 +527,11 @@
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Country Code</label>
-                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required>
+                                    <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required>
                                 </div>
                                 <div class="col-md-9">
                                     <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required>
+                                    <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 1</label>
@@ -547,7 +547,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">ZIP Code</label>
-                                    <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
+                                    <input type="number" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code">
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Special Requests</label>
@@ -5542,8 +5542,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="">Select pickup zone first</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'entry')">
-                                                     <i class="ri-close-line text-muted"></i>
+                                                     
                                                  </button>
                                              </div>
                                          </div>
@@ -5730,8 +5729,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="">Select pickup location first</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'exit_port')">
-                                                     <i class="ri-close-line text-muted"></i>
+                                                     
                                                  </button>
                                              </div>
                                          </div>
@@ -6228,8 +6226,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      <option value="">Select pickup location first</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                 <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'transport')">
-                                                     <i class="ri-close-line text-muted"></i>
+                                                     
                                                  </button>
                                              </div>
                                          </div>
@@ -8585,8 +8582,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          <option value="">Select pickup location first</option>
                                      </select>
                                      <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                     <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone(${day}, 'transport_${newIndex}')">
-                                         <i class="ri-close-line text-muted"></i>
+                                         
                                      </button>
                                  </div>
                              </div>
