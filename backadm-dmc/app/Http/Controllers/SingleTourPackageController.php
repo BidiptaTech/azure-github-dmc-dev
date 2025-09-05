@@ -2541,4 +2541,61 @@ class SingleTourPackageController extends Controller
         
         return back()->with('success', 'Transport service booked successfully');
     }
+
+    public function orderSelectLocalTransfer(Request $request)
+    {
+       
+        $request->validate([
+            'booking_data' => 'required|json',
+            'type' => 'required|string|in:travel_hourly,travel_point,local_transport'
+        ]);
+
+        $transportData = json_decode($request->input('booking_data'), true);
+        $serviceType = $request->input('type');
+        $tourId = $transportData[0]['tour_id'];
+        $tour = Tour::where('tour_id', $tourId)->first();
+        $agent_id = $tour->agent_id;
+
+        $max_book_id = Order::max('booking_id') ?? 0;
+        $bookingId = CommonHelper::createId($max_book_id);
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = CommonHelper::createId($bookingId);
+        }
+
+        // Map service type to appropriate order type
+        $orderType = match($serviceType) {
+            'travel_hourly' => 'hourly_transfer',
+            'travel_point' => 'point_to_point_transfer',
+            'local_transport' => 'local_transfer',
+            default => 'local_transfer'
+        };
+
+        $order = Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agent_id,
+            'tour_id' => $tourId,
+            'data' => $transportData,
+            'type' => $orderType,
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+
+        // Get success message based on service type
+        $successMessage = match($serviceType) {
+            'travel_hourly' => 'Hourly travel service booked successfully',
+            'travel_point' => 'Point to point travel service booked successfully',
+            'local_transport' => 'Local transfer service booked successfully',
+            default => 'Transfer service booked successfully'
+        };
+
+        return response()->json([
+            'success' => true,
+            'message' => $successMessage,
+            'booking_id' => $bookingId,
+            'service_type' => $serviceType,
+            'order_type' => $orderType
+        ]);
+    }
 } 
