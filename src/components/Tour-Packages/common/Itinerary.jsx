@@ -1075,26 +1075,8 @@ export default function Itinerary({ onBookingSuccess }) {
             </Alert>
           </Snackbar>
           
-          {/* Debug info for snackbar */}
-          {console.log('Snackbar Debug Info:', {
-            openSnackbar,
-            snackbarMessage,
-            snackbarSeverity
-          })}
           
-          {/* Test button for snackbar - remove after debugging */}
-          <Button 
-            variant="outlined" 
-            onClick={() => {
-              console.log('Test button clicked');
-              setSnackbarMessage('Test message from button');
-              setSnackbarSeverity('error');
-              setOpenSnackbar(true);
-            }}
-            sx={{ mt: 2 }}
-          >
-            Test Snackbar
-          </Button>
+          
           
           {/* Services Summary Modal */}
           <ServicesSummaryModal 

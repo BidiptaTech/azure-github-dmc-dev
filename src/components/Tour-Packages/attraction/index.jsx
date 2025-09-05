@@ -59,6 +59,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const tourId = useSelector((state) => state.hotels.id);
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
   
+  
   console.log('Attraction update', attractionspack);
   console.log('AttractionDetails:', attractionDetails);
   console.log('Packages from attractionDetails:', attractionDetails?.packages);
@@ -194,6 +195,19 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     
     if (lastDispatchRef.current === dispatchKey) {
       console.log('Skipping duplicate dispatch for all attractions');
+      return;
+    }
+
+    // Check if there are already attraction services for the current day in Redux
+    const existingAttractionServices = currentServicesRef.current.filter(service => 
+      (service.type === "attraction" || service.type === "attraction_package") && 
+      service.data && 
+      Array.isArray(service.data) &&
+      service.data.some(booking => booking.dayIndex === dayIndex)
+    );
+
+    if (existingAttractionServices.length > 0) {
+      console.log('Attraction services already exist for this day, skipping dispatch to prevent duplicates');
       return;
     }
 
@@ -1143,6 +1157,13 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Skip if no form sections or during loading
     if (formSections.length === 0 || !attractions || attractions.length === 0) return;
     
+    // Skip auto-dispatch if we have attractionspack data (to prevent duplicates)
+    // Only auto-dispatch when there's no attractionspack data (new bookings)
+    if (attractionspack && Array.isArray(attractionspack) && attractionspack.length > 0) {
+      console.log('Attraction - Skipping auto-dispatch because attractionspack data exists');
+      return;
+    }
+    
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section, index) => {
       // Check if all required fields are filled
@@ -1188,7 +1209,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       
       return () => clearTimeout(timeoutId);
     }
-  }, [formSections, handleBookNow, attractions, savedSectionIds, dayIndex]);
+  }, [formSections, handleBookNow, attractions, savedSectionIds, dayIndex, attractionspack]);
 
   const getCompletionStatus = (section) => {
     const steps = [

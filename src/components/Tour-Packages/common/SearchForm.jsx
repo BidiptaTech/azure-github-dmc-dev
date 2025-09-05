@@ -93,6 +93,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   
   // State to track if button should be hidden after click
   const [isButtonHidden, setIsButtonHidden] = useState(false);
+  const [isupdated, setIsupdated] = useState(false);
   
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
@@ -297,7 +298,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   // Check if data is coming from enquirydetail (to disable date and guest selection)
-  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour);
+  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour) || isupdated; 
 
   // Helper function to safely get ages array
   const getSafeAges = () => {
@@ -1167,7 +1168,7 @@ dispatch(fetchHotels());
     }
 
     try {
-
+      setIsupdated(true);
     // Clear previous customer info when starting update
     dispatch(clearUserInfo());
     // dispatch(clearAllServices());
