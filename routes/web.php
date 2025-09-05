@@ -120,6 +120,8 @@ Route::get('/clear', function () {
             Route::post('/orders/restaurants/select', [SingleTourPackageController::class, 'orderSelectRestaurant'])->name('orders.restaurants.select');
             Route::post('/orders/attractions/select', [SingleTourPackageController::class, 'orderSelectAttraction'])->name('orders.attractions.select');
             Route::post('/orders/transport/select', [SingleTourPackageController::class, 'orderSelectTransport'])->name('orders.transport.select');
+
+            Route::post('/orders/local-transfer/select', [SingleTourPackageController::class, 'orderSelectLocalTransfer'])->name('orders.local-transfer.select');
             
             Route::get('/services/attractions', [AttractionController::class, 'dmcAttractionsSelection'])->name('services.attractions');
             Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');

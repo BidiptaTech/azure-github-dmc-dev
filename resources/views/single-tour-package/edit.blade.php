@@ -1,5 +1,56 @@
 @extends('layouts.layout')
 @section('content')
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Google Maps API Script -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
+    
+    <style>
+        /* Google Maps Autocomplete Styling */
+        .pac-container {
+            z-index: 9999;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid #e0e0e0;
+        }
+
+        .pac-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .pac-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .pac-item-selected {
+            background-color: #e3f2fd;
+        }
+
+        .location-input {
+            position: relative;
+        }
+
+        .location-icon {
+            left: 15px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            z-index: 5;
+        }
+        
+        /* Spinning loader animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+    </style>
+
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <x-alert />
@@ -1833,7 +1884,7 @@
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                                 </label>
                                                 <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly style="padding-left: 45px;">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
@@ -1854,8 +1905,16 @@
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                                 </label>
                                                 <div class="position-relative location-input">
-                                                    <select type="text" class="form-control border-2" id="local_transfer_point_pickup_location" name="point_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                        <option value="">Select pickup location</option>
+                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" id="local_transfer_point_pickup_location" name="point_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                    <input type="hidden" name="point_pickup_lat" id="local_transfer_point_pickup_lat">
+                                                    <input type="hidden" name="point_pickup_lng" id="local_transfer_point_pickup_lng">
+                                                    <input type="hidden" name="point_pickup_place_id" id="local_transfer_point_pickup_place_id">
+                                                </div>
+                                                <!-- Keep the original select as backup -->
+                                                <div class="position-relative mt-2">
+                                                    <select class="form-control border-2" id="local_transfer_point_pickup_location_backup" name="point_pickup_location_backup" style="padding-left: 45px;">
+                                                        <option value="">Or select from predefined locations</option>
                                                         <optgroup label="Hotels">
                                                         @foreach($hotels as $hotel)
                                                         <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
@@ -1872,7 +1931,7 @@
                                                         @endforeach
                                                         </optgroup>
                                                     </select>
-                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                    <i class="ri-list-unordered position-absolute text-muted" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -1882,8 +1941,16 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative location-input">
-                                                <select type="text" class="form-control border-2" id="local_transfer_point_dropoff_location" name="point_dropoff_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
-                                                        <option value="">Select dropoff location</option>
+                                                <input type="text" class="form-control border-2 google-maps-autocomplete" id="local_transfer_point_dropoff_location" name="point_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
+                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                    <input type="hidden" name="point_dropoff_lat" id="local_transfer_point_dropoff_lat">
+                                                    <input type="hidden" name="point_dropoff_lng" id="local_transfer_point_dropoff_lng">
+                                                    <input type="hidden" name="point_dropoff_place_id" id="local_transfer_point_dropoff_place_id">
+                                                </div>
+                                                <!-- Keep the original select as backup -->
+                                                <div class="position-relative mt-2">
+                                                    <select class="form-control border-2" id="local_transfer_point_dropoff_location_backup" name="point_dropoff_location_backup" style="padding-left: 45px;">
+                                                        <option value="">Or select from predefined locations</option>
                                                         <optgroup label="Hotels">
                                                         @foreach($hotels as $hotel)
                                                         <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
@@ -1900,7 +1967,7 @@
                                                         @endforeach
                                                         </optgroup>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                    <i class="ri-list-unordered position-absolute text-muted" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -1947,13 +2014,13 @@
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                                 </label>
                                                 <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
-                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchPointToPointVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
                                                 <i class="ri-search-line me-2"></i>Search Vehicles
                                             </button>
                                         </div>
@@ -1969,8 +2036,11 @@
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                                 </label>
                                                 <div class="position-relative location-input">
-                                                    <input type="text" class="form-control border-2" id="local_transfer_hourly_pickup_location" name="hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" id="local_transfer_hourly_pickup_location" name="hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
                                                     <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                    <input type="hidden" name="hourly_pickup_lat" id="local_transfer_hourly_pickup_lat">
+                                                    <input type="hidden" name="hourly_pickup_lng" id="local_transfer_hourly_pickup_lng">
+                                                    <input type="hidden" name="hourly_pickup_place_id" id="local_transfer_hourly_pickup_place_id">
                                                 </div>
                                             </div>
                                         </div>
@@ -2017,13 +2087,13 @@
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                                 </label>
                                                 <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
-                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_hourly_search_btn" disabled>
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchHourlyVehicles()" id="local_transfer_hourly_search_btn" disabled>
                                                 <i class="ri-search-line me-2"></i>Search Vehicles
                                             </button>
                                         </div>
@@ -2032,7 +2102,7 @@
                             </div>
                             
                             <!-- Vehicle Results Section (Hidden Initially) -->
-                            <div class="row mt-4" id="local_transfer_vehicle_results" d-none>
+                            <div class="row mt-4" id="local_transfer_vehicle_results" style="display: none;">
                                 <div class="col-12">
                                     <div class="alert alert-info">
                                         <div class="d-flex align-items-center">
@@ -2107,7 +2177,7 @@
                     
                     <div class="text-end mt-4">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-info" onclick="confirmLocalTransferSelection()">
+                        <button type="button" class="btn btn-info" onclick="confirmSelectedLocalTransferService()">
                             <i class="ri-check-line me-1"></i>Confirm Local Transfer Selection
                         </button>
                     </div>
@@ -2707,10 +2777,7 @@
             localTransferPickupZoneSelect.addEventListener('change', handleLocalTransferPickupZoneChange);
         }
         
-        const localTransferSearchBtn = document.getElementById('local_transfer_search_btn');
-        if (localTransferSearchBtn) {
-            localTransferSearchBtn.addEventListener('click', searchLocalTransferVehicles);
-        }
+        // Local transfer search button is handled by onclick attribute
         
         // Set default service type to 'local_transfer'
         const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
@@ -2718,6 +2785,18 @@
             localTransferServiceType.checked = true;
             handleLocalTransferServiceTypeChange('local_transfer');
         }
+        
+        // Initialize Google Maps autocomplete for the modal
+        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+            setTimeout(() => {
+                initializeGoogleMapsAutocomplete();
+            }, 200);
+        }
+        
+        // Initial form completion check
+        setTimeout(() => {
+            checkLocalTransferZoneFormCompletion();
+        }, 300);
     }
     
     function loadZonesForPickup() {
@@ -2750,23 +2829,14 @@
             // Enable/disable based on pickup selection
             if (pickupZoneId) {
                 dropoffZoneSelect.disabled = false;
-                
-                // Enable the search button if both pickup and dropoff are selected
-                const dropoffZoneId = dropoffZoneSelect.value;
-                const searchBtn = document.getElementById('local_transfer_search_btn');
-                if (searchBtn) {
-                    searchBtn.disabled = !dropoffZoneId;
-                }
             } else {
                 dropoffZoneSelect.disabled = true;
-                
-                // Disable search button if pickup is not selected
-                const searchBtn = document.getElementById('local_transfer_search_btn');
-                if (searchBtn) {
-                    searchBtn.disabled = true;
-                }
+                dropoffZoneSelect.value = ''; // Clear dropoff when pickup is cleared
             }
         }
+        
+        // Check form completion to enable/disable search button
+        checkLocalTransferZoneFormCompletion();
     }
     
     function clearLocalTransferDropoffZone() {
@@ -2774,11 +2844,8 @@
         if (dropoffZoneSelect) {
             dropoffZoneSelect.value = '';
             
-            // Disable search button when dropoff is cleared
-            const searchBtn = document.getElementById('local_transfer_search_btn');
-            if (searchBtn) {
-                searchBtn.disabled = true;
-            }
+            // Check form completion to enable/disable search button
+            checkLocalTransferZoneFormCompletion();
         }
     }
     
@@ -2827,29 +2894,91 @@
         
         console.log('Searching vehicles for point to point:', { pickupLocation, dropoffLocation, pickupTime, pickupDate });
         
-        // Show the vehicle results section
-        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
-        if (vehicleResultsSection) {
-            vehicleResultsSection.style.display = 'block';
+        // Get city from the city select
+        const citySelect = document.getElementById('city');
+        if (!citySelect || !citySelect.value) {
+            showNotification('Please select a city first', 'error');
+            return;
         }
         
-        // Load vehicles
-        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
-        if (vehicleSelect) {
-            // Clear existing options
-            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-            
-            // Add vehicles from backend data
-            const vehicles = @json($vehicles);
-            
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle.vehicle_id;
-                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
-                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
-                vehicleSelect.appendChild(option);
-            });
+        const city = citySelect.value;
+        const searchBtn = document.getElementById('local_transfer_point_to_point_search_btn');
+        
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
         }
+        
+        // Fetch vehicles from API using the same route as create.blade.php
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Vehicle search response (city-based):', data);
+                
+                const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+                const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    // Show the vehicle results section
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'block';
+                        vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    
+                    // Populate vehicle dropdown
+                    if (vehicleSelect) {
+                        vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                        data.vehicles.forEach(vehicle => {
+                            const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                            
+                            // Debug logging for vehicle data
+                            console.log('Vehicle:', vehicle);
+                            
+                            const option = document.createElement('option');
+                            option.value = vehicle.vehicle_id;
+                            option.textContent = vehicleInfo;
+                            option.setAttribute('data-private-price', vehicle.private_price || '');
+                            option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                            option.setAttribute('data-service-type', vehicle.service_type || '');
+                            option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                            option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                            option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                            vehicleSelect.appendChild(option);
+                        });
+                        
+                        // Enable the vehicle select
+                        vehicleSelect.disabled = false;
+                        console.log('Vehicle dropdown populated successfully (city-based)');
+                        
+                        // Update vehicle details and pricing
+                        updateLocalTransferVehicleDetails();
+                    }
+                    
+                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
+                } else {
+                    showNotification('No vehicles available for this city. Please try a different city.', 'warning');
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'none';
+                    }
+                }
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error searching vehicles:', error);
+                showNotification('Error searching vehicles. Please try again.', 'error');
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            });
     }
     
     function searchHourlyVehicles() {
@@ -2864,29 +2993,91 @@
         
         console.log('Searching vehicles for hourly:', { pickupLocation, pickupTime, pickupDate });
         
-        // Show the vehicle results section
-        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
-        if (vehicleResultsSection) {
-            vehicleResultsSection.style.display = 'block';
+        // Get city from the city select
+        const citySelect = document.getElementById('city');
+        if (!citySelect || !citySelect.value) {
+            showNotification('Please select a city first', 'error');
+            return;
         }
         
-        // Load vehicles
-        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
-        if (vehicleSelect) {
-            // Clear existing options
-            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-            
-            // Add vehicles from backend data
-            const vehicles = @json($vehicles);
-            
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle.vehicle_id;
-                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
-                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
-                vehicleSelect.appendChild(option);
-            });
+        const city = citySelect.value;
+        const searchBtn = document.getElementById('local_transfer_hourly_search_btn');
+        
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
         }
+        
+        // Fetch vehicles from API using the same route as create.blade.php
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Vehicle search response (city-based) for hourly:', data);
+                
+                const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+                const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    // Show the vehicle results section
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'block';
+                        vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    
+                    // Populate vehicle dropdown
+                    if (vehicleSelect) {
+                        vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                        data.vehicles.forEach(vehicle => {
+                            const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                            
+                            // Debug logging for vehicle data
+                            console.log('Vehicle:', vehicle);
+                            
+                            const option = document.createElement('option');
+                            option.value = vehicle.vehicle_id;
+                            option.textContent = vehicleInfo;
+                            option.setAttribute('data-private-price', vehicle.private_price || '');
+                            option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                            option.setAttribute('data-service-type', vehicle.service_type || '');
+                            option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                            option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                            option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                            vehicleSelect.appendChild(option);
+                        });
+                        
+                        // Enable the vehicle select
+                        vehicleSelect.disabled = false;
+                        console.log('Vehicle dropdown populated successfully for hourly service');
+                        
+                        // Update vehicle details and pricing
+                        updateLocalTransferVehicleDetails();
+                    }
+                    
+                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
+                } else {
+                    showNotification('No vehicles available for this city. Please try a different city.', 'warning');
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'none';
+                    }
+                }
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error searching vehicles:', error);
+                showNotification('Error searching vehicles. Please try again.', 'error');
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            });
     }
     
     function onPickupZoneChange() {
@@ -2965,41 +3156,136 @@
     }
     
     function searchLocalTransferVehicles() {
-        const pickupZoneId = document.getElementById('local_transfer_pickup_zone').value;
-        const dropoffZoneId = document.getElementById('local_transfer_dropoff_zone').value;
+        const pickupZoneSelect = document.getElementById('local_transfer_pickup_zone');
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
         const pickupTime = document.getElementById('local_transfer_pickup_time').value;
         const pickupDate = document.getElementById('local_transfer_pickup_date').value;
         
-        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate) {
+        if (!pickupZoneSelect || !dropoffZoneSelect || !pickupZoneSelect.value || !dropoffZoneSelect.value || !pickupTime || !pickupDate) {
             showNotification('Please fill in all required fields', 'warning');
             return;
         }
         
-        console.log('Searching vehicles for local transfer:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        const fromZoneId = pickupZoneSelect.value;
+        const toZoneId = dropoffZoneSelect.value;
+        const searchBtn = document.getElementById('local_transfer_search_btn');
         
-        // Show the vehicle results section
-        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
-        if (vehicleResultsSection) {
-            vehicleResultsSection.style.display = 'block';
+        console.log('Searching vehicles for local transfer:', { fromZoneId, toZoneId, pickupTime, pickupDate });
+        
+        // Get location types from the selected options
+        let fromZoneType, toZoneType;
+        
+        // Determine zone types based on option attributes or default values
+        const pickupOption = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
+        const dropoffOption = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
+        
+        fromZoneType = pickupOption?.dataset?.type || 'port';
+        toZoneType = dropoffOption?.dataset?.type || 'attraction';
+        
+        // Get the actual zone IDs based on type
+        let actualFromZoneId = fromZoneId;
+        let actualToZoneId = toZoneId;
+        
+        // For ports, use port_id from data attribute if available
+        if (fromZoneType === 'port') {
+            actualFromZoneId = pickupOption?.dataset?.portId || fromZoneId;
         }
         
-        // Load vehicles
-        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
-        if (vehicleSelect) {
-            // Clear existing options
-            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-            
-            // Add vehicles from backend data
-            const vehicles = @json($vehicles);
-            
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle.vehicle_id;
-                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
-                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
-                vehicleSelect.appendChild(option);
+        if (toZoneType === 'port') {
+            actualToZoneId = dropoffOption?.dataset?.portId || toZoneId;
+        }
+        
+        console.log('Zone mapping:', {
+            originalFromZoneId: fromZoneId,
+            originalToZoneId: toZoneId,
+            actualFromZoneId: actualFromZoneId,
+            actualToZoneId: actualToZoneId,
+            fromZoneType: fromZoneType,
+            toZoneType: toZoneType
+        });
+        
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
+        }
+        
+        const params = new URLSearchParams({
+            from_zone_id: actualFromZoneId,
+            to_zone_id: actualToZoneId,
+            from_zone_type: fromZoneType,
+            to_zone_type: toZoneType
+        });
+        
+        // Fetch vehicles from API using zone-based endpoint
+        fetch(`{{ route('fetch-vehicles-by-zones') }}?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Vehicle search response (zone-based):', data);
+                
+                const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+                const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    // Show the vehicle results section
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'block';
+                        vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    
+                    // Populate vehicle dropdown
+                    if (vehicleSelect) {
+                        vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                        data.vehicles.forEach(vehicle => {
+                            const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                            
+                            // Debug logging for vehicle data
+                            console.log('Vehicle:', vehicle);
+                            
+                            const option = document.createElement('option');
+                            option.value = vehicle.vehicle_id;
+                            option.textContent = vehicleInfo;
+                            option.setAttribute('data-private-price', vehicle.private_price || '');
+                            option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                            option.setAttribute('data-service-type', vehicle.service_type || '');
+                            option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                            option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                            option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                            vehicleSelect.appendChild(option);
+                        });
+                        
+                        // Enable the vehicle select
+                        vehicleSelect.disabled = false;
+                        console.log('Vehicle dropdown populated successfully for local transfer (zone-based)');
+                        
+                        // Update vehicle details and pricing
+                        updateLocalTransferVehicleDetails();
+                    }
+                    
+                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
+                } else {
+                    showNotification('No vehicles available for the selected zones. Please try different pickup/dropoff locations.', 'warning');
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'none';
+                    }
+                }
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error searching vehicles:', error);
+                showNotification('Error searching vehicles. Please try again.', 'error');
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
             });
-        }
     }
     
     function updateVehicleDetails() {
@@ -3276,6 +3562,238 @@
         showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
     }
 
+    // Confirmation function for Point-to-Point service
+    function confirmPointToPointSelection() {
+        const pickupLocation = document.getElementById('local_transfer_point_pickup_location').value;
+        const dropoffLocation = document.getElementById('local_transfer_point_dropoff_location').value;
+        const pickupTime = document.getElementById('local_transfer_point_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_point_pickup_date').value;
+        const vehicleId = document.getElementById('local_transfer_vehicle_id').value;
+        const serviceType = document.getElementById('local_transfer_service_type').value;
+        const passengers = document.getElementById('local_transfer_passengers').value;
+        const totalPrice = document.getElementById('local_transfer_total_price').value;
+        
+        if (!pickupLocation || !dropoffLocation || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please complete all required fields', 'warning');
+            return;
+        }
+        
+        const customer_info = getCustomerInfo();
+        
+        // Get selected vehicle details
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        
+        // Get tour details
+        const tourId = document.getElementById('local_transfer_tour_id').value;
+        const country = document.getElementById('local_transfer_country').value;
+        const city = document.getElementById('local_transfer_city').value;
+        
+        // Get coordinates from hidden fields
+        const pickupLat = document.getElementById('local_transfer_point_pickup_lat').value;
+        const pickupLng = document.getElementById('local_transfer_point_pickup_lng').value;
+        const dropoffLat = document.getElementById('local_transfer_point_dropoff_lat').value;
+        const dropoffLng = document.getElementById('local_transfer_point_dropoff_lng').value;
+        
+        // Build the booking data in required format
+        const bookingData = [{
+            bookingDate: pickupDate,
+            vehicles_id: vehicleId,
+            vehicles_name: vehicleData.vehicle_name || 'Vehicle',
+            image: vehicleData.vehicle_image || '',
+            dmc_id: vehicleData.dmc_id || '11',
+            Mode: 'dmc',
+            type: serviceType,
+            entrypickup: pickupLocation,
+            PickupPlaceid: {
+                lat: pickupLat || '',
+                lng: pickupLng || ''
+            },
+            dropoffLocation: dropoffLocation,
+            DropoffPlaceid: {
+                lat: dropoffLat || '',
+                lng: dropoffLng || ''
+            },
+            exitpickupdate: pickupDate,
+            entrytime: pickupTime,
+            adults: passengers || '1',
+            children: '0',
+            selectedHours: '1',
+            totalPrice: totalPrice || '0.00',
+            Tax: '7.00',
+            Night_Start_Time: '22:00:00',
+            Night_End_Time: '06:00:00',
+            city: city,
+            country: country,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode || null,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests || null,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            },
+            bookingType: 'booking',
+            service_category: 'point_to_point',
+            tour_id: tourId
+        }];
+        
+        console.log('Point-to-Point booking data:', bookingData);
+        
+        // Send data to controller
+        submitLocalTransferBooking(bookingData, 'Point-to-Point transfer booked successfully!', 'travel_point');
+    }
+    
+    // Confirmation function for Hourly service
+    function confirmHourlySelection() {
+        const pickupLocation = document.getElementById('local_transfer_hourly_pickup_location').value;
+        const pickupTime = document.getElementById('local_transfer_hourly_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_hourly_pickup_date').value;
+        const vehicleId = document.getElementById('local_transfer_vehicle_id').value;
+        const serviceType = document.getElementById('local_transfer_service_type').value;
+        const passengers = document.getElementById('local_transfer_passengers').value;
+        const totalPrice = document.getElementById('local_transfer_total_price').value;
+        
+        if (!pickupLocation || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
+            showNotification('Please complete all required fields', 'warning');
+            return;
+        }
+        
+        const customer_info = getCustomerInfo();
+        
+        // Get selected vehicle details
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        
+        // Get tour details
+        const tourId = document.getElementById('local_transfer_tour_id').value;
+        const country = document.getElementById('local_transfer_country').value;
+        const city = document.getElementById('local_transfer_city').value;
+        
+        // Get coordinates from hidden fields
+        const pickupLat = document.getElementById('local_transfer_hourly_pickup_lat').value;
+        const pickupLng = document.getElementById('local_transfer_hourly_pickup_lng').value;
+        
+        // Build the booking data in required format
+        const bookingData = [{
+            bookingDate: pickupDate,
+            vehicles_id: vehicleId,
+            vehicles_name: vehicleData.vehicle_name || 'Vehicle',
+            image: vehicleData.vehicle_image || '',
+            dmc_id: vehicleData.dmc_id || '11',
+            Mode: 'dmc',
+            type: serviceType,
+            entrypickup: pickupLocation,
+            PickupPlaceid: {
+                lat: pickupLat || '',
+                lng: pickupLng || ''
+            },
+            exitpickupdate: pickupDate,
+            entrytime: pickupTime,
+            adults: passengers || '1',
+            children: '0',
+            selectedHours: '8', // Default 8 hours for hourly service
+            totalPrice: totalPrice || '0.00',
+            Tax: '7.00',
+            Night_Start_Time: '22:00:00',
+            Night_End_Time: '06:00:00',
+            city: city,
+            country: country,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode || null,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests || null,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            },
+            bookingType: 'booking',
+            service_category: 'hourly',
+            tour_id: tourId
+        }];
+        
+        console.log('Hourly booking data:', bookingData);
+        
+        // Send data to controller
+        submitLocalTransferBooking(bookingData, 'Hourly transfer booked successfully!', 'travel_hourly');
+    }
+    
+    // Common function to submit booking data
+    function submitLocalTransferBooking(bookingData, successMessage, serviceType) {
+        // Send data to controller via AJAX
+        fetch("{{ route('orders.local-transfer.select') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                booking_data: JSON.stringify(bookingData),
+                type: serviceType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('localTransferSelectionModal'));
+                modal.hide();
+                
+                // Show success message
+                showNotification(data.message || successMessage, 'success');
+                
+                // Optionally refresh the page or update UI
+                // location.reload();
+            } else {
+                showNotification(data.message || 'Booking failed. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error submitting booking:', error);
+            showNotification('An error occurred. Please try again.', 'error');
+        });
+    }
+
+    // Function to determine which confirmation function to call based on selected service type
+    function confirmSelectedLocalTransferService() {
+        // Get the selected service type
+        const pointToPointRadio = document.getElementById('local_transfer_service_type_point');
+        const hourlyRadio = document.getElementById('local_transfer_service_type_hourly');
+        const localTransferRadio = document.getElementById('local_transfer_service_type_local');
+        
+        if (pointToPointRadio && pointToPointRadio.checked) {
+            confirmPointToPointSelection();
+        } else if (hourlyRadio && hourlyRadio.checked) {
+            confirmHourlySelection();
+        } else if (localTransferRadio && localTransferRadio.checked) {
+            confirmLocalTransferSelection();
+        } else {
+            showNotification('Please select a service type', 'warning');
+        }
+    }
+
     function confirmLocalTransferSelection() {
         const formData = new FormData(document.getElementById('localTransferSelectionForm'));
         const pickupZoneId = formData.get('pickup_zone_id');
@@ -3327,104 +3845,65 @@
             dropoffLocationType = 'restaurant';
         }
         
-        // Build the transport booking data
-        const transportData = {
-            id: Date.now().toString(), // Generate a unique ID
-            travel_type: 'local_transfer', // Local transfer
-            type: 'local_transfer',
+        // Build the booking data in required format
+        const bookingData = [{
+            bookingDate: pickupDate,
             vehicles_id: vehicleId,
-            vehicles_name: vehicleData.name || 'Vehicle',
+            vehicles_name: vehicleData.vehicle_name || 'Vehicle',
+            image: vehicleData.vehicle_image || '',
+            dmc_id: vehicleData.dmc_id || '11',
+            Mode: 'dmc',
+            type: serviceType,
             entrypickup: pickupZoneName,
-            entrydropoff: dropoffZoneName,
-            pickupdate: pickupDate,
-            pickuptime: pickupTime,
-            adults: passengers,
+            PickupPlaceid: {
+                lat: '', // Zone-based transfers don't have specific coordinates
+                lng: ''
+            },
+            dropoffLocation: dropoffZoneName,
+            DropoffPlaceid: {
+                lat: '',
+                lng: ''
+            },
+            exitpickupdate: pickupDate,
+            entrytime: pickupTime,
+            adults: passengers || '1',
             children: '0',
-            infants: '0',
-            PickupPlaceid: pickupZoneId,
-            DropoffPlaceid: dropoffZoneId,
-            dropoff_location_type: dropoffLocationType,
-            basePrice: vehicleData.base_price || 0,
-            totalPrice: totalPrice,
-            service_type: serviceType,
-            bookingType: 'enquiry',
-            dmc_id: 4, // Replace with actual DMC ID
-            agent_id: document.getElementById('agent_id').value,
+            selectedHours: '1',
+            totalPrice: totalPrice || '0.00',
+            Tax: '7.00',
+            Night_Start_Time: '22:00:00',
+            Night_End_Time: '06:00:00',
+            city: city,
+            country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
             phone: customer_info.phone,
-            countryCode: customer_info.countryCode,
+            countryCode: customer_info.countryCode || null,
             address1: customer_info.address1,
             address2: customer_info.address2,
             state: customer_info.state,
             zip: customer_info.zip,
-            specialRequests: customer_info.specialRequests,
+            specialRequests: customer_info.specialRequests || null,
             userInfo: {
                 fullName: customer_info.fullName,
                 email: customer_info.email,
                 phone: customer_info.phone,
-                countryCode: customer_info.countryCode,
                 address1: customer_info.address1,
                 address2: customer_info.address2,
                 state: customer_info.state,
                 zip: customer_info.zip
-            }
-        };
-        
-        console.log('Local transfer booking data:', transportData);
-        
-        // Create a form to submit the transport data
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = "{{ route('orders.transport.select') }}";
-        
-        // Add CSRF token
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = "{{ csrf_token() }}";
-        form.appendChild(token);
-        
-        // Add the transport data as JSON
-        const transportDataInput = document.createElement('input');
-        transportDataInput.type = 'hidden';
-        transportDataInput.name = 'transport_data';
-        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
-        form.appendChild(transportDataInput);
-        
-        // Add basic form fields
-        const basicData = {
+            },
+            bookingType: 'booking',
+            service_category: 'local_transfer',
             tour_id: tourId,
-            agent_id: document.getElementById('agent_id').value,
             pickup_zone_id: pickupZoneId,
-            dropoff_zone_id: dropoffZoneId,
-            pickup_time: pickupTime,
-            pickup_date: pickupDate,
-            vehicle_id: vehicleId,
-            service_type: serviceType,
-            passengers: passengers,
-            country: country,
-            city: city,
-            transport_type: 'local_transfer' // Specify local transfer type
-        };
+            dropoff_zone_id: dropoffZoneId
+        }];
         
-        for (const [key, value] of Object.entries(basicData)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-        }
+        console.log('Local Transfer booking data:', bookingData);
         
-        document.body.appendChild(form);
-        form.submit();
-        
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('localTransferSelectionModal'));
-        modal.hide();
-        
-        // Show success message
-        showNotification(`Local transfer service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+        // Send data to controller
+        submitLocalTransferBooking(bookingData, `Local transfer service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'local_transport');
     }
     
     const attractionBaseUrl = "{{ route('orders.attractions.select') }}";
@@ -5242,6 +5721,385 @@
         }
         return customer_info;
     }
+
+    // Google Maps Autocomplete Functionality for Local Transfer Point-to-Point
+    window.initializeGoogleMapsAutocomplete = function() {
+        console.log('Initializing Google Maps Autocomplete for Local Transfer Point-to-Point...');
+        
+        // Get selected country and city for location bias
+        const selectedCountry = '{{ $tour->country ?? "" }}';
+        const selectedCity = '{{ $tour->city ?? "" }}';
+        
+        // Create location bias for better search results
+        let locationBias = null;
+        if (selectedCountry && selectedCity) {
+            locationBias = selectedCity + ', ' + selectedCountry;
+        } else if (selectedCountry) {
+            locationBias = selectedCountry;
+        }
+        
+        // Initialize autocomplete for local transfer location inputs
+        document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
+            if (input && !input.hasAttribute('data-autocomplete-initialized')) {
+                console.log('Initializing autocomplete for:', input.id);
+                
+                // Create autocomplete instance
+                const autocomplete = new google.maps.places.Autocomplete(input, {
+                    types: ['establishment', 'geocode'],
+                    componentRestrictions: { country: getCountryCode(selectedCountry) },
+                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                });
+                
+                // Add place_changed event listener
+                autocomplete.addListener('place_changed', function() {
+                    const place = autocomplete.getPlace();
+                    
+                    if (!place.geometry) {
+                        console.log('No geometry found for selected place');
+                        return;
+                    }
+                    
+                    console.log('Place selected:', place);
+                    
+                    // Extract coordinates
+                    const lat = place.geometry.location.lat();
+                    const lng = place.geometry.location.lng();
+                    
+                    // Update hidden fields based on input ID
+                    const inputId = input.id;
+                    
+                    // Handle local transfer point-to-point fields
+                    if (inputId.includes('pickup')) {
+                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
+                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
+                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
+                        
+                        if (latField) latField.value = lat;
+                        if (lngField) lngField.value = lng;
+                        if (placeIdField) placeIdField.value = place.place_id;
+                        
+                        console.log(`Updated pickup coordinates: ${lat}, ${lng}`);
+                    } else if (inputId.includes('dropoff')) {
+                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
+                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
+                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
+                        
+                        if (latField) latField.value = lat;
+                        if (lngField) lngField.value = lng;
+                        if (placeIdField) placeIdField.value = place.place_id;
+                        
+                        console.log(`Updated dropoff coordinates: ${lat}, ${lng}`);
+                    }
+                    
+                    // Update input value with formatted address
+                    input.value = place.formatted_address || place.name || input.value;
+                    
+                    // Enable search button if both pickup and dropoff are filled
+                    checkLocalTransferFormCompletion();
+                });
+                
+                // Mark as initialized
+                input.setAttribute('data-autocomplete-initialized', 'true');
+            }
+        });
+    };
+    
+    // Helper function to get country code from country name
+    window.getCountryCode = function(countryName) {
+        const countryCodes = {
+            'India': 'IN',
+            'United States': 'US',
+            'United Kingdom': 'GB',
+            'Canada': 'CA',
+            'Australia': 'AU',
+            'Germany': 'DE',
+            'France': 'FR',
+            'Italy': 'IT',
+            'Spain': 'ES',
+            'Netherlands': 'NL',
+            'Belgium': 'BE',
+            'Switzerland': 'CH',
+            'Austria': 'AT',
+            'Sweden': 'SE',
+            'Norway': 'NO',
+            'Denmark': 'DK',
+            'Finland': 'FI',
+            'Poland': 'PL',
+            'Czech Republic': 'CZ',
+            'Hungary': 'HU',
+            'Slovakia': 'SK',
+            'Slovenia': 'SI',
+            'Croatia': 'HR',
+            'Serbia': 'RS',
+            'Bosnia and Herzegovina': 'BA',
+            'Montenegro': 'ME',
+            'Albania': 'AL',
+            'North Macedonia': 'MK',
+            'Bulgaria': 'BG',
+            'Romania': 'RO',
+            'Greece': 'GR',
+            'Turkey': 'TR',
+            'Cyprus': 'CY',
+            'Malta': 'MT',
+            'Portugal': 'PT',
+            'Ireland': 'IE',
+            'Iceland': 'IS',
+            'Luxembourg': 'LU',
+            'Japan': 'JP',
+            'South Korea': 'KR',
+            'China': 'CN',
+            'Singapore': 'SG',
+            'Thailand': 'TH',
+            'Malaysia': 'MY',
+            'Indonesia': 'ID',
+            'Philippines': 'PH',
+            'Vietnam': 'VN',
+            'Cambodia': 'KH',
+            'Brazil': 'BR',
+            'Argentina': 'AR',
+            'Mexico': 'MX',
+            // Add more countries as needed
+        };
+        
+        return countryCodes[countryName] || '';
+    };
+    
+    // Check if local transfer form is complete and enable search button
+    function checkLocalTransferFormCompletion() {
+        const pickupLocation = document.getElementById('local_transfer_point_pickup_location').value;
+        const dropoffLocation = document.getElementById('local_transfer_point_dropoff_location').value;
+        const pickupTime = document.getElementById('local_transfer_point_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_point_pickup_date').value;
+        const searchBtn = document.getElementById('local_transfer_point_to_point_search_btn');
+        
+        if (pickupLocation && dropoffLocation && pickupTime && pickupDate && searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.classList.remove('btn-secondary');
+            searchBtn.classList.add('btn-primary');
+        } else if (searchBtn) {
+            searchBtn.disabled = true;
+            searchBtn.classList.remove('btn-primary');
+            searchBtn.classList.add('btn-secondary');
+        }
+    }
+    
+    // Check if hourly form is complete and enable search button
+    function checkHourlyFormCompletion() {
+        const pickupLocation = document.getElementById('local_transfer_hourly_pickup_location').value;
+        const pickupTime = document.getElementById('local_transfer_hourly_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_hourly_pickup_date').value;
+        const searchBtn = document.getElementById('local_transfer_hourly_search_btn');
+        
+        if (pickupLocation && pickupTime && pickupDate && searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.classList.remove('btn-secondary');
+            searchBtn.classList.add('btn-primary');
+        } else if (searchBtn) {
+            searchBtn.disabled = true;
+            searchBtn.classList.remove('btn-primary');
+            searchBtn.classList.add('btn-secondary');
+        }
+    }
+    
+    // Check if local transfer (zone-based) form is complete and enable search button
+    function checkLocalTransferZoneFormCompletion() {
+        const pickupZone = document.getElementById('local_transfer_pickup_zone').value;
+        const dropoffZone = document.getElementById('local_transfer_dropoff_zone').value;
+        const pickupTime = document.getElementById('local_transfer_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_pickup_date').value;
+        const searchBtn = document.getElementById('local_transfer_search_btn');
+        
+        if (pickupZone && dropoffZone && pickupTime && pickupDate && searchBtn) {
+            searchBtn.disabled = false;
+            searchBtn.classList.remove('btn-secondary');
+            searchBtn.classList.add('btn-primary');
+        } else if (searchBtn) {
+            searchBtn.disabled = true;
+            searchBtn.classList.remove('btn-primary');
+            searchBtn.classList.add('btn-secondary');
+        }
+    }
+    
+    // Google Maps Autocomplete Functionality
+    window.initializeGoogleMapsAutocomplete = function() {
+        console.log('Initializing Google Maps Autocomplete...');
+        
+        // Get selected country and city for location bias
+        const selectedCountry = document.getElementById('user_country')?.value || '';
+        const selectedCity = document.getElementById('city')?.value || '';
+        
+        // Create location bias for better search results
+        let locationBias = null;
+        if (selectedCountry && selectedCity) {
+            // Use the city as the center point for location bias
+            locationBias = selectedCity + ', ' + selectedCountry;
+        } else if (selectedCountry) {
+            locationBias = selectedCountry;
+        }
+        
+        // Initialize autocomplete for all transport location inputs
+        document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
+            if (input && !input.hasAttribute('data-autocomplete-initialized')) {
+                console.log('Initializing autocomplete for:', input.id);
+                
+                // Create autocomplete instance
+                const autocomplete = new google.maps.places.Autocomplete(input, {
+                    types: ['establishment', 'geocode'],
+                    componentRestrictions: { country: getCountryCode(selectedCountry) },
+                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                });
+                
+                // Add place_changed event listener
+                autocomplete.addListener('place_changed', function() {
+                    const place = autocomplete.getPlace();
+                    
+                    if (!place.geometry) {
+                        console.log('No geometry found for selected place');
+                        return;
+                    }
+                    
+                    console.log('Place selected:', place);
+                    
+                    // Extract coordinates
+                    const lat = place.geometry.location.lat();
+                    const lng = place.geometry.location.lng();
+                    
+                    // Update hidden fields based on input ID
+                    const inputId = input.id;
+                    
+                    // Update the corresponding hidden fields
+                    if (inputId.includes('pickup')) {
+                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
+                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
+                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
+                        
+                        if (latField) latField.value = lat;
+                        if (lngField) lngField.value = lng;
+                        if (placeIdField) placeIdField.value = place.place_id;
+                    } else if (inputId.includes('dropoff')) {
+                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
+                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
+                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
+                        
+                        if (latField) latField.value = lat;
+                        if (lngField) lngField.value = lng;
+                        if (placeIdField) placeIdField.value = place.place_id;
+                    }
+                    
+                    // Enable search button if all fields are filled
+                    checkLocalTransferFormCompletion();
+                    checkHourlyFormCompletion();
+                    
+                    console.log('Updated location:', {
+                        lat: lat,
+                        lng: lng,
+                        placeId: place.place_id,
+                        address: place.formatted_address
+                    });
+                });
+                
+                // Mark as initialized
+                input.setAttribute('data-autocomplete-initialized', 'true');
+            }
+        });
+    };
+    
+    // Function to reinitialize autocomplete when modal opens
+    window.reinitializeAutocomplete = function() {
+        console.log('Reinitializing autocomplete for local transfer modal...');
+        
+        // Clear existing initialization flags
+        document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
+            input.removeAttribute('data-autocomplete-initialized');
+        });
+        
+        // Reinitialize after a short delay
+        setTimeout(() => {
+            initializeGoogleMapsAutocomplete();
+        }, 500);
+    };
+    
+    // Initialize autocomplete when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Wait for Google Maps API to load
+        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+            initializeGoogleMapsAutocomplete();
+        } else {
+            // Wait for Google Maps API to load
+            window.addEventListener('load', function() {
+                if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+                    initializeGoogleMapsAutocomplete();
+                }
+            });
+        }
+    });
+
+    // Reinitialize when local transfer modal opens
+    document.addEventListener('shown.bs.modal', function(e) {
+        if (e.target.id === 'localTransferSelectionModal') {
+            setTimeout(() => {
+                initializeGoogleMapsAutocomplete();
+            }, 100);
+        }
+    });
+
+    // Add event listeners to form fields for completion check
+    document.addEventListener('DOMContentLoaded', function() {
+        // Point to Point fields
+        const pickupTimeField = document.getElementById('local_transfer_point_pickup_time');
+        const pickupDateField = document.getElementById('local_transfer_point_pickup_date');
+        const pickupLocationField = document.getElementById('local_transfer_point_pickup_location');
+        const dropoffLocationField = document.getElementById('local_transfer_point_dropoff_location');
+        
+        if (pickupTimeField) {
+            pickupTimeField.addEventListener('change', checkLocalTransferFormCompletion);
+        }
+        if (pickupDateField) {
+            pickupDateField.addEventListener('change', checkLocalTransferFormCompletion);
+        }
+        if (pickupLocationField) {
+            pickupLocationField.addEventListener('input', checkLocalTransferFormCompletion);
+        }
+        if (dropoffLocationField) {
+            dropoffLocationField.addEventListener('input', checkLocalTransferFormCompletion);
+        }
+        
+        // Hourly fields
+        const hourlyPickupTimeField = document.getElementById('local_transfer_hourly_pickup_time');
+        const hourlyPickupDateField = document.getElementById('local_transfer_hourly_pickup_date');
+        const hourlyPickupLocationField = document.getElementById('local_transfer_hourly_pickup_location');
+        
+        if (hourlyPickupTimeField) {
+            hourlyPickupTimeField.addEventListener('change', checkHourlyFormCompletion);
+        }
+        if (hourlyPickupDateField) {
+            hourlyPickupDateField.addEventListener('change', checkHourlyFormCompletion);
+        }
+        if (hourlyPickupLocationField) {
+            hourlyPickupLocationField.addEventListener('input', checkHourlyFormCompletion);
+        }
+        
+        // Local Transfer (zone-based) fields
+        const localTransferPickupZoneField = document.getElementById('local_transfer_pickup_zone');
+        const localTransferDropoffZoneField = document.getElementById('local_transfer_dropoff_zone');
+        const localTransferPickupTimeField = document.getElementById('local_transfer_pickup_time');
+        const localTransferPickupDateField = document.getElementById('local_transfer_pickup_date');
+        
+        if (localTransferPickupZoneField) {
+            // Already has change listener in initializeLocalTransferModal, but add form completion check
+            localTransferPickupZoneField.addEventListener('change', checkLocalTransferZoneFormCompletion);
+        }
+        if (localTransferDropoffZoneField) {
+            localTransferDropoffZoneField.addEventListener('change', checkLocalTransferZoneFormCompletion);
+        }
+        if (localTransferPickupTimeField) {
+            localTransferPickupTimeField.addEventListener('change', checkLocalTransferZoneFormCompletion);
+        }
+        if (localTransferPickupDateField) {
+            localTransferPickupDateField.addEventListener('change', checkLocalTransferZoneFormCompletion);
+        }
+    });
+
 </script>
 @endsection
 
