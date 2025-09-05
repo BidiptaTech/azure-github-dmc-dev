@@ -680,6 +680,7 @@ Route::get('/clear', function () {
 
         // Agency routes
         Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
+        Route::get('/agencies/get-card-types-by-country', [AgencyController::class, 'getCardTypesByCountry'])->name('agencies.getCardTypesByCountry');
         Route::resource('agencies', AgencyController::class);
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 

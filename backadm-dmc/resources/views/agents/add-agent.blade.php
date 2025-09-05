@@ -248,7 +248,7 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-3 mb-3">
+                    {{-- <div class="col-md-3 mb-3">
                         <label for="id_card" class="form-label">
                             <strong>ID Card</strong><span class="text-danger">*</span>
                         </label>
@@ -271,7 +271,7 @@
                         @error('card_number')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
                     <div class="col-md-3 mb-3">
                         <label for="agent_image" class="form-label"><strong>Agency Logo</strong><span class="text-danger">*</span></label>
                         <input type="file" class="form-control @error('agent_image') is-invalid @enderror" name="agent_image" required>
