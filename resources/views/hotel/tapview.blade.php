@@ -45,7 +45,7 @@
         id="rooms-type-tab" 
         href="{{ empty($hotel->facilities) ? 'javascript:void(0);' : route('hotels.createroom', ['id' => $hotel->hotel_unique_id]) }}"
         style="cursor: {{ empty($hotel->facilities) ? 'not-allowed' : 'pointer' }}">
-            Rooms Type
+            Rooms Price
         </a>
     </li> 
      @php
@@ -59,7 +59,7 @@
             href="{{ $roomCount > 0 ? route('beds.create', $hotel->hotel_unique_id) : 'javascript:void(0);' }}" 
             role="tab"
             aria-disabled="{{ $roomCount > 0 ? 'false' : 'true' }}">
-            Bed Type
+            Bed Configuration
         </a>
     </li> 
     @endif
