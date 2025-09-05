@@ -1741,7 +1741,7 @@
                 <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
-                        <div data-i18n="All Users & Agents">All Users & Agents</div>
+                        <div data-i18n="All Users">All Users</div>
                     </a>
                     <ul class="menu-sub">
                         @php
