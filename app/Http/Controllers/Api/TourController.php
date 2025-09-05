@@ -2337,22 +2337,30 @@ class TourController extends Controller
                         ]);
                     }
 
-                    $formEnquiry = EnquiryForm::where('multi_enq_id', (string)$tour->multi_enq_id)->first();
-                    if ($formEnquiry && $formEnquiry->multi_enq_id) {
-                        // Cancel other enquiry forms with same multi_enq_id
-                        EnquiryForm::where('multi_enq_id', (string)$formEnquiry->multi_enq_id)
-                            ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
-                            ->update([
-                                'status' => 'cancelled',
-                            ]);
+                    // Handle multi_enq_id logic - whether it's present or null
+                    if(!empty($tour->multi_enq_id) && (string)$tour->multi_enq_id){   
+                        $formEnquiry = EnquiryForm::where('multi_enq_id', (string)$tour->multi_enq_id)->first();
                         
-                    }
-                    Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
+                        if ($formEnquiry && $formEnquiry->multi_enq_id) {
+                            // Cancel other enquiry forms with same multi_enq_id
+                            EnquiryForm::where('multi_enq_id', (string)$formEnquiry->multi_enq_id)
+                                ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                                ->update([
+                                    'status' => 'cancelled',
+                                ]);
+                        }
+                        
+                        // Cancel other tours with same multi_enq_id
+                        Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
                             ->where('tour_id', '!=', $tour_id)
                             ->update(['deleted_at' => now()]);
-                            
+                    }
+                    // If multi_enq_id is null or empty, just accept the current booking without affecting others
+                    
+                    $acceptEnquiry = Enquiry::where('status', 2)->where('tour_id', $tour_id)->first();     
                     return response()->json([
                         'success' => true,
+                        'actual_amount' => $acceptEnquiry ? $acceptEnquiry->actual_amount : 0,
                         'message' => 'Booking accepted successfully.'
                     ], 200);
                 }

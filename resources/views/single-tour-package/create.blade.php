@@ -1296,7 +1296,7 @@
                                     specialRequests: customerData.specialRequests,
                                     
                                     // Attraction Information
-                                    bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || new Date().toISOString().split('T')[0],
+                                    bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
                                     visitTime: timeSlot || "10:00-00:00",
                                     adultCount: guestInfo.adults || 0,
                                     childCount: guestInfo.children || 0,
@@ -1387,7 +1387,7 @@
                                 const guideId = select.value;
                                 
                                 // Get guide date from the form
-                                const guideDate = document.getElementById(`day${day}_guide_${index}_date`)?.value || new Date().toISOString().split('T')[0];
+                                const guideDate = document.getElementById(`day${day}_guide_${index}_date`)?.value || getTourDateForDay(day);
                                 
                                 // Calculate pricing directly from package selection
                                 let basePrice = 0;
@@ -1596,7 +1596,7 @@
                                     specialRequests: customerData.specialRequests || null,
                                     
                                     // Restaurant Information
-                                    bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || new Date().toISOString().split('T')[0],
+                                    bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
                                     visitTime: formatVisitTime(timeSlot),
                                     adultCount: guestInfo.adults || 0,
                                     childCount: guestInfo.children || 0,
@@ -1784,8 +1784,8 @@
                                         zip: customerData.zip,
                                         address1: customerData.address1,
                                         address2: customerData.address2 || null,
-                                        bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
-                                        pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        bookingDate: dateInput?.value || getTourDateForDay(day),
+                                        pickupdate: dateInput?.value || getTourDateForDay(day),
                                         entrytime: formatEntryTime(timeSelect?.value),
                                         vehicles_id: parseInt(vehicleSelect.value) || 0,
                                         vehicles_name: vehicle.text,
@@ -1872,8 +1872,8 @@
                                         zip: customerData.zip,
                                         address1: customerData.address1,
                                         address2: customerData.address2 || null,
-                                        bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
-                                        pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        bookingDate: dateInput?.value || getTourDateForDay(day),
+                                        pickupdate: dateInput?.value || getTourDateForDay(day),
                                         entrytime: formatEntryTime(timeSelect?.value),
                                         vehicles_id: parseInt(vehicleSelect.value) || 0,
                                         vehicles_name: vehicle.text,
@@ -1960,8 +1960,8 @@
                                         zip: customerData.zip,
                                         address1: customerData.address1,
                                         address2: customerData.address2 || null,
-                                        bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
-                                        pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                        bookingDate: dateInput?.value || getTourDateForDay(day),
+                                        pickupdate: dateInput?.value || getTourDateForDay(day),
                                         entrytime: formatEntryTime(timeSelect?.value),
                                         vehicles_id: parseInt(vehicleSelect.value) || 0,
                                         vehicles_name: vehicle.text,
@@ -2028,7 +2028,7 @@
                                     if (section === 'entry') {
                                         const transportData = {
                                             id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                            bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            bookingDate: dateInput?.value || getTourDateForDay(day),
                                             vehicles_id: parseInt(vehicleSelect.value) || 0,
                                             image: vehicle.dataset.image || "",
                                             dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
@@ -2050,7 +2050,7 @@
                                                 lat: dropoffZone.dataset.lat || "",
                                                 lng: dropoffZone.dataset.lng || ""
                                             },
-                                            pickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            pickupdate: dateInput?.value || getTourDateForDay(day),
                                             entrytime: timeSelect?.value || "",
                                             adults: parseInt(adultCount) || 0,
                                             children: parseInt(childCount) || 0,
@@ -2089,7 +2089,7 @@
                                     } else if (section === 'exit') {
                                         const transportData = {
                                             id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                            bookingDate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            bookingDate: dateInput?.value || getTourDateForDay(day),
                                             vehicles_id: parseInt(vehicleSelect.value) || 0,
                                             vehicles_name: vehicle.text,
                                             dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
@@ -2111,7 +2111,7 @@
                                                 lat: dropoffZone.dataset.lat || "",
                                                 lng: dropoffZone.dataset.lng || ""
                                             },
-                                            exitpickupdate: dateInput?.value || new Date().toISOString().split('T')[0],
+                                            exitpickupdate: dateInput?.value || getTourDateForDay(day),
                                             entrytime: timeSelect?.value || "",
                                             adults: parseInt(adultCount) || 0,
                                             children: parseInt(childCount) || 0,
@@ -3820,6 +3820,15 @@ let tourEndDate = null;
 let selectedHotels = [];
 let tourNights = 0;
 let hotelData = [];
+
+// Helper function to get tour date for a specific day
+function getTourDateForDay(day) {
+    if (!tourStartDate) {
+        console.warn(`Tour start date not set, using today's date as fallback for day ${day}`);
+        return new Date().toISOString().split('T')[0];
+    }
+    return moment(tourStartDate).add(day-1, 'days').format('YYYY-MM-DD');
+}
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -9747,7 +9756,13 @@ document.addEventListener('DOMContentLoaded', function() {
          transportType = 'local_transfer';
      }
      
-     console.log('enableSearchButton - Transport type:', transportType);
+     console.log('enableSearchButton called:', {
+         day: day,
+         section: section,
+         baseSection: baseSection,
+         transportType: transportType,
+         buttonExists: !!searchBtn
+     });
      
          // For point_to_point, only need city (pickup time is optional)
     if (transportType === 'point_to_point') {
@@ -9779,28 +9794,50 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Search button disabled for hourly - missing city');
         }
     } else if (transportType === 'local_transfer') {
-         // For local_transfer, need both zones (pickup time is optional)
+         // For local_transfer, only need pickup zone selected (dropoff will be populated based on pickup)
          const pickupZoneSelect = document.querySelector(`select[name="day${day}_${baseSection}_pickup_zone_id"]`);
          const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${baseSection}_dropoff_zone_id"]`);
          
-         if (pickupZoneSelect && pickupZoneSelect.value && 
-             dropoffZoneSelect && dropoffZoneSelect.value) {
+         console.log('Local transfer validation:', {
+             pickup: pickupZoneSelect?.value,
+             dropoff: dropoffZoneSelect?.value,
+             baseSection: baseSection
+         });
+         
+         if (pickupZoneSelect && pickupZoneSelect.value) {
              searchBtn.disabled = false;
              searchBtn.classList.remove('btn-secondary');
              searchBtn.classList.add('btn-primary');
-             console.log('Search button enabled for local_transfer');
+             console.log('Search button enabled for local_transfer - pickup zone selected');
          } else {
              searchBtn.disabled = true;
              searchBtn.classList.remove('btn-primary');
              searchBtn.classList.add('btn-secondary');
-             console.log('Search button disabled for local_transfer - missing zones');
+             console.log('Search button disabled for local_transfer - no pickup zone selected');
          }
      } else {
-         // Default behavior for other sections (entry, exit)
-         searchBtn.disabled = false;
-         searchBtn.classList.remove('btn-secondary');
-         searchBtn.classList.add('btn-primary');
-         console.log('Search button enabled for default section');
+         // Default behavior for other sections (entry, exit) or when no transport type is detected
+         // If this is a transport section and no specific type is detected, check if we have pickup zones
+         if (baseSection.includes('transport')) {
+             const pickupZoneSelect = document.querySelector(`select[name="day${day}_${baseSection}_pickup_zone_id"]`);
+             if (pickupZoneSelect && pickupZoneSelect.value) {
+                 searchBtn.disabled = false;
+                 searchBtn.classList.remove('btn-secondary');
+                 searchBtn.classList.add('btn-primary');
+                 console.log('Search button enabled for transport (default/local transfer with pickup zone)');
+             } else {
+                 searchBtn.disabled = true;
+                 searchBtn.classList.remove('btn-primary');
+                 searchBtn.classList.add('btn-secondary');
+                 console.log('Search button disabled for transport (no pickup zone selected)');
+             }
+         } else {
+             // For non-transport sections (entry, exit)
+             searchBtn.disabled = false;
+             searchBtn.classList.remove('btn-secondary');
+             searchBtn.classList.add('btn-primary');
+             console.log('Search button enabled for default section');
+         }
      }
  }
  

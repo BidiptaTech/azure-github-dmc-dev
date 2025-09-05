@@ -196,7 +196,7 @@
     <!-- Tours Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Follow Up List</h5>
+            <h5 class="mb-0">Follow Up List <span id="filterResultsBadge" class="badge bg-primary ms-2" style="display: none;"></span></h5>
             <div class="d-flex gap-2">
                 {{-- <button class="btn btn-sm btn-outline-warning" onclick="scheduleFollowUp()">
                     <i class="ri-calendar-schedule-line me-1"></i> Schedule Follow Up
@@ -3631,7 +3631,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const followUpFilter = document.getElementById('followUpFilter');
+    // const followUpFilter = document.getElementById('followUpFilter'); // Commented out since element is not available
     const dateRange = document.getElementById('dateRange');
     const dateRangeStart = document.getElementById('dateRangeStart');
     const dateRangeEnd = document.getElementById('dateRangeEnd');
@@ -3641,7 +3641,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    if (followUpFilter) followUpFilter.addEventListener('change', filterTable);
+    // if (followUpFilter) followUpFilter.addEventListener('change', filterTable); // Commented out since element is not available
     // Date range picker will be initialized in scripts section where jQuery is available
     
     // Select all functionality
@@ -3660,33 +3660,49 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function filterTable() {
+    console.log('🔍 Filter function called');
+    
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const followUpFilter = document.getElementById('followUpFilter')?.value || '';
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
-    const rows = document.querySelectorAll('#toursTable tbody tr');
+    console.log('🔍 Filter values:', { searchTerm, statusFilter, destinationFilter, agentFilter });
     
-    rows.forEach(row => {
+    const rows = document.querySelectorAll('#toursTable tbody tr');
+    let visibleCount = 0;
+    
+    console.log('🔍 Total rows found:', rows.length);
+    
+    rows.forEach((row, index) => {
         if (row.cells.length === 1) return; // Skip empty state row
         
+        // Correct column indices based on table structure:
+        // 0: #, 1: Tour Details, 2: Destination, 3: Travel Dates, 4: Guests, 5: Services, 6: Agent, 7: Status, 8: Follow Up Status
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[6]?.querySelector('.badge')?.textContent.toLowerCase() || '';
-        const followUpStatus = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const agent = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent || '';
+        const followUpStatus = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const updatedAt = row.getAttribute('data-updated-at');
+        
+        if (index === 0) {
+            console.log('🔍 First row data:', { tourDetails, destination, agent, status });
+        }
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
+        // Enhanced search - check tour details, destination, and agent
+        if (searchTerm && 
+            !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !agent.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
-        if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+        if (statusFilter && !status.toLowerCase().includes(statusFilter.toLowerCase())) {
             show = false;
         }
         
@@ -3696,16 +3712,6 @@ function filterTable() {
         
         if (agentFilter && agent !== agentFilter) {
             show = false;
-        }
-        
-        if (followUpFilter) {
-            if (followUpFilter === 'overdue' && !followUpStatus.includes('overdue')) {
-                show = false;
-            } else if (followUpFilter === 'due_soon' && !followUpStatus.includes('due soon')) {
-                show = false;
-            } else if (followUpFilter === 'on_track' && !followUpStatus.includes('on track')) {
-                show = false;
-            }
         }
         
         // Date range filtering (check both created_at and updated_at)
@@ -3737,11 +3743,16 @@ function filterTable() {
         }
         
         row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+        
+        if (index === 0) {
+            console.log('🔍 First row show:', show);
+        }
     });
 
     // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
-    const rangeCount = visibleRows.length;
+    const rangeCount = visibleCount;
     const prospectCount = visibleRows.filter(r => r.getAttribute('data-tour-status') === 'Prospect').length;
     const tentativeCount = visibleRows.filter(r => r.getAttribute('data-tour-status') === 'Tentative').length;
     
@@ -3769,6 +3780,11 @@ function filterTable() {
     if (statProspects) statProspects.textContent = prospectCount;
     if (statTentative) statTentative.textContent = tentativeCount;
     if (statOverdue) statOverdue.textContent = overdueCount;
+
+    // Update filter results badge
+    updateFilterResults(visibleCount, rows.length - 1); // -1 to exclude empty state row if present
+
+    console.log('🔍 Filter complete. Visible:', visibleCount, 'Total:', rows.length);
 
     if (dateStart && dateEnd) {
         const start = new Date(dateStart);
@@ -3808,7 +3824,7 @@ function resetFilters() {
     document.getElementById('statusFilter').value = '';
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
-    document.getElementById('followUpFilter').value = '';
+    // document.getElementById('followUpFilter').value = ''; // Commented out since element is not available
     const dr = document.getElementById('dateRange');
     const ds = document.getElementById('dateRangeStart');
     const de = document.getElementById('dateRangeEnd');
@@ -3816,6 +3832,55 @@ function resetFilters() {
     if (ds) ds.value = '';
     if (de) de.value = '';
     filterTable();
+    
+    // Show success message
+    showFilterResetMessage();
+}
+
+function updateFilterResults(visibleCount, totalCount) {
+    const filterResultsBadge = document.getElementById('filterResultsBadge');
+    if (filterResultsBadge) {
+        // Only show badge if there are meaningful results and filters are actually applied
+        const hasActiveFilters = checkActiveFilters();
+        if (hasActiveFilters && visibleCount < totalCount && totalCount > 1) {
+            filterResultsBadge.textContent = `${visibleCount} of ${totalCount} shown`;
+            filterResultsBadge.style.display = 'inline-block';
+        } else {
+            filterResultsBadge.style.display = 'none';
+        }
+    }
+}
+
+function checkActiveFilters() {
+    const searchInput = document.getElementById('searchInput')?.value || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+    const agentFilter = document.getElementById('agentFilter')?.value || '';
+    const dateStart = document.getElementById('dateRangeStart')?.value || '';
+    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    
+    return searchInput || statusFilter || destinationFilter || agentFilter || dateStart || dateEnd;
+}
+
+function showFilterResetMessage() {
+    // Create a temporary success message
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <i class="ri-check-circle-line me-2"></i>
+        <strong>Filters Reset!</strong> All filters have been cleared successfully.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
 }
 </script>
 @endsection

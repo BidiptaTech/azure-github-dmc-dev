@@ -831,7 +831,7 @@
                     </li> --}}
                 @endif
 
-                @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 37, 38, 26,49,50,51,52,53,80,89,98,107,116,
+                @if(in_array(auth()->user()->role_id, [1,2,11, 33, 34, 36, 37, 38, 26,49,50,51,52,53,80,89,98,107,116,
                 64,65,66,67,68,81,90,99,108,117,124,125,128,129,130,131,132,134,135,136,137,138]))
                     <!-- Show Booking -->
                     <li class="menu-item @if(Request::is('predefined-package-booking-list')) active @endif">
@@ -1741,7 +1741,7 @@
                 <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-user-line"></i>
-                        <div data-i18n="All Users & Agents">All Users & Agents</div>
+                        <div data-i18n="All Users">All Users</div>
                     </a>
                     <ul class="menu-sub">
                         @php

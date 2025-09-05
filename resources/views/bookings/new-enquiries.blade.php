@@ -150,7 +150,7 @@
     <!-- Tours Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">New Enquiries List</h5>
+            <h5 class="mb-0">New Enquiries List <span id="filterResultsBadge" class="badge bg-primary ms-2" style="display: none;"></span></h5>
             <div class="d-flex gap-2">
                 <div class="dropdown">
                     <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -3379,6 +3379,7 @@ function filterTable() {
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
+    let visibleCount = 0;
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
@@ -3392,18 +3393,24 @@ function filterTable() {
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm) && !destination.toLowerCase().includes(searchTerm)) {
+        // Search filter - check tour details, destination, and city
+        if (searchTerm && !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !city.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
+        // Country filter
         if (countryFilter && destination !== countryFilter) {
             show = false;
         }
         
+        // City filter
         if (cityFilter && city !== cityFilter) {
             show = false;
         }
         
+        // Agent filter
         if (agentFilter && agent !== agentFilter) {
             show = false;
         }
@@ -3436,11 +3443,12 @@ function filterTable() {
         }
         
         row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
     });
 
     // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
-    const rangeCount = visibleRows.length;
+    const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     
@@ -3467,6 +3475,9 @@ function filterTable() {
     if (statToday) statToday.textContent = todayCount;
     if (statAdults) statAdults.textContent = adults;
     if (statChildren) statChildren.textContent = children;
+
+    // Update filter results badge
+    updateFilterResults(visibleCount, rows.length - 1); // -1 to exclude empty state row if present
 
     if (dateStart && dateEnd) {
         const start = new Date(dateStart);
@@ -3511,6 +3522,42 @@ function resetFilters() {
     if (ds) ds.value = '';
     if (de) de.value = '';
     filterTable();
+    
+    // Show success message
+    showFilterResetMessage();
+}
+
+function updateFilterResults(visibleCount, totalCount) {
+    const filterResultsBadge = document.getElementById('filterResultsBadge');
+    if (filterResultsBadge) {
+        if (visibleCount < totalCount) {
+            // filterResultsBadge.textContent = `${visibleCount} of ${totalCount} shown`;
+            // filterResultsBadge.style.display = 'inline-block';
+        } else {
+            filterResultsBadge.style.display = 'none';
+        }
+    }
+}
+
+function showFilterResetMessage() {
+    // Create a temporary success message
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <i class="ri-check-circle-line me-2"></i>
+        <strong>Filters Reset!</strong> All filters have been cleared successfully.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
 }
 
 function convertToProspect(tourId) {

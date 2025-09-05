@@ -240,7 +240,7 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-3 mb-3">
+                    {{-- <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>
                         @if(auth()->user()->role_id == 1)
                             <input type="text" class="form-control" value="{{ $agent->id_cards }}" readonly>
@@ -262,7 +262,7 @@
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>Card Number</strong><span class="text-danger">*</span></label>
                         <input type="number" class="form-control" name="card_number" value="{{ $agent->id_number }}" required>
-                    </div>
+                    </div> --}}
 
                     <!-- Image Upload with Preview & Remove - UPDATED STYLING -->
                     <div class="col-md-3 mb-3">

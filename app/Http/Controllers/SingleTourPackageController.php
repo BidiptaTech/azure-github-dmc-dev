@@ -1794,6 +1794,26 @@ class SingleTourPackageController extends Controller
     /**
      * Store service orders in orders table (called separately after tour creation)
      */
+    private function getNextBookingId()
+    {
+        // Use a more robust approach to get the next booking ID
+        try {
+            // Try to get by booking_id first (if column exists)
+            $lastBooking = Order::lockForUpdate()->orderBy('booking_id', 'desc')->first();
+            if ($lastBooking && isset($lastBooking->booking_id) && $lastBooking->booking_id > 0) {
+                return CommonHelper::createId($lastBooking->booking_id);
+            }
+        } catch (\Exception $e) {
+            // Column might not exist, fall back to using id
+            \Log::info("booking_id column not found, using id column instead");
+        }
+        
+        // Fallback: use the id column 
+        $lastBooking = Order::lockForUpdate()->orderBy('id', 'desc')->first();
+        $lastId = $lastBooking ? $lastBooking->id : 0;
+        return CommonHelper::createId($lastId);
+    }
+
     public function storeServiceOrders(Request $request)
     {
         $request->validate([
@@ -1813,6 +1833,9 @@ class SingleTourPackageController extends Controller
 
             $tourId = $request->tour_id;
             $agentId = $request->agent_id;
+                                    
+            // This initial booking ID is not used since we generate unique IDs for each service
+            // But we keep it for compatibility with existing logging
 
             // Debug: Log incoming data
             \Log::info('Store Service Orders Request Data:', [
@@ -1984,13 +2007,11 @@ class SingleTourPackageController extends Controller
                                         'tour_id' => $tourId
                                     ];
                                     
-                                    // Create separate order for each hotel booking
-                                    $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                    $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                    $newBookingId = CommonHelper::createId($lastBookingId);
+                                    // Generate new booking ID for each hotel
+                                    $newHotelBookingId = $this->getNextBookingId();
                                     
                                     $order = Order::create([
-                                        'booking_id' => $newBookingId,
+                                        'booking_id' => $newHotelBookingId,
                                         'agent_id' => $agentId,
                                         'tour_id' => $tourId,
                                         'data' => [$enhancedHotelData], // Store hotel data as array
@@ -2032,13 +2053,11 @@ class SingleTourPackageController extends Controller
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)
                                 $attraction['price'] = $attraction['totalPrice'] ?? $attraction['price'] ?? 0;
                                 
-                                // Create separate order for each attraction
-                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                // Generate new booking ID for each attraction
+                                $newAttractionBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newBookingId,
+                                    'booking_id' => $newAttractionBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$attraction], // Store attraction data as array
@@ -2064,13 +2083,11 @@ class SingleTourPackageController extends Controller
                         } elseif ($type === 'restaurant') {
                             // For restaurants, store each restaurant as a separate order
                             foreach ($decodedData as $restaurant) {
-                                // Create separate order for each restaurant
-                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                // Generate new booking ID for each restaurant
+                                $newRestaurantBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newBookingId,
+                                    'booking_id' => $newRestaurantBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$restaurant], // Store restaurant data as array
@@ -2108,14 +2125,11 @@ class SingleTourPackageController extends Controller
                                     'surcharge' => $guide['surcharge'] ?? 0,
                                     'final_price' => $guide['price'] ?? 0
                                 ]);
-                                
-                                // Create separate order for each guide
-                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                // Generate new booking ID for each guide
+                                $newGuideBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newBookingId,
+                                    'booking_id' => $newGuideBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$guide], // Store guide data as array
@@ -2182,13 +2196,11 @@ class SingleTourPackageController extends Controller
                                     'full_transport_data' => $transport
                                 ]);
                                 
-                                // Create separate order for each transport
-                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                // Generate new booking ID for each transport
+                                $newTransportBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newBookingId,
+                                    'booking_id' => $newTransportBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
@@ -2234,13 +2246,11 @@ class SingleTourPackageController extends Controller
                                     'full_transport_data' => $transport
                                 ]);
                                 
-                                // Create separate order for each transport
-                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                // Generate new booking ID for each port transport
+                                $newPortBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newBookingId,
+                                    'booking_id' => $newPortBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$transport], // Store transport data as array
@@ -2267,13 +2277,11 @@ class SingleTourPackageController extends Controller
                         } else {
                             // For other services, store each as a separate order
                             foreach ($decodedData as $service) {
-                                // Create separate order for each service
-                                $lastBooking = Order::orderBy('booking_id', 'desc')->first();
-                                $lastBookingId = $lastBooking ? $lastBooking->booking_id : 0;
-                                $newBookingId = CommonHelper::createId($lastBookingId);
+                                // Generate new booking ID for each other service
+                                $newServiceBookingId = $this->getNextBookingId();
                                 
                                 $order = Order::create([
-                                    'booking_id' => $newBookingId,
+                                    'booking_id' => $newServiceBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$service], // Store service data as array

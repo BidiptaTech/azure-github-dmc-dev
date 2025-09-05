@@ -1466,15 +1466,15 @@ class HotelController extends Controller
             'is_active' => $request->season_status == 1 ? 1 : 0
         ]);
 
-        // if ($rate->save()) {
-        //     LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
-        //     return redirect()->back()
-        //         ->with('success', 'Rates details saved successfully!');
-        // } else {
-        //     LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
-        //     return redirect()->back()
-        //         ->with('error', 'An error occurred while saving the room details.');
-        // }
+        if ($rate->save()) {
+            LogActivityService::log('create_rate', 'App\Models\Rate', $rate->rate_id, $rate);
+            return redirect()->back()
+                ->with('success', 'Rates details saved successfully!');
+        } else {
+            LogActivityService::log('create_rate_failed', 'App\Models\Rate', $rate_max_id,'An error occurred while saving the room details.');
+            return redirect()->back()
+                ->with('error', 'An error occurred while saving the room details.');
+        }
     }
 
     /*
@@ -1502,7 +1502,16 @@ class HotelController extends Controller
     * Date 18-11-2024
     */
     public function updaterates(Request $request){
-        
+        $auth_user = Auth::user();
+        // Get DMC users for admin dropdown (only for admin users)
+        $dmcUsers = collect();
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            $dmcUsers = User::whereIn('role_id', [11,20])
+                           ->where('user_type', 2)
+                           ->select('userId', 'name', 'company_name')
+                           ->orderBy('company_name', 'asc')
+                           ->get();
+        }
         $rate_id = $request->rate_id;
         $hotel = Hotel::where('hotel_unique_id', $request->hotel_id)->first();
         $rate = Rate::where('rate_id', $rate_id)->where('hotel_id', $request->hotel_id)->first();
@@ -1523,7 +1532,7 @@ class HotelController extends Controller
 
         if ($rate->save()) {
             $rates = Rate::where('event_type', '!=', 'Season')->where('hotel_id', $request->hotel_id)->get();
-            return view('hotel.rates', compact('hotel', 'rates'))
+            return view('hotel.rates', compact('hotel', 'rates', 'dmcUsers', 'auth_user'))
                 ->with('success', 'Rates details saved successfully!');
         } else {
             return redirect()->back()
