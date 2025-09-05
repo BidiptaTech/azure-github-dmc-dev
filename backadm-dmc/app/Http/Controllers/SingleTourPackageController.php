@@ -27,6 +27,7 @@ use Carbon\Carbon;
 use App\Models\EnquiryForm;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
+use App\Models\Agency;
 
 class SingleTourPackageController extends Controller
 {
@@ -132,6 +133,7 @@ class SingleTourPackageController extends Controller
                 }
             }
         }
+        
         return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
     }
     
@@ -280,32 +282,44 @@ class SingleTourPackageController extends Controller
             return redirect()->back()->with('error', 'Tour ID is required to edit tour services.');
         }
         $tour = Tour::where('tour_id', $tour_id)->first();
-        $agent_name = Agent::where('agent_id', $tour->agent_id)->first()->name;
+        $tour_agent = Agent::select('name', 'agent_id')->where('agent_id', $tour->agent_id)->first();
+        $agent_name = $tour_agent->name;
+        $agent_id = $tour_agent->agent_id;
         if (!$tour) {
             \Log::error('Tour not found with tour_id: ' . $tour_id);
             return redirect()->back()->with('error', 'Tour not found.');
         }
         
         // Get hotels based on user's DMC ID
-        $userDmcId = Auth::user()->created_by;
+        $userDmcId = CommonHelper::getDmcId(Auth::user());
         if ($userDmcId) {
-            $hotels = Hotel::with(['rooms.bed'])->where('country', $tour->destination)
-                        //   ->whereJsonContains('dmc_id', $userDmcId)
-                          ->get();
-        } else {
+            $hotels = Hotel::with(['rooms.bed'])
+                ->where('country', $tour->destination)
+                ->whereJsonContains('dmc_id', (int)$userDmcId)
+                ->get();
+         } else {
             $hotels = collect(); // Empty collection if no DMC ID
         }
-        $guide = Guide::where('dmc_id', Auth::user()->created_by)->get();
+        $guides = Guide::where('dmc_id', $userDmcId)->get();
+
+        $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
+
+        $attractions = Attraction::with('tickets')->whereJsonContains('dmc_id', $userDmcId)->get();
+        $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
+        $dmc_id = CommonHelper::getDmcId(Auth::user());
+
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         $portsQuery = Port::query();
-        if ($request->has('country') && $request->country) {
-            $country = Country::find($request->country);
+        if ($tour->destination) {
+            $country = Country::where('name', $tour->destination)->first();
             if ($country) {
                 $portsQuery->where('country', $country->name);
             }
         }
         $ports = $portsQuery->orderBy('port_name')->get();
-        $agents = Agent::Where('sales_manager_dmc', Auth::id())
+        
+        $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
+        $agents = Agent::WhereIn('agency_id', $agencies->pluck('agency_id'))
             ->orderBy('name')
             ->get();
         $selectedCountry = $request->country;
@@ -314,7 +328,20 @@ class SingleTourPackageController extends Controller
             ->whereNull('deleted_at')
             ->orderBy('created_at', 'desc')
             ->get();
-        
+        $firstOrder = $orders->first();
+        $customer_info = [];
+        if($firstOrder){
+            
+            $customer_info['fullName'] = $firstOrder->data[0]['fullName'];
+            $customer_info['email'] = $firstOrder->data[0]['email'];
+            $customer_info['phone'] = $firstOrder->data[0]['phone'];
+            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'];
+            $customer_info['address1'] = $firstOrder->data[0]['address1'];
+            $customer_info['address2'] = $firstOrder->data[0]['address2'];
+            $customer_info['state'] = $firstOrder->data[0]['state'];
+            $customer_info['zip'] = $firstOrder->data[0]['zip'];
+            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'];
+        }
         // Group orders by type and process the data
         $ordersByType = [];
         foreach ($orders as $order) {
@@ -330,8 +357,9 @@ class SingleTourPackageController extends Controller
             $order->processed_data = $orderData;
             $ordersByType[$type][] = $order;
         }
+
         
-        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guide'));
+        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles'));
     }
 
     /**
@@ -428,7 +456,7 @@ class SingleTourPackageController extends Controller
         }
 
         try {
-            DB::beginTransaction();
+            
 
             // Parse the dates
             $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
@@ -459,8 +487,10 @@ class SingleTourPackageController extends Controller
             $tour->child_ages = $request->child_ages ?? null;
             $tour->save();
 
-            DB::commit();
-
+            $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
+            if($request->enquiry_id){
+                EnquiryForm::where('enquiry_id', $request->enquiry_id)->update(['unique_tour_id' => $thisTour->unique_tour_id]);
+            }
             // Return JSON response for AJAX
             if ($request->ajax()) {
                 return response()->json([
@@ -476,7 +506,7 @@ class SingleTourPackageController extends Controller
                 ->with('success', 'Tour package created successfully! Tour ID: ' . $display_id);
 
         } catch (\Exception $e) {
-            DB::rollback();
+            
             
             // Return JSON error response for AJAX
             if ($request->ajax()) {
@@ -2342,5 +2372,173 @@ class SingleTourPackageController extends Controller
             ], 422);
         }
     }
+
+    public function orderSelectGuide(Request $request)
+    {
+        $request->validate([
+            'booking_data' => 'required|json',
+            'customer_info' => 'required|array',
+        ]);
+        $bookingData = json_decode($request->input('booking_data'), true);
+        $customerInfo = $request->input('customer_info');
+        $guideId = $request->input('guide_id');
+        $duration = $request->input('duration');
+        $customHours = $request->input('custom_hours');
+        $pickupTime = $request->input('pickup_time');
+        $tourId = $request->input('tour_id');
+        $agentId = $request->input('agent_id');
+        $dmcId = $request->input('dmc_id');
+        $commission = $request->input('commission');
+        $markup_percentage = $request->input('markup_percentage');
+
+
+        $max_book_id = Order::max('booking_id') ?? 0;
+        $bookingId = CommonHelper::createId($max_book_id);
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = CommonHelper::createId($bookingId);
+        }
+        
+        $order =  Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => $bookingData,
+            'type' => 'guide',
+            'bookingType' => 'enquiry',
+            'discount' => $commission,
+            'markup_percentage' => $markup_percentage,
+            'status' => 1,
+        ]);
+        return back()->with('success', 'Guide selected successfully');
+    }
     
+    public function orderSelectRestaurant(Request $request)
+    {
+        $request->validate([
+            'booking_data' => 'required|json',
+            'agent_id' => 'required',
+            'tour_id' => 'required',
+            'restaurant_id' => 'required',
+            'meal_type' => 'required',
+            'dish_id' => 'required',
+            'time_slot' => 'required',
+            'adults' => 'required',
+            'children' => 'required',
+            'infants' => 'required',
+            'male_count' => 'required',
+            'female_count' => 'required',
+            'country' => 'required',
+            'start_date' => 'required',
+            'end_date' => 'required'
+        ]);
+
+        $bookingData = json_decode($request->input('booking_data'), true);
+        $agentId = $request->input('agent_id');
+        $tourId = $request->input('tour_id');
+       
+        // Generate unique booking ID
+        $max_book_id = Order::max('booking_id') ?? 0;
+        $bookingId = CommonHelper::createId($max_book_id);
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = CommonHelper::createId($bookingId);
+        }
+
+        $order = Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => $bookingData,
+            'type' => 'restaurant',
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+
+        return back()->with('success', 'Restaurant selected successfully');
+    }
+
+    public function orderSelectAttraction(Request $request)
+    {
+        $request->validate([
+            'booking_data' => 'required|json',
+            'agent_id' => 'required',
+            'tour_id' => 'required',
+            'attraction_id' => 'required',
+            'time_slot' => 'required',
+        ]);
+
+        $bookingData = json_decode($request->input('booking_data'), true);
+        $agentId = $request->input('agent_id');
+        $tourId = $request->input('tour_id');
+        
+        // Generate a unique booking ID
+        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        }
+        
+        // Create order
+        $order = \App\Models\Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => $bookingData,
+            'type' => 'attraction',
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+        
+        return back()->with('success', 'Attraction selected successfully');
+    }
+    
+    public function orderSelectTransport(Request $request)
+    {
+        $request->validate([
+            'transport_data' => 'required|json',
+            'agent_id' => 'required',
+            'tour_id' => 'required',
+            'pickup_zone_id' => 'required',
+            'dropoff_zone_id' => 'required',
+            'pickup_time' => 'required',
+            'vehicle_id' => 'required',
+        ]);
+
+        $transportData = json_decode($request->input('transport_data'), true);
+        $agentId = $request->input('agent_id');
+        $tourId = $request->input('tour_id');
+        
+        // Generate a unique booking ID
+        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        }
+        
+        // Log the transport data for debugging
+        \Log::info("Processing transport order", [
+            'transport_data' => $transportData,
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId
+        ]);
+        
+        // Create order
+        $order = \App\Models\Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => $transportData,
+            'type' => 'transport',
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+        
+        return back()->with('success', 'Transport service booked successfully');
+    }
 } 
