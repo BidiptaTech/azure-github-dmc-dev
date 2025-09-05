@@ -21,6 +21,8 @@ class Agency extends Model
         'city',
         'address',
         'postal_code',
+        'id_card_type',
+        'card_number',
         'branches',
         'status',
         'dmc_id',

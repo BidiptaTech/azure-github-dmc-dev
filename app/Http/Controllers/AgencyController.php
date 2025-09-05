@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 class AgencyController extends Controller
 {
     /**
@@ -53,6 +54,8 @@ class AgencyController extends Controller
             'city' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
+            'id_card_type' => 'string|max:255',
+            'card_number' => 'string|max:50',  
             'branches' => 'nullable|array',
             'branches.*.email' => 'required_with:branches|email',
             'branches.*.phone' => 'required_with:branches|string|max:20',
@@ -60,6 +63,8 @@ class AgencyController extends Controller
             'branches.*.city' => 'required_with:branches|string|max:255',
             'branches.*.address' => 'required_with:branches|string',
             'branches.*.postal_code' => 'nullable|string|max:20',
+            // 'branches.*.id_card_type' => 'required_with:branches|string|max:255',
+            // 'branches.*.card_number' => 'required_with:branches|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -81,6 +86,8 @@ class AgencyController extends Controller
                 'city' => $request->input('city'),
                 'address' => $request->input('address'),
                 'postal_code' => $request->input('postal_code'),
+                'id_card_type' => $request->input('id_card_type'),
+                'card_number' => $request->input('card_number'),
                 'branches' => $request->input('branches', []),
                 'updated_by' => Auth::user()->userId,
             ]);
@@ -108,6 +115,8 @@ class AgencyController extends Controller
         $agency->city = $request->input('city');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
+        $agency->id_card_type = $request->input('id_card_type');
+        $agency->card_number = $request->input('card_number');
         $agency->branches = $request->input('branches', []);
         $agency->created_by = Auth::user()->userId;
         $agency->dmc_id = [$dmc_id];
@@ -153,6 +162,8 @@ class AgencyController extends Controller
             'city' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
+            'id_card_type' => 'string|max:255',
+            'card_number' => 'string|max:50',
             'branches' => 'nullable|array',
             'branches.*.email' => 'required_with:branches|email',
             'branches.*.phone' => 'required_with:branches|string|max:20',
@@ -160,6 +171,8 @@ class AgencyController extends Controller
             'branches.*.city' => 'required_with:branches|string|max:255',
             'branches.*.address' => 'required_with:branches|string',
             'branches.*.postal_code' => 'nullable|string|max:20',
+            // 'branches.*.id_card_type' => 'required_with:branches|string|max:255',
+            // 'branches.*.card_number' => 'required_with:branches|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -173,6 +186,8 @@ class AgencyController extends Controller
         $agency->city = $request->input('city');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
+        $agency->id_card_type = $request->input('id_card_type');
+        $agency->card_number = $request->input('card_number');
         $agency->branches = $request->input('branches', []);
         $agency->updated_by = Auth::user()->userId;
 
@@ -245,12 +260,55 @@ class AgencyController extends Controller
     }
 
     /**
+     * Get card types by country for Ajax
+     */
+    public function getCardTypesByCountry(Request $request)
+    {
+        $country = $request->input('country');
+        
+        if (!$country) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Country is required'
+            ]);
+        }
+
+        $countryData = Country::where('name', $country)
+                             ->select('name', 'card_type')
+                             ->first();
+
+        if (!$countryData || !$countryData->card_type) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No card types found for this country'
+            ]);
+        }
+
+        // Split card types by comma if multiple exist
+        $cardTypes = array_map('trim', explode(',', $countryData->card_type));
+        
+        // Create array with proper structure for select2
+        $formattedCardTypes = [];
+        foreach ($cardTypes as $cardType) {
+            $formattedCardTypes[] = [
+                'id' => $cardType,
+                'text' => $cardType
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'card_types' => $formattedCardTypes
+        ]);
+    }
+
+    /**
      * Display agency selection page for DMCs
      */
     public function dmcAgenciesSelection(Request $request)
     {
         // Check if user is DMC (role_id = 11) or has allowed roles
-        $user = auth()->user();
+        $user = Auth::user();
         $allowedRoles = [1,2,3,4,10,11, 19, 20, 33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
@@ -334,7 +392,7 @@ class AgencyController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Agency selection error: ' . $e->getMessage());
+            Log::error('Agency selection error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while selecting the agency.'
@@ -395,7 +453,7 @@ class AgencyController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            \Log::error('Agency removal error: ' . $e->getMessage());
+            Log::error('Agency removal error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while removing the agency.'
@@ -405,7 +463,7 @@ class AgencyController extends Controller
 
     public function getDmcIdByUserRole()
     {
-        $user = auth()->user();
+        $user = Auth::user();
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4  || $user->role_id == 19|| $user->role_id == 20){
             $virtualDMC = \App\Models\User::where('role_id', 20)->first();
             if (!$virtualDMC) {

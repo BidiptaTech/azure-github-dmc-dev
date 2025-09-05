@@ -2341,9 +2341,11 @@ class TourController extends Controller
                             ]);
                         
                     }
+                    if((string)$tour->multi_enq_id){    
                     Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
-                            ->where('tour_id', '!=', $tour_id)
-                            ->update(['deleted_at' => now()]);
+                                ->where('tour_id', '!=', $tour_id)
+                                ->update(['deleted_at' => now()]);
+                    }
                     $acceptEnquiry = Enquiry::where('status', 2)->where('tour_id', $tour_id)->first();     
                     return response()->json([
                         'success' => true,

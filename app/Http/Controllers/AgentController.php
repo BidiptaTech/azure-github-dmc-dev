@@ -200,8 +200,8 @@ class AgentController extends Controller
             'city' => 'required|string|max:255',
             'agent_address' => 'required|string',
             'code' => 'required|string|max:255',
-            'id_card' => 'required|string|max:255',
-            'card_number' => 'required|string|max:255',
+            // 'id_card' => 'required|string|max:255',
+            // 'card_number' => 'required|string|max:255',
             'image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
             'agent_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
             'password' => 'required|min:8',
@@ -550,8 +550,8 @@ class AgentController extends Controller
                 // EXISTING FIELDS
                 'country' => 'required|array',
                 'country.*' => 'string', // each country must be a string
-                'id_card' => 'required|string|max:255',
-                'card_number' => 'required|string|max:255',
+                // 'id_card' => 'required|string|max:255',
+                // 'card_number' => 'required|string|max:255',
                 'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'password' => 'nullable|min:8',
@@ -586,8 +586,8 @@ class AgentController extends Controller
         $agent->code = $validated['code'];
         // EXISTING FIELDS
         $agent->country = implode(',', $validated['country']);
-        $agent->id_cards = $validated['id_card'];
-        $agent->id_number = $validated['card_number'];
+        // $agent->id_cards = $validated['id_card'];
+        // $agent->id_number = $validated['card_number'];
 
         if (!empty($validated['password'])) {
             $agent->password = bcrypt($validated['password']);

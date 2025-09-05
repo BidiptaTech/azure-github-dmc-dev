@@ -899,9 +899,11 @@ $(document).on('click', '[id^="savePaymentBtn"]', function() {
     }
 });
 
-// Handle confirm payment button click
+// Handle confirm payment button click using event delegation
 $(document).ready(function() {
-    $('.confirm-payment-btn').on('click', function() {
+    // Use event delegation to handle clicks on confirm payment buttons
+    // This ensures the event handler works for dynamically created elements (pagination)
+    $(document).on('click', '.confirm-payment-btn', function() {
         const bookingId = $(this).data('booking-id');
         
         Swal.fire({
