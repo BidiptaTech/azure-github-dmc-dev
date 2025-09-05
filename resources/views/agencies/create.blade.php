@@ -377,10 +377,11 @@
                     <h6 class="mb-2 text-success">How to create an agency:</h6>
                     <ul class="mb-0 small">
                         <li><strong>Step 1:</strong> Fill in the head office information below (marked with "Head Office" badge)</li>
-                        <li><strong>Step 2:</strong> Select country first, then city will auto-populate with search functionality</li>
-                        <li><strong>Step 3:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
-                        <li><strong>Step 4:</strong> Each branch requires all fields except agency name</li>
-                        <li><strong>Step 5:</strong> Review and submit to create the agency</li>
+                        <li><strong>Step 2:</strong> Select country first, then city and ID card types will auto-populate with search functionality</li>
+                        <li><strong>Step 3:</strong> Choose appropriate ID card type and enter card number for verification</li>
+                        <li><strong>Step 4:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
+                        <li><strong>Step 5:</strong> Each branch requires all fields including ID card details</li>
+                        <li><strong>Step 6:</strong> Review and submit to create the agency</li>
                     </ul>
                 </div>
             </div>
@@ -507,6 +508,39 @@
                                    value="{{ old('postal_code') }}" 
                                    placeholder="Enter postal code (e.g., 10001)">
                             @error('postal_code')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- ID Card Type -->
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="id_card_type" class="form-label">
+                                <i class="ri-bank-card-line text-primary"></i>
+                                ID Card Type <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select select2 @error('id_card_type') is-invalid @enderror" 
+                                    id="id_card_type" 
+                                    name="id_card_type">
+                                <option value="">Select country first to load card types...</option>
+                            </select>
+                            @error('id_card_type')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- Card Number -->
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="card_number" class="form-label">
+                                <i class="ri-hashtag text-primary"></i>
+                                Card Number <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('card_number') is-invalid @enderror" 
+                                   id="card_number" 
+                                   name="card_number" 
+                                   value="{{ old('card_number') }}" 
+                                   placeholder="Enter ID card number">
+                            @error('card_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
@@ -658,6 +692,30 @@
                            placeholder="Enter postal code">
                 </div>
 
+                <!-- ID Card Type -->
+                <div class="col-lg-6 col-md-6 mb-3">
+                    <label class="form-label">
+                        <i class="ri-bank-card-line text-primary"></i>
+                        ID Card Type <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select select2 branch-card-type" 
+                            name="branches[INDEX][id_card_type]">
+                        <option value="">Select country first to load card types...</option>
+                    </select>
+                </div>
+
+                <!-- Card Number -->
+                <div class="col-lg-6 col-md-6 mb-3">
+                    <label class="form-label">
+                        <i class="ri-hashtag text-primary"></i>
+                        Card Number <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="branches[INDEX][card_number]" 
+                           placeholder="Enter ID card number">
+                </div>
+
                 <!-- Address -->
                 <div class="col-12 mb-3">
                     <label class="form-label">
@@ -687,6 +745,7 @@ $(document).ready(function() {
     // Initialize Select2 for main form
     initializeSelect2('#country', 'Search for country...');
     initializeSelect2('#city', 'Search for city...');
+    initializeSelect2('#id_card_type', 'Search for card type...');
 
     // Function to initialize Select2
     function initializeSelect2(selector, placeholder) {
@@ -703,6 +762,7 @@ $(document).ready(function() {
         const selectedCountry = $(this).val();
         console.log('Country selected:', selectedCountry); // Debug log
         loadCitiesForElement('#city', selectedCountry);
+        loadCardTypesForElement('#id_card_type', selectedCountry);
     });
 
     // Function to load cities for any element
@@ -756,6 +816,57 @@ $(document).ready(function() {
         }
     }
 
+    // Function to load card types for any element
+    function loadCardTypesForElement(cardTypeSelector, country) {
+        console.log('Loading card types for:', country, 'into selector:', cardTypeSelector); // Debug log
+        
+        if (country) {
+            // Show loading state
+            $(cardTypeSelector).html('<option value="">Loading card types...</option>');
+            $(cardTypeSelector).prop('disabled', true);
+            
+            // Ajax call to get card types
+            $.ajax({
+                url: "{{ route('agencies.getCardTypesByCountry') }}",
+                type: "GET",
+                data: { country: country },
+                dataType: 'json',
+                beforeSend: function() {
+                    console.log('Ajax request started for card types:', country); // Debug log
+                },
+                success: function(response) {
+                    console.log('Card types response received:', response); // Debug log
+                    
+                    $(cardTypeSelector).prop('disabled', false);
+                    $(cardTypeSelector).html('<option value="">Select card type...</option>');
+                    
+                    if (response.success && response.card_types && response.card_types.length > 0) {
+                        $.each(response.card_types, function(key, cardType) {
+                            $(cardTypeSelector).append('<option value="' + cardType.id + '">' + cardType.text + '</option>');
+                        });
+                        showNotification('Card types loaded successfully!', 'success');
+                    } else {
+                        $(cardTypeSelector).append('<option disabled>No card types found for this country</option>');
+                        showNotification('No card types found for ' + country, 'warning');
+                    }
+                    
+                    // Refresh Select2
+                    $(cardTypeSelector).trigger('change');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Card types ajax error:', xhr, status, error); // Debug log
+                    $(cardTypeSelector).prop('disabled', false);
+                    $(cardTypeSelector).html('<option disabled>Error loading card types</option>');
+                    showNotification('Error loading card types: ' + error, 'error');
+                }
+            });
+        } else {
+            $(cardTypeSelector).html('<option value="">Select country first to load card types...</option>');
+            $(cardTypeSelector).prop('disabled', false);
+            $(cardTypeSelector).trigger('change');
+        }
+    }
+
     // Add Branch functionality
     $('#addBranchBtn').on('click', function() {
         const template = document.getElementById('branchTemplate').content.cloneNode(true);
@@ -775,15 +886,19 @@ $(document).ready(function() {
         const branchContainer = $('#branchesContainer .branch-section').last();
         const countrySelect = branchContainer.find('.branch-country');
         const citySelect = branchContainer.find('.branch-city');
+        const cardTypeSelect = branchContainer.find('.branch-card-type');
         
         initializeSelect2(countrySelect, 'Search for country...');
         initializeSelect2(citySelect, 'Search for city...');
+        initializeSelect2(cardTypeSelect, 'Search for card type...');
         
         // Add change handler for branch country
         countrySelect.on('change', function() {
             const selectedCountry = $(this).val();
             const correspondingCitySelect = $(this).closest('.branch-section').find('.branch-city');
+            const correspondingCardTypeSelect = $(this).closest('.branch-section').find('.branch-card-type');
             loadCitiesForElement(correspondingCitySelect, selectedCountry);
+            loadCardTypesForElement(correspondingCardTypeSelect, selectedCountry);
         });
         
         branchIndex++;

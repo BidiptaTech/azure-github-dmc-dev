@@ -200,12 +200,16 @@
                                 </div>
                             </td>
                             <td>
-                                @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 10, 11, 25, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                                @if(in_array(auth()->user()->role_id, [11, 25, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                                @if($enquiry->unique_tour_id == null)
                                 <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Create
+                                    <i class="fas fa-plus me-1"></i>Create Tour
                                 </a>
+                                @else
+                                <span class="badge bg-success bg-opacity-10 text-success">Tour Created</span>
+                                @endif
+                            
                                 <!-- <button class="btn btn-primary btn-sm create-tour-btn"
-
                                     data-enquiry-id="{{ $enquiry->enquiry_id }}"
                                     data-agent-id="{{ $enquiry->agent_id }}"
                                     data-destination="{{ $enquiry->country }}"

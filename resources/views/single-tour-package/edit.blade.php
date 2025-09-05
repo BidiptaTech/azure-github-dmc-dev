@@ -2,7 +2,7 @@
 @section('content')
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
-        
+        <x-alert />
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
@@ -36,6 +36,62 @@
             </div>
         </div>
         @endif
+
+        @if(!isset($customer_info))
+            <!-- Customer Information Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h6 class="mb-0 fw-bold">
+                                <i class="ri-user-line me-2"></i>Customer Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" required value="{{ $customer_info['fullName'] ?? '' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" required value="{{ $customer_info['email'] ?? '' }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Country Code</label>
+                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required value="{{ $customer_info['countryCode'] ?? '' }}">
+                                </div>
+                                <div class="col-md-9">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required value="{{ $customer_info['phone'] ?? '' }}">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address Line 1</label>
+                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" required value="{{ $customer_info['address1'] ?? '' }}">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Address Line 2</label>
+                                    <input type="text" class="form-control" id="customerAddress2" name="customer_address2" placeholder="Enter address line 2" value="{{ $customer_info['address2'] ?? '' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">State</label>
+                                    <input type="text" class="form-control" id="customerState" name="customer_state" placeholder="Enter state" value="{{ $customer_info['state'] ?? '' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">ZIP Code</label>
+                                    <input type="text" class="form-control" id="customerZip" name="customer_zip" placeholder="Enter ZIP code" value="{{ $customer_info['zip'] ?? '' }}">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Special Requests</label>
+                                    <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+        
 
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
             @csrf
@@ -113,7 +169,7 @@
                                     <input type="hidden" name="female" id="female" value="{{ $tour->female_count ?? 0 }}">
                                     <input type="hidden" name="children" id="children" value="{{ $tour->child ?? 0 }}">
                                     <input type="hidden" name="infants" id="infants" value="{{ $tour->infant ?? 0 }}">
-                                    <input type="hidden" name="child_ages" id="child_ages" value="{{ $tour->child_ages ?? '[]' }}">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="{{ $tour->child_ages ?? '' }}">
                                 </div>
 
                                 <!-- Agent Display -->
@@ -149,6 +205,16 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
+
+                                
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addTransportService(); return false;">
+                                            <i class="ri-car-line fs-1 mb-2"></i>
+                                            <span class="fw-bold">Local Transport</span>
+                                            <small class="opacity-75">Port Pickup Service</small>
+                                        </button>
+                                    </div>
+                                
                                 <div class="col-md-3">
                                     <button type="button" class="btn btn-primary btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addHotelService()">
                                         <i class="ri-hotel-line fs-1 mb-2"></i>
@@ -171,13 +237,21 @@
                                     </button>
                                 </div>
                                 <div class="col-md-3">
-                                    <button type="button" class="btn btn-danger btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addAttractionService()">
+                                    <button type="button" class="btn btn-danger btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addAttractionService(); return false;">
                                         <i class="ri-ticket-line fs-1 mb-2"></i>
                                         <span class="fw-bold">Attractions</span>
                                         <small class="opacity-75">Book Tickets</small>
                                     </button>
                                 </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-info btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addLocalTransferService(); return false;">
+                                        <i class="ri-taxi-line fs-1 mb-2"></i>
+                                        <span class="fw-bold">Local Transfer</span>
+                                        <small class="opacity-75">Book Local Transport</small>
+                                    </button>
                             </div>
+                            </div>
+                            
                             <div class="row mt-3">
                                 <div class="col-12">
                                     <div class="alert alert-success border-0">
@@ -931,12 +1005,1124 @@
     </div>
 </div>
 
+<!-- Restaurant Selection Modal -->
+<div class="modal fade" id="restaurantSelectionModal" tabindex="-1" aria-labelledby="restaurantSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-success text-white">
+                <h5 class="modal-title" id="restaurantSelectionModalLabel">
+                    <i class="ri-restaurant-2-line me-2"></i>Select Restaurant & Dining Options
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tour Info Display -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-calendar-line me-2 text-primary"></i>
+                            <span class="fw-semibold">Tour Dates: <span id="modal_restaurant_tour_dates" class="text-primary"></span></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-map-pin-line me-2 text-primary"></i>
+                            <span class="fw-semibold">Destination: <span id="modal_restaurant_destination" class="text-primary"></span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restaurant Selection Form -->
+                <form id="restaurantSelectionForm">
+                    <div class="row g-3">
+                        <!-- Restaurant Selection -->
+                        <div class="col-md-6">
+                            <label for="modal_restaurant_select" class="form-label fw-semibold">
+                                <i class="ri-restaurant-2-line me-1"></i>Select Restaurant
+                            </label>
+                            <select class="form-select" id="modal_restaurant_select" name="restaurant_id" required>
+                                <option value="">Search Restaurant</option>
+                            </select>
+                            <div class="form-text">
+                                <i class="ri-information-line text-info me-1"></i>
+                                <span id="restaurant_count">0</span> restaurants available in <span id="modal_restaurant_city"></span>
+                            </div>
+                        </div>
+
+                        <!-- Guest Selector -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Select Guests</label>
+                            <div class="guest-selector">
+                                <div class="guest-display p-2 border rounded bg-light">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="guest-info">
+                                            <span id="modal_restaurant_guest_summary" class="text-muted small">
+                                                1 adults (1 male, 0 female), 0 children -0 infants
+                                            </span>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openModalGuestSelector()">
+                                            <i class="ri-edit-line"></i>
+                                        </button>
+                                    </div>
+                                    <div class="guest-badges mt-1">
+                                        <span class="badge bg-primary">1</span>
+                                        <span class="badge bg-success">0</span>
+                                        <span class="badge bg-warning text-dark">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden fields for restaurant pricing -->
+                            <input type="hidden" name="modal_restaurant_total_price" id="modal_restaurant_total_price" value="0">
+                            <input type="hidden" name="modal_restaurant_meal_id" id="modal_restaurant_meal_id" value="">
+                            <input type="hidden" name="modal_restaurant_dish_name" id="modal_restaurant_dish_name" value="">
+                        </div>
+
+                        <!-- Meal Type Selection -->
+                        <div class="col-md-6">
+                            <label for="modal_restaurant_meal_type" class="form-label fw-semibold">
+                                <i class="ri-time-line me-1"></i>Meal Type
+                            </label>
+                            <select class="form-select" id="modal_restaurant_meal_type" name="meal_type" required>
+                                <option value="">Select Restaurant First</option>
+                            </select>
+                            <small id="meal-price-section" class="text-muted"></small>
+                        </div>
+
+                        <!-- Select Dish -->
+                        <div class="col-md-6">
+                            <label for="modal_restaurant_dish" class="form-label fw-semibold">Select Dish</label>
+                            <select class="form-select" name="modal_restaurant_dish" id="modal_restaurant_dish">
+                                <option value="">Select Dish</option>
+                            </select>
+                            <small class="text-muted">Buffet or Set Menu options</small>
+                        </div>
+
+                        <!-- Time Slot -->
+                        <div class="col-md-6">
+                            <label for="modal_restaurant_time_slot" class="form-label fw-semibold">Time Slot</label>
+                            <select class="form-select" name="modal_restaurant_time_slot" id="modal_restaurant_time_slot">
+                                <option value="">Select Time Slot</option>
+                            </select>
+                            <small class="text-muted">Available time slots</small>
+                        </div>
+
+                        <!-- Restaurant Details Display -->
+                        <div class="col-12" id="restaurant_details_container" style="display: none;">
+                            <div class="card border-success bg-light">
+                                <div class="card-body p-3">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <img id="selected_restaurant_image" src="" alt="Restaurant" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                        </div>
+                                        <div class="col-md-7">
+                                            <h6 id="selected_restaurant_name" class="mb-1 fw-bold"></h6>
+                                            <p id="selected_restaurant_cuisine" class="mb-1 text-muted small"></p>
+                                            <p id="selected_restaurant_location" class="mb-0 text-muted small"></p>
+                                        </div>
+                                        <div class="col-md-3 text-end">
+                                            <div class="restaurant-rating mb-1">
+                                                <i class="ri-star-fill text-warning"></i>
+                                                <span id="selected_restaurant_rating" class="fw-semibold"></span>
+                                            </div>
+                                            <div class="restaurant-price-range">
+                                                <span id="selected_restaurant_price_range" class="fw-bold text-success"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirm_restaurant_btn" disabled>
+                    <i class="ri-check-line me-1"></i>Confirm Restaurant Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Selector Modal for Restaurant -->
+<div class="modal fade" id="modalGuestSelectorModal" tabindex="-1" aria-labelledby="modalGuestSelectorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalGuestSelectorModalLabel">
+                    <i class="ri-group-line me-2"></i>Select Guests for Restaurant
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="modalGuestSelectorForm">
+                    <div class="row g-3">
+                        <!-- Pax -->
+                        <div class="col-md-6">
+                            <label for="modal_pax" class="form-label fw-semibold">Pax</label>
+                            <div class="input-group">
+                                
+                                <input type="number" class="form-control text-center" id="modal_pax" name="modal_pax" value="1" min="1" max="20" readonly>
+                                
+                            </div>
+                            <small class="text-muted">Total persons (adults + children)</small>
+                        </div>
+
+                        <!-- Children -->
+                        <div class="col-md-6">
+                            <label for="modal_children" class="form-label fw-semibold">Children</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_children')">-</button>
+                                <input type="number" class="form-control text-center" id="modal_children" name="modal_children" value="0" min="0" max="20">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_children')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Male Count -->
+                        <div class="col-md-6">
+                            <label for="modal_male_count" class="form-label fw-semibold">Male</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_male_count')">-</button>
+                                <input type="number" class="form-control text-center" id="modal_male_count" name="modal_male_count" value="1" min="0" max="20">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_male_count')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Female Count -->
+                        <div class="col-md-6">
+                            <label for="modal_female_count" class="form-label fw-semibold">Female</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_female_count')">-</button>
+                                <input type="number" class="form-control text-center" id="modal_female_count" name="modal_female_count" value="0" min="0" max="20">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_female_count')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Infants -->
+                        <div class="col-md-6">
+                            <label for="modal_infants" class="form-label fw-semibold">Infants</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementCount('modal_infants')">-</button>
+                                <input type="number" class="form-control text-center" id="modal_infants" name="modal_infants" value="0" min="0" max="10">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementCount('modal_infants')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Child Ages -->
+                        <div class="col-md-6">
+                            <label for="modal_child_ages" class="form-label fw-semibold">Child Ages</label>
+                            <input type="text" class="form-control" id="modal_child_ages" name="modal_child_ages" placeholder="e.g., 5,8,12" disabled>
+                            <small class="text-muted">Comma separated ages (only if children > 0)</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmModalGuestSelection()">
+                    <i class="ri-check-line me-1"></i>Confirm Guest Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attraction Selection Modal -->
+<div class="modal fade" id="attractionSelectionModal" tabindex="-1" aria-labelledby="attractionSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-danger text-white">
+                <h5 class="modal-title" id="attractionSelectionModalLabel">
+                    <i class="ri-ticket-2-line me-2"></i>Select Attraction & Ticket Options
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tour Info Display -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-calendar-line me-2 text-primary"></i>
+                            <span class="fw-semibold">Tour Dates: <span id="modal_attraction_tour_dates" class="text-primary"></span></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-map-pin-line me-2 text-primary"></i>
+                            <span class="fw-semibold">Destination: <span id="modal_attraction_destination" class="text-primary"></span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attraction Selection Form -->
+                <form id="attractionSelectionForm" onsubmit="return false;">
+                    <div class="row g-3">
+                        <!-- Attraction Selection -->
+                        <div class="col-md-6">
+                            <label for="modal_attraction_select" class="form-label fw-semibold">
+                                <i class="ri-ticket-2-line me-1"></i>Select Attraction
+                            </label>
+                            <select class="form-select" id="modal_attraction_select" name="attraction_id" required>
+                                <option value="">Search Attraction</option>
+                            </select>
+                            <div class="form-text">
+                                <i class="ri-information-line text-info me-1"></i>
+                                <span id="attraction_count">0</span> attractions available in <span id="modal_attraction_city"></span>
+                            </div>
+                        </div>
+
+                        <!-- Guest Selector -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Select Guests</label>
+                            <div class="guest-selector">
+                                <div class="guest-display p-2 border rounded bg-light">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="guest-info">
+                                            <span id="modal_attraction_guest_summary" class="text-muted small">
+                                                1 adults (1 male, 0 female), 0 children -0 infants
+                                            </span>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAttractionGuestSelector()">
+                                            <i class="ri-edit-line"></i>
+                                        </button>
+                                    </div>
+                                    <div class="guest-badges mt-1">
+                                        <span class="badge bg-primary">1</span>
+                                        <span class="badge bg-success">0</span>
+                                        <span class="badge bg-warning text-dark">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden fields for attraction pricing -->
+                            <input type="hidden" name="modal_attraction_total_price" id="modal_attraction_total_price" value="0">
+                            <input type="hidden" name="modal_attraction_ticket_id" id="modal_attraction_ticket_id" value="">
+                            <input type="hidden" name="modal_attraction_ticket_name" id="modal_attraction_ticket_name" value="">
+                        </div>
+
+                        <!-- Time Slot Selection -->
+                        <div class="col-md-6">
+                            <label for="modal_attraction_time_slot" class="form-label fw-semibold">
+                                <i class="ri-time-line me-1"></i>Time Slot
+                            </label>
+                            <select class="form-select" id="modal_attraction_time_slot" name="time_slot" required>
+                                <option value="">Select Attraction First</option>
+                            </select>
+                            <small class="text-muted">Available time slots for the attraction</small>
+                        </div>
+
+                        <!-- Ticket Selection -->
+                        <div class="col-md-6">
+                            <label for="modal_attraction_ticket" class="form-label fw-semibold">Select Ticket</label>
+                            <select class="form-select" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="updateAttractionPricing()">
+                                <option value="">Select Ticket</option>
+                            </select>
+                            <small id="modal_attraction_ticket_prices" class="text-muted"></small>
+                        </div>
+
+                        <!-- Attraction Details Display -->
+                        <div class="col-12" id="attraction_details_container" style="display: none;">
+                            <div class="card border-danger bg-light">
+                                <div class="card-body p-3">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <img id="selected_attraction_image" src="" alt="Attraction" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                        </div>
+                                        <div class="col-md-7">
+                                            <h6 id="selected_attraction_name" class="mb-1 fw-bold"></h6>
+                                            <p id="selected_attraction_category" class="mb-1 text-muted small"></p>
+                                            <p id="selected_attraction_location" class="mb-0 text-muted small"></p>
+                                        </div>
+                                        <div class="col-md-3 text-end">
+                                            <div class="attraction-rating mb-1">
+                                                <i class="ri-star-fill text-warning"></i>
+                                                <span id="selected_attraction_rating" class="fw-semibold"></span>
+                                            </div>
+                                            <div class="attraction-price-range">
+                                                <span id="selected_attraction_price_range" class="fw-bold text-danger"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attraction Price Display -->
+                        <div class="col-12" id="attraction_price_display" style="display: none;">
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Attraction Pricing</strong>
+                                        <div id="attraction_price_details" class="small">Select an attraction and configure guests to see pricing</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm_attraction_btn" disabled>
+                    <i class="ri-check-line me-1"></i>Confirm Attraction Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Selector Modal for Attraction -->
+<div class="modal fade" id="attractionGuestSelectorModal" tabindex="-1" aria-labelledby="attractionGuestSelectorModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="attractionGuestSelectorModalLabel">
+                    <i class="ri-group-line me-2"></i>Select Guests for Attraction
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="attractionGuestSelectorForm" onsubmit="return false;">
+                    <div class="row g-3">
+                        <!-- Pax -->
+                        <div class="col-md-6">
+                            <label for="attraction_modal_pax" class="form-label fw-semibold">Pax</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control text-center" id="attraction_modal_pax" name="attraction_modal_pax" value="1" min="1" max="20" readonly>
+                            </div>
+                            <small class="text-muted">Total persons (adults + children)</small>
+                        </div>
+
+                        <!-- Children -->
+                        <div class="col-md-6">
+                            <label for="attraction_modal_children" class="form-label fw-semibold">Children</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_children')">-</button>
+                                <input type="number" class="form-control text-center" id="attraction_modal_children" name="attraction_modal_children" value="0" min="0" max="20">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_children')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Male Count -->
+                        <div class="col-md-6">
+                            <label for="attraction_modal_male_count" class="form-label fw-semibold">Male</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_male_count')">-</button>
+                                <input type="number" class="form-control text-center" id="attraction_modal_male_count" name="attraction_modal_male_count" value="1" min="0" max="20">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_male_count')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Female Count -->
+                        <div class="col-md-6">
+                            <label for="attraction_modal_female_count" class="form-label fw-semibold">Female</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_female_count')">-</button>
+                                <input type="number" class="form-control text-center" id="attraction_modal_female_count" name="attraction_modal_female_count" value="0" min="0" max="20">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_female_count')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Infants -->
+                        <div class="col-md-6">
+                            <label for="attraction_modal_infants" class="form-label fw-semibold">Infants</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="decrementAttractionCount('attraction_modal_infants')">-</button>
+                                <input type="number" class="form-control text-center" id="attraction_modal_infants" name="attraction_modal_infants" value="0" min="0" max="10">
+                                <button type="button" class="btn btn-outline-secondary" onclick="incrementAttractionCount('attraction_modal_infants')">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Child Ages -->
+                        <div class="col-md-6">
+                            <label for="attraction_modal_child_ages" class="form-label fw-semibold">Child Ages</label>
+                            <input type="text" class="form-control" id="attraction_modal_child_ages" name="attraction_modal_child_ages" placeholder="e.g., 5,8,12" disabled>
+                            <small class="text-muted">Comma separated ages (only if children > 0)</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmAttractionGuestSelection()">
+                    <i class="ri-check-line me-1"></i>Confirm Guest Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Transport Selection Modal -->
+<div class="modal fade" id="transportSelectionModal" tabindex="-1" aria-labelledby="transportSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="transportSelectionModalLabel">
+                    <i class="ri-car-line me-2"></i>Transport Service Selection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="transportSelectionForm" onsubmit="return false;">
+                    <input type="hidden" id="modal_transport_tour_id" name="tour_id">
+                    <input type="hidden" id="modal_transport_country" name="country">
+                    <input type="hidden" id="modal_transport_city" name="city">
+                    <input type="hidden" id="modal_transport_start_date" name="start_date">
+                    <input type="hidden" id="modal_transport_end_date" name="end_date">
+                    
+                    <div class="card border-primary shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <div class="d-flex align-items-center">
+                                <span class="service-icon me-3">
+                                    <i class="ri-login-circle-line fs-4"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">Transport Services</h6>
+                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body bg-white">
+                            <div class="row g-4 align-items-end">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                        </label>
+                                        <div class="position-relative">
+                                            <select class="form-select pickup-zone-select border-2" id="modal_transport_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
+                                                <option value="">Select pickup location</option>
+                                                @foreach($ports as $port)
+                                                <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                        </label>
+                                        <div class="position-relative">
+                                            <select class="form-select dropoff-zone-select border-2" id="modal_transport_dropoff_zone" name="dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;">
+                                                <option value="">Select dropoff location</option>
+                                                
+                                                <!-- Hotels -->
+                                                <optgroup label="Hotels">
+                                                @foreach($hotels as $hotel)
+                                                <option value="hotel_{{ $hotel->id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                @endforeach
+                                                </optgroup>
+                                                
+                                                <!-- Attractions -->
+                                                <optgroup label="Attractions">
+                                                @foreach($attractions as $attraction)
+                                                <option value="attraction_{{ $attraction->id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                @endforeach
+                                                </optgroup>
+                                                
+                                                <!-- Restaurants -->
+                                                <optgroup label="Restaurants">
+                                                @foreach($restaurants as $restaurant)
+                                                <option value="restaurant_{{ $restaurant->id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                @endforeach
+                                                </optgroup>
+                                            </select>
+                                            <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone()">
+                                                <i class="ri-close-line text-muted"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                        </label>
+                                        <div class="position-relative">
+                                            <select class="form-select border-2" id="modal_transport_pickup_time" name="pickup_time" style="padding-left: 45px;">
+                                                <option value="">Select The Time</option>
+                                                <option value="12:00 AM">12:00 AM</option>
+                                                <option value="01:00 AM">01:00 AM</option>
+                                                <option value="02:00 AM">02:00 AM</option>
+                                                <option value="03:00 AM">03:00 AM</option>
+                                                <option value="04:00 AM">04:00 AM</option>
+                                                <option value="05:00 AM">05:00 AM</option>
+                                                <option value="06:00 AM">06:00 AM</option>
+                                                <option value="07:00 AM">07:00 AM</option>
+                                                <option value="08:00 AM">08:00 AM</option>
+                                                <option value="09:00 AM">09:00 AM</option>
+                                                <option value="10:00 AM">10:00 AM</option>
+                                                <option value="11:00 AM">11:00 AM</option>
+                                                <option value="12:00 PM">12:00 PM</option>
+                                                <option value="01:00 PM">01:00 PM</option>
+                                                <option value="02:00 PM">02:00 PM</option>
+                                                <option value="03:00 PM">03:00 PM</option>
+                                                <option value="04:00 PM">04:00 PM</option>
+                                                <option value="05:00 PM">05:00 PM</option>
+                                                <option value="06:00 PM">06:00 PM</option>
+                                                <option value="07:00 PM">07:00 PM</option>
+                                                <option value="08:00 PM">08:00 PM</option>
+                                                <option value="09:00 PM">09:00 PM</option>
+                                                <option value="10:00 PM">10:00 PM</option>
+                                                <option value="11:00 PM">11:00 PM</option>
+                                            </select>
+                                            <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                        </label>
+                                        <div class="position-relative">
+                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly style="padding-left: 45px;">
+                                            <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn">
+                                        <i class="ri-search-line me-2"></i>Search Vehicles
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Vehicle Results Section (Hidden Initially) -->
+                            <div class="row mt-4" id="transport_vehicle_results" style="display: none;">
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-car-line me-2 fs-4"></i>
+                                            <div>
+                                                <strong>Available Vehicles</strong>
+                                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle + Service Type in one row -->
+                                <div class="col-12">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Vehicle</label>
+                                            <select class="form-select vehicle-select" 
+                                                    id="modal_transport_vehicle_id" 
+                                                    name="vehicle_id" 
+                                                    onchange="updateVehicleDetails()">
+                                                <option value="">Choose vehicle</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Service Type</label>
+                                            <select class="form-select service-type-select" 
+                                                    id="modal_transport_service_type" 
+                                                    name="service_type" 
+                                                    onchange="updatePricing()">
+                                                <option value="">Select service type</option>
+                                                <option value="Shared">Shared</option>
+                                                <option value="Private">Private</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Guest Information -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" value="1" onchange="updatePricing()">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Price Display for Transport -->
+                                    <div class="col-12 mt-3">
+                                        <div id="transport_price_display" class="alert alert-success" style="display: none;">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Price Information</strong>
+                                                    <div id="transport_price_details" class="small">Select a vehicle and service type to see pricing</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Hidden fields for transport pricing -->
+                                        <input type="hidden" name="transport_base_price" id="modal_transport_base_price" value="0">
+                                        <input type="hidden" name="transport_total_price" id="modal_transport_total_price" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-warning" onclick="confirmTransportSelection()">
+                            <i class="ri-check-line me-1"></i>Confirm Transport Selection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End of Transport Selection Modal -->
+
+<!-- Local Transfer Selection Modal -->
+<div class="modal fade" id="localTransferSelectionModal" tabindex="-1" aria-labelledby="localTransferSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="localTransferSelectionModalLabel">
+                    <i class="ri-taxi-line me-2"></i>Local Transfer Service Selection
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="localTransferSelectionForm" onsubmit="return false;">
+                    <input type="hidden" id="local_transfer_tour_id" name="tour_id">
+                    <input type="hidden" id="local_transfer_country" name="country">
+                    <input type="hidden" id="local_transfer_city" name="city">
+                    <input type="hidden" id="local_transfer_start_date" name="start_date">
+                    <input type="hidden" id="local_transfer_end_date" name="end_date">
+                    
+                    <div class="card border-info shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <div class="d-flex align-items-center">
+                                <span class="service-icon me-3">
+                                    <i class="ri-login-circle-line fs-4"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">Local Transfer Services</h6>
+                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body bg-white">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_point" value="point_to_point" onchange="handleLocalTransferServiceTypeChange('point_to_point')">
+                                        <label class="form-check-label fw-semibold" for="local_transfer_service_type_point">
+                                            <i class="ri-route-line me-1"></i>Point To Point
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_hourly" value="hourly" onchange="handleLocalTransferServiceTypeChange('hourly')">
+                                        <label class="form-check-label fw-semibold" for="local_transfer_service_type_hourly">
+                                            <i class="ri-time-line me-1"></i>Hourly
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
+                                        <label class="form-check-label fw-semibold text-success" for="local_transfer_service_type_local">
+                                            <i class="ri-car-line me-1"></i>Local Transfer
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-4 align-items-end">
+                                <!-- Local Transfer Fields (Default) -->
+                                <div class="col-12">
+                                    <div id="local_transfer_fields" class="row g-4 align-items-end local-transfer-fields d-none">
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select pickup-zone-select border-2" id="local_transfer_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
+                                                        <option value="">Select pickup location</option>
+                                                        @foreach($ports as $port)
+                                                        <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select dropoff-zone-select border-2" id="local_transfer_dropoff_zone" name="dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                        <option value="">Select pickup location first</option>
+                                                        <!-- Hotels -->
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="hotel_{{ $hotel->id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        
+                                                        <!-- Attractions -->
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="attraction_{{ $attraction->id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        
+                                                        <!-- Restaurants -->
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="restaurant_{{ $restaurant->id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                    </select>
+                                                    <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearLocalTransferDropoffZone()">
+                                                        <i class="ri-close-line text-muted"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_pickup_time" name="pickup_time" style="padding-left: 45px;">
+                                                        <option value="">Select The Time</option>
+                                                        <option value="12:00 AM">12:00 AM</option>
+                                                        <option value="01:00 AM">01:00 AM</option>
+                                                        <option value="02:00 AM">02:00 AM</option>
+                                                        <option value="03:00 AM">03:00 AM</option>
+                                                        <option value="04:00 AM">04:00 AM</option>
+                                                        <option value="05:00 AM">05:00 AM</option>
+                                                        <option value="06:00 AM">06:00 AM</option>
+                                                        <option value="07:00 AM">07:00 AM</option>
+                                                        <option value="08:00 AM">08:00 AM</option>
+                                                        <option value="09:00 AM">09:00 AM</option>
+                                                        <option value="10:00 AM">10:00 AM</option>
+                                                        <option value="11:00 AM">11:00 AM</option>
+                                                        <option value="12:00 PM">12:00 PM</option>
+                                                        <option value="01:00 PM">01:00 PM</option>
+                                                        <option value="02:00 PM">02:00 PM</option>
+                                                        <option value="03:00 PM">03:00 PM</option>
+                                                        <option value="04:00 PM">04:00 PM</option>
+                                                        <option value="05:00 PM">05:00 PM</option>
+                                                        <option value="06:00 PM">06:00 PM</option>
+                                                        <option value="07:00 PM">07:00 PM</option>
+                                                        <option value="08:00 PM">08:00 PM</option>
+                                                        <option value="09:00 PM">09:00 PM</option>
+                                                        <option value="10:00 PM">10:00 PM</option>
+                                                        <option value="11:00 PM">11:00 PM</option>
+                                                    </select>
+                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                                </label>
+                                                <div class="position-relative">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly style="padding-left: 45px;">
+                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Point To Point Fields (Hidden Initially) -->
+                                <div class="col-12">
+                                    <div id="point_to_point_fields" class="row g-4 align-items-end point-to-point-fields d-none">
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                </label>
+                                                <div class="position-relative location-input">
+                                                    <select type="text" class="form-control border-2" id="local_transfer_point_pickup_location" name="point_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                        <option value="">Select pickup location</option>
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                    </select>
+                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                                </label>
+                                                <div class="position-relative location-input">
+                                                <select type="text" class="form-control border-2" id="local_transfer_point_dropoff_location" name="point_dropoff_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                        <option value="">Select dropoff location</option>
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                    </select>
+                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_point_pickup_time" name="point_pickup_time" style="padding-left: 45px;">
+                                                        <option value="">Select time</option>
+                                                        <option value="12:00 AM">12:00 AM</option>
+                                                        <option value="01:00 AM">01:00 AM</option>
+                                                        <option value="02:00 AM">02:00 AM</option>
+                                                        <option value="03:00 AM">03:00 AM</option>
+                                                        <option value="04:00 AM">04:00 AM</option>
+                                                        <option value="05:00 AM">05:00 AM</option>
+                                                        <option value="06:00 AM">06:00 AM</option>
+                                                        <option value="07:00 AM">07:00 AM</option>
+                                                        <option value="08:00 AM">08:00 AM</option>
+                                                        <option value="09:00 AM">09:00 AM</option>
+                                                        <option value="10:00 AM">10:00 AM</option>
+                                                        <option value="11:00 AM">11:00 AM</option>
+                                                        <option value="12:00 PM">12:00 PM</option>
+                                                        <option value="01:00 PM">01:00 PM</option>
+                                                        <option value="02:00 PM">02:00 PM</option>
+                                                        <option value="03:00 PM">03:00 PM</option>
+                                                        <option value="04:00 PM">04:00 PM</option>
+                                                        <option value="05:00 PM">05:00 PM</option>
+                                                        <option value="06:00 PM">06:00 PM</option>
+                                                        <option value="07:00 PM">07:00 PM</option>
+                                                        <option value="08:00 PM">08:00 PM</option>
+                                                        <option value="09:00 PM">09:00 PM</option>
+                                                        <option value="10:00 PM">10:00 PM</option>
+                                                        <option value="11:00 PM">11:00 PM</option>
+                                                    </select>
+                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                                </label>
+                                                <div class="position-relative">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hourly Fields (Hidden Initially) -->
+                                <div class="col-12">
+                                    <div id="hourly_fields" class="hourly-fields row g-4 col-12 align-items-end d-none">
+                                        <div class="col-md-4 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                </label>
+                                                <div class="position-relative location-input">
+                                                    <input type="text" class="form-control border-2" id="local_transfer_hourly_pickup_location" name="hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_hourly_pickup_time" name="hourly_pickup_time" style="padding-left: 45px;">
+                                                        <option value="">Select time</option>
+                                                        <option value="12:00 AM">12:00 AM</option>
+                                                        <option value="01:00 AM">01:00 AM</option>
+                                                        <option value="02:00 AM">02:00 AM</option>
+                                                        <option value="03:00 AM">03:00 AM</option>
+                                                        <option value="04:00 AM">04:00 AM</option>
+                                                        <option value="05:00 AM">05:00 AM</option>
+                                                        <option value="06:00 AM">06:00 AM</option>
+                                                        <option value="07:00 AM">07:00 AM</option>
+                                                        <option value="08:00 AM">08:00 AM</option>
+                                                        <option value="09:00 AM">09:00 AM</option>
+                                                        <option value="10:00 AM">10:00 AM</option>
+                                                        <option value="11:00 AM">11:00 AM</option>
+                                                        <option value="12:00 PM">12:00 PM</option>
+                                                        <option value="01:00 PM">01:00 PM</option>
+                                                        <option value="02:00 PM">02:00 PM</option>
+                                                        <option value="03:00 PM">03:00 PM</option>
+                                                        <option value="04:00 PM">04:00 PM</option>
+                                                        <option value="05:00 PM">05:00 PM</option>
+                                                        <option value="06:00 PM">06:00 PM</option>
+                                                        <option value="07:00 PM">07:00 PM</option>
+                                                        <option value="08:00 PM">08:00 PM</option>
+                                                        <option value="09:00 PM">09:00 PM</option>
+                                                        <option value="10:00 PM">10:00 PM</option>
+                                                        <option value="11:00 PM">11:00 PM</option>
+                                                    </select>
+                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                                </label>
+                                                <div class="position-relative">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_hourly_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Vehicle Results Section (Hidden Initially) -->
+                            <div class="row mt-4" id="local_transfer_vehicle_results" d-none>
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-car-line me-2 fs-4"></i>
+                                            <div>
+                                                <strong>Available Vehicles</strong>
+                                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle + Service Type in one row -->
+                                <div class="col-12">
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-semibold">Vehicle</label>
+                                            <select class="form-select vehicle-select" 
+                                                    id="local_transfer_vehicle_id" 
+                                                    name="vehicle_id" 
+                                                    onchange="updateLocalTransferVehicleDetails()">
+                                                <option value="">Choose vehicle</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Service Type</label>
+                                            <select class="form-select" 
+                                                    id="local_transfer_service_type" 
+                                                    name="service_type" 
+                                                    onchange="updateLocalTransferPricing()">
+                                                <option value="">Select service type</option>
+                                                <option value="Shared">Shared</option>
+                                                <option value="Private">Private</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Guest Information -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                                    <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" value="1" onchange="updateLocalTransferPricing()">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Price Display for Local Transfer -->
+                                    <div class="col-12 mt-3">
+                                        <div id="local_transfer_price_display" class="alert alert-success" style="display: none;">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Price Information</strong>
+                                                    <div id="local_transfer_price_details" class="small">Select a vehicle and service type to see pricing</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Hidden fields for local transfer pricing -->
+                                        <input type="hidden" name="local_transfer_base_price" id="local_transfer_base_price" value="0">
+                                        <input type="hidden" name="local_transfer_total_price" id="local_transfer_total_price" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-info" onclick="confirmLocalTransferSelection()">
+                            <i class="ri-check-line me-1"></i>Confirm Local Transfer Selection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End of Local Transfer Selection Modal -->
+
 @endsection
 
 @section('scripts')
 <script>
     // Essential functions for edit page functionality
-    
     // Show notification function
     function showNotification(message, type = 'info') {
         const alertClass = type === 'error' ? 'alert-danger' : 
@@ -1020,35 +2206,1465 @@
         showGuideSelectionModal(tourId, country, city, startDate, endDate);
     }
     
+    // Attraction Selection Modal Functions
+    function showAttractionSelectionModal(tourId, country, city, startDate, endDate) {
+        console.log('showAttractionSelectionModal called with:', { tourId, country, city, startDate, endDate });
+        
+        // Populate modal with tour data
+        document.getElementById('modal_attraction_tour_dates').textContent = `${startDate} to ${endDate}`;
+        document.getElementById('modal_attraction_destination').textContent = `${city}, ${country}`;
+        document.getElementById('modal_attraction_city').textContent = city;
+        
+        // Show modal
+        const modalElement = document.getElementById('attractionSelectionModal');
+        if (!modalElement) {
+            console.error('Attraction modal element not found!');
+            showNotification('Modal element not found', 'error');
+            return;
+        }
+        
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        console.log('Modal shown successfully');
+        
+        // Initialize modal functionality after modal is shown
+        setTimeout(() => {
+            initializeAttractionModal();
+        }, 100);
+        
+        // Load attractions for the city
+        loadAttractionsForCity(city, country);
+    }
+    
+    function initializeAttractionModal() {
+        // Add event listeners only for elements that exist
+        const attractionSelect = document.getElementById('modal_attraction_select');
+        const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        const confirmBtn = document.getElementById('confirm_attraction_btn');
+        
+        if (attractionSelect) {
+            attractionSelect.addEventListener('change', onAttractionSelection);
+        }
+        if (timeSlotSelect) {
+            timeSlotSelect.addEventListener('change', validateAttractionForm);
+        }
+        if (ticketSelect) {
+            ticketSelect.addEventListener('change', validateAttractionForm);
+        }
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', confirmAttractionSelection);
+        }
+        
+        // Initialize guest data from tour data
+        const adults = parseInt(document.getElementById('adults')?.value) || 1;
+        const children = parseInt(document.getElementById('children')?.value) || 0;
+        const infants = parseInt(document.getElementById('infants')?.value) || 0;
+        const maleCount = parseInt(document.getElementById('male_count')?.value) || 1;
+        const femaleCount = parseInt(document.getElementById('female_count')?.value) || 0;
+        const pax = adults + children; // Calculate pax as adults + children
+        
+        // Set default guest data
+        window.attractionModalGuestData = {
+            pax: pax.toString(),
+            adults: adults.toString(),
+            children: children.toString(),
+            infants: infants.toString(),
+            male_count: maleCount.toString(),
+            female_count: femaleCount.toString(),
+            child_ages: document.getElementById('child_ages')?.value || ''
+        };
+    }
+    
+    function loadAttractionsForCity(city, country) {
+        const attractionSelect = document.getElementById('modal_attraction_select');
+        const attractionCount = document.getElementById('attraction_count');
+        const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        
+        // Clear existing options
+        attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
+        
+        // For demo purposes, show sample attractions
+        // In production, this would fetch from API
+        const attractions = @json($attractions ?? []);
+        
+        // Add attraction options
+        attractions.forEach(attraction => {
+            const option = document.createElement('option');
+            option.value = attraction.attraction_id;
+            option.textContent = `${attraction.name} - ${attraction.city}`;
+            option.setAttribute('data-attraction', JSON.stringify(attraction));
+            attractionSelect.appendChild(option);
+            
+        });
+        
+        attractionCount.textContent = attractions.length;
+    }
+    
+    function onAttractionSelection() {
+        const attractionSelect = document.getElementById('modal_attraction_select');
+        const attractionDetailsContainer = document.getElementById('attraction_details_container');
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        
+        // Clear dependent dropdowns
+        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+        
+        if (attractionSelect.value) {
+            const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction'));
+            
+            // Show attraction details
+            document.getElementById('selected_attraction_image').src = attractionData.master_image || '/assets/images/default-attraction.png';
+            document.getElementById('selected_attraction_name').textContent = attractionData.name;
+            document.getElementById('selected_attraction_category').textContent = attractionData.category + ' Category';
+            document.getElementById('selected_attraction_location').textContent = attractionData.location;
+            document.getElementById('selected_attraction_rating').textContent = attractionData.rating;
+            document.getElementById('selected_attraction_price_range').textContent = attractionData.price_range;
+            console.log('attraction selected then, Attraction data:', attractionData);
+
+            // Set Time Slot Options
+            const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+            timeSlots.forEach(time => {
+                const timeOption = document.createElement('option');
+                timeOption.value = time;
+                timeOption.textContent = time;
+                timeSlotSelect.appendChild(timeOption);
+            });
+            
+            // Set Ticket Options (based on selected attraction)
+            if (attractionData.tickets) {
+                attractionData.tickets.forEach(ticket => {
+                    const ticketOption = document.createElement('option');
+                    ticketOption.value = ticket.ticket_id;
+                    ticketOption.textContent = `${ticket.name}`;
+                    ticketOption.setAttribute('data-ticket', JSON.stringify(ticket));
+                    ticketSelect.appendChild(ticketOption);
+                });
+            }
+            attractionDetailsContainer.style.display = 'block';
+        } else {
+            attractionDetailsContainer.style.display = 'none';
+        }
+        
+        validateAttractionForm();
+    }
+    function onTicketSelection() {
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        const ticketPriceDisplay = document.getElementById('modal_attraction_ticket_prices');
+        const selectedOption = ticketSelect.options[ticketSelect.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
+            ticketPriceDisplay.textContent = `${ticketData.name} - $${ticketData.price}`;
+            
+            // Update pricing calculation when ticket changes
+            updateAttractionPricing();
+        }
+    }
+    
+    function validateAttractionForm() {
+        const attractionSelect = document.getElementById('modal_attraction_select');
+        const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        const confirmBtn = document.getElementById('confirm_attraction_btn');
+        
+        let isValid = true;
+        
+        // Check required fields
+        if (!attractionSelect.value) isValid = false;
+        if (!timeSlotSelect.value) isValid = false;
+        if (!ticketSelect.value) isValid = false;
+        
+        confirmBtn.disabled = !isValid;
+    }
+
+    // Guest selector functions for attraction modal
+    function openAttractionGuestSelector() {
+        // Initialize guest selector modal with current values
+        const guestData = window.attractionModalGuestData || {
+            pax: '1',
+            children: '0',
+            infants: '0',
+            male_count: '1',
+            female_count: '0',
+            child_ages: ''
+        };
+        
+        // Set current values in the modal
+        document.getElementById('attraction_modal_pax').value = guestData.pax;
+        document.getElementById('attraction_modal_children').value = guestData.children;
+        document.getElementById('attraction_modal_infants').value = guestData.infants;
+        document.getElementById('attraction_modal_male_count').value = guestData.male_count;
+        document.getElementById('attraction_modal_female_count').value = guestData.female_count;
+        document.getElementById('attraction_modal_child_ages').value = guestData.child_ages;
+        
+        // Add event listeners for the modal inputs
+        const modalInputs = ['attraction_modal_pax', 'attraction_modal_children', 'attraction_modal_infants', 'attraction_modal_male_count', 'attraction_modal_female_count', 'attraction_modal_child_ages'];
+        modalInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.addEventListener('input', updateAttractionGuestSummary);
+            }
+        });
+        
+        const modal = new bootstrap.Modal(document.getElementById('attractionGuestSelectorModal'));
+        modal.show();
+    }
+
+    function incrementAttractionCount(fieldId) {
+        const field = document.getElementById(fieldId);
+        const currentValue = parseInt(field.value);
+        const maxValue = parseInt(field.max);
+        
+        if (fieldId === 'attraction_modal_pax') {
+            // For pax, just increment normally
+            if (currentValue < maxValue) {
+                field.value = currentValue + 1;
+                updateAttractionGuestSummary();
+            }
+        } else {
+            // For other fields, check if incrementing would exceed pax
+            const paxValue = parseInt(document.getElementById('attraction_modal_pax').value);
+            const childrenValue = parseInt(document.getElementById('attraction_modal_children').value);
+            const maleValue = parseInt(document.getElementById('attraction_modal_male_count').value);
+            const femaleValue = parseInt(document.getElementById('attraction_modal_female_count').value);
+            
+            let newValue = currentValue;
+            if (fieldId === 'attraction_modal_children') {
+                newValue = childrenValue + 1;
+            } else if (fieldId === 'attraction_modal_male_count') {
+                newValue = maleValue + 1;
+            } else if (fieldId === 'attraction_modal_female_count') {
+                newValue = femaleValue + 1;
+            }
+            
+            // Check if the new total would exceed pax
+            const totalAfterIncrement = newValue + (fieldId === 'attraction_modal_children' ? maleValue + femaleValue : 
+                                                   fieldId === 'attraction_modal_male_count' ? childrenValue + femaleValue : 
+                                                   childrenValue + maleValue);
+            
+            if (totalAfterIncrement <= paxValue && currentValue < maxValue) {
+                field.value = currentValue + 1;
+                updateAttractionGuestSummary();
+            } else if (totalAfterIncrement > paxValue) {
+                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
+            }
+        }
+    }
+
+    function decrementAttractionCount(fieldId) {
+        const field = document.getElementById(fieldId);
+        const currentValue = parseInt(field.value);
+        const minValue = parseInt(field.min);
+        
+        if (fieldId === 'attraction_modal_pax') {
+            // For pax, check if decrementing would make it less than the sum of other fields
+            const childrenValue = parseInt(document.getElementById('attraction_modal_children').value);
+            const maleValue = parseInt(document.getElementById('attraction_modal_male_count').value);
+            const femaleValue = parseInt(document.getElementById('attraction_modal_female_count').value);
+            const totalOthers = childrenValue + maleValue + femaleValue;
+            
+            if (currentValue > totalOthers && currentValue > minValue) {
+                field.value = currentValue - 1;
+                updateAttractionGuestSummary();
+            } else if (currentValue <= totalOthers) {
+                showNotification('Pax cannot be less than the sum of children, males, and females', 'warning');
+            }
+        } else {
+            // For other fields, just decrement normally
+            if (currentValue > minValue) {
+                field.value = currentValue - 1;
+                updateAttractionGuestSummary();
+            }
+        }
+    }
+
+    function updateAttractionGuestSummary() {
+        const pax = parseInt(document.getElementById('attraction_modal_pax').value);
+        const children = parseInt(document.getElementById('attraction_modal_children').value);
+        const infants = parseInt(document.getElementById('attraction_modal_infants').value);
+        const maleCount = parseInt(document.getElementById('attraction_modal_male_count').value);
+        const femaleCount = parseInt(document.getElementById('attraction_modal_female_count').value);
+        const adults = pax - children; // Calculate adults as pax - children
+
+        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female -${infants} infants`;
+        
+        // Update summary if element exists
+        const summaryElement = document.getElementById('modal_attraction_guest_summary');
+        if (summaryElement) {
+            summaryElement.textContent = summary;
+        }
+
+        // Update badges
+        const badges = document.querySelectorAll('#attractionSelectionModal .guest-badges .badge');
+        if (badges.length >= 3) {
+            badges[0].textContent = adults;
+            badges[1].textContent = children;
+            badges[2].textContent = infants;
+        }
+
+        // Enable/disable child ages field
+        const childAgesField = document.getElementById('attraction_modal_child_ages');
+        if (childAgesField) {
+            if (children > 0) {
+                childAgesField.disabled = false;
+                childAgesField.required = true;
+            } else {
+                childAgesField.disabled = true;
+                childAgesField.required = false;
+                childAgesField.value = '';
+            }
+        }
+        
+        // Validate total doesn't exceed pax
+        const total = children + maleCount + femaleCount;
+        if (total > pax) {
+            showNotification('Total of children, males, and females exceeds pax count', 'warning');
+        }
+        
+        // Update the attraction modal guest data for pricing calculations
+        window.attractionModalGuestData = {
+            adults: adults.toString(),
+            children: children.toString(),
+            infants: infants.toString(),
+            maleCount: maleCount.toString(),
+            femaleCount: femaleCount.toString()
+        };
+        
+        // Update pricing based on new guest counts
+        updateAttractionPricing();
+    }
+
+    function confirmAttractionGuestSelection() {
+        const pax = document.getElementById('attraction_modal_pax').value;
+        const children = document.getElementById('attraction_modal_children').value;
+        const infants = document.getElementById('attraction_modal_infants').value;
+        const maleCount = document.getElementById('attraction_modal_male_count').value;
+        const femaleCount = document.getElementById('attraction_modal_female_count').value;
+        const childAges = document.getElementById('attraction_modal_child_ages').value;
+        const adults = parseInt(pax) - parseInt(children); // Calculate adults
+
+        // Store the values for use in attraction booking
+        window.attractionModalGuestData = {
+            pax: pax,
+            adults: adults.toString(),
+            children: children,
+            infants: infants,
+            male_count: maleCount,
+            female_count: femaleCount,
+            child_ages: childAges
+        };
+
+        updateAttractionGuestSummary();
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('attractionGuestSelectorModal'));
+        modal.hide();
+
+        showNotification('Guest selection updated successfully', 'success');
+    }
+
+    function updateAttractionPricing() {
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        if (!ticketSelect) return;
+        
+        const selectedOption = ticketSelect.options[ticketSelect.selectedIndex];
+        const priceDisplay = document.getElementById('attraction_price_display');
+        const priceDetails = document.getElementById('attraction_price_details');
+        
+        if (!priceDisplay || !priceDetails) return;
+        
+        if (selectedOption && selectedOption.value) {
+            try {
+                const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
+                
+                // Get the most current guest data
+                // First try to get from the form inputs directly
+                let adults = 0;
+                let children = 0;
+                
+                if (window.attractionModalGuestData) {
+                    adults = parseInt(window.attractionModalGuestData.adults) || 0;
+                    children = parseInt(window.attractionModalGuestData.children) || 0;
+                } else {
+                    // Fallback to calculating from the form fields
+                    const paxElem = document.getElementById('attraction_modal_pax');
+                    const childrenElem = document.getElementById('attraction_modal_children');
+                    
+                    if (paxElem && childrenElem) {
+                        const pax = parseInt(paxElem.value) || 0;
+                        children = parseInt(childrenElem.value) || 0;
+                        adults = pax - children;
+                    } else {
+                        adults = 1; // Default fallback
+                        children = 0;
+                    }
+                }
+                
+                // Calculate prices
+                const adultPrice = parseFloat(ticketData.adult_price || 0) * adults;
+                const childPrice = parseFloat(ticketData.child_price || 0) * children;
+                const totalPrice = adultPrice + childPrice;
+                
+                // Format prices to 2 decimal places
+                const formattedAdultPrice = adultPrice.toFixed(2);
+                const formattedChildPrice = childPrice.toFixed(2);
+                const formattedTotalPrice = totalPrice.toFixed(2);
+                
+                priceDetails.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4">Adult Price: $${(ticketData.adult_price || 0).toFixed(2)} × ${adults} = $${formattedAdultPrice}</div>
+                        <div class="col-md-4">Child Price: $${(ticketData.child_price || 0).toFixed(2)} × ${children} = $${formattedChildPrice}</div>
+                        <div class="col-md-4"><strong>Total: $${formattedTotalPrice}</strong></div>
+                    </div>
+                `;
+                
+                // Update hidden fields
+                const totalPriceField = document.getElementById('modal_attraction_total_price');
+                const ticketIdField = document.getElementById('modal_attraction_ticket_id');
+                const ticketNameField = document.getElementById('modal_attraction_ticket_name');
+                
+                if (totalPriceField) totalPriceField.value = formattedTotalPrice;
+                if (ticketIdField) ticketIdField.value = ticketData.ticket_id;
+                if (ticketNameField) ticketNameField.value = ticketData.name;
+                
+                priceDisplay.style.display = 'block';
+            } catch (error) {
+                console.error('Error updating attraction pricing:', error);
+                priceDisplay.style.display = 'none';
+            }
+        } else {
+            priceDisplay.style.display = 'none';
+        }
+    }
+    
+    // Transport Modal Functions
+    function showTransportSelectionModal(tourId, country, city, startDate, endDate) {
+        console.log('Showing transport selection modal with data:', { tourId, country, city, startDate, endDate });
+        
+        // Set hidden fields
+        document.getElementById('modal_transport_tour_id').value = tourId;
+        document.getElementById('modal_transport_country').value = country;
+        document.getElementById('modal_transport_city').value = city;
+        document.getElementById('modal_transport_start_date').value = startDate;
+        document.getElementById('modal_transport_end_date').value = endDate;
+        // Pickup date is now hardcoded and readonly in the HTML
+        
+        // Initialize the modal
+        const transportModal = new bootstrap.Modal(document.getElementById('transportSelectionModal'));
+        transportModal.show();
+        
+        // Initialize the transport modal with a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            initializeTransportModal();
+        }, 100);
+    }
+    
+    function showLocalTransferSelectionModal(tourId, country, city, startDate, endDate) {
+        console.log('Showing local transfer selection modal with data:', { tourId, country, city, startDate, endDate });
+        
+        // Initialize the modal
+        const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
+        localTransferModal.show();
+        
+        // Set hidden fields
+        document.getElementById('local_transfer_tour_id').value = tourId;
+        document.getElementById('local_transfer_country').value = country;
+        document.getElementById('local_transfer_city').value = city;
+        document.getElementById('local_transfer_start_date').value = startDate;
+        document.getElementById('local_transfer_end_date').value = endDate;
+        
+        // Initialize the local transfer modal with a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            initializeLocalTransferModal();
+        }, 100);
+    }
+    
+    function initializeTransportModal() {
+        // Load zones for pickup
+        loadZonesForPickup();
+        
+        // Add event listeners
+        const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        if (pickupZoneSelect) {
+            pickupZoneSelect.addEventListener('change', onPickupZoneChange);
+        }
+        
+        const searchBtn = document.getElementById('transport_search_btn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', searchVehicles);
+        }
+    }
+    
+    function initializeLocalTransferModal() {
+        // Set up event listeners for local transfer modal
+        const localTransferPickupZoneSelect = document.getElementById('local_transfer_pickup_zone');
+        if (localTransferPickupZoneSelect) {
+            localTransferPickupZoneSelect.addEventListener('change', handleLocalTransferPickupZoneChange);
+        }
+        
+        const localTransferSearchBtn = document.getElementById('local_transfer_search_btn');
+        if (localTransferSearchBtn) {
+            localTransferSearchBtn.addEventListener('click', searchLocalTransferVehicles);
+        }
+        
+        // Set default service type to 'local_transfer'
+        const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
+        if (localTransferServiceType) {
+            localTransferServiceType.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
+        }
+    }
+    
+    function loadZonesForPickup() {
+        // No need to load zones as they are already populated from backend
+        console.log('Pickup zones already populated from backend');
+        
+        // We can filter the zones based on the selected country/city if needed
+        const country = document.getElementById('modal_transport_country').value;
+        const city = document.getElementById('modal_transport_city').value;
+        
+        console.log('Current country and city:', { country, city });
+        
+        // If you want to filter the existing options based on country/city:
+        // const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        // if (pickupZoneSelect) {
+        //     Array.from(pickupZoneSelect.options).forEach(option => {
+        //         if (option.value) {
+        //             const portData = JSON.parse(option.getAttribute('data-port'));
+        //             option.style.display = (portData.country === country) ? '' : 'none';
+        //         }
+        //     });
+        // }
+    }
+    
+    function handleLocalTransferPickupZoneChange() {
+        const pickupZoneId = document.getElementById('local_transfer_pickup_zone').value;
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        
+        if (dropoffZoneSelect) {
+            // Enable/disable based on pickup selection
+            if (pickupZoneId) {
+                dropoffZoneSelect.disabled = false;
+                
+                // Enable the search button if both pickup and dropoff are selected
+                const dropoffZoneId = dropoffZoneSelect.value;
+                const searchBtn = document.getElementById('local_transfer_search_btn');
+                if (searchBtn) {
+                    searchBtn.disabled = !dropoffZoneId;
+                }
+            } else {
+                dropoffZoneSelect.disabled = true;
+                
+                // Disable search button if pickup is not selected
+                const searchBtn = document.getElementById('local_transfer_search_btn');
+                if (searchBtn) {
+                    searchBtn.disabled = true;
+                }
+            }
+        }
+    }
+    
+    function clearLocalTransferDropoffZone() {
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.value = '';
+            
+            // Disable search button when dropoff is cleared
+            const searchBtn = document.getElementById('local_transfer_search_btn');
+            if (searchBtn) {
+                searchBtn.disabled = true;
+            }
+        }
+    }
+    
+    function handleLocalTransferServiceTypeChange(serviceType) {
+        // Get all field containers using querySelectorAll to get collections
+        const local_transfer_fields = document.getElementById('local_transfer_fields');
+        const point_to_point_fields = document.getElementById('point_to_point_fields');
+        const hourly_fields = document.getElementById('hourly_fields');
+        
+        // Hide vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
+        }
+        
+        // Show fields based on selected service type
+        if (serviceType === 'local_transfer') {
+            local_transfer_fields.classList.remove('d-none');
+            point_to_point_fields.classList.add('d-none');
+            hourly_fields.classList.add('d-none');
+
+        } else if (serviceType === 'point_to_point') {
+
+            point_to_point_fields.classList.remove('d-none');
+            local_transfer_fields.classList.add('d-none');
+            hourly_fields.classList.add('d-none');
+            
+        } else if (serviceType === 'hourly') {
+
+            hourly_fields.classList.remove('d-none');
+            local_transfer_fields.classList.add('d-none');
+            point_to_point_fields.classList.add('d-none');
+        }
+    }
+    
+    function searchPointToPointVehicles() {
+        const pickupLocation = document.getElementById('local_transfer_point_pickup_location').value;
+        const dropoffLocation = document.getElementById('local_transfer_point_dropoff_location').value;
+        const pickupTime = document.getElementById('local_transfer_point_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_point_pickup_date').value;
+        
+        if (!pickupLocation || !dropoffLocation || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for point to point:', { pickupLocation, dropoffLocation, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load vehicles
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add vehicles from backend data
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function searchHourlyVehicles() {
+        const pickupLocation = document.getElementById('local_transfer_hourly_pickup_location').value;
+        const pickupTime = document.getElementById('local_transfer_hourly_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_hourly_pickup_date').value;
+        
+        if (!pickupLocation || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for hourly:', { pickupLocation, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load vehicles
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add vehicles from backend data
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function onPickupZoneChange() {
+        const pickupZoneId = document.getElementById('modal_transport_pickup_zone').value;
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        
+        if (dropoffZoneSelect) {
+            // We don't need to clear or repopulate the dropdown as it's already populated from the backend
+            // Just enable/disable based on pickup selection
+            
+            if (pickupZoneId) {
+                dropoffZoneSelect.disabled = false;
+                
+                // Optionally, we could filter out the pickup location from dropoff options
+                // But we'll keep all options available for now
+                
+                // If you want to filter out the pickup location, uncomment this code:
+                /*
+                Array.from(dropoffZoneSelect.options).forEach(option => {
+                    if (option.value === pickupZoneId) {
+                        option.disabled = true;
+                    } else {
+                        option.disabled = false;
+                    }
+                });
+                */
+            } else {
+                dropoffZoneSelect.disabled = true;
+            }
+        }
+    }
+    
+    function clearDropoffZone() {
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.value = '';
+        }
+    }
+    
+    function searchVehicles() {
+        const pickupZoneId = document.getElementById('modal_transport_pickup_zone').value;
+        const dropoffZoneId = document.getElementById('modal_transport_dropoff_zone').value;
+        const pickupTime = document.getElementById('modal_transport_pickup_time').value;
+        const pickupDate = document.getElementById('modal_transport_pickup_date').value;
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('transport_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load sample vehicles (replace with actual API call)
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add sample vehicles (replace with actual data from API)
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function searchLocalTransferVehicles() {
+        const pickupZoneId = document.getElementById('local_transfer_pickup_zone').value;
+        const dropoffZoneId = document.getElementById('local_transfer_dropoff_zone').value;
+        const pickupTime = document.getElementById('local_transfer_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_pickup_date').value;
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for local transfer:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load vehicles
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add vehicles from backend data
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function updateVehicleDetails() {
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        
+        if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
+            serviceTypeSelect.disabled = false;
+            updatePricing();
+        }
+    }
+    
+    function updateLocalTransferVehicleDetails() {
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        
+        if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
+            serviceTypeSelect.disabled = false;
+            updateLocalTransferPricing();
+        }
+    }
+    
+    function updatePricing() {
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        const passengersInput = document.getElementById('modal_transport_passengers');
+        const priceDisplay = document.getElementById('transport_price_display');
+        const priceDetails = document.getElementById('transport_price_details');
+        
+        if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
+            return;
+        }
+        
+        if (vehicleSelect.value && serviceTypeSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const serviceType = serviceTypeSelect.value;
+            const passengers = parseInt(passengersInput.value) || 1;
+            
+            // Calculate base price
+            let basePrice = vehicleData.base_price;
+            
+            // Apply service type multiplier
+            const serviceMultiplier = serviceType === 'Private' ? 1.5 : 1.0;
+            
+            // Calculate total price
+            const totalPrice = basePrice * serviceMultiplier;
+            
+            // Format price details
+            priceDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">Service: ${serviceType} (${serviceType === 'Private' ? '+50%' : 'Standard'})</div>
+                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                </div>
+                <div class="small mt-2">
+                    <i class="ri-information-line me-1"></i>
+                    Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                </div>
+            `;
+            
+            // Update hidden fields
+            document.getElementById('modal_transport_base_price').value = basePrice.toFixed(2);
+            document.getElementById('modal_transport_total_price').value = totalPrice.toFixed(2);
+            
+            priceDisplay.style.display = 'block';
+        } else {
+            priceDisplay.style.display = 'none';
+        }
+    }
+    
+    function updateLocalTransferPricing() {
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        const passengersInput = document.getElementById('local_transfer_passengers');
+        const priceDisplay = document.getElementById('local_transfer_price_display');
+        const priceDetails = document.getElementById('local_transfer_price_details');
+        
+        if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
+            return;
+        }
+        
+        if (vehicleSelect.value && serviceTypeSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const serviceType = serviceTypeSelect.value;
+            const passengers = parseInt(passengersInput.value) || 1;
+            
+            // Calculate base price
+            let basePrice = vehicleData.base_price;
+            
+            // Apply service type multiplier
+            const serviceMultiplier = serviceType === 'Private' ? 1.5 : 1.0;
+            
+            // Calculate total price
+            const totalPrice = basePrice * serviceMultiplier;
+            
+            // Format price details
+            priceDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">Service: ${serviceType} (${serviceType === 'Private' ? '+50%' : 'Standard'})</div>
+                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                </div>
+                <div class="small mt-2">
+                    <i class="ri-information-line me-1"></i>
+                    Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                </div>
+            `;
+            
+            // Update hidden fields
+            document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
+            document.getElementById('local_transfer_total_price').value = totalPrice.toFixed(2);
+            
+            priceDisplay.style.display = 'block';
+        } else {
+            priceDisplay.style.display = 'none';
+        }
+    }
+    
+    function confirmTransportSelection() {
+        const formData = new FormData(document.getElementById('transportSelectionForm'));
+        const pickupZoneId = formData.get('pickup_zone_id');
+        const dropoffZoneId = formData.get('dropoff_zone_id');
+        const pickupTime = formData.get('pickup_time');
+        const vehicleId = formData.get('vehicle_id');
+        const serviceType = formData.get('service_type');
+        const customer_info = getCustomerInfo();
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
+            showNotification('Please complete all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Customer info:', customer_info);
+        
+        // Get selected vehicle details
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        
+        console.log('Vehicle data:', vehicleData);
+        
+        // Get tour details
+        const tourId = document.getElementById('modal_transport_tour_id').value;
+        const country = document.getElementById('modal_transport_country').value;
+        const city = document.getElementById('modal_transport_city').value;
+        const startDate = document.getElementById('modal_transport_start_date').value;
+        const endDate = document.getElementById('modal_transport_end_date').value;
+        const pickupDate = document.getElementById('modal_transport_pickup_date').value;
+        const passengers = document.getElementById('modal_transport_passengers').value;
+        const totalPrice = document.getElementById('modal_transport_total_price').value;
+        
+        // Get location details
+        const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        const pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
+        const dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
+        
+        // Determine location types based on the value prefix
+        const dropoffValue = dropoffZoneSelect.value;
+        let dropoffLocationType = 'port';
+        
+        if (dropoffValue.startsWith('hotel_')) {
+            dropoffLocationType = 'hotel';
+        } else if (dropoffValue.startsWith('attraction_')) {
+            dropoffLocationType = 'attraction';
+        } else if (dropoffValue.startsWith('restaurant_')) {
+            dropoffLocationType = 'restaurant';
+        }
+        
+        // Check if this is a local transfer or transport service
+        const isLocalTransfer = document.getElementById('transportSelectionModalLabel').innerHTML.includes('Local Transfer');
+        const serviceTypeLabel = isLocalTransfer ? 'local_transfer' : 'travel_point';
+        
+        // Build the transport booking data
+        const transportData = {
+            id: Date.now().toString(), // Generate a unique ID
+            travel_type: serviceTypeLabel,
+            type: serviceTypeLabel,
+            vehicles_id: vehicleId,
+            vehicles_name: vehicleData.name || 'Vehicle',
+            entrypickup: pickupZoneName,
+            entrydropoff: dropoffZoneName,
+            pickupdate: pickupDate,
+            pickuptime: pickupTime,
+            adults: passengers,
+            children: '0',
+            infants: '0',
+            PickupPlaceid: pickupZoneId,
+            DropoffPlaceid: dropoffZoneId,
+            dropoff_location_type: dropoffLocationType,
+            basePrice: vehicleData.base_price || 0,
+            totalPrice: totalPrice,
+            service_type: serviceType,
+            bookingType: 'enquiry',
+            dmc_id: 4, // Replace with actual DMC ID
+            agent_id: document.getElementById('agent_id').value,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                countryCode: customer_info.countryCode,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            }
+        };
+        
+        console.log('Transport booking data:', transportData);
+        
+        // Create a form to submit the transport data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ route('orders.transport.select') }}";
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+        
+        // Add the transport data as JSON
+        const transportDataInput = document.createElement('input');
+        transportDataInput.type = 'hidden';
+        transportDataInput.name = 'transport_data';
+        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+        form.appendChild(transportDataInput);
+        
+        // Add basic form fields
+        const basicData = {
+            tour_id: tourId,
+            agent_id: document.getElementById('agent_id').value,
+            pickup_zone_id: pickupZoneId,
+            dropoff_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            passengers: passengers,
+            country: country,
+            city: city,
+            transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
+        };
+        
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('transportSelectionModal'));
+        modal.hide();
+        
+        // Show success message
+        const serviceLabel = isLocalTransfer ? 'Local transfer' : 'Transport';
+        showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+    }
+
+    function confirmLocalTransferSelection() {
+        const formData = new FormData(document.getElementById('localTransferSelectionForm'));
+        const pickupZoneId = formData.get('pickup_zone_id');
+        const dropoffZoneId = formData.get('dropoff_zone_id');
+        const pickupTime = formData.get('pickup_time');
+        const vehicleId = formData.get('vehicle_id');
+        const serviceType = formData.get('service_type');
+        const customer_info = getCustomerInfo();
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
+            showNotification('Please complete all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Customer info for local transfer:', customer_info);
+        
+        // Get selected vehicle details
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        
+        console.log('Vehicle data for local transfer:', vehicleData);
+        
+        // Get tour details
+        const tourId = document.getElementById('local_transfer_tour_id').value;
+        const country = document.getElementById('local_transfer_country').value;
+        const city = document.getElementById('local_transfer_city').value;
+        const startDate = document.getElementById('local_transfer_start_date').value;
+        const endDate = document.getElementById('local_transfer_end_date').value;
+        const pickupDate = document.getElementById('local_transfer_pickup_date').value;
+        const passengers = document.getElementById('local_transfer_passengers').value;
+        const totalPrice = document.getElementById('local_transfer_total_price').value;
+        
+        // Get location details
+        const pickupZoneSelect = document.getElementById('local_transfer_pickup_zone');
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        const pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
+        const dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
+        
+        // Determine location types based on the value prefix
+        const dropoffValue = dropoffZoneSelect.value;
+        let dropoffLocationType = 'port';
+        
+        if (dropoffValue.startsWith('hotel_')) {
+            dropoffLocationType = 'hotel';
+        } else if (dropoffValue.startsWith('attraction_')) {
+            dropoffLocationType = 'attraction';
+        } else if (dropoffValue.startsWith('restaurant_')) {
+            dropoffLocationType = 'restaurant';
+        }
+        
+        // Build the transport booking data
+        const transportData = {
+            id: Date.now().toString(), // Generate a unique ID
+            travel_type: 'local_transfer', // Local transfer
+            type: 'local_transfer',
+            vehicles_id: vehicleId,
+            vehicles_name: vehicleData.name || 'Vehicle',
+            entrypickup: pickupZoneName,
+            entrydropoff: dropoffZoneName,
+            pickupdate: pickupDate,
+            pickuptime: pickupTime,
+            adults: passengers,
+            children: '0',
+            infants: '0',
+            PickupPlaceid: pickupZoneId,
+            DropoffPlaceid: dropoffZoneId,
+            dropoff_location_type: dropoffLocationType,
+            basePrice: vehicleData.base_price || 0,
+            totalPrice: totalPrice,
+            service_type: serviceType,
+            bookingType: 'enquiry',
+            dmc_id: 4, // Replace with actual DMC ID
+            agent_id: document.getElementById('agent_id').value,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                countryCode: customer_info.countryCode,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            }
+        };
+        
+        console.log('Local transfer booking data:', transportData);
+        
+        // Create a form to submit the transport data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ route('orders.transport.select') }}";
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+        
+        // Add the transport data as JSON
+        const transportDataInput = document.createElement('input');
+        transportDataInput.type = 'hidden';
+        transportDataInput.name = 'transport_data';
+        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+        form.appendChild(transportDataInput);
+        
+        // Add basic form fields
+        const basicData = {
+            tour_id: tourId,
+            agent_id: document.getElementById('agent_id').value,
+            pickup_zone_id: pickupZoneId,
+            dropoff_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            passengers: passengers,
+            country: country,
+            city: city,
+            transport_type: 'local_transfer' // Specify local transfer type
+        };
+        
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('localTransferSelectionModal'));
+        modal.hide();
+        
+        // Show success message
+        showNotification(`Local transfer service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+    }
+    
+    const attractionBaseUrl = "{{ route('orders.attractions.select') }}";
+    function confirmAttractionSelection() {
+        const formData = new FormData(document.getElementById('attractionSelectionForm'));
+        const attractionId = formData.get('attraction_id');
+        const timeSlot = formData.get('time_slot');
+        const ticketId = formData.get('modal_attraction_ticket');
+        const customer_info = getCustomerInfo();
+        console.log('Customer info:', customer_info);
+        const agentId = document.getElementById('agent_id').value;
+        console.log('Agent id:', agentId);
+        
+        // Get selected attraction details
+        const attractionSelect = document.getElementById('modal_attraction_select');
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const attractionData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-attraction')) : {};
+        console.log('Attraction data:', attractionData);
+        
+        const ticketSelect = document.getElementById('modal_attraction_ticket');
+        const selectedTicketOption = ticketSelect.options[ticketSelect.selectedIndex];
+        const ticketData = selectedTicketOption ? JSON.parse(selectedTicketOption.getAttribute('data-ticket')) : {};
+        console.log('Ticket data:', ticketData);
+        
+        // Get guest data from modal
+        const guestData = window.attractionModalGuestData || {
+            adults: '1',
+            children: '0',
+            infants: '0',
+            male_count: '1',
+            female_count: '0',
+            child_ages: ''
+        };
+        
+        // Get tour details
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        // Calculate pricing based on guest data
+        const adultPrice = parseFloat(ticketData.adult_price || '0');
+        const childPrice = parseFloat(ticketData.child_price || '0');
+        const basePrice = adultPrice * parseInt(guestData.adults) + childPrice * parseInt(guestData.children);
+        const totalPrice = basePrice;
+        
+        // Build the complex booking data structure in required format
+        const bookingData = [{
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode || "65",
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            bookingDate: startDate,
+            visitTime: timeSlot,
+            adultCount: parseInt(guestData.adults),
+            childCount: parseInt(guestData.children),
+            seniorCount: 0,
+            AttractionId: parseInt(attractionId),
+            AttractionName: attractionData.name || "",
+            ticketId: parseInt(ticketId),
+            ticketName: ticketData.name || "",
+            ticket_details: {
+                adult_price: parseFloat(ticketData.adult_price || 0),
+                child_price: parseFloat(ticketData.child_price || 0),
+                senior_price: parseFloat(ticketData.senior_price || 0),
+                description: ticketData.description || "",
+                nri: ticketData.nri || "residential"
+            },
+            transport: null,
+            Selection: "withoutTransport",
+            mode: "dmc",
+            totalPrice: totalPrice,
+            nri: ticketData.nri || "residential",
+            bookingType: "enquiry",
+            package_type: 0,
+            package_attraction_id: attractionData.package_attraction_id || 0,
+            dmc_id: Array.isArray(attractionData.dmc_id) ? attractionData.dmc_id[0] : attractionData.dmc_id
+        }];
+
+        console.log('Attraction booking data to be sent:', bookingData);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = attractionBaseUrl;
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+
+        // Add the complex booking data as JSON
+        const bookingDataInput = document.createElement('input');
+        bookingDataInput.type = 'hidden';
+        bookingDataInput.name = 'booking_data';
+        bookingDataInput.value = JSON.stringify(bookingData);
+        form.appendChild(bookingDataInput);
+
+        // Add basic form fields for backward compatibility
+        const basicData = {
+            agent_id: agentId,
+            tour_id: tourId,
+            attraction_id: attractionId,
+            time_slot: timeSlot,
+            ticket_id: ticketId,
+            adults: guestData.adults,
+            children: guestData.children,
+            infants: guestData.infants,
+            male_count: guestData.male_count,
+            female_count: guestData.female_count,
+            child_ages: guestData.child_ages,
+            country: country,
+            city: city,
+            start_date: startDate,
+            end_date: endDate
+        };
+
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        // Add customer_info fields for backward compatibility
+        for (const [key, value] of Object.entries(customer_info)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `customer_info[${key}]`;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('attractionSelectionModal'));
+        modal.hide();
+        
+        // Show success message
+        showNotification(`Attraction ${attractionData.name} selected successfully! Time: ${timeSlot}, Ticket: ${ticketData.name}`, 'success');
+        
+        // Here you can add logic to update the attraction fields in your form
+        console.log('Selected attraction:', {
+            id: attractionId,
+            name: attractionData.name,
+            timeSlot: timeSlot,
+            ticket: ticketData.name
+        });
+    }
+
+    function addAttractionService() {
+        console.log('addAttractionService called');
+        
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        console.log('Tour data:', { tourId, country, city, startDate, endDate });
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return false;
+        }
+        
+        // Show attraction selection modal
+        showAttractionSelectionModal(tourId, country, city, startDate, endDate);
+        return false;
+    }
+    
+    function addTransportService() {
+        console.log('addTransportService called');
+        
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        console.log('Tour data for transport:', { tourId, country, city, startDate, endDate });
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return false;
+        }
+        
+        // Show transport selection modal
+        showTransportSelectionModal(tourId, country, city, startDate, endDate);
+        return false;
+    }
+    
+    function addLocalTransferService() {
+        console.log('addLocalTransferService called');
+        
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        console.log('Tour data for local transfer:', { tourId, country, city, startDate, endDate });
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return false;
+        }
+        
+        // Show local transfer selection modal (using the same modal as transport)
+        showLocalTransferSelectionModal(tourId, country, city, startDate, endDate);
+        return false;
+    }
+
     function addRestaurantService() {
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
         const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
         
         if (!tourId) {
             showNotification('Tour ID is required', 'error');
             return;
         }
         
-        // Redirect to restaurant booking page with tour context
-        const url = `/restaurants?tour_id=${tourId}&country=${encodeURIComponent(country)}&city=${encodeURIComponent(city)}`;
-        window.location.href = url;
+        // Show restaurant selection modal
+        showRestaurantSelectionModal(tourId, country, city, startDate, endDate);
     }
     
-    function addAttractionService() {
-        const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
-        
-        if (!tourId) {
-            showNotification('Tour ID is required', 'error');
-            return;
-        }
-        
-        // Redirect to attraction booking page with tour context
-        const url = `/attractions?tour_id=${tourId}&country=${encodeURIComponent(country)}&city=${encodeURIComponent(city)}`;
-        window.location.href = url;
-    }
+
     
     // Hotel Modal Functions
     function initializeHotelModal() {
@@ -1078,7 +3694,7 @@
             // Add actual hotels from database
             actualHotels.forEach(hotel => {
                 const option = document.createElement('option');
-                option.value = hotel.id;
+                option.value = hotel.hotel_unique_id;
                 option.textContent = hotel.name || hotel.hotel_name || 'Hotel ' + hotel.id;
                 option.setAttribute('data-hotel', JSON.stringify(hotel));
                 hotelSelect.appendChild(option);
@@ -1121,108 +3737,133 @@
         roomType.innerHTML = '<option value="">Select Room Type</option>';
         bedType.innerHTML = '<option value="">Select Bed Type</option>';
         mealPlan.innerHTML = '<option value="">Select Meal Plan</option>';
+        let bedTypes = [];
         
         // Load room types from hotel data
         if (hotelData.rooms && hotelData.rooms.length > 0) {
             // Get unique room types from rooms
             const roomTypes = [...new Set(hotelData.rooms.map(room => room.room_type || room.type || 'Standard Room'))];
-            roomTypes.forEach(type => {
+            roomTypes.forEach((type, index) => {
                 const option = document.createElement('option');
                 option.value = type.toLowerCase().replace(/\s+/g, '_');
                 option.textContent = type;
                 option.setAttribute('data-room-type', type);
+                option.setAttribute('data-room-id', hotelData.rooms[index].room_id);
                 roomType.appendChild(option);
+                if (type.bed && type.bed.room_type) {
+                    console.log('Added room tydgf edgf esd gfwef wefwe pe option = :', type.bed.room_type);
+                }
             });
+            if(hotelData.rooms && hotelData.rooms.length > 0){
+                hotelData.rooms.forEach(room => {
+                    // Add bed type if available
+                    if (room.bed && room.bed.room_type) {
+                        console.log('Addeddfgds fdefwe we bed type option = :', room.bed.room_type);
+                        
+                        const option = document.createElement('option');
+                        option.value = room.bed.room_type.toLowerCase().replace(/\s+/g, '_');
+                        option.textContent = room.bed.room_type;
+                        option.setAttribute('data-bed-type', room.bed.room_type);
+                        option.setAttribute('data-bed-id', room.bed.bed_id);
+                        option.setAttribute('data-bed-max-occupancy', room.bed.max_occupancy);
+                        bedType.appendChild(option);
+                        console.log('Added bed type option = :', room.bed.room_type);
+                    }
+                });
+            }
+            else{
+                console.log('No bed types available');
+            }
             
             // Add event listener for room type selection to update bed types
-            roomType.addEventListener('change', function() {
-                updateBedTypesForRoom(this.value, hotelData, bedType);
-            });
+            // roomType.addEventListener('change', function() {
+            //     updateBedTypesForRoom(this.value, hotelData, bedType);
+            // });
             
             // Initially populate bed types with a default message
-            bedType.innerHTML = '<option value="">Select room type first</option>';
+            // bedType.innerHTML = '<option value="">Select room type first</option>';
         
-            // Load bed types from the bed field in rooms
-            if (hotelData.rooms && hotelData.rooms.length > 0) {
-                  // Collect all beds from all rooms using the bed field (singular)
-                  const allBeds = [];
-                  hotelData.rooms.forEach(room => {
-                      if (room.bed && room.bed.id) {
-                          // Add room context to bed data
-                          const bedData = {
-                              ...room.bed,
-                              room_type: room.room_type || room.type,
-                              hotel_room_id: room.room_id || room.id
-                          };
-                          allBeds.push(bedData);
-                      }
-                  });
+            // // Load bed types from the bed field in rooms
+            // if (hotelData.rooms && hotelData.rooms.length > 0) {
+            //       // Collect all beds from all rooms using the bed field (singular)
+            //       const allBeds = [];
+            //       hotelData.rooms.forEach(room => {
+            //           if (room.bed && room.bed.id) {
+            //               // Add room context to bed data
+            //               const bedData = {
+            //                   ...room.bed,
+            //                   room_type: room.room_type || room.type,
+            //                   hotel_room_id: room.room_id || room.id
+            //               };
+            //               allBeds.push(bedData);
+            //           }
+            //       });
                   
-                  console.log('Collected beds from bed field:', allBeds);
+            //       console.log('Collected beds from bed field:', allBeds);
                   
-                  if (allBeds.length > 0) {
-                      // Get unique bed types with detailed information from bed data
-                      const bedTypes = [...new Set(allBeds.map(bed => bed.room_type || bed.bed_type || 'Standard Bed'))];
-                      console.log('Unique bed types found:', bedTypes);
+            //       if (allBeds.length > 0) {
+            //           // Get unique bed types with detailed information from bed data
+            //           const bedTypes = [...new Set(allBeds.map(bed => bed.room_type || bed.bed_type || 'Standard Bed'))];
+            //           console.log('Unique bed types found:', bedTypes);
                       
-                      bedTypes.forEach(type => {
-                          const option = document.createElement('option');
-                          option.value = type.toLowerCase().replace(/\s+/g, '_');
+            //           bedTypes.forEach(type => {
+            //               const option = document.createElement('option');
+            //               option.value = type.toLowerCase().replace(/\s+/g, '_');
                           
-                          // Create descriptive bed type text
-                          let bedTypeText = type;
+            //               // Create descriptive bed type text
+            //               let bedTypeText = type;
                           
-                          // Find beds of this type to get additional info
-                          const bedsOfType = allBeds.filter(bed => 
-                              (bed.room_type || bed.bed_type) === type
-                          );
+            //               // Find beds of this type to get additional info
+            //               const bedsOfType = allBeds.filter(bed => 
+            //                   (bed.room_type || bed.bed_type) === type
+            //               );
                           
-                          if (bedsOfType.length > 0) {
-                              const firstBed = bedsOfType[0];
+            //               if (bedsOfType.length > 0) {
+            //                   const firstBed = bedsOfType[0];
                               
-                              // Add room count if available
-                              if (bedsOfType.length > 1) {
-                                  bedTypeText += ` (${bedsOfType.length} available)`;
-                              }
+            //                   // Add room count if available
+            //                   if (bedsOfType.length > 1) {
+            //                       bedTypeText += ` (${bedsOfType.length} available)`;
+            //                   }
                               
-                              // Add occupancy info if available
-                              if (firstBed.max_occupancy) {
-                                  bedTypeText += ` - Max ${firstBed.max_occupancy} guests`;
-                              }
+            //                   // Add occupancy info if available
+            //                   if (firstBed.max_occupancy) {
+            //                       bedTypeText += ` - Max ${firstBed.max_occupancy} guests`;
+            //                   }
                               
-                              // Add adult/child info if available
-                              if (firstBed.adult_count && firstBed.child_count) {
-                                  bedTypeText += ` (${firstBed.adult_count}A+${firstBed.child_count}C)`;
-                              }
+            //                   // Add adult/child info if available
+            //                   if (firstBed.adult_count && firstBed.child_count) {
+            //                       bedTypeText += ` (${firstBed.adult_count}A+${firstBed.child_count}C)`;
+            //                   }
                               
-                              // Add extra bed info if available
-                              if (firstBed.extra_bed) {
-                                  bedTypeText += ` + Extra Bed`;
-                                  if (firstBed.extra_bed_price) {
-                                      bedTypeText += ` ($${firstBed.extra_bed_price})`;
-                                  }
-                              }
+            //                   // Add extra bed info if available
+            //                   if (firstBed.extra_bed) {
+            //                       bedTypeText += ` + Extra Bed`;
+            //                       if (firstBed.extra_bed_price) {
+            //                           bedTypeText += ` ($${firstBed.extra_bed_price})`;
+            //                       }
+            //                   }
                               
-                              // Add baby cot info if available
-                              if (firstBed.baby_cot) {
-                                  bedTypeText += ` + Baby Cot`;
-                                  if (firstBed.baby_cot_price) {
-                                      bedTypeText += ` ($${firstBed.baby_cot_price})`;
-                                  }
-                              }
-                          }
+            //                   // Add baby cot info if available
+            //                   if (firstBed.baby_cot) {
+            //                       bedTypeText += ` + Baby Cot`;
+            //                       if (firstBed.baby_cot_price) {
+            //                           bedTypeText += ` ($${firstBed.baby_cot_price})`;
+            //                       }
+            //                   }
+            //               }
                           
-                          option.textContent = bedTypeText;
-                          option.setAttribute('data-bed-type', type);
-                          bedType.appendChild(option);
-                          console.log('Added bed type option:', bedTypeText);
-                      });
-                  } else {
-                      // No beds found in bed field - show no data message
-                      console.log('No beds found in bed field');
-                      bedType.innerHTML = '<option value="">No bed types available</option>';
-                  }
-            }
+            //               option.textContent = bedTypeText;
+            //               option.setAttribute('data-bed-type', type);
+            //               bedType.appendChild(option);
+            //               console.log('Added bed type option:', bedTypeText);
+            //           });
+            //       } else {
+            //           // No beds found in bed field - show no data message
+            //           console.log('No beds found in bed field');
+            //           bedType.innerHTML = '<option value="">No bed types available</option>';
+            //       }
+            // }
             
             // Load meal plans based on room meal availability
             if (hotelData.rooms && hotelData.rooms.length > 0) {
@@ -1441,6 +4082,8 @@
         const hotelId = formData.get('hotel_id');
         const checkIn = formData.get('check_in_date');
         const checkOut = formData.get('check_out_date');
+
+        
         
         if (!hotelId || !checkIn || !checkOut) {
             showNotification('Please fill in all required fields', 'error');
@@ -1452,17 +4095,147 @@
         modal.hide();
         
         // Redirect to hotel selection with form data
-        const params = new URLSearchParams({
+        goToHotel(tourId, hotelId, checkIn, checkOut, formData);
+    }
+    let baseUrl = "{{ route('orders.hotels.select') }}";
+    function goToHotel(tourId, hotelId, checkIn, checkOut, formData) {
+        // Get customer info
+        const customer_info = getCustomerInfo();
+        console.log('Customer info:', customer_info);
+        
+        // Get selected hotel data
+        const hotelSelect = document.getElementById('hotel_select');
+        const selectedHotelOption = hotelSelect.options[hotelSelect.selectedIndex];
+        const hotelData = selectedHotelOption ? JSON.parse(selectedHotelOption.getAttribute('data-hotel') || '{}') : {};
+        
+        // Get selected room and bed data
+        const roomType = document.getElementById('room_type');
+        const bedType = document.getElementById('bed_type');
+        const mealPlan = document.getElementById('meal_plan');
+        
+        const selectedRoomOption = roomType.options[roomType.selectedIndex];
+        const selectedBedOption = bedType.options[bedType.selectedIndex];
+        
+        const roomId = selectedRoomOption ? selectedRoomOption.getAttribute('data-room-id') : null;
+        const bedId = selectedBedOption ? selectedBedOption.getAttribute('data-bed-id') : null;
+        const maxOccupancy = selectedBedOption ? selectedBedOption.getAttribute('data-bed-max-occupancy') : 1;
+        const selectedRoomType = selectedRoomOption ? selectedRoomOption.getAttribute('data-room-type') : 'Standard';
+        const selectedBedType = selectedBedOption ? selectedBedOption.getAttribute('data-bed-type') : 'King Bed';
+        const selectedMealPlan = mealPlan.value || 'Room Only';
+        
+        // Get bed data from the selected bed option
+        let bedData = {};
+        if (selectedBedOption && selectedBedOption.getAttribute('data-bed')) {
+            try {
+                bedData = JSON.parse(selectedBedOption.getAttribute('data-bed'));
+            } catch (e) {
+                console.log('Error parsing bed data:', e);
+            }
+        }
+        
+        // Build the complex data structure
+        const bookingData = {
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            rooms: [
+                {
+                    room_id: parseInt(roomId) || 2,
+                    room_type: selectedRoomType,
+                    beds: [
+                        {
+                            bed_id: parseInt(bedId) || 1,
+                            bed_type: selectedBedType,
+                            max_occupancy: parseInt(maxOccupancy) || 1,
+                            mealTypes: [selectedMealPlan],
+                            selectedMeals: {
+                                meal_1: {
+                                    type: selectedMealPlan,
+                                    price: parseFloat(bedData.price) || 190
+                                }
+                            },
+                            head_count: parseInt(maxOccupancy) || 1,
+                            price: parseFloat(bedData.price) || 190,
+                            baby_cot: parseInt(bedData.baby_cot) || 0,
+                            room_type: selectedRoomType
+                        }
+                    ]
+                }
+            ],
+            bookingType: "booking",
+            totalPrice: parseFloat(bedData.price) || 190,
+            priceMode: "dmc",
+            priceModeId: parseInt(hotelData.dmc_id) || 4,
+            hotelDetails: {
+                hotel_id: hotelId,
+                hotel_name: hotelData.name || "Hotel",
+                location: hotelData.location || "Location",
+                image: hotelData.image || "",
+                cancellation_charge: []
+            },
+            bookingDate: [checkIn, checkOut]
+        };
+        
+        console.log('Booking data to be sent:', bookingData);
+        
+        // Create a form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = baseUrl;
+
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+
+        // Add the complex booking data as JSON
+        const bookingDataInput = document.createElement('input');
+        bookingDataInput.type = 'hidden';
+        bookingDataInput.name = 'booking_data';
+        bookingDataInput.value = JSON.stringify(bookingData);
+        form.appendChild(bookingDataInput);
+
+        // Add basic form fields for backward compatibility
+        const basicData = {
             tour_id: tourId,
             hotel_id: hotelId,
             check_in: checkIn,
             check_out: checkOut,
             room_type: formData.get('room_type'),
             bed_type: formData.get('bed_type'),
-            meal_plan: formData.get('meal_plan')
-        });
-        
-        window.location.href = `/hotels/select?${params.toString()}`;
+            room_id: roomId || 99999,
+            bed_id: bedId || 99999,
+            meal_plan: formData.get('meal_plan'),
+        };
+
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        // Add customer_info fields for backward compatibility
+        for (const [key, value] of Object.entries(customer_info)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `customer_info[${key}]`;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        // Append and submit
+        document.body.appendChild(form);
+        form.submit();
     }
     
     // Guide Selection Modal Functions
@@ -1490,7 +4263,6 @@
         document.getElementById('modal_guide_custom_hours').addEventListener('input', validateCustomHours);
         document.getElementById('modal_guide_pickup_time').addEventListener('change', validateForm);
         document.getElementById('confirm_guide_btn').addEventListener('click', confirmGuideSelection);
-        
         // Set default pickup time to 9:00 AM
         document.getElementById('modal_guide_pickup_time').value = '09:00';
     }
@@ -1504,23 +4276,18 @@
         
         // For demo purposes, show sample guides
         // In production, this would fetch from API
-        const sampleGuides = [
-            { id: 1, name: 'John Smith', specialty: 'Cultural Tours', experience: '8 years', rating: '4.8', rate: '$25/hour', image: '/assets/images/guide1.jpg' },
-            { id: 2, name: 'Maria Garcia', specialty: 'Historical Tours', experience: '5 years', rating: '4.9', rate: '$30/hour', image: '/assets/images/guide2.jpg' },
-            { id: 3, name: 'David Chen', specialty: 'Food Tours', experience: '6 years', rating: '4.7', rate: '$28/hour', image: '/assets/images/guide3.jpg' },
-            { id: 4, name: 'Sarah Johnson', specialty: 'Adventure Tours', experience: '7 years', rating: '4.6', rate: '$32/hour', image: '/assets/images/guide4.jpg' }
-        ];
+        const guides = @json($guides);
         
         // Add guide options
-        sampleGuides.forEach(guide => {
+        guides.forEach(guide => {
             const option = document.createElement('option');
-            option.value = guide.id;
+            option.value = guide.guide_id;
             option.textContent = `${guide.name} - ${guide.specialty} (${guide.rating}★)`;
             option.setAttribute('data-guide', JSON.stringify(guide));
             guideSelect.appendChild(option);
         });
         
-        guideCount.textContent = sampleGuides.length;
+        guideCount.textContent = guides.length;
     }
     
     function onGuideSelection() {
@@ -1594,7 +4361,8 @@
         
         confirmBtn.disabled = !isValid;
     }
-    
+
+    const guideBaseUrl = "{{ route('orders.guides.select') }}";
     function confirmGuideSelection() {
         
         const formData = new FormData(document.getElementById('guideSelectionForm'));
@@ -1602,12 +4370,167 @@
         const duration = formData.get('duration');
         const customHours = formData.get('custom_hours');
         const pickupTime = formData.get('pickup_time');
+        const customer_info = getCustomerInfo();
+        console.log('Customer info:', customer_info);
+        const agentId = document.getElementById('agent_id').value;
+        console.log('Agent id:', agentId);
         
         // Get selected guide details
         const guideSelect = document.getElementById('modal_guide_select');
         const selectedOption = guideSelect.options[guideSelect.selectedIndex];
-        const guideData = JSON.parse(selectedOption.getAttribute('data-guide'));
+        const guideData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-guide')) : {};
+        console.log('Guide data:', guideData);
+        // Get tour details
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        const adults = document.getElementById('adults').value || '1';
+        const children = document.getElementById('children').value || '0';
         
+        // Calculate hours
+        const hours = duration === 'custom' ? customHours : 
+                     duration === 'half_day' ? '4' : 
+                     duration === 'full_day' ? '8' : '4';
+        
+        // Calculate pricing based on guide data
+        let basePrice = 0;
+        const hoursNum = parseInt(hours);
+        
+        // Calculate base price based on hours
+        if (hoursNum <= 2) {
+            basePrice = parseFloat(guideData.two_hour_price || '30.00');
+        } else if (hoursNum <= 4) {
+            basePrice = parseFloat(guideData.four_hour_price || '60.00');
+        } else if (hoursNum <= 6) {
+            basePrice = parseFloat(guideData.six_hour_price || '180.00');
+        } else if (hoursNum <= 8) {
+            basePrice = parseFloat(guideData.eight_hour_price || '240.00');
+        } else if (hoursNum <= 10) {
+            basePrice = parseFloat(guideData.ten_hour_price || '300.00');
+        } else if (hoursNum <= 12) {
+            basePrice = parseFloat(guideData.twelve_hour_price || '360.00');
+        } else {
+            // For custom hours beyond 12, calculate using hourly rate
+            basePrice = parseFloat(guideData.hourly_price || '15.00') * hoursNum;
+        }
+        
+        // Calculate night surcharge if pickup time is within night hours
+        let surcharge = 0;
+        const pickupHour = parseInt(pickupTime.split(':')[0]);
+        const nightStartHour = parseInt(guideData.night_start_time?.split(':')[0] || '0');
+        const nightEndHour = parseInt(guideData.night_end_time?.split(':')[0] || '8');
+        
+        // Check if pickup time falls within night hours
+        if (pickupHour >= nightStartHour || pickupHour < nightEndHour) {
+            surcharge = parseFloat(guideData.night_surcharge || '20.00');
+        }
+        
+        const totalPrice = basePrice + surcharge;
+        const tax = (totalPrice * 0.07).toFixed(2); // 7% tax
+        
+        // Build the complex booking data structure in required format
+        const bookingData = [{
+            bookingDate: startDate,
+            guide_id: guideId,
+            guide_name: guideData.name || "Guide Name",
+            image: guideData.image || "",
+            dmc_Id: guideData.dmc_id || "11",
+            Mode: "dmc",
+            entrypickup: `${city}, (${country})`,
+            PickupPlaceid: null,
+            DropoffPlaceid: null,
+            pickupdate: startDate,
+            entrytime: pickupTime,
+            adults: adults,
+            children: children,
+            hours: hours,
+            basePrice: basePrice.toFixed(2),
+            surcharge: surcharge.toFixed(2),
+            totalPrice: totalPrice.toFixed(2),
+            Tax: tax,
+            Night_Start_Time: guideData.night_start_time,
+            Night_End_Time: guideData.night_end_time,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            countryCode: customer_info.countryCode,
+            bookingType: "enquiry",
+            agent_id: agentId,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                countryCode: customer_info.countryCode,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            }
+        }];
+
+        console.log('Guide booking data to be sent:', bookingData);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = guideBaseUrl;
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+
+        // Add the complex booking data as JSON
+        const bookingDataInput = document.createElement('input');
+        bookingDataInput.type = 'hidden';
+        bookingDataInput.name = 'booking_data';
+        bookingDataInput.value = JSON.stringify(bookingData);
+        form.appendChild(bookingDataInput);
+
+        // Add basic form fields for backward compatibility
+        const basicData = {
+            agent_id: agentId,
+            tour_id: tourId,
+            guide_id: guideId,
+            duration: duration,
+            custom_hours: customHours,
+            pickup_time: pickupTime,
+            adults: adults,
+            children: children,
+            country: country,
+            city: city,
+            start_date: startDate,
+            end_date: endDate
+        };
+
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        // Add customer_info fields for backward compatibility
+        for (const [key, value] of Object.entries(customer_info)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `customer_info[${key}]`;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('guideSelectionModal'));
         modal.hide();
@@ -1623,6 +4546,568 @@
             customHours: customHours,
             pickupTime: pickupTime
         });
+    }
+    
+    // Restaurant Selection Modal Functions
+    function showRestaurantSelectionModal(tourId, country, city, startDate, endDate) {
+        // Populate modal with tour data
+        document.getElementById('modal_restaurant_tour_dates').textContent = `${startDate} to ${endDate}`;
+        document.getElementById('modal_restaurant_destination').textContent = `${city}, ${country}`;
+        document.getElementById('modal_restaurant_city').textContent = city;
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('restaurantSelectionModal'));
+        modal.show();
+        
+        // Initialize modal functionality after modal is shown
+        setTimeout(() => {
+        initializeRestaurantModal();
+        }, 100);
+        
+        // Load restaurants for the city
+        loadRestaurantsForCity(city, country);
+    }
+    
+    function initializeRestaurantModal() {
+        // Add event listeners only for elements that exist
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        const mealTypeSelect = document.getElementById('modal_restaurant_meal_type');
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+        const confirmBtn = document.getElementById('confirm_restaurant_btn');
+        
+        if (restaurantSelect) {
+            restaurantSelect.addEventListener('change', onRestaurantSelection);
+        }
+        if (mealTypeSelect) {
+            mealTypeSelect.addEventListener('change', validateRestaurantForm);
+        }
+        if (dishSelect) {
+            dishSelect.addEventListener('change', validateRestaurantForm);
+        }
+        if (timeSlotSelect) {
+            timeSlotSelect.addEventListener('change', validateRestaurantForm);
+        }
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', confirmRestaurantSelection);
+        }
+        
+        // Initialize guest data from tour data
+        const adults = parseInt(document.getElementById('adults')?.value) || 1;
+        const children = parseInt(document.getElementById('children')?.value) || 0;
+        const infants = parseInt(document.getElementById('infants')?.value) || 0;
+        const maleCount = parseInt(document.getElementById('male_count')?.value) || 1;
+        const femaleCount = parseInt(document.getElementById('female_count')?.value) || 0;
+        const pax = adults + children; // Calculate pax as adults + children
+        
+        // Set default guest data
+        window.modalGuestData = {
+            pax: pax.toString(),
+            adults: adults.toString(),
+            children: children.toString(),
+            infants: infants.toString(),
+            male_count: maleCount.toString(),
+            female_count: femaleCount.toString(),
+            child_ages: document.getElementById('child_ages')?.value || ''
+        };
+    }
+    
+    function loadRestaurantsForCity(city, country) {
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        const restaurantCount = document.getElementById('restaurant_count');
+        const mealSelect = document.getElementById('modal_restaurant_meal_type');
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        // Clear existing options
+        restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+        
+        // For demo purposes, show sample restaurants
+        // In production, this would fetch from API
+        const restaurants = @json($restaurants);
+        
+        // Add restaurant options
+        restaurants.forEach(restaurant => {
+            const option = document.createElement('option');
+            option.value = restaurant.restaurant_id;
+            option.textContent = `${restaurant.name} - ${restaurant.city}`;
+            option.setAttribute('data-restaurant', JSON.stringify(restaurant));
+            restaurantSelect.appendChild(option);
+            
+        });
+        
+        restaurantCount.textContent = restaurants.length;
+    }
+    function getPax() {
+        const maleInput = document.getElementById('modal_male_count');
+        const femaleInput = document.getElementById('modal_female_count');
+        const childrenInput = document.getElementById('modal_children');
+
+        function calculatePax() {
+            const maleCount = parseInt(maleInput.value) || 0;
+            const femaleCount = parseInt(femaleInput.value) || 0;
+            const children = parseInt(childrenInput.value) || 0;
+
+            const pax = maleCount + femaleCount;
+            const result = {
+                pax: pax,
+                maleCount: maleCount,
+                femaleCount: femaleCount,
+                children: children
+            };
+            console.log("Total Pax:", pax);
+            return result;
+        }
+
+        // Attach event listeners
+        maleInput.addEventListener('change', calculatePax);
+        femaleInput.addEventListener('change', calculatePax);
+        childrenInput.addEventListener('change', calculatePax);
+
+        // Initial calculation
+        return calculatePax();
+    }
+
+    
+    function onRestaurantSelection() {
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        const restaurantDetailsContainer = document.getElementById('restaurant_details_container');
+        const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+        const mealSelect = document.getElementById('modal_restaurant_meal_type');
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+        
+        
+        
+        // Clear dependent dropdowns
+        mealSelect.innerHTML = '<option value="">Select Meal</option>';
+        dishSelect.innerHTML = '<option value="">Select Dish</option>';
+        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        
+        if (restaurantSelect.value) {
+            const restaurantData = JSON.parse(selectedOption.getAttribute('data-restaurant'));
+            
+            // Show restaurant details
+            document.getElementById('selected_restaurant_image').src = restaurantData.master_image || '/assets/images/default-restaurant.png';
+            document.getElementById('selected_restaurant_name').textContent = restaurantData.name;
+            document.getElementById('selected_restaurant_cuisine').textContent = restaurantData.cuisine + ' Cuisine';
+            document.getElementById('selected_restaurant_location').textContent = restaurantData.location;
+            document.getElementById('selected_restaurant_rating').textContent = restaurantData.rating;
+            document.getElementById('selected_restaurant_price_range').textContent = restaurantData.price_range;
+            console.log('restaurant selected then, Restaurant data:', restaurantData);
+
+            // Set Meal Options
+            restaurantData.meals.forEach(meal => {
+                let mealType = meal.type == 1 
+                    ? 'Buffet' 
+                    : meal.type == 2 
+                        ? 'Set Menu' 
+                        : meal.type == 3 
+                            ? 'A-La-Carte' 
+                            : '...';
+                let mealPeriod = meal.meal_period == 1 ? 'Breakfast' : meal.meal_period == 2 ? 'Lunch' : meal.meal_period == 3 ? 'Dinner' : '...';
+
+                let mealCategory = meal.category == 1 ? 'Alcoholic' : meal.category == 2 ? 'Non Alcoholic' : 'No Beverage';
+
+                let mealItemType = meal.item_type == 1 ? 'Vegetarian' : meal.item_type == 2 ? 'Non Vegetarian' : '...';
+
+                let mealName = mealPeriod + ' - ' + mealType + ' - ' + mealCategory + ' - ' + mealItemType;
+                console.log('mealName:', mealName);
+                const mealOption = document.createElement('option');
+                mealOption.value = meal.meal_id;
+                mealOption.textContent = mealName;
+                mealOption.setAttribute('data-meal', JSON.stringify(meal));
+                mealSelect.appendChild(mealOption);
+            });
+            
+            // Set Dish Options (based on selected meal)
+            mealSelect.addEventListener('change', function() {
+                const selectedMealOption = mealSelect.options[mealSelect.selectedIndex];
+                const mealData = JSON.parse(selectedMealOption.getAttribute('data-meal'));
+                const pax = getPax();
+                const adultPrice = mealData.adult_price * (pax.maleCount + pax.femaleCount);
+                const childPrice = mealData.child_price * pax.children;
+                const totalPrice = adultPrice + childPrice;
+                
+                const mealPriceSection = document.getElementById('meal-price-section');
+                mealPriceSection.textContent = 'Adult Price: '+adultPrice + ' - ' + 'Child Price: '+childPrice+', Total Price: '+totalPrice;
+
+                if (selectedMealOption.value) {
+                    dishSelect.innerHTML = '<option value="">Select Dish</option>';
+                    // Add dish options based on meal data
+                    const dishOption = document.createElement('option');
+                    dishOption.value = mealData.meal_id;
+                    dishOption.textContent = mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...';
+                    dishOption.setAttribute('data-dish', JSON.stringify(mealData));
+                    dishSelect.appendChild(dishOption);
+                    
+                    // Set time slots (you can customize this based on your business logic)
+                    timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+                    const timeSlots = ['07:00', '08:00', '09:00', '12:00', '13:00', '14:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
+                    timeSlots.forEach(time => {
+                        const timeOption = document.createElement('option');
+                        timeOption.value = time;
+                        timeOption.textContent = time;
+                        timeSlotSelect.appendChild(timeOption);
+                    });
+                }
+            });
+            
+            restaurantDetailsContainer.style.display = 'block';
+        } else {
+            restaurantDetailsContainer.style.display = 'none';
+        }
+        
+        validateRestaurantForm();
+    }
+    
+    function validateRestaurantForm() {
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        const mealType = document.getElementById('modal_restaurant_meal_type');
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+        const confirmBtn = document.getElementById('confirm_restaurant_btn');
+        
+        let isValid = true;
+        
+        // Check required fields
+        if (!restaurantSelect.value) isValid = false;
+        if (!mealType.value) isValid = false;
+        if (!dishSelect.value) isValid = false;
+        if (!timeSlotSelect.value) isValid = false;
+        
+        confirmBtn.disabled = !isValid;
+    }
+
+    // Guest selector functions for restaurant modal
+    function openModalGuestSelector() {
+        // Initialize guest selector modal with current values
+        const guestData = window.modalGuestData || {
+            pax: '1',
+            children: '0',
+            infants: '0',
+            male_count: '1',
+            female_count: '0',
+            child_ages: ''
+        };
+        
+        // Set current values in the modal
+        document.getElementById('modal_pax').value = guestData.pax;
+        document.getElementById('modal_children').value = guestData.children;
+        document.getElementById('modal_infants').value = guestData.infants;
+        document.getElementById('modal_male_count').value = guestData.male_count;
+        document.getElementById('modal_female_count').value = guestData.female_count;
+        document.getElementById('modal_child_ages').value = guestData.child_ages;
+        
+        // Add event listeners for the modal inputs
+        const modalInputs = ['modal_pax', 'modal_children', 'modal_infants', 'modal_male_count', 'modal_female_count', 'modal_child_ages'];
+        modalInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.addEventListener('input', updateModalGuestSummary);
+            }
+        });
+        
+        const modal = new bootstrap.Modal(document.getElementById('modalGuestSelectorModal'));
+        modal.show();
+    }
+
+    function incrementCount(fieldId) {
+        const field = document.getElementById(fieldId);
+        const currentValue = parseInt(field.value);
+        const maxValue = parseInt(field.max);
+        
+        if (fieldId === 'modal_pax') {
+            // For pax, just increment normally
+            if (currentValue < maxValue) {
+                field.value = currentValue + 1;
+                updateModalGuestSummary();
+            }
+        } else {
+            // For other fields, check if incrementing would exceed pax
+            const paxValue = parseInt(document.getElementById('modal_pax').value);
+            const childrenValue = parseInt(document.getElementById('modal_children').value);
+            const maleValue = parseInt(document.getElementById('modal_male_count').value);
+            const femaleValue = parseInt(document.getElementById('modal_female_count').value);
+            
+            let newValue = currentValue;
+            if (fieldId === 'modal_children') {
+                newValue = childrenValue + 1;
+            } else if (fieldId === 'modal_male_count') {
+                newValue = maleValue + 1;
+            } else if (fieldId === 'modal_female_count') {
+                newValue = femaleValue + 1;
+            }
+            
+            // Check if the new total would exceed pax
+            const totalAfterIncrement = newValue + (fieldId === 'modal_children' ? maleValue + femaleValue : 
+                                                   fieldId === 'modal_male_count' ? childrenValue + femaleValue : 
+                                                   childrenValue + maleValue);
+            
+            if (totalAfterIncrement <= paxValue && currentValue < maxValue) {
+                field.value = currentValue + 1;
+                updateModalGuestSummary();
+            } else if (totalAfterIncrement > paxValue) {
+                showNotification('Total of children, males, and females cannot exceed pax count', 'warning');
+            }
+        }
+    }
+
+    function decrementCount(fieldId) {
+        const field = document.getElementById(fieldId);
+        const currentValue = parseInt(field.value);
+        const minValue = parseInt(field.min);
+        
+        if (fieldId === 'modal_pax') {
+            // For pax, check if decrementing would make it less than the sum of other fields
+            const childrenValue = parseInt(document.getElementById('modal_children').value);
+            const maleValue = parseInt(document.getElementById('modal_male_count').value);
+            const femaleValue = parseInt(document.getElementById('modal_female_count').value);
+            const totalOthers = childrenValue + maleValue + femaleValue;
+            
+            if (currentValue > totalOthers && currentValue > minValue) {
+                field.value = currentValue - 1;
+                updateModalGuestSummary();
+            } else if (currentValue <= totalOthers) {
+                showNotification('Pax cannot be less than the sum of children, males, and females', 'warning');
+            }
+        } else {
+            // For other fields, just decrement normally
+            if (currentValue > minValue) {
+                field.value = currentValue - 1;
+                updateModalGuestSummary();
+            }
+        }
+    }
+
+    function updateModalGuestSummary() {
+        const pax = parseInt(document.getElementById('modal_pax').value);
+        const children = parseInt(document.getElementById('modal_children').value);
+        const infants = parseInt(document.getElementById('modal_infants').value);
+        const maleCount = parseInt(document.getElementById('modal_male_count').value);
+        const femaleCount = parseInt(document.getElementById('modal_female_count').value);
+        const adults = pax - children; // Calculate adults as pax - children
+
+        const summary = `${pax} pax (${adults} adults, ${children} children) - ${maleCount} male, ${femaleCount} female -${infants} infants`;
+        
+        // Update summary if element exists
+        const summaryElement = document.getElementById('modal_restaurant_guest_summary');
+        if (summaryElement) {
+            summaryElement.textContent = summary;
+        }
+
+        // Update badges
+        const badges = document.querySelectorAll('.guest-badges .badge');
+        if (badges.length >= 3) {
+            badges[0].textContent = adults;
+            badges[1].textContent = children;
+            badges[2].textContent = infants;
+        }
+
+        // Enable/disable child ages field
+        const childAgesField = document.getElementById('modal_child_ages');
+        if (childAgesField) {
+            if (children > 0) {
+                childAgesField.disabled = false;
+                childAgesField.required = true;
+            } else {
+                childAgesField.disabled = true;
+                childAgesField.required = false;
+                childAgesField.value = '';
+            }
+        }
+        
+        // Validate total doesn't exceed pax
+        const total = children + maleCount + femaleCount;
+        if (total > pax) {
+            showNotification('Total of children, males, and females exceeds pax count', 'warning');
+        }
+    }
+
+    function confirmModalGuestSelection() {
+        const pax = document.getElementById('modal_pax').value;
+        const children = document.getElementById('modal_children').value;
+        const infants = document.getElementById('modal_infants').value;
+        const maleCount = document.getElementById('modal_male_count').value;
+        const femaleCount = document.getElementById('modal_female_count').value;
+        const childAges = document.getElementById('modal_child_ages').value;
+        const adults = parseInt(pax) - parseInt(children); // Calculate adults
+
+        // Store the values for use in restaurant booking
+        window.modalGuestData = {
+            pax: pax,
+            adults: adults.toString(),
+            children: children,
+            infants: infants,
+            male_count: maleCount,
+            female_count: femaleCount,
+            child_ages: childAges
+        };
+
+        updateModalGuestSummary();
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalGuestSelectorModal'));
+        modal.hide();
+
+        showNotification('Guest selection updated successfully', 'success');
+    }
+    
+    const restaurantBaseUrl = "{{ route('orders.restaurants.select') }}";
+    
+    function confirmRestaurantSelection() {
+        const formData = new FormData(document.getElementById('restaurantSelectionForm'));
+        const restaurantId = formData.get('restaurant_id');
+        const mealType = formData.get('meal_type');
+        const dishId = formData.get('modal_restaurant_dish');
+        const timeSlot = formData.get('modal_restaurant_time_slot');
+        const customer_info = getCustomerInfo();
+        
+        const agentId = document.getElementById('agent_id').value;
+        
+        
+        // Get selected restaurant details
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+        const restaurantData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-restaurant')) : {};
+        
+        
+        const mealSelect = document.getElementById('modal_restaurant_meal_type');
+        const selectedOptionMeal = mealSelect.options[mealSelect.selectedIndex];
+        const mealData = selectedOptionMeal ? JSON.parse(selectedOptionMeal.getAttribute('data-meal')) : {};
+        console.log('Meal data:', mealData);
+        
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        const selectedOptionDish = dishSelect.options[dishSelect.selectedIndex];
+        const dishData = selectedOptionDish ? JSON.parse(selectedOptionDish.getAttribute('data-dish')) : {};
+        //console.log('Dish data:', dishData);
+        
+        // Get guest data from modal
+        const guestData = window.modalGuestData || {
+            adults: '1',
+            children: '0',
+            infants: '0',
+            male_count: '1',
+            female_count: '0',
+            child_ages: ''
+        };
+        
+        // Get tour details
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        // Calculate pricing based on guest data
+        const adultPrice = parseFloat(mealData.adult_price || '0');
+        const childPrice = parseFloat(mealData.child_price || '0');
+        const basePrice = adultPrice * parseInt(guestData.adults) + childPrice * parseInt(guestData.children);
+        const totalPrice = basePrice;
+        
+        // Build the complex booking data structure in required format
+        const bookingData = [{
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            bookingDate: startDate,
+            visitTime: timeSlot,
+            adultCount: parseInt(guestData.adults),
+            childCount: parseInt(guestData.children),
+            restaurantId: parseInt(restaurantId),
+            restaurantName: restaurantData.name || "Restaurant Name",
+            mealType: mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : mealData.meal_period == 3 ? 'Dinner' : '...',
+            mealSpecificType: mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...',
+            MealDescription: [
+                {
+                    item_name: dishData.name,
+                    name: dishData.item_description,
+                    price: parseFloat(dishData.price || '0'),
+                    meal_id: parseInt(dishId),
+                    category: dishData.category == 1 ? 'Alcoholic' : dishData.category == 2 ? 'Non Alcoholic' : 'No Beverage',
+                    item_type: dishData.item_type == 1 ? 'Vegetarian' : dishData.item_type == 2 ? 'Non Vegetarian' : '...',
+                    quantity: parseInt(guestData.adults) + parseInt(guestData.children)
+                }
+            ],
+            totalPrice: totalPrice,
+            priceTypes: ["dmc"],
+            dmc_id: restaurantData.dmc_id || "",
+            bookingType: "enquiry"
+        }];
+
+        //console.log('Restaurant booking data to be sent:', bookingData);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = restaurantBaseUrl;
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+
+        // Add the complex booking data as JSON
+        const bookingDataInput = document.createElement('input');
+        bookingDataInput.type = 'hidden';
+        bookingDataInput.name = 'booking_data';
+        bookingDataInput.value = JSON.stringify(bookingData);
+        form.appendChild(bookingDataInput);
+
+        // Add basic form fields for backward compatibility
+        const basicData = {
+            agent_id: agentId,
+            tour_id: tourId,
+            restaurant_id: restaurantId,
+            meal_type: mealType,
+            dish_id: dishId,
+            time_slot: timeSlot,
+            adults: guestData.adults,
+            children: guestData.children,
+            infants: guestData.infants,
+            male_count: guestData.male_count,
+            female_count: guestData.female_count,
+            child_ages: guestData.child_ages,
+            country: country,
+            city: city,
+            start_date: startDate,
+            end_date: endDate
+        };
+
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        // Add customer_info fields for backward compatibility
+        for (const [key, value] of Object.entries(customer_info)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `customer_info[${key}]`;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('restaurantSelectionModal'));
+        modal.hide();
+        
+        // Show success message
+        showNotification(`Restaurant ${restaurantData.name} selected successfully! Meal: ${mealData.meal_period == 1 ? 'Breakfast' : mealData.meal_period == 2 ? 'Lunch' : 'Dinner'} at ${timeSlot} for ${guestData.adults} adults, ${guestData.children} children`, 'success');
+        
+        // Here you can add logic to update the restaurant fields in your form
+        
     }
     
     // Order management functions
@@ -1655,22 +5140,22 @@
     
     // Remove service functions
     window.removeAttractionService = function(orderId) {
-        console.log('removeAttractionService called with orderId:', orderId);
+        
         removeService(orderId, 'attraction');
     };
     
     window.removeGuideService = function(orderId) {
-        console.log('removeGuideService called with orderId:', orderId);
+        
         removeService(orderId, 'guide');
     };
     
     window.removeRestaurantService = function(orderId) {
-        console.log('removeRestaurantService called with orderId:', orderId);
+        
         removeService(orderId, 'restaurant');
     };
     
     window.removeTransportService = function(orderId) {
-        console.log('removeTransportService called with orderId:', orderId);
+        
         removeService(orderId, 'transport');
     };
     
@@ -1730,6 +5215,33 @@
             console.log('Bootstrap version:', bootstrap.Modal.VERSION);
         }
     });
+
+    function getCustomerInfo(){
+            const fullName = document.getElementById('customerFullName')?.value || '';
+        const email = document.getElementById('customerEmail')?.value || '';
+        const phone = document.getElementById('customerPhone')?.value || '';
+        const countryCode = document.getElementById('customerCountryCode')?.value || '';
+        const address1 = document.getElementById('customerAddress1')?.value || '';
+        const address2 = document.getElementById('customerAddress2')?.value || '';
+        const state = document.getElementById('customerState')?.value || '';
+        const zip = document.getElementById('customerZip')?.value || '';
+        const specialRequests = document.getElementById('customerSpecialRequests')?.value || '';
+        let customer_info = @json($customer_info);
+        if(Object.keys(customer_info).length === 0){
+            customer_info = {
+                    fullName: fullName,
+                email: email,
+                phone: phone,
+                countryCode: countryCode,
+                address1: address1,
+                address2: address2,
+                state: state,
+                zip: zip,
+                specialRequests: specialRequests
+            };
+        }
+        return customer_info;
+    }
 </script>
 @endsection
 

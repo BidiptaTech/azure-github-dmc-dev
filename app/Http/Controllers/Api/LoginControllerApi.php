@@ -665,6 +665,7 @@ class LoginControllerApi extends Controller
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
 
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
