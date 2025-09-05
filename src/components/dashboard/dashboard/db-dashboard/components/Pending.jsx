@@ -118,7 +118,7 @@ const getBackgroundColor = (tour_status) => {
     case "Refund - Pending":
       return "rgba(255, 103, 2, 0.66)"; // Professional light deep orange
     case "Refunded":
-      return "rgba(2, 255, 15, 0.53)"; // Professional light deep orange
+      return "rgba(5, 139, 11, 0.53)"; // Professional light deep orange
     case "Pending":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Tentative":

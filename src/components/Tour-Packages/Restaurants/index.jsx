@@ -206,6 +206,19 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       return;
     }
 
+    // Check if there are already restaurant services for the current day in Redux
+    const existingRestaurantServices = currentServicesRef.current.filter(service => 
+      service.type === "restaurant" && 
+      service.data && 
+      Array.isArray(service.data) &&
+      service.data.some(booking => booking.bookingDate === bookingDate)
+    );
+
+    if (existingRestaurantServices.length > 0) {
+      console.log('Restaurant services already exist for this day, skipping dispatch to prevent duplicates');
+      return;
+    }
+
     console.log('Dispatching ALL restaurants from restaurantspack to Redux:', restaurantspack);
 
     // Remove any existing restaurant services using the ref
@@ -638,18 +651,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       return; // No complete sections to save
     }
     
-    // Clone the existing services array, but only remove restaurant services for the current dayIndex
+    // Clone the existing services array, but only remove restaurant services for the current bookingDate
     // Preserve restaurant services for other dates
     const servicesWithoutRestaurants = existingServices.filter(service => {
       if (service.type !== "restaurant") {
         return true; // Keep non-restaurant services
       }
       
-      // For restaurant services, check if they belong to the current dayIndex
-      // If the service has data and any booking has the same dayIndex, remove it
+      // For restaurant services, check if they belong to the current bookingDate
+      // If the service has data and any booking has the same bookingDate, remove it
       if (service.data && Array.isArray(service.data)) {
         const hasCurrentDayBooking = service.data.some(booking => 
-          booking.dayIndex === dayIndex
+          booking.bookingDate === bookingDate
         );
         return !hasCurrentDayBooking; // Keep if it doesn't have current day booking
       }
@@ -787,9 +800,16 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     console.log("Restaurant - Services filtering check:", {
       totalExistingServices: existingServices.length,
       restaurantServicesRemoved: existingServices.filter(s => s.type === "restaurant").length - servicesWithoutRestaurants.filter(s => s.type === "restaurant").length,
-      currentDayIndex: dayIndex,
+      currentBookingDate: bookingDate,
+      dayIndex: dayIndex,
       newRestaurantServices: restaurantServices.length,
-      finalTotalServices: updatedServices.length
+      finalTotalServices: updatedServices.length,
+      existingRestaurantServicesForCurrentDate: existingServices.filter(s => 
+        s.type === "restaurant" && 
+        s.data && 
+        Array.isArray(s.data) && 
+        s.data.some(booking => booking.bookingDate === bookingDate)
+      ).length
     });
     
     // Dispatch the updated services
@@ -805,6 +825,13 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   useEffect(() => {
     // Skip if no form sections or during loading
     if (formSections.length === 0 || status === 'loading') return;
+    
+    // Skip auto-dispatch if we have restaurantspack data (to prevent duplicates)
+    // Only auto-dispatch when there's no restaurantspack data (new bookings)
+    if (restaurantspack && Array.isArray(restaurantspack) && restaurantspack.length > 0) {
+      console.log('Restaurant - Skipping auto-dispatch because restaurantspack data exists');
+      return;
+    }
     
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section) => {
@@ -852,7 +879,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       
       return () => clearTimeout(timeoutId);
     }
-  }, [formSections, handleBookNow, status, savedSectionIds]);
+  }, [formSections, handleBookNow, status, savedSectionIds, restaurantspack]);
 
   // Helper to check if a booking is out of current tour dates for the specific dayIndex
   const isBookingOutOfTourDates = (booking) => {
