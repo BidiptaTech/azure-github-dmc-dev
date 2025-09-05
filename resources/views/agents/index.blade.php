@@ -75,7 +75,9 @@
             @foreach ($agents as $key => $agent)
 
               @php
-                $dmcIds = is_array($agent->dmc_id) ? $agent->dmc_id : json_decode($agent->dmc_id, true);
+              $agencyId = $agent->agency_id ?? [];
+              $agency = App\Models\Agency::where('agency_id', $agencyId)->first();
+                $dmcIds = is_array($agency->dmc_id) ? $agency->dmc_id : json_decode($agency->dmc_id, true);
 
                 $agent->dmc_companies = [];
             
@@ -138,7 +140,7 @@
                           {{ $user->company_name }}
                       </span>
                   @else
-                      <span class="text-muted">No DMC assigned</span>
+                      <span class="text-muted">No</span>
                   @endif
                 </td>                                               
                 <td>{{ $agent->company_name ?? 'N/A' }}</td>
