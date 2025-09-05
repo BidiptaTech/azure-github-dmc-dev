@@ -688,7 +688,7 @@
                         <i class="fas fa-times me-2"></i>Cancel
                     </button>
                     <button type="button" class="btn btn-success" id="savePaymentBtn{{ $booking->booking_id }}" onclick="submitPaymentForm({{ $booking->booking_id }})">
-                        <i class="fas fa-save me-2"></i>Save Payment Details
+                        Save Payment Details
                     </button>
                 </div>
             </div>

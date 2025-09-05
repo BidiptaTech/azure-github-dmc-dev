@@ -94,7 +94,6 @@ class Hotel extends Model
     private function getDmcIdsArray()
     {
         $dmcId = $this->dmc_id;
-        
         if (is_null($dmcId)) {
             return [];
         }

@@ -368,7 +368,7 @@ use Illuminate\Support\Facades\Auth;
                                             </td>
                                             <td>
                                                 <div class="d-flex flex-column">
-                                                    <span class="fw-semibold">{{ $row->company_name }}</span>
+                                                    <span class="fw-semibold">{{ $row->company_name ?? 'N/A' }}</span>
                                                     <small class="text-muted"> {{ $row->agent_name ?? 'N/A' }}</small>
                                                 </div>
                                             </td>
@@ -547,6 +547,14 @@ use Illuminate\Support\Facades\Auth;
 @section('scripts')
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<!-- DataTables Buttons for Export -->
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.colVis.min.js"></script>
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <!-- DataTables Initialization Script -->
@@ -580,11 +588,15 @@ use Illuminate\Support\Facades\Auth;
             }
             
             try {
-                // Initialize DataTable with export buttons
+                // Initialize DataTable without visible buttons (we'll use custom dropdown)
                 var table = $('.datatables-basic').DataTable({
                     responsive: false, // Disable responsive to avoid column issues
                     autoWidth: false,
                     scrollX: true, // Add horizontal scroll instead of responsive
+                    dom: 'frtip', // Remove 'B' to hide default buttons
+                    buttons: [
+                        'copy', 'csv', 'excel', 'pdf', 'print'
+                    ],
                     columnDefs: [
                         { width: "50px", targets: 0, className: "text-center" }, // # column
                         { width: "120px", targets: 1 }, // Date & Time
@@ -631,10 +643,171 @@ use Illuminate\Support\Facades\Auth;
                     table.button('.buttons-print').trigger();
                 });
 
+                // Fallback export functionality if DataTables buttons don't work
+                function exportTableData(format) {
+                    try {
+                        switch(format) {
+                            case 'copy':
+                                table.button('.buttons-copy').trigger();
+                                break;
+                            case 'csv':
+                                table.button('.buttons-csv').trigger();
+                                break;
+                            case 'excel':
+                                table.button('.buttons-excel').trigger();
+                                break;
+                            case 'pdf':
+                                table.button('.buttons-pdf').trigger();
+                                break;
+                            case 'print':
+                                table.button('.buttons-print').trigger();
+                                break;
+                            default:
+                                console.error('Unknown export format:', format);
+                        }
+                    } catch (error) {
+                        console.error('Export failed:', error);
+                        // Show user-friendly error message
+                        alert('Export functionality is not available at the moment. Please try again later.');
+                    }
+                }
+
+                // Alternative export handlers with error handling
+                $('#exportCopy').on('click', function(e) {
+                    e.preventDefault();
+                    exportTableData('copy');
+                });
+
+                $('#exportCSV').on('click', function(e) {
+                    e.preventDefault();
+                    exportTableData('csv');
+                });
+
+                $('#exportExcel').on('click', function(e) {
+                    e.preventDefault();
+                    exportTableData('excel');
+                });
+
+                $('#exportPDF').on('click', function(e) {
+                    e.preventDefault();
+                    exportTableData('pdf');
+                });
+
+                $('#exportPrint').on('click', function(e) {
+                    e.preventDefault();
+                    exportTableData('print');
+                });
+
                 // Enable Bootstrap tooltips
                 var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
                 tooltipTriggerList.map(function (tooltipTriggerEl) {
                     return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+
+                // Simple fallback export functionality (doesn't rely on DataTables buttons)
+                function simpleExportTable(format) {
+                    const table = document.getElementById('ledgerTable');
+                    if (!table) {
+                        alert('Table not found');
+                        return;
+                    }
+
+                    let csvContent = '';
+                    const rows = table.querySelectorAll('tr');
+                    
+                    // Get headers
+                    const headers = [];
+                    const headerRow = rows[0];
+                    headerRow.querySelectorAll('th').forEach(th => {
+                        headers.push(th.textContent.trim());
+                    });
+                    csvContent += headers.join(',') + '\n';
+
+                    // Get data rows
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        const cells = row.querySelectorAll('td');
+                        const rowData = [];
+                        cells.forEach(cell => {
+                            // Clean up the cell content (remove HTML tags and extra spaces)
+                            let cellText = cell.textContent.trim();
+                            // Escape commas and quotes
+                            if (cellText.includes(',') || cellText.includes('"')) {
+                                cellText = '"' + cellText.replace(/"/g, '""') + '"';
+                            }
+                            rowData.push(cellText);
+                        });
+                        csvContent += rowData.join(',') + '\n';
+                    }
+
+                    if (format === 'csv') {
+                        // Download CSV
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute('href', url);
+                        link.setAttribute('download', 'ledger_data.csv');
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } else if (format === 'copy') {
+                        // Copy to clipboard
+                        navigator.clipboard.writeText(csvContent).then(() => {
+                            alert('Data copied to clipboard!');
+                        }).catch(() => {
+                            alert('Failed to copy to clipboard. Please try selecting and copying manually.');
+                        });
+                    } else if (format === 'print') {
+                        // Print
+                        const printWindow = window.open('', '_blank');
+                        printWindow.document.write(`
+                            <html>
+                                <head>
+                                    <title>Ledger Report</title>
+                                    <style>
+                                        table { border-collapse: collapse; width: 100%; }
+                                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                                        th { background-color: #f2f2f2; }
+                                    </style>
+                                </head>
+                                <body>
+                                    <h2>Ledger Report</h2>
+                                    ${table.outerHTML}
+                                </body>
+                            </html>
+                        `);
+                        printWindow.document.close();
+                        printWindow.print();
+                    }
+                }
+
+                // Add fallback export handlers
+                $('#exportCopy').off('click').on('click', function(e) {
+                    e.preventDefault();
+                    try {
+                        exportTableData('copy');
+                    } catch (error) {
+                        simpleExportTable('copy');
+                    }
+                });
+
+                $('#exportCSV').off('click').on('click', function(e) {
+                    e.preventDefault();
+                    try {
+                        exportTableData('csv');
+                    } catch (error) {
+                        simpleExportTable('csv');
+                    }
+                });
+
+                $('#exportPrint').off('click').on('click', function(e) {
+                    e.preventDefault();
+                    try {
+                        exportTableData('print');
+                    } catch (error) {
+                        simpleExportTable('print');
+                    }
                 });
                 
             } catch (error) {
@@ -1726,6 +1899,15 @@ use Illuminate\Support\Facades\Auth;
     
     #editRateBtn {
         border-left: 1px solid #dee2e6;
+    }
+    
+    /* Hide DataTables default buttons */
+    .dt-buttons {
+        display: none !important;
+    }
+    
+    .dataTables_wrapper .dt-buttons {
+        display: none !important;
     }
     
     /* Responsive adjustments */

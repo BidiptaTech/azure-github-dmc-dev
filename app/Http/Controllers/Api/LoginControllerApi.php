@@ -639,7 +639,7 @@ class LoginControllerApi extends Controller
                 $dmc_ids = $agentDmcIds;
                 $dmcCompanies = User::whereIn('userId', $agentDmcIds)
                     ->where('role_id', 11)
-                    ->select('userId', 'company_name')
+                    ->select('userId', 'company_name', 'logo', 'price_hide', 'zone_on')
                     ->get();
                 foreach ($dmcCompanies as $dmcCompany) {
                     $dmc_company_names[] = [

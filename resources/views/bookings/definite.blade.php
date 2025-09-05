@@ -48,6 +48,45 @@
         margin-bottom: 20px;
     }
     
+    /* Execution Status Row Colors */
+    .execution-status-ready {
+        background-color: rgba(40, 167, 69, 0.1) !important; /* Light green */
+        border-left: 4px solid #28a745 !important;
+    }
+    
+    .execution-status-ready:hover {
+        background-color: rgba(40, 167, 69, 0.15) !important;
+    }
+    
+    .execution-status-soon {
+        background-color: rgba(255, 193, 7, 0.1) !important; /* Light yellow */
+        border-left: 4px solid #ffc107 !important;
+    }
+    
+    .execution-status-soon:hover {
+        background-color: rgba(255, 193, 7, 0.15) !important;
+    }
+    
+    .execution-status-definite {
+        background-color: rgba(23, 162, 184, 0.1) !important; /* Light blue */
+        border-left: 4px solid #17a2b8 !important;
+    }
+    
+    .execution-status-definite:hover {
+        background-color: rgba(23, 162, 184, 0.15) !important;
+    }
+    
+    /* Enhanced table styling */
+    #toursTable tbody tr {
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        border-left: 4px solid transparent;
+    }
+    
+    #toursTable tbody tr:hover {
+        transform: translateX(2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
@@ -109,7 +148,7 @@
             <h4 class="fw-bold py-3 mb-2">
                 <span class="text-muted fw-light">Bookings /</span> Definite Bookings
             </h4>
-            <p class="text-muted">Manage definite bookings ready for execution</p>
+            <p class="text-muted">Manage definite bookings ready for processing</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
@@ -237,9 +276,6 @@
             <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
                 <i class="ri-refresh-line me-1"></i> Reset
             </button>
-            <button class="btn btn-sm btn-outline-info" onclick="testStatusFilter()">
-                <i class="ri-test-tube-line me-1"></i> Test Status
-            </button>
         </div>
         <div class="card-body">
             <div class="row">
@@ -274,16 +310,6 @@
                         @endforeach
                     </select>
                 </div>
-                {{-- <div class="col-md-2">
-                    <label class="form-label">Time Range</label>
-                    <select class="form-select" id="timeFilter">
-                        <option value="">All Time</option>
-                        <option value="this_week">This Week</option>
-                        <option value="next_week">Next Week</option>
-                        <option value="this_month">This Month</option>
-                        <option value="next_month">Next Month</option>
-                    </select>
-                </div> --}}
                 <div class="col-md-3">
                     <label class="form-label">Date Range</label>
                     <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
@@ -332,15 +358,30 @@
                             <th>Travel Dates</th>
                             <th>Execution Status</th>
                             <th>Payment Status</th>
-                            {{-- <th>Confirmation Date</th> --}}
+                            <th>Confirmation Date</th>
                             <th>Actions</th>
                             <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
+                        @php
+                            // Determine execution status and corresponding CSS class
+                            $executionStatusClass = '';
+                            $executionStatus = '';
+                            if ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast()) {
+                                $executionStatusClass = 'execution-status-ready';
+                                $executionStatus = 'Ready';
+                            } elseif ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7) {
+                                $executionStatusClass = 'execution-status-soon';
+                                $executionStatus = 'Soon';
+                            } else {
+                                $executionStatusClass = 'execution-status-definite';
+                                $executionStatus = 'Definite';
+                            }
+                        @endphp
                         <tr 
-                            class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast() ? 'table-success' : ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 ? 'table-warning' : '') }}"
+                            class="{{ $executionStatusClass }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-created-at="{{ optional($tour->created_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
@@ -348,7 +389,7 @@
                             data-tour-id="{{ $tour->tour_id }}"
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
-                            data-execution-status="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast() ? 'Ready' : ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 ? 'Soon' : 'Definite') }}"
+                            data-execution-status="{{ $executionStatus }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
@@ -370,13 +411,12 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex gap-2">
-                                    @if($tour->adult > 0)
-                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
-                                    @endif
-                                    @if($tour->child > 0)
-                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
-                                    @endif
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
+                                    <small class="text-muted">
+                                        <i class="fas fa-building me-1"></i>
+                                        {{ $tour->agent_company_name ?? 'N/A' }}
+                                    </small>
                                 </div>
                             </td>
                             <td>
@@ -668,11 +708,16 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">ID: {{ $tour->agent_id ?? 'N/A' }}</small>
+                                <div class="d-flex gap-2">
+                                    @if($tour->adult > 0)
+                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
+                                    @endif
+                                    @if($tour->child > 0)
+                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
+                                    @endif
                                 </div>
                             </td>
+                            
                             <td>
                                 <div class="d-flex flex-column">
                                     @if($tour->check_in_time)
@@ -713,7 +758,7 @@
                                         <i class="ri-shield-check-line me-1"></i>Definite
                                     </span>
                                 @endif
-                            </td>   
+                            </td>
                             <td>
                                 @php
                                     // Calculate payment details
@@ -773,13 +818,13 @@
                                         <i class="fas fa-check-circle me-1"></i> Fully Paid ({{ number_format($totalPaid, 2) }})
                                     </span>
                                 @endif
-                            </td>                                                  
-                            {{-- <td>
+                            </td>                                                       
+                            <td>
                                 <div class="d-flex flex-column">
                                     <span>{{ $tour->updated_at->format('D, M d, Y') }}</span>
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
-                            </td> --}}
+                            </td>
                             {{-- <td>
                                  @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 3 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0)
                                      <span class="badge bg-warning">
@@ -855,6 +900,11 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     
+                                    <a href="{{ route('tour.editpackage', $tour->tour_id) }}" 
+                                       class="btn btn-outline-warning btn-sm rounded-pill">
+                                        <i class="ri-settings-3-line"></i> Edit Tour
+                                    </a>
+                                    
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment History
@@ -878,8 +928,8 @@
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
-                                    <span>{{ $tour->created_at->format('D, M d, Y') }}</span>
-                                    <small class="text-muted">{{ $tour->created_at->diffForHumans() }}</small>
+                                    <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
                                 </div>
                             </td>
                         </tr>
@@ -6303,7 +6353,6 @@ window.calculateHourlyDisplayDueDate = function(tourId, travelHourlyOrderIndex, 
             hiddenDisplayDueDateField.value = '';
         }
     }
-<<<<<<< HEAD
 }
 
 function confirmHourlyApproval(tourId, hourlyOrderIndex, bookingIndex) {
@@ -6634,6 +6683,8 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
 
 // Guide Edit Modal Functions
 function createAndShowGuideEditModal(tourId, guideOrderIndex, bookingIndex) {
+    console.log('🎯 [ORIGINAL] Opening guide edit modal for:', { tourId, guideOrderIndex, bookingIndex });
+    console.log('🎯 [ORIGINAL] This should be Guide', (guideOrderIndex + 1), 'Booking', (bookingIndex + 1));
     const editModalId = `editGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}`;
     
     const editModalHTML = `
@@ -6780,6 +6831,7 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
     
     // Get tour data for date constraints
     const tourData = getTourDataFromPage(tourId);
+    console.log('🎯 [ORIGINAL] Loading guide data with parameters:', { tourId, guideOrderIndex, bookingIndex, editModalId });
     console.log('Tour data for guide edit:', tourData);
     
     fetch('{{ url("/booking/get-guide-data") }}', {
@@ -6797,10 +6849,20 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Guide data for edit:', data);
+        console.log('🎯 [ORIGINAL] Guide data received from server:', data);
         
         if (data.success && data.data) {
             const guideDetails = data.data;
+            console.log('🎯 [ORIGINAL] Complete guide data structure:', guideDetails);
+            console.log('🎯 [ORIGINAL] Guide details loaded:', {
+                id: guideDetails.booking_id,
+                id_alt: guideDetails.id, // Check if it's named 'id' instead
+                guide_id: guideDetails.guide_id, // Check if it's named 'guide_id'
+                name: guideDetails.guide_name,
+                booking_date: guideDetails.booking_date,
+                pickup_date: guideDetails.pickup_date
+            });
+            console.log('🎯 [ORIGINAL] Expected: Guide', (guideOrderIndex + 1), 'but loaded guide with ID:', guideDetails.booking_id || guideDetails.id || guideDetails.guide_id || 'STILL_UNDEFINED');
             
             // Update modal header with guide info
             if (guideDetails.image) {
@@ -6816,10 +6878,30 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
             // Update travel date constraint
             const constraintElement = document.getElementById(`guide_date_constraint_${editModalId}`);
             if (tourData.check_in_time && tourData.check_out_time) {
-                const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
+                // Extract date strings to avoid timezone issues
+                let tourStartDate, tourEndDate;
+                
+                if (tourData.check_in_time.includes(' ')) {
+                    tourStartDate = tourData.check_in_time.split(' ')[0];
+                } else if (tourData.check_in_time.includes('T')) {
+                    tourStartDate = tourData.check_in_time.split('T')[0];
+                } else {
+                    tourStartDate = tourData.check_in_time;
+                }
+                
+                if (tourData.check_out_time.includes(' ')) {
+                    tourEndDate = tourData.check_out_time.split(' ')[0];
+                } else if (tourData.check_out_time.includes('T')) {
+                    tourEndDate = tourData.check_out_time.split('T')[0];
+                } else {
+                    tourEndDate = tourData.check_out_time;
+                }
+                
+                // Format dates for display using the extracted date strings
+                const startDate = new Date(tourStartDate).toLocaleDateString('en-US', { 
                     weekday: 'short', year: 'numeric', month: 'short', day: '2-digit' 
                 });
-                const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
+                const endDate = new Date(tourEndDate).toLocaleDateString('en-US', { 
                     weekday: 'short', year: 'numeric', month: 'short', day: '2-digit' 
                 });
                 constraintElement.innerHTML = `Guide booking must be within the tour travel period: <strong>${startDate}</strong> to <strong>${endDate}</strong>`;
@@ -6835,15 +6917,47 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
                 document.getElementById(`guide_entry_time_${editModalId}`).value = convertedTime;
             }
             
-            // Set date constraints on inputs
+            // Set date constraints on inputs - avoid timezone issues
             const bookingDateInput = document.getElementById(`guide_booking_date_${editModalId}`);
             const pickupDateInput = document.getElementById(`guide_pickup_date_${editModalId}`);
             
             if (tourData.check_in_time && tourData.check_out_time) {
-                bookingDateInput.min = tourData.check_in_time;
-                bookingDateInput.max = tourData.check_out_time;
-                pickupDateInput.min = tourData.check_in_time;
-                pickupDateInput.max = tourData.check_out_time;
+                // Extract date strings to avoid timezone conversion issues
+                let minDate, maxDate;
+                
+                if (tourData.check_in_time.includes(' ')) {
+                    minDate = tourData.check_in_time.split(' ')[0];
+                } else if (tourData.check_in_time.includes('T')) {
+                    minDate = tourData.check_in_time.split('T')[0];
+                } else {
+                    minDate = tourData.check_in_time;
+                }
+                
+                if (tourData.check_out_time.includes(' ')) {
+                    maxDate = tourData.check_out_time.split(' ')[0];
+                } else if (tourData.check_out_time.includes('T')) {
+                    maxDate = tourData.check_out_time.split('T')[0];
+                } else {
+                    maxDate = tourData.check_out_time;
+                }
+                
+                bookingDateInput.min = minDate;
+                bookingDateInput.max = maxDate;
+                pickupDateInput.min = minDate;
+                pickupDateInput.max = maxDate;
+                
+                console.log('Guide date constraints applied:');
+                console.log('  Min date:', minDate, 'from:', tourData.check_in_time);
+                console.log('  Max date:', maxDate, 'from:', tourData.check_out_time);
+                
+                // Force update date input constraints after a short delay
+                setTimeout(() => {
+                    bookingDateInput.setAttribute('min', minDate);
+                    bookingDateInput.setAttribute('max', maxDate);
+                    pickupDateInput.setAttribute('min', minDate);
+                    pickupDateInput.setAttribute('max', maxDate);
+                    console.log('Guide date constraints forced update - Min:', minDate, 'Max:', maxDate);
+                }, 100);
             }
         } else {
             console.error('Failed to load guide data:', data);
@@ -6864,6 +6978,8 @@ function loadGuideDataForEdit(tourId, guideOrderIndex, bookingIndex, editModalId
 }
 
 function saveGuideChanges(tourId, guideOrderIndex, bookingIndex, editModalId) {
+    console.log('🎯 [ORIGINAL] Saving guide changes for:', { tourId, guideOrderIndex, bookingIndex, editModalId });
+    
     const bookingDate = document.getElementById(`guide_booking_date_${editModalId}`).value;
     const pickupDate = document.getElementById(`guide_pickup_date_${editModalId}`).value;
     const entryTime = document.getElementById(`guide_entry_time_${editModalId}`).value;
@@ -6879,18 +6995,20 @@ function saveGuideChanges(tourId, guideOrderIndex, bookingIndex, editModalId) {
     // Get CSRF token
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     
+    // SMART FIX: Try original index first, if it fails, try reversed index
+    function tryGuideUpdate(indexToTry, isRetry = false) {
     const requestData = {
         tour_id: tourId,
-        guide_order_index: guideOrderIndex,
+            guide_order_index: indexToTry,
         booking_index: bookingIndex,
         booking_date: bookingDate,
         pickup_date: pickupDate,
         entry_time: formattedTime
     };
     
-    console.log('Saving guide changes:', requestData);
+        console.log('🎯 [ORIGINAL] Trying guide update with index:', indexToTry, isRetry ? '(RETRY)' : '(FIRST ATTEMPT)');
     
-    fetch('{{ url("/booking/update-guide-booking") }}', {
+        return fetch('{{ url("/booking/update-guide-booking") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -6901,17 +7019,59 @@ function saveGuideChanges(tourId, guideOrderIndex, bookingIndex, editModalId) {
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Guide update response:', data);
-        
+            console.log('🎯 Guide update response from server:', data);
+            
+            // If first attempt failed with "Guide order not found", try reversed index
+            if (!data.success && data.message === "Guide order not found" && !isRetry) {
+                const reversedIndex = guideOrderIndex === 0 ? 1 : 0;
+                console.log('🎯 [ORIGINAL] First attempt failed, trying reversed index:', reversedIndex);
+                return tryGuideUpdate(reversedIndex, true);
+            }
+            
+            return data;
+        });
+    }
+    
+    // Start with original index
+    tryGuideUpdate(guideOrderIndex)
+    .then(data => {
         if (data.success) {
+            // Show success message with guide details
+            const guideName = document.getElementById(`guide_info_${editModalId}`)?.textContent || 'Professional Guide';
+            
+            // Create a nice success message
+            const successMessage = `
+                ✅ Guide booking updated successfully!
+                
+                Guide: ${guideName}
+                Booking Date: ${new Date(bookingDate).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                })}
+                Pickup Date: ${new Date(pickupDate).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                })}
+                Service Time: ${formattedTime}
+                
+                The booking details have been updated.
+            `;
+            
+            // Show success alert and refresh page after user clicks OK
+            setTimeout(() => {
+                alert(successMessage);
+                
             // Close the edit modal
             closeGuideEditModal(editModalId);
             
-            // Show success message
-            alert(data.message || 'Guide booking updated successfully!');
-            
-            // Refresh the page to show updated data
+                // Refresh the page after user dismisses the alert
             window.location.reload();
+            }, 100);
+            
         } else {
             alert('Error: ' + (data.message || 'Failed to update guide booking'));
         }
@@ -6934,22 +7094,757 @@ function validateGuideDates(bookingDate, pickupDate, tourId) {
         return true; // Allow if tour dates are not available
     }
     
-    const tourStartDate = new Date(tourData.check_in_time);
-    const tourEndDate = new Date(tourData.check_out_time);
-    const selectedBookingDate = new Date(bookingDate);
-    const selectedPickupDate = new Date(pickupDate);
+    // Extract date strings to avoid timezone issues
+    let tourStartDate, tourEndDate;
     
-    if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
-        alert('Booking date must be within the tour travel dates.');
+    if (tourData.check_in_time.includes(' ')) {
+        tourStartDate = tourData.check_in_time.split(' ')[0];
+    } else if (tourData.check_in_time.includes('T')) {
+        tourStartDate = tourData.check_in_time.split('T')[0];
+    } else {
+        tourStartDate = tourData.check_in_time;
+    }
+    
+    if (tourData.check_out_time.includes(' ')) {
+        tourEndDate = tourData.check_out_time.split(' ')[0];
+    } else if (tourData.check_out_time.includes('T')) {
+        tourEndDate = tourData.check_out_time.split('T')[0];
+    } else {
+        tourEndDate = tourData.check_out_time;
+    }
+    
+    console.log('Guide date validation:');
+    console.log('  Tour period:', tourStartDate, 'to', tourEndDate);
+    console.log('  Selected booking date:', bookingDate);
+    console.log('  Selected pickup date:', pickupDate);
+    
+    // Compare date strings directly (YYYY-MM-DD format)
+    if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+        const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        alert(`Booking date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
         return false;
     }
     
-    if (selectedPickupDate < tourStartDate || selectedPickupDate > tourEndDate) {
-        alert('Pickup date must be within the tour travel dates.');
+    if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+        const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        alert(`Pickup date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
         return false;
     }
     
     return true;
+}
+
+// Individual Guide Modal Functions
+window.openIndividualGuideEditModal = function(tourId, guideOrderIndex, bookingIndex, actualBookingId = null) {
+    try {
+        console.log('🎯 Opening individual guide edit modal for:', { tourId, guideOrderIndex, bookingIndex, actualBookingId });
+        console.log('🎯 This should be Guide', (guideOrderIndex + 1), 'Booking', (bookingIndex + 1));
+        
+        // Remove any existing modals for this guide booking
+        const existingModals = document.querySelectorAll(`[id*="individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}"]`);
+        existingModals.forEach(modal => modal.remove());
+        
+        // Create and show the individual guide edit modal
+        setTimeout(() => {
+            createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'edit');
+            // Load guide data after modal is created
+            setTimeout(() => {
+                loadGuideDataForIndividualEdit(tourId, guideOrderIndex, bookingIndex, actualBookingId);
+            }, 100);
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual guide edit modal:', error);
+        alert('Error opening guide edit modal. Please try again.');
+    }
+};
+
+window.openIndividualGuideApproveModal = function(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        console.log('✅ Opening individual guide approve modal for:', { tourId, guideOrderIndex, bookingIndex });
+        
+        // Remove any existing modals for this guide booking
+        const existingModals = document.querySelectorAll(`[id*="individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}"]`);
+        existingModals.forEach(modal => modal.remove());
+        
+        // Create and show the individual guide approve modal
+        setTimeout(() => {
+            createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'approve');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual guide approve modal:', error);
+        alert('Error opening approve modal. Please try again.');
+    }
+};
+
+window.openIndividualGuideRejectModal = function(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        console.log('❌ Opening individual guide reject modal for:', { tourId, guideOrderIndex, bookingIndex });
+        
+        // Remove any existing modals for this guide booking
+        const existingModals = document.querySelectorAll(`[id*="individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}"]`);
+        existingModals.forEach(modal => modal.remove());
+        
+        // Create and show the individual guide reject modal
+        setTimeout(() => {
+            createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, 'reject');
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error opening individual guide reject modal:', error);
+        alert('Error opening reject modal. Please try again.');
+    }
+};
+
+function createAndShowIndividualGuideModal(tourId, guideOrderIndex, bookingIndex, action) {
+    try {
+        const modalId = `individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}_${action}`;
+        
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
+        
+        switch (action) {
+            case 'edit':
+                modalTitle = 'Edit Individual Guide Booking';
+                modalColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                buttonClass = 'btn-primary';
+                buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
+                onSubmit = `saveIndividualGuideChanges(${tourId}, ${guideOrderIndex}, ${bookingIndex})`;
+                modalContent = generateEditGuideForm(tourId, guideOrderIndex, bookingIndex);
+                break;
+                
+            case 'approve':
+                modalTitle = 'Approve Individual Guide Booking';
+                modalColor = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+                buttonClass = 'btn-success';
+                buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
+                onSubmit = `confirmIndividualGuideApproval(${tourId}, ${guideOrderIndex}, ${bookingIndex})`;
+                modalContent = generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex);
+                break;
+                
+            case 'reject':
+                modalTitle = 'Reject Individual Guide Booking';
+                modalColor = 'linear-gradient(135deg, #dc3545 0%, #e74c3c 100%)';
+                buttonClass = 'btn-danger';
+                buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
+                onSubmit = `confirmIndividualGuideRejection(${tourId}, ${guideOrderIndex}, ${bookingIndex})`;
+                modalContent = generateRejectGuideForm(tourId, guideOrderIndex, bookingIndex);
+                break;
+        }
+        
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content shadow-lg" style="border-radius: 15px; overflow: hidden;">
+                        <!-- Modal Header -->
+                        <div class="modal-header p-4 border-0" style="background: ${modalColor};">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white rounded-circle p-2 me-3 shadow-sm">
+                                    <i class="ri-guide-line text-primary fs-5"></i>
+                                </div>
+                                <div>
+                                    <h5 class="modal-title fw-bold text-white mb-1">${modalTitle}</h5>
+                                    <p class="text-white-50 mb-0 small">Guide Order ${guideOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualGuideModal('${modalId}')" aria-label="Close"></button>
+                        </div>
+
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4">
+                            ${modalContent}
+                        </div>
+
+                        <!-- Modal Footer -->
+                        <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualGuideModal('${modalId}')" style="border-radius: 25px;">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Show modal
+        const modalElement = document.getElementById(modalId);
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        
+        // Remove modal from DOM when hidden
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            modalElement.remove();
+        });
+        
+        // Load data for approve modal
+        if (action === 'approve') {
+            setTimeout(() => {
+                console.log('🎯 Calling loadGuideDataForApprove for guide approve modal');
+                if (window.loadGuideDataForApprove) {
+                    window.loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex);
+                } else {
+                    loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex);
+                }
+            }, 500);
+        }
+        
+    } catch (error) {
+        console.error('Error creating individual guide modal:', error);
+        alert('Error creating modal. Please try again.');
+    }
+}
+
+function closeIndividualGuideModal(modalId) {
+    try {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            // Remove modal from DOM after hiding
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    } catch (error) {
+        console.error('Error closing individual guide modal:', error);
+    }
+}
+
+function generateEditGuideForm(tourId, guideOrderIndex, bookingIndex) {
+    return `
+        <form id="editIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}">
+            <input type="hidden" name="tour_id" value="${tourId}">
+            <input type="hidden" name="guide_order_index" value="${guideOrderIndex}">
+            <input type="hidden" name="booking_index" value="${bookingIndex}">
+            <input type="hidden" name="booking_id" id="bookingId_${tourId}_${guideOrderIndex}_${bookingIndex}">
+            
+            <!-- Guide Information Header -->
+            <div class="bg-gradient-primary text-white rounded p-4 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white rounded-circle p-2 me-3">
+                            <i class="ri-guide-line text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-white mb-1 fw-bold" id="guideName_${tourId}_${guideOrderIndex}_${bookingIndex}">Loading...</h5>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-light text-dark">
+                                    <i class="ri-guide-line me-1"></i>Guide Service
+                                </span>
+                                <span class="badge bg-warning text-dark">
+                                    <i class="ri-price-tag-line me-1"></i><span id="guidePrice_${tourId}_${guideOrderIndex}_${bookingIndex}">SGD 0.00</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Travel Date Range Info -->
+            <div class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 text-info fs-5"></i>
+                    <div>
+                        <div class="fw-semibold">Travel Date Constraint</div>
+                        <div class="small" id="travelDateRange_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                            Loading travel date information...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Summary Section -->
+            <div class="card border-0 bg-light mb-4" style="border-radius: 12px;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary rounded-circle p-2 me-3">
+                            <i class="ri-calendar-line text-white"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark">Booking Summary</h6>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <small class="text-muted">Guide Name:</small>
+                            <div class="fw-medium" id="summaryGuideName_${tourId}_${guideOrderIndex}_${bookingIndex}">Loading...</div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <small class="text-muted">Service Hours:</small>
+                            <div class="fw-medium" id="summaryServiceHours_${tourId}_${guideOrderIndex}_${bookingIndex}">N/A</div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <small class="text-muted">Total Price:</small>
+                            <div class="fw-medium text-success" id="summaryTotalPrice_${tourId}_${guideOrderIndex}_${bookingIndex}">SGD 0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date and Time Selection -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                <div class="card-header bg-light py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="ri-calendar-alt text-primary me-2 fa-lg"></i>
+                        <h5 class="mb-0 fw-bold">Edit Guide Schedule</h5>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-calendar-check-line me-2 text-success"></i>Booking Date
+                            </label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   name="booking_date" 
+                                   id="bookingDate_${tourId}_${guideOrderIndex}_${bookingIndex}" 
+                                   required
+                                   onchange="validateGuideIndividualDates(${tourId}, ${guideOrderIndex}, ${bookingIndex})">
+                            <div class="form-text">
+                                <i class="ri-information-line me-1"></i>
+                                Must be within travel dates
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-calendar-check-line me-2 text-warning"></i>Pickup Date
+                            </label>
+                            <input type="date" 
+                                   class="form-control form-control-lg" 
+                                   name="pickup_date" 
+                                   id="pickupDate_${tourId}_${guideOrderIndex}_${bookingIndex}" 
+                                   required
+                                   onchange="validateGuideIndividualDates(${tourId}, ${guideOrderIndex}, ${bookingIndex})">
+                            <div class="form-text">
+                                <i class="ri-information-line me-1"></i>
+                                Must be within travel dates
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-time-line me-2 text-info"></i>Service Time
+                            </label>
+                            <input type="time" 
+                                   class="form-control form-control-lg" 
+                                   name="entry_time" 
+                                   id="entryTime_${tourId}_${guideOrderIndex}_${bookingIndex}" 
+                                   required>
+                            <div class="form-text">
+                                <i class="ri-information-line me-1"></i>
+                                Service start time
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    `;
+}
+
+function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
+    return `
+        <div class="text-center mb-4">
+            <div class="bg-success rounded-circle p-3 d-inline-flex mb-3">
+                <i class="ri-check-line text-white fs-1"></i>
+            </div>
+            <h4 class="text-success fw-bold">Approve Guide Booking</h4>
+            <p class="text-muted">Confirm that you want to approve this guide booking. This action cannot be undone.</p>
+        </div>
+        
+        <div class="card border-success border-2 bg-light">
+            <div class="card-body p-4">
+                <div id="guideApproveDetails_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading guide details...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateRejectGuideForm(tourId, guideOrderIndex, bookingIndex) {
+    return `
+        <div class="text-center mb-4">
+            <div class="bg-danger rounded-circle p-3 d-inline-flex mb-3">
+                <i class="ri-close-line text-white fs-1"></i>
+            </div>
+            <h4 class="text-danger fw-bold">Reject Guide Booking</h4>
+            <p class="text-muted">Confirm that you want to reject this guide booking. This action cannot be undone.</p>
+        </div>
+        
+        <div class="card border-danger border-2 bg-light">
+            <div class="card-body p-4">
+                <div id="guideRejectDetails_${tourId}_${guideOrderIndex}_${bookingIndex}">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading guide details...</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <label class="form-label fw-semibold text-danger">
+                        <i class="ri-message-line me-2"></i>Rejection Reason (Optional)
+                    </label>
+                    <textarea class="form-control" rows="3" id="rejectionReason_${tourId}_${guideOrderIndex}_${bookingIndex}" 
+                              placeholder="Enter reason for rejection (optional)..."></textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function loadGuideDataForIndividualEdit(tourId, guideOrderIndex, bookingIndex, actualBookingId = null) {
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    // Get tour data for date constraints
+    const tourData = getTourDataFromPage(tourId);
+    console.log('Tour data for individual guide edit:', tourData);
+    console.log('🎯 Loading individual guide data with parameters:', { tourId, guideOrderIndex, bookingIndex, actualBookingId });
+    
+    // Prepare request body - use actual booking ID if provided
+    const requestBody = actualBookingId ? {
+        tour_id: tourId,
+        booking_id: actualBookingId
+    } : {
+        tour_id: tourId,
+        guide_order_index: guideOrderIndex,
+        booking_index: bookingIndex
+    };
+    
+    console.log('🎯 Request body being sent:', requestBody);
+    
+    fetch('{{ url("/booking/get-guide-data") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🎯 Individual guide data received from server:', data);
+        
+        if (data.success && data.data) {
+            const guideDetails = data.data;
+            console.log('🎯 Guide details loaded:', {
+                id: guideDetails.booking_id,
+                name: guideDetails.guide_name,
+                booking_date: guideDetails.booking_date,
+                pickup_date: guideDetails.pickup_date
+            });
+            console.log('🎯 Expected: Guide', (guideOrderIndex + 1), 'but loaded guide with ID:', guideDetails.booking_id);
+            
+            // Update guide information in header
+            const guideNameElement = document.getElementById(`guideName_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const guidePriceElement = document.getElementById(`guidePrice_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            
+            if (guideNameElement) {
+                guideNameElement.textContent = guideDetails.guide_name || 'Professional Guide';
+            }
+            if (guidePriceElement) {
+                guidePriceElement.textContent = `SGD ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
+            }
+            
+            // Update summary section
+            const summaryGuideNameElement = document.getElementById(`summaryGuideName_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const summaryServiceHoursElement = document.getElementById(`summaryServiceHours_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const summaryTotalPriceElement = document.getElementById(`summaryTotalPrice_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const travelDateRangeElement = document.getElementById(`travelDateRange_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const bookingIdElement = document.getElementById(`bookingId_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            
+            if (summaryGuideNameElement) {
+                summaryGuideNameElement.textContent = guideDetails.guide_name || 'Professional Guide';
+            }
+            if (summaryServiceHoursElement) {
+                summaryServiceHoursElement.textContent = `${guideDetails.hours || 'N/A'} Hours`;
+            }
+            if (summaryTotalPriceElement) {
+                summaryTotalPriceElement.textContent = `SGD ${parseFloat(guideDetails.total_price || 0).toFixed(2)}`;
+            }
+            if (bookingIdElement) {
+                bookingIdElement.value = guideDetails.booking_id;
+                console.log('🎯 Set booking_id in form:', guideDetails.booking_id, 'for guide:', guideDetails.guide_name);
+            }
+            
+            // Set travel date range information with proper formatting
+            if (travelDateRangeElement && tourData.check_in_time && tourData.check_out_time) {
+                // Extract date strings to avoid timezone issues
+                let tourStartDate, tourEndDate;
+                
+                if (tourData.check_in_time.includes(' ')) {
+                    tourStartDate = tourData.check_in_time.split(' ')[0];
+                } else if (tourData.check_in_time.includes('T')) {
+                    tourStartDate = tourData.check_in_time.split('T')[0];
+                } else {
+                    tourStartDate = tourData.check_in_time;
+                }
+                
+                if (tourData.check_out_time.includes(' ')) {
+                    tourEndDate = tourData.check_out_time.split(' ')[0];
+                } else if (tourData.check_out_time.includes('T')) {
+                    tourEndDate = tourData.check_out_time.split('T')[0];
+                } else {
+                    tourEndDate = tourData.check_out_time;
+                }
+                
+                // Format dates for display using the extracted date strings
+                const startDate = new Date(tourStartDate).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const endDate = new Date(tourEndDate).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                travelDateRangeElement.innerHTML = `Guide booking must be within the tour travel period: <strong class="text-primary">${startDate}</strong> to <strong class="text-primary">${endDate}</strong>`;
+            }
+            
+            // Set up date and time inputs with restrictions and current values
+            const bookingDateInput = document.getElementById(`bookingDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const pickupDateInput = document.getElementById(`pickupDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            const entryTimeInput = document.getElementById(`entryTime_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+            
+            if (bookingDateInput && pickupDateInput) {
+                // Set date constraints - avoid timezone issues
+                if (tourData.check_in_time && tourData.check_out_time) {
+                    // Extract date strings to avoid timezone conversion issues
+                    let minDate, maxDate;
+                    
+                    if (tourData.check_in_time.includes(' ')) {
+                        minDate = tourData.check_in_time.split(' ')[0];
+                    } else if (tourData.check_in_time.includes('T')) {
+                        minDate = tourData.check_in_time.split('T')[0];
+                    } else {
+                        minDate = tourData.check_in_time;
+                    }
+                    
+                    if (tourData.check_out_time.includes(' ')) {
+                        maxDate = tourData.check_out_time.split(' ')[0];
+                    } else if (tourData.check_out_time.includes('T')) {
+                        maxDate = tourData.check_out_time.split('T')[0];
+                    } else {
+                        maxDate = tourData.check_out_time;
+                    }
+                    
+                    bookingDateInput.min = minDate;
+                    bookingDateInput.max = maxDate;
+                    pickupDateInput.min = minDate;
+                    pickupDateInput.max = maxDate;
+                    
+                    console.log('Individual guide date constraints applied:');
+                    console.log('  Min date:', minDate, 'from:', tourData.check_in_time);
+                    console.log('  Max date:', maxDate, 'from:', tourData.check_out_time);
+                    
+                    // Force update date input constraints after a short delay
+                    setTimeout(() => {
+                        bookingDateInput.setAttribute('min', minDate);
+                        bookingDateInput.setAttribute('max', maxDate);
+                        pickupDateInput.setAttribute('min', minDate);
+                        pickupDateInput.setAttribute('max', maxDate);
+                        console.log('Individual guide date constraints forced update - Min:', minDate, 'Max:', maxDate);
+                    }, 100);
+                }
+                
+                // Set current booking dates if available
+                if (guideDetails.booking_date) {
+                    bookingDateInput.value = guideDetails.booking_date;
+                }
+                if (guideDetails.pickup_date) {
+                    pickupDateInput.value = guideDetails.pickup_date;
+                }
+            }
+            
+            // Set up time input
+            if (entryTimeInput && guideDetails.entry_time) {
+                // Convert 12-hour time to 24-hour format for input
+                const convertedTime = convertTo24HourFormat(guideDetails.entry_time);
+                entryTimeInput.value = convertedTime;
+            }
+            
+        } else {
+            console.error('Failed to load individual guide data:', data);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading individual guide data for edit:', error);
+    });
+}
+
+function validateGuideIndividualDates(tourId, guideOrderIndex, bookingIndex) {
+    const bookingDateInput = document.getElementById(`bookingDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+    const pickupDateInput = document.getElementById(`pickupDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+    
+    if (!bookingDateInput || !pickupDateInput) return;
+    
+    const bookingDate = bookingDateInput.value;
+    const pickupDate = pickupDateInput.value;
+    
+    // Validate dates using the existing validateGuideDates function
+    return validateGuideDates(bookingDate, pickupDate, tourId);
+}
+
+function saveIndividualGuideChanges(tourId, guideOrderIndex, bookingIndex) {
+    try {
+        const form = document.getElementById(`editIndividualGuideForm_${tourId}_${guideOrderIndex}_${bookingIndex}`);
+        if (!form) {
+            console.error('Individual guide edit form not found');
+            return;
+        }
+        
+        // Validate form
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const bookingDate = formData.get('booking_date');
+        const pickupDate = formData.get('pickup_date');
+        const entryTime = formData.get('entry_time');
+        const bookingId = formData.get('booking_id');
+        console.log('🎯 Retrieved booking_id from form:', bookingId, 'for guide order:', guideOrderIndex, 'booking:', bookingIndex);
+        
+        // Additional date validation
+        if (!validateGuideIndividualDates(tourId, guideOrderIndex, bookingIndex)) {
+            return;
+        }
+        
+        // Convert 24-hour time to 12-hour format for storage
+        const formattedTime = convertTo12HourFormat(entryTime);
+        
+        const updateData = {
+            tour_id: tourId,
+            guide_order_index: guideOrderIndex,
+            booking_index: bookingIndex,
+            booking_id: bookingId,
+            booking_date: bookingDate,
+            pickup_date: pickupDate,
+            entry_time: formattedTime,
+            // Add additional identification to ensure correct guide is updated
+            force_booking_id: bookingId, // Backend should prioritize this
+            _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        };
+        
+        console.log('🎯 Saving individual guide changes with parameters:', { tourId, guideOrderIndex, bookingIndex });
+        console.log('🎯 Update data being sent:', updateData);
+        
+        // Show loading state
+        const saveButton = document.querySelector(`button[onclick*="saveIndividualGuideChanges(${tourId}, ${guideOrderIndex}, ${bookingIndex})"]`);
+        const originalText = saveButton.innerHTML;
+        saveButton.innerHTML = '<i class="ri-loader-4-line me-2 spinner-border spinner-border-sm"></i>Saving...';
+        saveButton.disabled = true;
+        
+        fetch('{{ url("/booking/update-guide-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': updateData._token,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🎯 Guide update response from server:', data);
+            
+            // Reset button
+            saveButton.innerHTML = originalText;
+            saveButton.disabled = false;
+            
+            if (data.success) {
+                // Show success message with guide details
+                const guideName = document.getElementById(`guideName_${tourId}_${guideOrderIndex}_${bookingIndex}`)?.textContent || 'Professional Guide';
+                
+                // Create a nice success message
+                const successMessage = `
+                    ✅ Guide booking updated successfully!
+                    
+                    Guide: ${guideName}
+                    Booking Date: ${new Date(bookingDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })}
+                    Pickup Date: ${new Date(pickupDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })}
+                    Service Time: ${formattedTime}
+                    
+                    The booking details have been updated.
+                `;
+                
+                // Show success alert and refresh page after user clicks OK
+                setTimeout(() => {
+                    alert(successMessage);
+                    
+                    // Close modal
+                    const modalId = `individualGuideModal_${tourId}_${guideOrderIndex}_${bookingIndex}_edit`;
+                    closeIndividualGuideModal(modalId);
+                    
+                    // Refresh the page after user dismisses the alert
+                    window.location.reload();
+                }, 100);
+                
+            } else {
+                alert('Error updating guide booking: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error saving individual guide changes:', error);
+            
+            // Reset button
+            saveButton.innerHTML = originalText;
+            saveButton.disabled = false;
+            
+            alert('Network error occurred. Please try again.');
+        });
+        
+    } catch (error) {
+        console.error('Error in saveIndividualGuideChanges:', error);
+        alert('An error occurred. Please try again.');
+    }
+}
+
+function confirmIndividualGuideApproval(tourId, guideOrderIndex, bookingIndex) {
+    // Implementation for guide approval
+    alert('Guide approval functionality - to be implemented');
+}
+
+function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) {
+    // Implementation for guide rejection
+    alert('Guide rejection functionality - to be implemented');
 }
 
 // Individual Hotel Modal Functions
@@ -8490,79 +9385,6 @@ function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
     }
 }
 
-function createAndShowIndividualAttractionEditModal(tourId, attractionOrderIndex, bookingIndex, action) {
-    try {
-        const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
-        
-        // Remove existing modal if it exists
-        const existingModal = document.getElementById(modalId);
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        let modalTitle, modalColor, buttonClass, buttonText, onSubmit, modalContent;
-        
-        switch (action) {
-            case 'edit':
-                modalTitle = 'Edit Individual Attraction Booking';
-                modalColor = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                buttonClass = 'btn-primary';
-                buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
-                onSubmit = `saveIndividualAttractionChanges(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex);
-                break;
-                
-            default:
-                console.error('Unknown action:', action);
-                return;
-        }
-        
-        const modalHtml = `
-            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-                    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
-                        <div class="modal-header text-white position-relative overflow-hidden" style="background: ${modalColor}; border: none; padding: 2rem;">
-                            <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10" style="background: repeating-linear-gradient(45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px, transparent 1px, transparent 20px);"></div>
-                            <div class="position-relative">
-                                <h4 class="modal-title fw-bold mb-1" style="font-size: 1.5rem;">
-                                    <i class="ri-building-2-line me-2" style="font-size: 1.8rem;"></i>
-                                    ${modalTitle}
-                                </h4>
-                                <p class="mb-0 opacity-75">Tour #${tourId} - Individual Attraction Booking</p>
-                            </div>
-                            <button type="button" class="btn-close btn-close-white" onclick="closeIndividualAttractionEditModal('${modalId}')" aria-label="Close" style="filter: brightness(0) invert(1); font-size: 1.2rem;"></button>
-                        </div>
-                        <div class="modal-body p-0">
-                            <div class="p-4">
-                                ${modalContent}
-                            </div>
-                        </div>
-                        <div class="modal-footer border-0 bg-light p-4">
-                            <div class="d-flex justify-content-end gap-3 w-100">
-                                <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeIndividualAttractionEditModal('${modalId}')" style="border-radius: 25px;">
-                                    <i class="ri-close-line me-1"></i>Cancel
-                                </button>
-                                <button type="button" class="btn ${buttonClass} px-4 py-2" onclick="${onSubmit}" style="border-radius: 25px;">
-                                    ${buttonText}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // Show the modal
-        const modal = new bootstrap.Modal(document.getElementById(modalId));
-        modal.show();
-        
-    } catch (error) {
-        console.error('Error creating individual attraction modal:', error);
-        alert('Error creating modal. Please try again.');
-    }
-}
 
 function closeIndividualAttractionEditModal(modalId) {
     try {
@@ -8582,119 +9404,55 @@ function closeIndividualAttractionEditModal(modalId) {
     }
 }
 
-function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
-    return `
-        <form id="editIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
-            <input type="hidden" name="tour_id" value="${tourId}">
-            <input type="hidden" name="attraction_order_index" value="${attractionOrderIndex}">
-            <input type="hidden" name="booking_index" value="${bookingIndex}">
-            <input type="hidden" name="booking_id" id="bookingId_${tourId}_${attractionOrderIndex}_${bookingIndex}">
+function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
+    try {
+        const visitDateInput = document.getElementById(`bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
+        
+        if (!visitDateInput) return;
+        
+        const visitDate = visitDateInput.value;
+        
+        // Validate dates are within tour travel period
+        const tourData = getTourDataFromPage(tourId);
+        if (tourData && tourData.check_in_time && tourData.check_out_time && visitDate) {
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
             
-            <!-- Attraction Information Header -->
-            <div class="bg-gradient-primary text-white rounded p-4 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white rounded-circle p-2 me-3">
-                            <i class="ri-building-2-line text-primary fs-4"></i>
-                        </div>
-                        <div>
-                            <h5 class="text-white mb-1 fw-bold" id="attractionName_${tourId}_${attractionOrderIndex}_${bookingIndex}">Loading...</h5>
-                            <div class="d-flex gap-3">
-                                <span class="badge bg-light text-dark">
-                                    <i class="ri-building-2-line me-1"></i>Attraction Booking
-                                </span>
-                                <span class="badge bg-warning text-dark">
-                                    <i class="ri-price-tag-line me-1"></i><span id="attractionPrice_${tourId}_${attractionOrderIndex}_${bookingIndex}">SGD 0.00</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <div class="badge bg-white text-primary px-3 py-2 fs-6">
-                            <i class="ri-calendar-line me-1"></i>Attraction ${bookingIndex + 1}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Travel Date Constraint Alert -->
-            <div class="alert alert-info border-0 mb-4" style="background: linear-gradient(45deg, #e3f2fd, #f3e5f5); border-radius: 12px;">
-                <div class="d-flex align-items-center">
-                    <i class="ri-information-line me-2 text-info fs-4"></i>
-                    <div>
-                        <strong class="text-info">Travel Date Constraint</strong>
-                        <p class="mb-0 text-muted small mt-1">Visit date must be within the tour travel dates: <span id="travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="fw-bold text-primary">Loading...</span></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Visit Date -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0 py-3">
-                    <h6 class="mb-0 fw-bold text-dark">
-                        <i class="ri-calendar-line me-2 text-primary"></i>Visit Date
-                    </h6>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row">
-                        <div class="col-12">
-                            <label for="bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                <i class="ri-calendar-check-line me-1 text-primary"></i>Visit Date
-                            </label>
-                            <input type="date" 
-                                   class="form-control form-control-lg" 
-                                   id="bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" 
-                                   name="booking_date" 
-                                   required 
-                                   style="border-radius: 12px; border: 2px solid #e9ecef;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Visit Time -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
-                <div class="card-header bg-light border-0 py-3">
-                    <h6 class="mb-0 fw-bold text-dark">
-                        <i class="ri-time-line me-2 text-primary"></i>Visit Time Range
-                    </h6>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="visitTimeStart_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                <i class="ri-time-line me-1 text-success"></i>Start Time
-                            </label>
-                            <input type="time" 
-                                   class="form-control form-control-lg" 
-                                   id="visitTimeStart_${tourId}_${attractionOrderIndex}_${bookingIndex}" 
-                                   name="visit_time_start" 
-                                   required 
-                                   style="border-radius: 12px; border: 2px solid #e9ecef;">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="visitTimeEnd_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                <i class="ri-time-line me-1 text-danger"></i>End Time
-                            </label>
-                            <input type="time" 
-                                   class="form-control form-control-lg" 
-                                   id="visitTimeEnd_${tourId}_${attractionOrderIndex}_${bookingIndex}" 
-                                   name="visit_time_end" 
-                                   required 
-                                   style="border-radius: 12px; border: 2px solid #e9ecef;">
-                        </div>
-                    </div>
-                    <div class="mt-3 p-3 bg-light rounded-3">
-                        <div class="d-flex align-items-center">
-                            <i class="ri-time-line text-primary me-2"></i>
-                            <span class="text-muted small">Current visit time range: </span>
-                            <span id="currentVisitTime_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="fw-bold text-dark ms-1">Loading...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    `;
+            if (tourData.check_in_time.includes(' ')) {
+                tourStartDate = tourData.check_in_time.split(' ')[0];
+            } else if (tourData.check_in_time.includes('T')) {
+                tourStartDate = tourData.check_in_time.split('T')[0];
+            } else {
+                tourStartDate = tourData.check_in_time;
+            }
+            
+            if (tourData.check_out_time.includes(' ')) {
+                tourEndDate = tourData.check_out_time.split(' ')[0];
+            } else if (tourData.check_out_time.includes('T')) {
+                tourEndDate = tourData.check_out_time.split('T')[0];
+            } else {
+                tourEndDate = tourData.check_out_time;
+            }
+            
+            console.log('Attraction date validation:');
+            console.log('  Tour period: ', tourStartDate, 'to', tourEndDate);
+            console.log('  Selected visit date: ', visitDate);
+            
+            // Compare date strings directly (YYYY-MM-DD format)
+            if (visitDate < tourStartDate || visitDate > tourEndDate) {
+                const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                alert(`Visit date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
+                visitDateInput.value = '';
+                return false;
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error validating attraction date:', error);
+        return false;
+    }
 }
 
 function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
@@ -8750,12 +9508,55 @@ function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
             const checkOutDate = tourData.check_out_time;
             
             if (checkInDate && checkOutDate) {
-                document.getElementById(`travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = `${checkInDate} to ${checkOutDate}`;
+                // Extract date strings to avoid timezone issues
+                let tourStartDate, tourEndDate;
                 
-                // Set min/max dates for the date input
+                if (checkInDate.includes(' ')) {
+                    tourStartDate = checkInDate.split(' ')[0];
+                } else if (checkInDate.includes('T')) {
+                    tourStartDate = checkInDate.split('T')[0];
+                } else {
+                    tourStartDate = checkInDate;
+                }
+                
+                if (checkOutDate.includes(' ')) {
+                    tourEndDate = checkOutDate.split(' ')[0];
+                } else if (checkOutDate.includes('T')) {
+                    tourEndDate = checkOutDate.split('T')[0];
+                } else {
+                    tourEndDate = checkOutDate;
+                }
+                
+                // Format dates for display
+                const startDateFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const endDateFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                document.getElementById(`travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}`).innerHTML = `Visit date must be within the tour travel period: <strong class="text-primary">${startDateFormatted}</strong> to <strong class="text-primary">${endDateFormatted}</strong>`;
+                
+                // Set min/max dates for the date input using properly parsed dates
                 const bookingDateInput = document.getElementById(`bookingDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
-                bookingDateInput.min = checkInDate;
-                bookingDateInput.max = checkOutDate;
+                bookingDateInput.min = tourStartDate;
+                bookingDateInput.max = tourEndDate;
+                
+                console.log('Set attraction date constraints - Min:', tourStartDate, 'Max:', tourEndDate);
+                
+                // Force update date input constraints after a short delay
+                setTimeout(() => {
+                    bookingDateInput.setAttribute('min', tourStartDate);
+                    bookingDateInput.setAttribute('max', tourEndDate);
+                    console.log('Attraction date constraints applied - Min:', tourStartDate, 'Max:', tourEndDate);
+                }, 100);
+                
             } else {
                 document.getElementById(`travelDateRange_${tourId}_${attractionOrderIndex}_${bookingIndex}`).textContent = 'Loading...';
             }
@@ -10285,429 +11086,429 @@ function confirmDepartureRejection(tourId, departureOrderIndex, departureBooking
     });
 }
 
-function createAndShowArrivalEditModal(tourId, arrivalOrderIndex, arrivalBookingIndex) {
-    const editModalId = `editArrivalModal_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`;
+// function createAndShowArrivalEditModal(tourId, arrivalOrderIndex, arrivalBookingIndex) {
+//     const editModalId = `editArrivalModal_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}`;
     
-    // Get tour dates for validation
-    const tourData = getTourDataFromPage(tourId);
-    const tourStartDate = tourData.checkInDate;
-    const tourEndDate = tourData.checkOutDate;
+//     // Get tour dates for validation
+//     const tourData = getTourDataFromPage(tourId);
+//     const tourStartDate = tourData.checkInDate;
+//     const tourEndDate = tourData.checkOutDate;
     
-    const editModalHTML = `
-        <div class="modal fade" id="${editModalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-                <div class="modal-content shadow-lg" style="border-radius: 15px;">
-                    <!-- Modal Header with Vehicle Info -->
-                    <div class="modal-header bg-gradient-primary text-white border-0 p-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 140px;">
-                        <div class="container-fluid p-4">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
-                                            <i class="ri-flight-takeoff-line fs-4 text-black"></i>
-                                        </div>
-                                        <div>
-                                            <h5 class="mb-0 fw-bold text-white">Edit Arrival Booking</h5>
-                                            <small id="arrival_vehicle_info_${editModalId}" class="text-white opacity-75">Jaguar F-Pace • Airport Transfer</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeArrivalEditModal('${editModalId}')" aria-label="Close"></button>
-                        </div>
-                    </div>
+//     const editModalHTML = `
+//         <div class="modal fade" id="${editModalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+//             <div class="modal-dialog modal-dialog-centered modal-lg">
+//                 <div class="modal-content shadow-lg" style="border-radius: 15px;">
+//                     <!-- Modal Header with Vehicle Info -->
+//                     <div class="modal-header bg-gradient-primary text-white border-0 p-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 140px;">
+//                         <div class="container-fluid p-4">
+//                             <div class="row align-items-center">
+//                                 <div class="col-md-6">
+//                                     <div class="d-flex align-items-center">
+//                                         <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+//                                             <i class="ri-flight-takeoff-line fs-4 text-black"></i>
+//                                         </div>
+//                                         <div>
+//                                             <h5 class="mb-0 fw-bold text-white">Edit Arrival Booking</h5>
+//                                             <small id="arrival_vehicle_info_${editModalId}" class="text-white opacity-75">Jaguar F-Pace • Airport Transfer</small>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                             <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeArrivalEditModal('${editModalId}')" aria-label="Close"></button>
+//                         </div>
+//                     </div>
 
-                    <!-- Modal Body -->
-                    <div class="modal-body p-4" style="background-color: #f8f9fa;">
-                        <!-- Travel Date Constraint -->
-                        <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
-                            <i class="ri-information-line fs-5 me-3 text-info"></i>
-                            <div>
-                                <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
-                                <small id="arrival_date_constraint_${editModalId}" class="text-muted">Arrival booking must be within the tour travel period: <strong>${tourStartDate || 'Loading...'}</strong> to <strong>${tourEndDate || 'Loading...'}</strong></small>
-                            </div>
-                        </div>
+//                     <!-- Modal Body -->
+//                     <div class="modal-body p-4" style="background-color: #f8f9fa;">
+//                         <!-- Travel Date Constraint -->
+//                         <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
+//                             <i class="ri-information-line fs-5 me-3 text-info"></i>
+//                             <div>
+//                                 <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
+//                                 <small id="arrival_date_constraint_${editModalId}" class="text-muted">Arrival booking must be within the tour travel period: <strong>${tourStartDate || 'Loading...'}</strong> to <strong>${tourEndDate || 'Loading...'}</strong></small>
+//                             </div>
+//                         </div>
                         
-                        <form id="arrivalEditForm_${editModalId}">
-                            <!-- Edit Booking Date & Time Section -->
-                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
-                                <div class="card-header bg-light border-0" style="border-radius: 12px 12px 0 0;">
-                                    <h6 class="mb-0 fw-bold text-dark">
-                                        <i class="ri-calendar-line me-2 text-primary"></i>Edit Booking Date & Time
-                                    </h6>
-                                </div>
-                                <div class="card-body p-4">
-                                    <!-- Booking Date -->
-                                    <div class="mb-3">
-                                        <label for="arrival_booking_date_${editModalId}" class="form-label fw-semibold">
-                                            <i class="ri-calendar-event-line me-1 text-success"></i>Booking Date
-                                        </label>
-                                        <input type="date" class="form-control form-control-lg" id="arrival_booking_date_${editModalId}" 
-                                               min="${tourStartDate}" max="${tourEndDate}" required 
-                                               style="border-radius: 8px; border: 2px solid #e0e0e0;">
-                                        <div class="form-text">
-                                            <i class="ri-information-line me-1"></i>Select date within tour travel dates (${tourStartDate} to ${tourEndDate})
-                                        </div>
-                                    </div>
+//                         <form id="arrivalEditForm_${editModalId}">
+//                             <!-- Edit Booking Date & Time Section -->
+//                             <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+//                                 <div class="card-header bg-light border-0" style="border-radius: 12px 12px 0 0;">
+//                                     <h6 class="mb-0 fw-bold text-dark">
+//                                         <i class="ri-calendar-line me-2 text-primary"></i>Edit Booking Date & Time
+//                                     </h6>
+//                                 </div>
+//                                 <div class="card-body p-4">
+//                                     <!-- Booking Date -->
+//                                     <div class="mb-3">
+//                                         <label for="arrival_booking_date_${editModalId}" class="form-label fw-semibold">
+//                                             <i class="ri-calendar-event-line me-1 text-success"></i>Booking Date
+//                                         </label>
+//                                         <input type="date" class="form-control form-control-lg" id="arrival_booking_date_${editModalId}" 
+//                                                min="${tourStartDate}" max="${tourEndDate}" required 
+//                                                style="border-radius: 8px; border: 2px solid #e0e0e0;">
+//                                         <div class="form-text">
+//                                             <i class="ri-information-line me-1"></i>Select date within tour travel dates (${tourStartDate} to ${tourEndDate})
+//                                         </div>
+//                                     </div>
                                     
-                                    <!-- Pickup Date and Entry Time -->
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="arrival_pickup_date_${editModalId}" class="form-label fw-semibold">
-                                                <i class="ri-calendar-check-line me-1 text-warning"></i>Pickup Date
-                                            </label>
-                                            <input type="date" class="form-control form-control-lg" id="arrival_pickup_date_${editModalId}" 
-                                                   min="${tourStartDate}" max="${tourEndDate}" required 
-                                                   style="border-radius: 8px; border: 2px solid #e0e0e0;">
-                                            <div class="form-text">
-                                                <i class="ri-information-line me-1"></i>Select date within tour travel dates
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="arrival_entry_time_${editModalId}" class="form-label fw-semibold">
-                                                <i class="ri-time-line me-1 text-info"></i>Entry Time
-                                            </label>
-                                            <input type="time" class="form-control form-control-lg" id="arrival_entry_time_${editModalId}" required 
-                                                   style="border-radius: 8px; border: 2px solid #e0e0e0;">
-                                            <div class="form-text">
-                                                <i class="ri-information-line me-1"></i>Please enter time in 24-hour format (HH:MM)
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+//                                     <!-- Pickup Date and Entry Time -->
+//                                     <div class="row">
+//                                         <div class="col-md-6 mb-3">
+//                                             <label for="arrival_pickup_date_${editModalId}" class="form-label fw-semibold">
+//                                                 <i class="ri-calendar-check-line me-1 text-warning"></i>Pickup Date
+//                                             </label>
+//                                             <input type="date" class="form-control form-control-lg" id="arrival_pickup_date_${editModalId}" 
+//                                                    min="${tourStartDate}" max="${tourEndDate}" required 
+//                                                    style="border-radius: 8px; border: 2px solid #e0e0e0;">
+//                                             <div class="form-text">
+//                                                 <i class="ri-information-line me-1"></i>Select date within tour travel dates
+//                                             </div>
+//                                         </div>
+//                                         <div class="col-md-6 mb-3">
+//                                             <label for="arrival_entry_time_${editModalId}" class="form-label fw-semibold">
+//                                                 <i class="ri-time-line me-1 text-info"></i>Entry Time
+//                                             </label>
+//                                             <input type="time" class="form-control form-control-lg" id="arrival_entry_time_${editModalId}" required 
+//                                                    style="border-radius: 8px; border: 2px solid #e0e0e0;">
+//                                             <div class="form-text">
+//                                                 <i class="ri-information-line me-1"></i>Please enter time in 24-hour format (HH:MM)
+//                                             </div>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
                             
-                            <!-- Booking Summary -->
-                            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
-                                <div class="card-header bg-light border-0" style="border-radius: 12px 12px 0 0;">
-                                    <h6 class="mb-0 fw-bold text-dark">
-                                        <i class="ri-file-list-3-line me-2 text-secondary"></i>Booking Summary
-                                    </h6>
-                                </div>
-                                <div class="card-body p-4">
-                                    <div class="row">
-                                        <div class="col-md-4 mb-2">
-                                            <small class="text-muted">Service Type</small>
-                                            <div class="fw-bold text-dark">ARRIVAL TRANSFER</div>
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <small class="text-muted">Tour ID</small>
-                                            <div class="fw-bold text-dark">${tourId}</div>
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <small class="text-muted">Total Price</small>
-                                            <div class="fw-bold text-success">SGD 160.00</div>
-                                        </div>
-                                    </div>
-                                    <div class="row mt-3">
-                                        <div class="col-md-6 mb-2">
-                                            <small class="text-muted">Vehicle</small>
-                                            <div class="fw-medium text-dark">Jaguar F-Pace</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+//                             <!-- Booking Summary -->
+//                             <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+//                                 <div class="card-header bg-light border-0" style="border-radius: 12px 12px 0 0;">
+//                                     <h6 class="mb-0 fw-bold text-dark">
+//                                         <i class="ri-file-list-3-line me-2 text-secondary"></i>Booking Summary
+//                                     </h6>
+//                                 </div>
+//                                 <div class="card-body p-4">
+//                                     <div class="row">
+//                                         <div class="col-md-4 mb-2">
+//                                             <small class="text-muted">Service Type</small>
+//                                             <div class="fw-bold text-dark">ARRIVAL TRANSFER</div>
+//                                         </div>
+//                                         <div class="col-md-4 mb-2">
+//                                             <small class="text-muted">Tour ID</small>
+//                                             <div class="fw-bold text-dark">${tourId}</div>
+//                                         </div>
+//                                         <div class="col-md-4 mb-2">
+//                                             <small class="text-muted">Total Price</small>
+//                                             <div class="fw-bold text-success">SGD 160.00</div>
+//                                         </div>
+//                                     </div>
+//                                     <div class="row mt-3">
+//                                         <div class="col-md-6 mb-2">
+//                                             <small class="text-muted">Vehicle</small>
+//                                             <div class="fw-medium text-dark">Jaguar F-Pace</div>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </form>
+//                     </div>
 
-                    <!-- Modal Footer -->
-                    <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
-                        <button type="button" class="btn btn-light px-4 py-2 me-2" onclick="closeArrivalEditModal('${editModalId}')" style="border-radius: 25px; border: 2px solid #dee2e6;">
-                            <i class="ri-close-line me-2"></i>Cancel
-                        </button>
-                        <button type="button" class="btn btn-primary px-4 py-2" onclick="saveArrivalChanges(${tourId}, ${arrivalOrderIndex}, ${arrivalBookingIndex}, '${editModalId}')" style="border-radius: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
-                            <i class="ri-save-line me-2"></i>Save Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+//                     <!-- Modal Footer -->
+//                     <div class="modal-footer border-0 p-4" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+//                         <button type="button" class="btn btn-light px-4 py-2 me-2" onclick="closeArrivalEditModal('${editModalId}')" style="border-radius: 25px; border: 2px solid #dee2e6;">
+//                             <i class="ri-close-line me-2"></i>Cancel
+//                         </button>
+//                         <button type="button" class="btn btn-primary px-4 py-2" onclick="saveArrivalChanges(${tourId}, ${arrivalOrderIndex}, ${arrivalBookingIndex}, '${editModalId}')" style="border-radius: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+//                             <i class="ri-save-line me-2"></i>Save Changes
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
     
-    // Add modal to DOM
-    document.body.insertAdjacentHTML('beforeend', editModalHTML);
+//     // Add modal to DOM
+//     document.body.insertAdjacentHTML('beforeend', editModalHTML);
     
-    // Show modal
-    const modalElement = document.getElementById(editModalId);
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
+//     // Show modal
+//     const modalElement = document.getElementById(editModalId);
+//     const modal = new bootstrap.Modal(modalElement);
+//     modal.show();
     
-    // Remove modal from DOM when hidden
-    modalElement.addEventListener('hidden.bs.modal', function () {
-        modalElement.remove();
-    });
+//     // Remove modal from DOM when hidden
+//     modalElement.addEventListener('hidden.bs.modal', function () {
+//         modalElement.remove();
+//     });
     
-    // Load current arrival data
-    loadArrivalDataForEdit(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId);
-}
+//     // Load current arrival data
+//     loadArrivalDataForEdit(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId);
+// }
 
-function closeArrivalEditModal(editModalId) {
-    try {
-        const modalElement = document.getElementById(editModalId);
-        if (modalElement) {
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            }
-        }
-    } catch (error) {
-        console.error('Error closing arrival edit modal:', error);
-    }
-}
+// function closeArrivalEditModal(editModalId) {
+//     try {
+//         const modalElement = document.getElementById(editModalId);
+//         if (modalElement) {
+//             const modal = bootstrap.Modal.getInstance(modalElement);
+//             if (modal) {
+//                 modal.hide();
+//             }
+//         }
+//     } catch (error) {
+//         console.error('Error closing arrival edit modal:', error);
+//     }
+// }
 
-function loadArrivalDataForEdit(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId) {
-    // Fetch actual arrival data from backend
-    fetch('{{ url("/booking/get-arrival-data") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            tour_id: tourId,
-            arrival_order_index: arrivalOrderIndex,
-            booking_index: arrivalBookingIndex
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const arrivalData = data.data;
-            const arrivalDetails = arrivalData.arrival_details || {};
+// function loadArrivalDataForEdit(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId) {
+//     // Fetch actual arrival data from backend
+//     fetch('{{ url("/booking/get-arrival-data") }}', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+//         },
+//         body: JSON.stringify({
+//             tour_id: tourId,
+//             arrival_order_index: arrivalOrderIndex,
+//             booking_index: arrivalBookingIndex
+//         })
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         if (data.success) {
+//             const arrivalData = data.data;
+//             const arrivalDetails = arrivalData.arrival_details || {};
             
-            // Update modal header with actual vehicle information
-            const modalElement = document.getElementById(editModalId);
-            if (modalElement) {
-                const vehicleName = arrivalDetails.vehicles_name || 'Vehicle Transfer';
-                const totalPrice = arrivalDetails.totalPrice || '160.00';
-                const transferType = arrivalDetails.type || 'Standard';
-                const vehicleImage = arrivalDetails.image || 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1746006725_jbHF6N.webp';
+//             // Update modal header with actual vehicle information
+//             const modalElement = document.getElementById(editModalId);
+//             if (modalElement) {
+//                 const vehicleName = arrivalDetails.vehicles_name || 'Vehicle Transfer';
+//                 const totalPrice = arrivalDetails.totalPrice || '160.00';
+//                 const transferType = arrivalDetails.type || 'Standard';
+//                 const vehicleImage = arrivalDetails.image || 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1746006725_jbHF6N.webp';
                 
-                // Update vehicle image
-                const imageElement = document.getElementById(`arrival_vehicle_image_${editModalId}`);
-                if (imageElement) {
-                    imageElement.src = vehicleImage;
-                    imageElement.alt = vehicleName;
-                }
+//                 // Update vehicle image
+//                 const imageElement = document.getElementById(`arrival_vehicle_image_${editModalId}`);
+//                 if (imageElement) {
+//                     imageElement.src = vehicleImage;
+//                     imageElement.alt = vehicleName;
+//                 }
                 
-                // Update vehicle name in header
-                const vehicleInfoElement = document.getElementById(`arrival_vehicle_info_${editModalId}`);
-                if (vehicleInfoElement) {
-                    vehicleInfoElement.textContent = `${vehicleName} • ${transferType} Transfer`;
-                }
+//                 // Update vehicle name in header
+//                 const vehicleInfoElement = document.getElementById(`arrival_vehicle_info_${editModalId}`);
+//                 if (vehicleInfoElement) {
+//                     vehicleInfoElement.textContent = `${vehicleName} • ${transferType} Transfer`;
+//                 }
                 
-                // Update price in header
-                const priceHeaderElement = document.getElementById(`arrival_price_header_${editModalId}`);
-                if (priceHeaderElement) {
-                    priceHeaderElement.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
-                }
+//                 // Update price in header
+//                 const priceHeaderElement = document.getElementById(`arrival_price_header_${editModalId}`);
+//                 if (priceHeaderElement) {
+//                     priceHeaderElement.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+//                 }
                 
-                // Update travel date constraint with actual tour dates
-                const tourData = getTourDataFromPage(tourId);
-                console.log('Tour data retrieved:', tourData);
-                const constraintElement = document.getElementById(`arrival_date_constraint_${editModalId}`);
-                if (constraintElement && tourData && tourData.check_in_time && tourData.check_out_time) {
-                    const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
-                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-                    });
-                    const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
-                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-                    });
-                    constraintElement.innerHTML = `Arrival booking must be within the tour travel period: <strong>${startDate}</strong> to <strong>${endDate}</strong>`;
-                } else {
-                    console.warn('Could not update date constraint, tour data not available:', tourData);
-                    if (constraintElement) {
-                        constraintElement.innerHTML = `Arrival booking must be within the tour travel period: <strong>Loading...</strong> to <strong>Loading...</strong>`;
-                    }
-                }
+//                 // Update travel date constraint with actual tour dates
+//                 const tourData = getTourDataFromPage(tourId);
+//                 console.log('Tour data retrieved:', tourData);
+//                 const constraintElement = document.getElementById(`arrival_date_constraint_${editModalId}`);
+//                 if (constraintElement && tourData && tourData.check_in_time && tourData.check_out_time) {
+//                     const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
+//                         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
+//                     });
+//                     const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
+//                         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
+//                     });
+//                     constraintElement.innerHTML = `Arrival booking must be within the tour travel period: <strong>${startDate}</strong> to <strong>${endDate}</strong>`;
+//                 } else {
+//                     console.warn('Could not update date constraint, tour data not available:', tourData);
+//                     if (constraintElement) {
+//                         constraintElement.innerHTML = `Arrival booking must be within the tour travel period: <strong>Loading...</strong> to <strong>Loading...</strong>`;
+//                     }
+//                 }
                 
-                // Update booking summary section
-                const summaryVehicle = modalElement.querySelector('.fw-medium.text-dark');
-                if (summaryVehicle) {
-                    summaryVehicle.textContent = vehicleName;
-                }
+//                 // Update booking summary section
+//                 const summaryVehicle = modalElement.querySelector('.fw-medium.text-dark');
+//                 if (summaryVehicle) {
+//                     summaryVehicle.textContent = vehicleName;
+//                 }
                 
-                // Update price in summary
-                const summaryPrice = modalElement.querySelector('.fw-bold.text-success');
-                if (summaryPrice) {
-                    summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
-                }
-            }
+//                 // Update price in summary
+//                 const summaryPrice = modalElement.querySelector('.fw-bold.text-success');
+//                 if (summaryPrice) {
+//                     summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+//                 }
+//             }
             
-            // Update date input constraints with actual tour dates
-            const tourData = getTourDataFromPage(tourId);
-            if (tourData.check_in_time && tourData.check_out_time) {
-                const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
-                const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
+//             // Update date input constraints with actual tour dates
+//             const tourData = getTourDataFromPage(tourId);
+//             if (tourData.check_in_time && tourData.check_out_time) {
+//                 const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
+//                 const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
                 
-                if (bookingDateInput) {
-                    bookingDateInput.min = tourData.check_in_time;
-                    bookingDateInput.max = tourData.check_out_time;
-                }
+//                 if (bookingDateInput) {
+//                     bookingDateInput.min = tourData.check_in_time;
+//                     bookingDateInput.max = tourData.check_out_time;
+//                 }
                 
-                if (pickupDateInput) {
-                    pickupDateInput.min = tourData.check_in_time;
-                    pickupDateInput.max = tourData.check_out_time;
-                }
-            }
+//                 if (pickupDateInput) {
+//                     pickupDateInput.min = tourData.check_in_time;
+//                     pickupDateInput.max = tourData.check_out_time;
+//                 }
+//             }
             
-            // Populate form fields with actual data
-            document.getElementById(`arrival_booking_date_${editModalId}`).value = arrivalData.booking_date || arrivalData.bookingDate;
-            document.getElementById(`arrival_pickup_date_${editModalId}`).value = arrivalData.pickup_date || arrivalData.pickupdate;
+//             // Populate form fields with actual data
+//             document.getElementById(`arrival_booking_date_${editModalId}`).value = arrivalData.booking_date || arrivalData.bookingDate;
+//             document.getElementById(`arrival_pickup_date_${editModalId}`).value = arrivalData.pickup_date || arrivalData.pickupdate;
             
-            // Convert time from AM/PM format to 24-hour format for the time input
-            let timeValue = arrivalData.entry_time || arrivalData.entrytime;
-            if (timeValue) {
-                timeValue = convertTo24HourFormat(timeValue);
-            }
-            document.getElementById(`arrival_entry_time_${editModalId}`).value = timeValue || "09:00";
-        } else {
-            console.error('Failed to load arrival data:', data.message);
+//             // Convert time from AM/PM format to 24-hour format for the time input
+//             let timeValue = arrivalData.entry_time || arrivalData.entrytime;
+//             if (timeValue) {
+//                 timeValue = convertTo24HourFormat(timeValue);
+//             }
+//             document.getElementById(`arrival_entry_time_${editModalId}`).value = timeValue || "09:00";
+//         } else {
+//             console.error('Failed to load arrival data:', data.message);
             
-            // Update date constraints even if data loading fails
-            const tourData = getTourDataFromPage(tourId);
-            if (tourData.check_in_time && tourData.check_out_time) {
-                const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
-                const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
+//             // Update date constraints even if data loading fails
+//             const tourData = getTourDataFromPage(tourId);
+//             if (tourData.check_in_time && tourData.check_out_time) {
+//                 const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
+//                 const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
                 
-                if (bookingDateInput) {
-                    bookingDateInput.min = tourData.check_in_time;
-                    bookingDateInput.max = tourData.check_out_time;
-                }
+//                 if (bookingDateInput) {
+//                     bookingDateInput.min = tourData.check_in_time;
+//                     bookingDateInput.max = tourData.check_out_time;
+//                 }
                 
-                if (pickupDateInput) {
-                    pickupDateInput.min = tourData.check_in_time;
-                    pickupDateInput.max = tourData.check_out_time;
-                }
-            }
+//                 if (pickupDateInput) {
+//                     pickupDateInput.min = tourData.check_in_time;
+//                     pickupDateInput.max = tourData.check_out_time;
+//                 }
+//             }
             
-            // Use fallback data if backend fails
-            document.getElementById(`arrival_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-            document.getElementById(`arrival_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-            document.getElementById(`arrival_entry_time_${editModalId}`).value = "09:00";
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching arrival data:', error);
+//             // Use fallback data if backend fails
+//             document.getElementById(`arrival_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//             document.getElementById(`arrival_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//             document.getElementById(`arrival_entry_time_${editModalId}`).value = "09:00";
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Error fetching arrival data:', error);
         
-        // Update date constraints even if network fails
-        const tourData = getTourDataFromPage(tourId);
-        if (tourData.check_in_time && tourData.check_out_time) {
-            const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
-            const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
+//         // Update date constraints even if network fails
+//         const tourData = getTourDataFromPage(tourId);
+//         if (tourData.check_in_time && tourData.check_out_time) {
+//             const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
+//             const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
             
-            if (bookingDateInput) {
-                bookingDateInput.min = tourData.check_in_time;
-                bookingDateInput.max = tourData.check_out_time;
-            }
+//             if (bookingDateInput) {
+//                 bookingDateInput.min = tourData.check_in_time;
+//                 bookingDateInput.max = tourData.check_out_time;
+//             }
             
-            if (pickupDateInput) {
-                pickupDateInput.min = tourData.check_in_time;
-                pickupDateInput.max = tourData.check_out_time;
-            }
-        }
+//             if (pickupDateInput) {
+//                 pickupDateInput.min = tourData.check_in_time;
+//                 pickupDateInput.max = tourData.check_out_time;
+//             }
+//         }
         
-        // Use fallback data if network fails
-        document.getElementById(`arrival_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-        document.getElementById(`arrival_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-        document.getElementById(`arrival_entry_time_${editModalId}`).value = "09:00";
-    });
-}
+//         // Use fallback data if network fails
+//         document.getElementById(`arrival_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//         document.getElementById(`arrival_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//         document.getElementById(`arrival_entry_time_${editModalId}`).value = "09:00";
+//     });
+// }
 
-function saveArrivalChanges(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId) {
-    // Get form data
-    const bookingDate = document.getElementById(`arrival_booking_date_${editModalId}`).value;
-    const pickupDate = document.getElementById(`arrival_pickup_date_${editModalId}`).value;
-    const entryTime = document.getElementById(`arrival_entry_time_${editModalId}`).value;
+// function saveArrivalChanges(tourId, arrivalOrderIndex, arrivalBookingIndex, editModalId) {
+//     // Get form data
+//     const bookingDate = document.getElementById(`arrival_booking_date_${editModalId}`).value;
+//     const pickupDate = document.getElementById(`arrival_pickup_date_${editModalId}`).value;
+//     const entryTime = document.getElementById(`arrival_entry_time_${editModalId}`).value;
     
-    // Validate form
-    if (!bookingDate || !pickupDate || !entryTime) {
-        alert('Please fill in all required fields.');
-        return;
-    }
+//     // Validate form
+//     if (!bookingDate || !pickupDate || !entryTime) {
+//         alert('Please fill in all required fields.');
+//         return;
+//     }
     
-    // Validate dates are within tour range
-    const tourData = getTourDataFromPage(tourId);
-    if (!validateArrivalDates(bookingDate, pickupDate, tourData.check_in_time, tourData.check_out_time)) {
-        return;
-    }
+//     // Validate dates are within tour range
+//     const tourData = getTourDataFromPage(tourId);
+//     if (!validateArrivalDates(bookingDate, pickupDate, tourData.check_in_time, tourData.check_out_time)) {
+//         return;
+//     }
     
-    // Convert time to AM/PM format for storage and display
-    const displayTime = convertTo12HourFormat(entryTime);
+//     // Convert time to AM/PM format for storage and display
+//     const displayTime = convertTo12HourFormat(entryTime);
     
-    console.log('Saving arrival changes:', {
-        tourId, arrivalOrderIndex, arrivalBookingIndex,
-        bookingDate, pickupDate, entryTime: displayTime
-    });
+//     console.log('Saving arrival changes:', {
+//         tourId, arrivalOrderIndex, arrivalBookingIndex,
+//         bookingDate, pickupDate, entryTime: displayTime
+//     });
     
-    console.log('Request payload:', {
-        tour_id: tourId,
-        arrival_order_index: arrivalOrderIndex,
-        booking_index: arrivalBookingIndex,
-        booking_date: bookingDate,
-        pickup_date: pickupDate,
-        entry_time: displayTime
-    });
+//     console.log('Request payload:', {
+//         tour_id: tourId,
+//         arrival_order_index: arrivalOrderIndex,
+//         booking_index: arrivalBookingIndex,
+//         booking_date: bookingDate,
+//         pickup_date: pickupDate,
+//         entry_time: displayTime
+//     });
     
-    // Make API call to save changes to orders table
-    fetch('{{ url("/booking/update-arrival-booking") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            tour_id: tourId,
-            arrival_order_index: arrivalOrderIndex,
-            booking_index: arrivalBookingIndex,
-            booking_date: bookingDate,
-            pickup_date: pickupDate,
-            entry_time: displayTime
-        })
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Response data:', data);
-        if (data.success) {
-            alert(`Arrival booking updated successfully!\n\nBooking Date: ${bookingDate}\nPickup Date: ${pickupDate}\nEntry Time: ${displayTime}`);
+//     // Make API call to save changes to orders table
+//     fetch('{{ url("/booking/update-arrival-booking") }}', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+//         },
+//         body: JSON.stringify({
+//             tour_id: tourId,
+//             arrival_order_index: arrivalOrderIndex,
+//             booking_index: arrivalBookingIndex,
+//             booking_date: bookingDate,
+//             pickup_date: pickupDate,
+//             entry_time: displayTime
+//         })
+//     })
+//     .then(response => {
+//         console.log('Response status:', response.status);
+//         return response.json();
+//     })
+//     .then(data => {
+//         console.log('Response data:', data);
+//         if (data.success) {
+//             alert(`Arrival booking updated successfully!\n\nBooking Date: ${bookingDate}\nPickup Date: ${pickupDate}\nEntry Time: ${displayTime}`);
             
-            // Close modal and refresh page
-            closeArrivalEditModal(editModalId);
-            setTimeout(() => {
-                window.location.reload();
-            }, 500);
-        } else {
-            console.error('Backend error:', data);
-            alert(`Error updating arrival booking: ${data.message || 'Unknown error'}\n\nDetails: ${JSON.stringify(data.errors || {})}`);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving arrival changes:', error);
-        alert(`Network error occurred while saving changes: ${error.message}`);
-    });
-}
+//             // Close modal and refresh page
+//             closeArrivalEditModal(editModalId);
+//             setTimeout(() => {
+//                 window.location.reload();
+//             }, 500);
+//         } else {
+//             console.error('Backend error:', data);
+//             alert(`Error updating arrival booking: ${data.message || 'Unknown error'}\n\nDetails: ${JSON.stringify(data.errors || {})}`);
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Error saving arrival changes:', error);
+//         alert(`Network error occurred while saving changes: ${error.message}`);
+//     });
+// }
 
-function validateArrivalDates(bookingDate, pickupDate, tourStartDate, tourEndDate) {
-    const booking = new Date(bookingDate);
-    const pickup = new Date(pickupDate);
-    const tourStart = new Date(tourStartDate);
-    const tourEnd = new Date(tourEndDate);
+// function validateArrivalDates(bookingDate, pickupDate, tourStartDate, tourEndDate) {
+//     const booking = new Date(bookingDate);
+//     const pickup = new Date(pickupDate);
+//     const tourStart = new Date(tourStartDate);
+//     const tourEnd = new Date(tourEndDate);
     
-    if (booking < tourStart || booking > tourEnd) {
-        alert(`Booking date must be between ${tourStartDate} and ${tourEndDate}`);
-        return false;
-    }
+//     if (booking < tourStart || booking > tourEnd) {
+//         alert(`Booking date must be between ${tourStartDate} and ${tourEndDate}`);
+//         return false;
+//     }
     
-    if (pickup < tourStart || pickup > tourEnd) {
-        alert(`Pickup date must be between ${tourStartDate} and ${tourEndDate}`);
-        return false;
-    }
+//     if (pickup < tourStart || pickup > tourEnd) {
+//         alert(`Pickup date must be between ${tourStartDate} and ${tourEndDate}`);
+//         return false;
+//     }
     
-    return true;
-}
+//     return true;
+// }
 
 function convertTo12HourFormat(time24) {
     const [hours, minutes] = time24.split(':');
@@ -10777,417 +11578,417 @@ function rejectDepartureBooking(tourId, departureOrderIndex, departureBookingInd
     }
 }
 
-function createAndShowDepartureEditModal(tourId, departureOrderIndex, departureBookingIndex) {
-    const editModalId = `departureEdit_${tourId}_${departureOrderIndex}_${departureBookingIndex}`;
+// function createAndShowDepartureEditModal(tourId, departureOrderIndex, departureBookingIndex) {
+//     const editModalId = `departureEdit_${tourId}_${departureOrderIndex}_${departureBookingIndex}`;
     
-    // Remove existing modal if it exists
-    const existingModal = document.getElementById(editModalId);
-    if (existingModal) {
-        existingModal.remove();
-    }
+//     // Remove existing modal if it exists
+//     const existingModal = document.getElementById(editModalId);
+//     if (existingModal) {
+//         existingModal.remove();
+//     }
     
-    // Get tour data for date constraints
-    const tourData = getTourDataFromPage(tourId);
-    const tourStartDate = tourData && tourData.check_in_time ? tourData.check_in_time : '2025-09-11';
-    const tourEndDate = tourData && tourData.check_out_time ? tourData.check_out_time : '2025-09-13';
+//     // Get tour data for date constraints
+//     const tourData = getTourDataFromPage(tourId);
+//     const tourStartDate = tourData && tourData.check_in_time ? tourData.check_in_time : '2025-09-11';
+//     const tourEndDate = tourData && tourData.check_out_time ? tourData.check_out_time : '2025-09-13';
     
-    const modalHTML = `
-        <div class="modal fade" id="${editModalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
-                    <!-- Modal Header with Vehicle Info -->
-                    <div class="modal-header bg-gradient-primary text-white border-0 p-0" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); min-height: 140px;">
-                        <div class="container-fluid p-4">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
-                                            <i class="ri-flight-takeoff-line fs-4 text-black"></i>
-                                        </div>
-                                        <div>
-                                            <h5 class="mb-0 fw-bold text-white">Edit Departure Booking</h5>
-                                            <small id="departure_vehicle_info_${editModalId}" class="text-white opacity-75">Departure Transfer</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeDepartureEditModal('${editModalId}')" aria-label="Close"></button>
-                        </div>
-                    </div>
+//     const modalHTML = `
+//         <div class="modal fade" id="${editModalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+//             <div class="modal-dialog modal-lg modal-dialog-centered">
+//                 <div class="modal-content" style="border-radius: 15px; overflow: hidden;">
+//                     <!-- Modal Header with Vehicle Info -->
+//                     <div class="modal-header bg-gradient-primary text-white border-0 p-0" style="background: linear-gradient(135deg, #fd7f6f 0%, #feb47b 100%); min-height: 140px;">
+//                         <div class="container-fluid p-4">
+//                             <div class="row align-items-center">
+//                                 <div class="col-md-6">
+//                                     <div class="d-flex align-items-center">
+//                                         <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
+//                                             <i class="ri-flight-takeoff-line fs-4 text-black"></i>
+//                                         </div>
+//                                         <div>
+//                                             <h5 class="mb-0 fw-bold text-white">Edit Departure Booking</h5>
+//                                             <small id="departure_vehicle_info_${editModalId}" class="text-white opacity-75">Departure Transfer</small>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                             <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" onclick="closeDepartureEditModal('${editModalId}')" aria-label="Close"></button>
+//                         </div>
+//                     </div>
                     
-                    <!-- Travel Date Constraint -->
-                    <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
-                        <i class="ri-information-line fs-5 me-3 text-info"></i>
-                        <div>
-                            <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
-                            <small id="departure_date_constraint_${editModalId}" class="text-muted">Departure booking must be within the tour travel period: <strong>${tourStartDate || 'Loading...'}</strong> to <strong>${tourEndDate || 'Loading...'}</strong></small>
-                        </div>
-                    </div>
+//                     <!-- Travel Date Constraint -->
+//                     <div class="alert alert-info border-0 mb-4 d-flex align-items-center" style="border-radius: 12px; background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);">
+//                         <i class="ri-information-line fs-5 me-3 text-info"></i>
+//                         <div>
+//                             <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
+//                             <small id="departure_date_constraint_${editModalId}" class="text-muted">Departure booking must be within the tour travel period: <strong>${tourStartDate || 'Loading...'}</strong> to <strong>${tourEndDate || 'Loading...'}</strong></small>
+//                         </div>
+//                     </div>
                     
-                    <div class="modal-body p-4">
-                        <form id="departureEditForm_${editModalId}">
-                            <input type="hidden" name="tour_id" value="${tourId}">
-                            <input type="hidden" name="departure_order_index" value="${departureOrderIndex}">
-                            <input type="hidden" name="booking_index" value="${departureBookingIndex}">
-                            <input type="hidden" name="booking_id" id="departure_booking_id_${editModalId}">
+//                     <div class="modal-body p-4">
+//                         <form id="departureEditForm_${editModalId}">
+//                             <input type="hidden" name="tour_id" value="${tourId}">
+//                             <input type="hidden" name="departure_order_index" value="${departureOrderIndex}">
+//                             <input type="hidden" name="booking_index" value="${departureBookingIndex}">
+//                             <input type="hidden" name="booking_id" id="departure_booking_id_${editModalId}">
                             
-                            <!-- Edit Booking Date & Time -->
-                            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
-                                <div class="card-header bg-light border-0 py-3">
-                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
-                                        <i class="ri-edit-box-line me-2 text-primary"></i>Edit Booking Date & Time
-                                    </h6>
-                                </div>
-                                <div class="card-body p-4">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label fw-medium">
-                                                <i class="ri-calendar-line me-1 text-primary"></i>Booking Date
-                                            </label>
-                                            <input type="date" 
-                                                   class="form-control form-control-lg" 
-                                                   id="departure_booking_date_${editModalId}" 
-                                                   name="booking_date"
-                                                   min="${tourStartDate}" 
-                                                   max="${tourEndDate}"
-                                                   required
-                                                   style="border-radius: 8px;">
-                                            <small class="form-text text-muted">Select date within your travel dates (undefined to undefined)</small>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label fw-medium">
-                                                <i class="ri-calendar-check-line me-1 text-success"></i>Exit Pickup Date
-                                            </label>
-                                            <input type="date" 
-                                                   class="form-control form-control-lg" 
-                                                   id="departure_pickup_date_${editModalId}" 
-                                                   name="pickup_date"
-                                                   min="${tourStartDate}" 
-                                                   max="${tourEndDate}"
-                                                   required
-                                                   style="border-radius: 8px;">
-                                            <small class="form-text text-muted">Select date within your travel dates (undefined to undefined)</small>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label fw-medium">
-                                                <i class="ri-time-line me-1 text-warning"></i>Entry Time
-                                            </label>
-                                            <input type="time" 
-                                                   class="form-control form-control-lg" 
-                                                   id="departure_entry_time_${editModalId}" 
-                                                   name="entry_time"
-                                                   required
-                                                   style="border-radius: 8px;">
-                                            <small class="form-text text-muted">Please enter time in 24-hour format (HH:MM)</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+//                             <!-- Edit Booking Date & Time -->
+//                             <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+//                                 <div class="card-header bg-light border-0 py-3">
+//                                     <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+//                                         <i class="ri-edit-box-line me-2 text-primary"></i>Edit Booking Date & Time
+//                                     </h6>
+//                                 </div>
+//                                 <div class="card-body p-4">
+//                                     <div class="row">
+//                                         <div class="col-md-6 mb-3">
+//                                             <label class="form-label fw-medium">
+//                                                 <i class="ri-calendar-line me-1 text-primary"></i>Booking Date
+//                                             </label>
+//                                             <input type="date" 
+//                                                    class="form-control form-control-lg" 
+//                                                    id="departure_booking_date_${editModalId}" 
+//                                                    name="booking_date"
+//                                                    min="${tourStartDate}" 
+//                                                    max="${tourEndDate}"
+//                                                    required
+//                                                    style="border-radius: 8px;">
+//                                             <small class="form-text text-muted">Select date within your travel dates (undefined to undefined)</small>
+//                                         </div>
+//                                         <div class="col-md-6 mb-3">
+//                                             <label class="form-label fw-medium">
+//                                                 <i class="ri-calendar-check-line me-1 text-success"></i>Exit Pickup Date
+//                                             </label>
+//                                             <input type="date" 
+//                                                    class="form-control form-control-lg" 
+//                                                    id="departure_pickup_date_${editModalId}" 
+//                                                    name="pickup_date"
+//                                                    min="${tourStartDate}" 
+//                                                    max="${tourEndDate}"
+//                                                    required
+//                                                    style="border-radius: 8px;">
+//                                             <small class="form-text text-muted">Select date within your travel dates (undefined to undefined)</small>
+//                                         </div>
+//                                         <div class="col-md-6 mb-3">
+//                                             <label class="form-label fw-medium">
+//                                                 <i class="ri-time-line me-1 text-warning"></i>Entry Time
+//                                             </label>
+//                                             <input type="time" 
+//                                                    class="form-control form-control-lg" 
+//                                                    id="departure_entry_time_${editModalId}" 
+//                                                    name="entry_time"
+//                                                    required
+//                                                    style="border-radius: 8px;">
+//                                             <small class="form-text text-muted">Please enter time in 24-hour format (HH:MM)</small>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
                             
-                            <!-- Booking Summary -->
-                            <div class="card border-0 shadow-sm" style="border-radius: 12px;">
-                                <div class="card-header bg-light border-0 py-3">
-                                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
-                                        <i class="ri-file-list-3-line me-2 text-success"></i>Booking Summary
-                                    </h6>
-                                </div>
-                                <div class="card-body p-4">
-                                    <div class="row text-center">
-                                        <div class="col-md-3 mb-2">
-                                            <small class="text-muted">Service Type</small>
-                                            <div class="fw-medium text-dark">DEPARTURE TRANSFER</div>
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <small class="text-muted">Tour ID</small>
-                                            <div class="fw-medium text-dark">${tourId}</div>
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <small class="text-muted">Vehicle</small>
-                                            <div class="fw-medium text-dark" id="departure_vehicle_summary_${editModalId}">Loading...</div>
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <small class="text-muted">Total Price</small>
-                                            <div class="fw-medium text-dark" id="departure_price_summary_${editModalId}">SGD 0.00</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+//                             <!-- Booking Summary -->
+//                             <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+//                                 <div class="card-header bg-light border-0 py-3">
+//                                     <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+//                                         <i class="ri-file-list-3-line me-2 text-success"></i>Booking Summary
+//                                     </h6>
+//                                 </div>
+//                                 <div class="card-body p-4">
+//                                     <div class="row text-center">
+//                                         <div class="col-md-3 mb-2">
+//                                             <small class="text-muted">Service Type</small>
+//                                             <div class="fw-medium text-dark">DEPARTURE TRANSFER</div>
+//                                         </div>
+//                                         <div class="col-md-3 mb-2">
+//                                             <small class="text-muted">Tour ID</small>
+//                                             <div class="fw-medium text-dark">${tourId}</div>
+//                                         </div>
+//                                         <div class="col-md-3 mb-2">
+//                                             <small class="text-muted">Vehicle</small>
+//                                             <div class="fw-medium text-dark" id="departure_vehicle_summary_${editModalId}">Loading...</div>
+//                                         </div>
+//                                         <div class="col-md-3 mb-2">
+//                                             <small class="text-muted">Total Price</small>
+//                                             <div class="fw-medium text-dark" id="departure_price_summary_${editModalId}">SGD 0.00</div>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </form>
+//                     </div>
                     
-                    <div class="modal-footer border-0 p-4 bg-light">
-                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeDepartureEditModal('${editModalId}')" style="border-radius: 25px;">
-                            <i class="ri-close-line me-2"></i>Cancel
-                        </button>
-                        <button type="button" class="btn btn-primary px-4 py-2" onclick="saveDepartureChanges(${tourId}, ${departureOrderIndex}, ${departureBookingIndex}, '${editModalId}')" style="border-radius: 25px;">
-                            <i class="ri-save-line me-2"></i>Save Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+//                     <div class="modal-footer border-0 p-4 bg-light">
+//                         <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="closeDepartureEditModal('${editModalId}')" style="border-radius: 25px;">
+//                             <i class="ri-close-line me-2"></i>Cancel
+//                         </button>
+//                         <button type="button" class="btn btn-primary px-4 py-2" onclick="saveDepartureChanges(${tourId}, ${departureOrderIndex}, ${departureBookingIndex}, '${editModalId}')" style="border-radius: 25px;">
+//                             <i class="ri-save-line me-2"></i>Save Changes
+//                         </button>
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
     
-    // Add modal to document
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
+//     // Add modal to document
+//     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
-    // Initialize and show the modal
-    const modal = new bootstrap.Modal(document.getElementById(editModalId));
-    modal.show();
+//     // Initialize and show the modal
+//     const modal = new bootstrap.Modal(document.getElementById(editModalId));
+//     modal.show();
     
-    // Load departure data for editing
-    loadDepartureDataForEdit(tourId, departureOrderIndex, departureBookingIndex, editModalId);
-}
+//     // Load departure data for editing
+//     loadDepartureDataForEdit(tourId, departureOrderIndex, departureBookingIndex, editModalId);
+// }
 
-function closeDepartureEditModal(editModalId) {
-    const modal = bootstrap.Modal.getInstance(document.getElementById(editModalId));
-    if (modal) {
-        modal.hide();
-    }
+// function closeDepartureEditModal(editModalId) {
+//     const modal = bootstrap.Modal.getInstance(document.getElementById(editModalId));
+//     if (modal) {
+//         modal.hide();
+//     }
     
-    // Remove modal from DOM after it's hidden
-    setTimeout(() => {
-        const modalElement = document.getElementById(editModalId);
-        if (modalElement) {
-            modalElement.remove();
-        }
-    }, 300);
-}
+//     // Remove modal from DOM after it's hidden
+//     setTimeout(() => {
+//         const modalElement = document.getElementById(editModalId);
+//         if (modalElement) {
+//             modalElement.remove();
+//         }
+//     }, 300);
+// }
 
-function loadDepartureDataForEdit(tourId, departureOrderIndex, departureBookingIndex, editModalId) {
-    console.log('Loading departure data for edit:', { tourId, departureOrderIndex, departureBookingIndex });
+// function loadDepartureDataForEdit(tourId, departureOrderIndex, departureBookingIndex, editModalId) {
+//     console.log('Loading departure data for edit:', { tourId, departureOrderIndex, departureBookingIndex });
     
-    fetch('{{ url("/booking/get-departure-data") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify({
-            tour_id: tourId,
-            departure_order_index: departureOrderIndex,
-            booking_index: departureBookingIndex
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const departureData = data.data;
-            const departureDetails = departureData.departure_details || {};
+//     fetch('{{ url("/booking/get-departure-data") }}', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+//         },
+//         body: JSON.stringify({
+//             tour_id: tourId,
+//             departure_order_index: departureOrderIndex,
+//             booking_index: departureBookingIndex
+//         })
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         if (data.success) {
+//             const departureData = data.data;
+//             const departureDetails = departureData.departure_details || {};
             
-            console.log('Departure data loaded successfully:', departureData);
+//             console.log('Departure data loaded successfully:', departureData);
             
-            // Update header vehicle info
-            const vehicleInfoElement = document.getElementById(`departure_vehicle_info_${editModalId}`);
-            if (vehicleInfoElement) {
-                const vehicleName = departureDetails.vehicles_name || 'Departure Transfer';
-                const transferType = departureDetails.type || 'Transfer';
-                vehicleInfoElement.textContent = `${vehicleName} • ${transferType}`;
-            }
+//             // Update header vehicle info
+//             const vehicleInfoElement = document.getElementById(`departure_vehicle_info_${editModalId}`);
+//             if (vehicleInfoElement) {
+//                 const vehicleName = departureDetails.vehicles_name || 'Departure Transfer';
+//                 const transferType = departureDetails.type || 'Transfer';
+//                 vehicleInfoElement.textContent = `${vehicleName} • ${transferType}`;
+//             }
             
-            // Update travel date constraint with actual tour dates
-            const tourData = getTourDataFromPage(tourId);
-            console.log('Tour data retrieved:', tourData);
-            const constraintElement = document.getElementById(`departure_date_constraint_${editModalId}`);
-            if (constraintElement && tourData && tourData.check_in_time && tourData.check_out_time) {
-                const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
-                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-                });
-                const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
-                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-                });
-                constraintElement.innerHTML = `Departure booking must be within the tour travel period: <strong>${startDate}</strong> to <strong>${endDate}</strong>`;
-            } else {
-                console.warn('Could not update date constraint, tour data not available:', tourData);
-                if (constraintElement) {
-                    constraintElement.innerHTML = `Departure booking must be within the tour travel period: <strong>Loading...</strong> to <strong>Loading...</strong>`;
-                }
-            }
+//             // Update travel date constraint with actual tour dates
+//             const tourData = getTourDataFromPage(tourId);
+//             console.log('Tour data retrieved:', tourData);
+//             const constraintElement = document.getElementById(`departure_date_constraint_${editModalId}`);
+//             if (constraintElement && tourData && tourData.check_in_time && tourData.check_out_time) {
+//                 const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
+//                     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
+//                 });
+//                 const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
+//                     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
+//                 });
+//                 constraintElement.innerHTML = `Departure booking must be within the tour travel period: <strong>${startDate}</strong> to <strong>${endDate}</strong>`;
+//             } else {
+//                 console.warn('Could not update date constraint, tour data not available:', tourData);
+//                 if (constraintElement) {
+//                     constraintElement.innerHTML = `Departure booking must be within the tour travel period: <strong>Loading...</strong> to <strong>Loading...</strong>`;
+//                 }
+//             }
             
-            // Update booking summary section
-            const summaryVehicle = document.getElementById(`departure_vehicle_summary_${editModalId}`);
-            if (summaryVehicle) {
-                summaryVehicle.textContent = departureDetails.vehicles_name || 'Vehicle';
-            }
+//             // Update booking summary section
+//             const summaryVehicle = document.getElementById(`departure_vehicle_summary_${editModalId}`);
+//             if (summaryVehicle) {
+//                 summaryVehicle.textContent = departureDetails.vehicles_name || 'Vehicle';
+//             }
             
-            const summaryPrice = document.getElementById(`departure_price_summary_${editModalId}`);
-            if (summaryPrice) {
-                const totalPrice = departureDetails.totalPrice || departureData.total_price || '0';
-                summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
-            }
+//             const summaryPrice = document.getElementById(`departure_price_summary_${editModalId}`);
+//             if (summaryPrice) {
+//                 const totalPrice = departureDetails.totalPrice || departureData.total_price || '0';
+//                 summaryPrice.textContent = `SGD ${parseFloat(totalPrice).toFixed(2)}`;
+//             }
             
-            // Update date input constraints with actual tour dates
-            const tourData2 = getTourDataFromPage(tourId);
-            if (tourData2.check_in_time && tourData2.check_out_time) {
-                const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
-                const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
+//             // Update date input constraints with actual tour dates
+//             const tourData2 = getTourDataFromPage(tourId);
+//             if (tourData2.check_in_time && tourData2.check_out_time) {
+//                 const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
+//                 const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
                 
-                if (bookingDateInput) {
-                    bookingDateInput.min = tourData2.check_in_time;
-                    bookingDateInput.max = tourData2.check_out_time;
-                }
+//                 if (bookingDateInput) {
+//                     bookingDateInput.min = tourData2.check_in_time;
+//                     bookingDateInput.max = tourData2.check_out_time;
+//                 }
                 
-                if (pickupDateInput) {
-                    pickupDateInput.min = tourData2.check_in_time;
-                    pickupDateInput.max = tourData2.check_out_time;
-                }
-            }
+//                 if (pickupDateInput) {
+//                     pickupDateInput.min = tourData2.check_in_time;
+//                     pickupDateInput.max = tourData2.check_out_time;
+//                 }
+//             }
             
-            // Populate form fields with actual data
-            document.getElementById(`departure_booking_date_${editModalId}`).value = departureData.booking_date || departureData.bookingDate;
-            document.getElementById(`departure_pickup_date_${editModalId}`).value = departureData.exit_pickup_date || departureData.exitpickupdate;
+//             // Populate form fields with actual data
+//             document.getElementById(`departure_booking_date_${editModalId}`).value = departureData.booking_date || departureData.bookingDate;
+//             document.getElementById(`departure_pickup_date_${editModalId}`).value = departureData.exit_pickup_date || departureData.exitpickupdate;
             
-            // Handle time format conversion
-            let timeValue = departureData.entry_time || departureData.entrytime;
-            if (timeValue) {
-                // Convert from 12-hour format to 24-hour format for input[type="time"]
-                timeValue = convertTo24HourFormat(timeValue);
-            }
-            document.getElementById(`departure_entry_time_${editModalId}`).value = timeValue || "09:00";
-        } else {
-            console.error('Failed to load departure data:', data.message);
+//             // Handle time format conversion
+//             let timeValue = departureData.entry_time || departureData.entrytime;
+//             if (timeValue) {
+//                 // Convert from 12-hour format to 24-hour format for input[type="time"]
+//                 timeValue = convertTo24HourFormat(timeValue);
+//             }
+//             document.getElementById(`departure_entry_time_${editModalId}`).value = timeValue || "09:00";
+//         } else {
+//             console.error('Failed to load departure data:', data.message);
             
-            // Update date constraints even if data loading fails
-            const tourData = getTourDataFromPage(tourId);
-            if (tourData.check_in_time && tourData.check_out_time) {
-                const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
-                const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
+//             // Update date constraints even if data loading fails
+//             const tourData = getTourDataFromPage(tourId);
+//             if (tourData.check_in_time && tourData.check_out_time) {
+//                 const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
+//                 const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
                 
-                if (bookingDateInput) {
-                    bookingDateInput.min = tourData.check_in_time;
-                    bookingDateInput.max = tourData.check_out_time;
-                }
+//                 if (bookingDateInput) {
+//                     bookingDateInput.min = tourData.check_in_time;
+//                     bookingDateInput.max = tourData.check_out_time;
+//                 }
                 
-                if (pickupDateInput) {
-                    pickupDateInput.min = tourData.check_in_time;
-                    pickupDateInput.max = tourData.check_out_time;
-                }
-            }
+//                 if (pickupDateInput) {
+//                     pickupDateInput.min = tourData.check_in_time;
+//                     pickupDateInput.max = tourData.check_out_time;
+//                 }
+//             }
             
-            // Use fallback data if backend fails
-            document.getElementById(`departure_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-            document.getElementById(`departure_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-            document.getElementById(`departure_entry_time_${editModalId}`).value = "09:00";
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching departure data:', error);
+//             // Use fallback data if backend fails
+//             document.getElementById(`departure_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//             document.getElementById(`departure_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//             document.getElementById(`departure_entry_time_${editModalId}`).value = "09:00";
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Error fetching departure data:', error);
         
-        // Update date constraints even if network fails
-        const tourData = getTourDataFromPage(tourId);
-        if (tourData.check_in_time && tourData.check_out_time) {
-            const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
-            const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
+//         // Update date constraints even if network fails
+//         const tourData = getTourDataFromPage(tourId);
+//         if (tourData.check_in_time && tourData.check_out_time) {
+//             const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
+//             const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
             
-            if (bookingDateInput) {
-                bookingDateInput.min = tourData.check_in_time;
-                bookingDateInput.max = tourData.check_out_time;
-            }
+//             if (bookingDateInput) {
+//                 bookingDateInput.min = tourData.check_in_time;
+//                 bookingDateInput.max = tourData.check_out_time;
+//             }
             
-            if (pickupDateInput) {
-                pickupDateInput.min = tourData.check_in_time;
-                pickupDateInput.max = tourData.check_out_time;
-            }
-        }
+//             if (pickupDateInput) {
+//                 pickupDateInput.min = tourData.check_in_time;
+//                 pickupDateInput.max = tourData.check_out_time;
+//             }
+//         }
         
-        // Use fallback data if network fails
-        document.getElementById(`departure_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-        document.getElementById(`departure_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
-        document.getElementById(`departure_entry_time_${editModalId}`).value = "09:00";
-    });
-}
+//         // Use fallback data if network fails
+//         document.getElementById(`departure_booking_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//         document.getElementById(`departure_pickup_date_${editModalId}`).value = tourData.check_in_time || "2025-09-11";
+//         document.getElementById(`departure_entry_time_${editModalId}`).value = "09:00";
+//     });
+// }
 
-function saveDepartureChanges(tourId, departureOrderIndex, departureBookingIndex, editModalId) {
-    const bookingDate = document.getElementById(`departure_booking_date_${editModalId}`).value;
-    const pickupDate = document.getElementById(`departure_pickup_date_${editModalId}`).value;
-    const entryTime = document.getElementById(`departure_entry_time_${editModalId}`).value;
+// function saveDepartureChanges(tourId, departureOrderIndex, departureBookingIndex, editModalId) {
+//     const bookingDate = document.getElementById(`departure_booking_date_${editModalId}`).value;
+//     const pickupDate = document.getElementById(`departure_pickup_date_${editModalId}`).value;
+//     const entryTime = document.getElementById(`departure_entry_time_${editModalId}`).value;
     
-    console.log('Saving departure changes:', {
-        tourId, departureOrderIndex, departureBookingIndex,
-        bookingDate, pickupDate, entryTime
-    });
+//     console.log('Saving departure changes:', {
+//         tourId, departureOrderIndex, departureBookingIndex,
+//         bookingDate, pickupDate, entryTime
+//     });
     
-    if (!bookingDate || !pickupDate || !entryTime) {
-        alert('Please fill in all required fields.');
-        return;
-    }
+//     if (!bookingDate || !pickupDate || !entryTime) {
+//         alert('Please fill in all required fields.');
+//         return;
+//     }
     
-    // Validate dates are within tour range
-    const tourData = getTourDataFromPage(tourId);
-    if (!validateDepartureDates(bookingDate, pickupDate, tourData.check_in_time, tourData.check_out_time)) {
-        return;
-    }
+//     // Validate dates are within tour range
+//     const tourData = getTourDataFromPage(tourId);
+//     if (!validateDepartureDates(bookingDate, pickupDate, tourData.check_in_time, tourData.check_out_time)) {
+//         return;
+//     }
     
-    // Convert time to AM/PM format for storage and display
-    const displayTime = convertTo12HourFormat(entryTime);
+//     // Convert time to AM/PM format for storage and display
+//     const displayTime = convertTo12HourFormat(entryTime);
     
-    console.log('Saving departure changes:', {
-        tour_id: tourId,
-        departure_order_index: departureOrderIndex,
-        booking_index: departureBookingIndex,
-        booking_date: bookingDate,
-        exit_pickup_date: pickupDate,
-        entry_time: displayTime
-    });
+//     console.log('Saving departure changes:', {
+//         tour_id: tourId,
+//         departure_order_index: departureOrderIndex,
+//         booking_index: departureBookingIndex,
+//         booking_date: bookingDate,
+//         exit_pickup_date: pickupDate,
+//         entry_time: displayTime
+//     });
     
-    fetch('{{ url("/booking/update-departure-booking") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify({
-            tour_id: tourId,
-            departure_order_index: departureOrderIndex,
-            booking_index: departureBookingIndex,
-            booking_date: bookingDate,
-            exit_pickup_date: pickupDate,
-            entry_time: displayTime
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Departure booking updated successfully:', data);
+//     fetch('{{ url("/booking/update-departure-booking") }}', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+//         },
+//         body: JSON.stringify({
+//             tour_id: tourId,
+//             departure_order_index: departureOrderIndex,
+//             booking_index: departureBookingIndex,
+//             booking_date: bookingDate,
+//             exit_pickup_date: pickupDate,
+//             entry_time: displayTime
+//         })
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         if (data.success) {
+//             console.log('Departure booking updated successfully:', data);
             
-            // Close the edit modal
-            closeDepartureEditModal(editModalId);
+//             // Close the edit modal
+//             closeDepartureEditModal(editModalId);
             
-            // Show success message
-            const successMessage = data.message || 'Departure booking updated successfully!';
-            alert(successMessage);
+//             // Show success message
+//             const successMessage = data.message || 'Departure booking updated successfully!';
+//             alert(successMessage);
             
-            // Refresh the page to show updated data
-            window.location.reload();
-        } else {
-            console.error('Failed to update departure booking:', data);
-            alert('Error updating departure booking: ' + (data.message || 'Unknown error occurred'));
-        }
-    })
-    .catch(error => {
-        console.error('Error updating departure booking:', error);
-        alert('Error updating departure booking. Please try again.');
-    });
-}
+//             // Refresh the page to show updated data
+//             window.location.reload();
+//         } else {
+//             console.error('Failed to update departure booking:', data);
+//             alert('Error updating departure booking: ' + (data.message || 'Unknown error occurred'));
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Error updating departure booking:', error);
+//         alert('Error updating departure booking. Please try again.');
+//     });
+// }
 
-function validateDepartureDates(bookingDate, pickupDate, tourStartDate, tourEndDate) {
-    const booking = new Date(bookingDate);
-    const pickup = new Date(pickupDate);
-    const tourStart = new Date(tourStartDate);
-    const tourEnd = new Date(tourEndDate);
+// function validateDepartureDates(bookingDate, pickupDate, tourStartDate, tourEndDate) {
+//     const booking = new Date(bookingDate);
+//     const pickup = new Date(pickupDate);
+//     const tourStart = new Date(tourStartDate);
+//     const tourEnd = new Date(tourEndDate);
     
-    if (booking < tourStart || booking > tourEnd) {
-        alert('Booking date must be within the tour travel dates.');
-        return false;
-    }
+//     if (booking < tourStart || booking > tourEnd) {
+//         alert('Booking date must be within the tour travel dates.');
+//         return false;
+//     }
     
-    if (pickup < tourStart || pickup > tourEnd) {
-        alert('Exit pickup date must be within the tour travel dates.');
-        return false;
-    }
+//     if (pickup < tourStart || pickup > tourEnd) {
+//         alert('Exit pickup date must be within the tour travel dates.');
+//         return false;
+//     }
     
-    return true;
-}
+//     return true;
+// }
 
 // Travel Point Booking Management Functions
 function editTravelPointBooking(tourId, travelPointOrderIndex, travelPointBookingIndex) {
@@ -12669,6 +13470,82 @@ function createAndShowIndividualTravelHourlyModal(tourId, travelHourlyOrderIndex
 }
 
 function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingIndex) {
+    // Get tour data for date constraints
+    const tourData = getTourDataFromPage(tourId);
+    console.log('🚗 Travel Hourly - Tour data retrieved:', tourData);
+    
+    // Extract date strings using timezone-safe approach
+    let tourStartDate = '';
+    let tourEndDate = '';
+    let travelPeriodDisplay = 'Loading...';
+    
+    if (tourData && tourData.check_in_time && tourData.check_out_time) {
+        console.log('🚗 Raw tour dates:', {
+            check_in_time: tourData.check_in_time,
+            check_out_time: tourData.check_out_time
+        });
+        
+        // Extract YYYY-MM-DD part from datetime strings - more robust parsing
+        let checkInStr = String(tourData.check_in_time);
+        let checkOutStr = String(tourData.check_out_time);
+        
+        // Handle various datetime formats
+        if (checkInStr.includes(' ')) {
+            tourStartDate = checkInStr.split(' ')[0];
+        } else if (checkInStr.includes('T')) {
+            tourStartDate = checkInStr.split('T')[0];
+        } else if (checkInStr.length >= 10) {
+            tourStartDate = checkInStr.substring(0, 10);
+        } else {
+            tourStartDate = checkInStr;
+        }
+        
+        if (checkOutStr.includes(' ')) {
+            tourEndDate = checkOutStr.split(' ')[0];
+        } else if (checkOutStr.includes('T')) {
+            tourEndDate = checkOutStr.split('T')[0];
+        } else if (checkOutStr.length >= 10) {
+            tourEndDate = checkOutStr.substring(0, 10);
+        } else {
+            tourEndDate = checkOutStr;
+        }
+        
+        console.log('🚗 Extracted date strings:', {
+            tourStartDate: tourStartDate,
+            tourEndDate: tourEndDate
+        });
+        
+        // Validate extracted dates
+        if (tourStartDate && tourEndDate && tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) && tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Format display dates
+            try {
+                const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                travelPeriodDisplay = `${startDateFormatted} to ${endDateFormatted}`;
+                console.log('🚗 Formatted display dates:', travelPeriodDisplay);
+            } catch (error) {
+                console.error('🚗 Error formatting dates:', error);
+                travelPeriodDisplay = `${tourStartDate} to ${tourEndDate}`;
+            }
+        } else {
+            console.warn('🚗 Invalid date format extracted:', { tourStartDate, tourEndDate });
+            tourStartDate = '';
+            tourEndDate = '';
+        }
+    } else {
+        console.warn('🚗 Tour data or dates not available:', tourData);
+    }
+    
     return `
         <form id="editTravelHourlyForm_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -12713,7 +13590,7 @@ function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingInd
                 <i class="ri-information-line fs-5 me-3 text-info"></i>
                 <div>
                     <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
-                    <small id="edit_travel_hourly_date_constraint_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-muted">Travel hourly booking must be within the tour travel period</small>
+                    <small id="edit_travel_hourly_date_constraint_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="text-muted">Travel hourly booking must be within the tour travel period: <strong>${travelPeriodDisplay}</strong></small>
                 </div>
             </div>
             
@@ -12732,9 +13609,12 @@ function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingInd
                                    class="form-control form-control-lg" 
                                    id="edit_travel_hourly_booking_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
                                    name="booking_date"
+                                   min="${tourStartDate}"
+                                   max="${tourEndDate}"
                                    required
-                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <small class="text-muted">Select date within your travel dates</small>
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;"
+                                   onchange="validateTravelHourlyDates('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')">
+                            <small class="text-muted">Select date within your travel dates (${travelPeriodDisplay})</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Exit Pickup Date</label>
@@ -12742,9 +13622,12 @@ function generateEditTravelHourlyForm(tourId, travelHourlyOrderIndex, bookingInd
                                    class="form-control form-control-lg" 
                                    id="edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}"
                                    name="exit_pickup_date"
+                                   min="${tourStartDate}"
+                                   max="${tourEndDate}"
                                    required
-                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <small class="text-muted">Select exit pickup date within your travel dates</small>
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;"
+                                   onchange="validateTravelHourlyDates('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')">
+                            <small class="text-muted">Select exit pickup date within your travel dates (${travelPeriodDisplay})</small>
                         </div>
                     </div>
                 </div>
@@ -12975,6 +13858,327 @@ function closeIndividualTravelHourlyModal(modalId) {
     } catch (error) {
         console.error('Error closing individual travel hourly modal:', error);
     }
+}
+
+// Travel Hourly Date Validation Function
+function validateTravelHourlyDates(tourId, travelHourlyOrderIndex, bookingIndex) {
+    const bookingDateInput = document.getElementById(`edit_travel_hourly_booking_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+    const exitPickupDateInput = document.getElementById(`edit_travel_hourly_exit_pickup_date_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
+    
+    if (!bookingDateInput || !exitPickupDateInput) {
+        return true; // Don't validate if inputs don't exist
+    }
+    
+    const bookingDate = bookingDateInput.value;
+    const exitPickupDate = exitPickupDateInput.value;
+    
+    if (!bookingDate || !exitPickupDate) {
+        return true; // Don't validate if dates are not selected yet
+    }
+    
+    const tourData = getTourDataFromPage(tourId);
+    if (!tourData || !tourData.check_in_time || !tourData.check_out_time) {
+        console.warn('🚗 Tour dates not available for validation');
+        return true;
+    }
+    
+    // Extract date strings to avoid timezone issues - robust parsing
+    let tourStartDate, tourEndDate;
+    
+    let checkInStr = String(tourData.check_in_time);
+    let checkOutStr = String(tourData.check_out_time);
+    
+    // Handle various datetime formats
+    if (checkInStr.includes(' ')) {
+        tourStartDate = checkInStr.split(' ')[0];
+    } else if (checkInStr.includes('T')) {
+        tourStartDate = checkInStr.split('T')[0];
+    } else if (checkInStr.length >= 10) {
+        tourStartDate = checkInStr.substring(0, 10);
+    } else {
+        tourStartDate = checkInStr;
+    }
+    
+    if (checkOutStr.includes(' ')) {
+        tourEndDate = checkOutStr.split(' ')[0];
+    } else if (checkOutStr.includes('T')) {
+        tourEndDate = checkOutStr.split('T')[0];
+    } else if (checkOutStr.length >= 10) {
+        tourEndDate = checkOutStr.substring(0, 10);
+    } else {
+        tourEndDate = checkOutStr;
+    }
+    
+    console.log('🚗 Travel hourly date validation:');
+    console.log('  Tour period:', tourStartDate, 'to', tourEndDate);
+    console.log('  Selected booking date:', bookingDate);
+    console.log('  Selected exit pickup date:', exitPickupDate);
+    
+    // Validate extracted dates format
+    if (!tourStartDate || !tourEndDate || !tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) || !tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.warn('🚗 Invalid tour date format:', { tourStartDate, tourEndDate });
+        return true; // Allow if we can't validate properly
+    }
+    
+    // Validate booking date using string comparison (YYYY-MM-DD format)
+    if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+        try {
+            const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            alert(`Booking date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+        } catch (error) {
+            alert(`Booking date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+        }
+        return false;
+    }
+    
+    // Validate exit pickup date using string comparison (YYYY-MM-DD format)
+    if (exitPickupDate < tourStartDate || exitPickupDate > tourEndDate) {
+        try {
+            const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            alert(`Exit pickup date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+        } catch (error) {
+            alert(`Exit pickup date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+        }
+        return false;
+    }
+    
+    return true;
+}
+
+// Travel Point Date Validation Function
+function validateTravelPointDates(tourId, travelPointOrderIndex, bookingIndex) {
+    const bookingDateInput = document.getElementById(`edit_travel_point_booking_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+    const pickupDateInput = document.getElementById(`edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+    
+    if (!bookingDateInput || !pickupDateInput) {
+        return true; // Don't validate if inputs don't exist
+    }
+    
+    const bookingDate = bookingDateInput.value;
+    const pickupDate = pickupDateInput.value;
+    
+    if (!bookingDate || !pickupDate) {
+        return true; // Don't validate if dates are not selected yet
+    }
+    
+    const tourData = getTourDataFromPage(tourId);
+    if (!tourData || !tourData.check_in_time || !tourData.check_out_time) {
+        console.warn('🚕 Tour dates not available for validation');
+        return true;
+    }
+    
+    // Extract date strings to avoid timezone issues - robust parsing
+    let tourStartDate, tourEndDate;
+    
+    let checkInStr = String(tourData.check_in_time);
+    let checkOutStr = String(tourData.check_out_time);
+    
+    // Handle various datetime formats
+    if (checkInStr.includes(' ')) {
+        tourStartDate = checkInStr.split(' ')[0];
+    } else if (checkInStr.includes('T')) {
+        tourStartDate = checkInStr.split('T')[0];
+    } else if (checkInStr.length >= 10) {
+        tourStartDate = checkInStr.substring(0, 10);
+    } else {
+        tourStartDate = checkInStr;
+    }
+    
+    if (checkOutStr.includes(' ')) {
+        tourEndDate = checkOutStr.split(' ')[0];
+    } else if (checkOutStr.includes('T')) {
+        tourEndDate = checkOutStr.split('T')[0];
+    } else if (checkOutStr.length >= 10) {
+        tourEndDate = checkOutStr.substring(0, 10);
+    } else {
+        tourEndDate = checkOutStr;
+    }
+    
+    console.log('🚕 Travel point date validation:');
+    console.log('  Tour period:', tourStartDate, 'to', tourEndDate);
+    console.log('  Selected booking date:', bookingDate);
+    console.log('  Selected pickup date:', pickupDate);
+    
+    // Validate extracted dates format
+    if (!tourStartDate || !tourEndDate || !tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) || !tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.warn('🚕 Invalid tour date format:', { tourStartDate, tourEndDate });
+        return true; // Allow if we can't validate properly
+    }
+    
+    // Validate booking date using string comparison (YYYY-MM-DD format)
+    if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+        try {
+            const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            alert(`Booking date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+        } catch (error) {
+            alert(`Booking date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+        }
+        return false;
+    }
+    
+    // Validate pickup date using string comparison (YYYY-MM-DD format)
+    if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+        try {
+            const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            alert(`Pickup date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+        } catch (error) {
+            alert(`Pickup date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+        }
+        return false;
+    }
+    
+    return true;
+}
+
+// Local Transport Date Validation Function
+function validateLocalTransportDates(tourId, localTransportOrderIndex, bookingIndex) {
+    const bookingDateInput = document.getElementById(`edit_local_transport_booking_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+    const pickupDateInput = document.getElementById(`edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}`);
+    
+    if (!bookingDateInput || !pickupDateInput) {
+        return true; // Don't validate if inputs don't exist
+    }
+    
+    const bookingDate = bookingDateInput.value;
+    const pickupDate = pickupDateInput.value;
+    
+    if (!bookingDate || !pickupDate) {
+        return true; // Don't validate if dates are not selected yet
+    }
+    
+    const tourData = getTourDataFromPage(tourId);
+    if (!tourData || !tourData.check_in_time || !tourData.check_out_time) {
+        console.warn('🚐 Tour dates not available for validation');
+        return true;
+    }
+    
+    // Extract date strings to avoid timezone issues - robust parsing
+    let tourStartDate, tourEndDate;
+    
+    let checkInStr = String(tourData.check_in_time);
+    let checkOutStr = String(tourData.check_out_time);
+    
+    // Handle various datetime formats
+    if (checkInStr.includes(' ')) {
+        tourStartDate = checkInStr.split(' ')[0];
+    } else if (checkInStr.includes('T')) {
+        tourStartDate = checkInStr.split('T')[0];
+    } else if (checkInStr.length >= 10) {
+        tourStartDate = checkInStr.substring(0, 10);
+    } else {
+        tourStartDate = checkInStr;
+    }
+    
+    if (checkOutStr.includes(' ')) {
+        tourEndDate = checkOutStr.split(' ')[0];
+    } else if (checkOutStr.includes('T')) {
+        tourEndDate = checkOutStr.split('T')[0];
+    } else if (checkOutStr.length >= 10) {
+        tourEndDate = checkOutStr.substring(0, 10);
+    } else {
+        tourEndDate = checkOutStr;
+    }
+    
+    console.log('🚐 Local transport date validation:');
+    console.log('  Tour period:', tourStartDate, 'to', tourEndDate);
+    console.log('  Selected booking date:', bookingDate);
+    console.log('  Selected pickup date:', pickupDate);
+    
+    // Validate extracted dates format
+    if (!tourStartDate || !tourEndDate || !tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) || !tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.warn('🚐 Invalid tour date format:', { tourStartDate, tourEndDate });
+        return true; // Allow if we can't validate properly
+    }
+    
+    // Validate booking date using string comparison (YYYY-MM-DD format)
+    if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+        try {
+            const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            alert(`Booking date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+        } catch (error) {
+            alert(`Booking date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+        }
+        return false;
+    }
+    
+    // Validate pickup date using string comparison (YYYY-MM-DD format)
+    if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+        try {
+            const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+            alert(`Pickup date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+        } catch (error) {
+            alert(`Pickup date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+        }
+        return false;
+    }
+    
+    return true;
 }
 
 // ========================================
@@ -13986,15 +15190,45 @@ function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingInde
             const entryTimeInput = document.getElementById(`edit_travel_hourly_entry_time_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
             
             if (bookingDateInput && exitPickupDateInput && entryTimeInput) {
-                // Set date constraints based on tour travel period
-                const tourStartDate = tourData?.check_in_time || "2025-09-16";
-                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                // Set date constraints based on tour travel period - extract date part only
+                let tourStartDate = tourData?.check_in_time || "2025-09-16";
+                let tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                // Extract YYYY-MM-DD part from datetime strings to avoid timezone issues
+                if (typeof tourStartDate === 'string') {
+                    if (tourStartDate.includes(' ')) {
+                        tourStartDate = tourStartDate.split(' ')[0];
+                    } else if (tourStartDate.includes('T')) {
+                        tourStartDate = tourStartDate.split('T')[0];
+                    } else if (tourStartDate.length > 10) {
+                        tourStartDate = tourStartDate.substring(0, 10);
+                    }
+                }
+                
+                if (typeof tourEndDate === 'string') {
+                    if (tourEndDate.includes(' ')) {
+                        tourEndDate = tourEndDate.split(' ')[0];
+                    } else if (tourEndDate.includes('T')) {
+                        tourEndDate = tourEndDate.split('T')[0];
+                    } else if (tourEndDate.length > 10) {
+                        tourEndDate = tourEndDate.substring(0, 10);
+                    }
+                }
+                
+                console.log(`🚗 Setting date constraints - Start: ${tourStartDate}, End: ${tourEndDate}`);
                 
                 // Set min and max attributes to restrict date selection
                 bookingDateInput.setAttribute('min', tourStartDate);
                 bookingDateInput.setAttribute('max', tourEndDate);
                 exitPickupDateInput.setAttribute('min', tourStartDate);
                 exitPickupDateInput.setAttribute('max', tourEndDate);
+                
+                console.log(`🚗 Date inputs min/max attributes set:`, {
+                    bookingDateMin: bookingDateInput.getAttribute('min'),
+                    bookingDateMax: bookingDateInput.getAttribute('max'),
+                    exitPickupDateMin: exitPickupDateInput.getAttribute('min'),
+                    exitPickupDateMax: exitPickupDateInput.getAttribute('max')
+                });
                 
                 // Set values from real data or defaults
                 bookingDateInput.value = travelHourlyData.bookingDate ? 
@@ -14007,7 +15241,7 @@ function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingInde
                 
                 entryTimeInput.value = travelHourlyData.entrytime || "07:00";
                 
-                console.log(`Date constraints set: ${tourStartDate} to ${tourEndDate}`);
+                console.log(`🚗 Final date constraints applied: ${tourStartDate} to ${tourEndDate}`);
             }
         })
         .catch(error => {
@@ -14018,9 +15252,32 @@ function loadTravelHourlyDataForEdit(tourId, travelHourlyOrderIndex, bookingInde
             const entryTimeInput = document.getElementById(`edit_travel_hourly_entry_time_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}`);
             
             if (bookingDateInput && exitPickupDateInput && entryTimeInput) {
-                // Set date constraints even in error case
-                const tourStartDate = tourData?.check_in_time || "2025-09-16";
-                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                // Set date constraints even in error case - extract date part only
+                let tourStartDate = tourData?.check_in_time || "2025-09-16";
+                let tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                // Extract YYYY-MM-DD part from datetime strings
+                if (typeof tourStartDate === 'string') {
+                    if (tourStartDate.includes(' ')) {
+                        tourStartDate = tourStartDate.split(' ')[0];
+                    } else if (tourStartDate.includes('T')) {
+                        tourStartDate = tourStartDate.split('T')[0];
+                    } else if (tourStartDate.length > 10) {
+                        tourStartDate = tourStartDate.substring(0, 10);
+                    }
+                }
+                
+                if (typeof tourEndDate === 'string') {
+                    if (tourEndDate.includes(' ')) {
+                        tourEndDate = tourEndDate.split(' ')[0];
+                    } else if (tourEndDate.includes('T')) {
+                        tourEndDate = tourEndDate.split('T')[0];
+                    } else if (tourEndDate.length > 10) {
+                        tourEndDate = tourEndDate.substring(0, 10);
+                    }
+                }
+                
+                console.log(`🚗 [ERROR CASE] Setting date constraints - Start: ${tourStartDate}, End: ${tourEndDate}`);
                 
                 bookingDateInput.setAttribute('min', tourStartDate);
                 bookingDateInput.setAttribute('max', tourEndDate);
@@ -14096,21 +15353,94 @@ function saveIndividualTravelHourlyChanges(tourId, travelHourlyOrderIndex, booki
             return;
         }
         
-        // Validate dates are within tour travel period
+        // Validate dates are within tour travel period using string comparison
         const tourData = getTourDataFromPage(tourId);
-        const tourStartDate = new Date(tourData?.check_in_time || "2025-09-16");
-        const tourEndDate = new Date(tourData?.check_out_time || "2025-09-20");
-        const selectedBookingDate = new Date(bookingDate);
-        const selectedExitDate = new Date(exitPickupDate);
         
-        if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
-            alert(`Booking date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
-            return;
-        }
-        
-        if (selectedExitDate < tourStartDate || selectedExitDate > tourEndDate) {
-            alert(`Exit pickup date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
-            return;
+        if (!tourData || !tourData.check_in_time || !tourData.check_out_time) {
+            console.warn('🚗 Tour data not available for validation');
+            // Continue without validation if tour data is not available
+        } else {
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
+            
+            let checkInStr = String(tourData.check_in_time);
+            let checkOutStr = String(tourData.check_out_time);
+            
+            // Handle various datetime formats
+            if (checkInStr.includes(' ')) {
+                tourStartDate = checkInStr.split(' ')[0];
+            } else if (checkInStr.includes('T')) {
+                tourStartDate = checkInStr.split('T')[0];
+            } else if (checkInStr.length >= 10) {
+                tourStartDate = checkInStr.substring(0, 10);
+            } else {
+                tourStartDate = checkInStr;
+            }
+            
+            if (checkOutStr.includes(' ')) {
+                tourEndDate = checkOutStr.split(' ')[0];
+            } else if (checkOutStr.includes('T')) {
+                tourEndDate = checkOutStr.split('T')[0];
+            } else if (checkOutStr.length >= 10) {
+                tourEndDate = checkOutStr.substring(0, 10);
+            } else {
+                tourEndDate = checkOutStr;
+            }
+            
+            console.log('🚗 Travel hourly save validation:', {
+                tourStartDate: tourStartDate,
+                tourEndDate: tourEndDate,
+                bookingDate: bookingDate,
+                exitPickupDate: exitPickupDate
+            });
+            
+            // Validate extracted dates format and perform string comparison
+            if (tourStartDate && tourEndDate && tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) && tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+                    try {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        alert(`Booking date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+                    } catch (error) {
+                        alert(`Booking date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+                    }
+                    return;
+                }
+                
+                if (exitPickupDate < tourStartDate || exitPickupDate > tourEndDate) {
+                    try {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        alert(`Exit pickup date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+                    } catch (error) {
+                        alert(`Exit pickup date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+                    }
+                    return;
+                }
+            } else {
+                console.warn('🚗 Invalid tour date format for validation:', { tourStartDate, tourEndDate });
+                // Continue without validation if dates are invalid
+            }
         }
         
         console.log('Saving individual travel hourly changes:', {
@@ -14871,6 +16201,82 @@ function createAndShowIndividualTravelPointModal(tourId, travelPointOrderIndex, 
 }
 
 function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex) {
+    // Get tour data for date constraints
+    const tourData = getTourDataFromPage(tourId);
+    console.log('🚕 Travel Point - Tour data retrieved:', tourData);
+    
+    // Extract date strings using timezone-safe approach
+    let tourStartDate = '';
+    let tourEndDate = '';
+    let travelPeriodDisplay = 'Loading...';
+    
+    if (tourData && tourData.check_in_time && tourData.check_out_time) {
+        console.log('🚕 Raw tour dates:', {
+            check_in_time: tourData.check_in_time,
+            check_out_time: tourData.check_out_time
+        });
+        
+        // Extract YYYY-MM-DD part from datetime strings - more robust parsing
+        let checkInStr = String(tourData.check_in_time);
+        let checkOutStr = String(tourData.check_out_time);
+        
+        // Handle various datetime formats
+        if (checkInStr.includes(' ')) {
+            tourStartDate = checkInStr.split(' ')[0];
+        } else if (checkInStr.includes('T')) {
+            tourStartDate = checkInStr.split('T')[0];
+        } else if (checkInStr.length >= 10) {
+            tourStartDate = checkInStr.substring(0, 10);
+        } else {
+            tourStartDate = checkInStr;
+        }
+        
+        if (checkOutStr.includes(' ')) {
+            tourEndDate = checkOutStr.split(' ')[0];
+        } else if (checkOutStr.includes('T')) {
+            tourEndDate = checkOutStr.split('T')[0];
+        } else if (checkOutStr.length >= 10) {
+            tourEndDate = checkOutStr.substring(0, 10);
+        } else {
+            tourEndDate = checkOutStr;
+        }
+        
+        console.log('🚕 Extracted date strings:', {
+            tourStartDate: tourStartDate,
+            tourEndDate: tourEndDate
+        });
+        
+        // Validate extracted dates
+        if (tourStartDate && tourEndDate && tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) && tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Format display dates
+            try {
+                const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                travelPeriodDisplay = `${startDateFormatted} to ${endDateFormatted}`;
+                console.log('🚕 Formatted display dates:', travelPeriodDisplay);
+            } catch (error) {
+                console.error('🚕 Error formatting dates:', error);
+                travelPeriodDisplay = `${tourStartDate} to ${tourEndDate}`;
+            }
+        } else {
+            console.warn('🚕 Invalid date format extracted:', { tourStartDate, tourEndDate });
+            tourStartDate = '';
+            tourEndDate = '';
+        }
+    } else {
+        console.warn('🚕 Tour data or dates not available:', tourData);
+    }
+    
     return `
         <form id="editTravelPointForm_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -14915,7 +16321,7 @@ function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex
                 <i class="ri-information-line fs-5 me-3 text-info"></i>
                 <div>
                     <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
-                    <small id="edit_travel_point_date_constraint_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-muted">Travel point booking must be within the tour travel period</small>
+                    <small id="edit_travel_point_date_constraint_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="text-muted">Travel point booking must be within the tour travel period: <strong>${travelPeriodDisplay}</strong></small>
                 </div>
             </div>
             
@@ -14934,9 +16340,12 @@ function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex
                                    class="form-control form-control-lg" 
                                    id="edit_travel_point_booking_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
                                    name="booking_date"
+                                   min="${tourStartDate}"
+                                   max="${tourEndDate}"
                                    required
-                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <small class="text-muted">Select date within your travel dates</small>
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;"
+                                   onchange="validateTravelPointDates('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')">
+                            <small class="text-muted">Select date within your travel dates (${travelPeriodDisplay})</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Pickup Date</label>
@@ -14944,9 +16353,12 @@ function generateEditTravelPointForm(tourId, travelPointOrderIndex, bookingIndex
                                    class="form-control form-control-lg" 
                                    id="edit_travel_point_pickup_date_${tourId}_${travelPointOrderIndex}_${bookingIndex}"
                                    name="pickup_date"
+                                   min="${tourStartDate}"
+                                   max="${tourEndDate}"
                                    required
-                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <small class="text-muted">Select pickup date within your travel dates</small>
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;"
+                                   onchange="validateTravelPointDates('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')">
+                            <small class="text-muted">Select pickup date within your travel dates (${travelPeriodDisplay})</small>
                         </div>
                     </div>
                 </div>
@@ -15087,15 +16499,45 @@ function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, bookingIndex)
             const entryTimeInput = document.getElementById(`edit_travel_point_entry_time_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
             
             if (bookingDateInput && pickupDateInput && entryTimeInput) {
-                // Set date constraints based on tour travel period
-                const tourStartDate = tourData?.check_in_time || "2025-09-16";
-                const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                // Set date constraints based on tour travel period - extract date part only
+                let tourStartDate = tourData?.check_in_time || "2025-09-16";
+                let tourEndDate = tourData?.check_out_time || "2025-09-20";
+                
+                // Extract YYYY-MM-DD part from datetime strings to avoid timezone issues
+                if (typeof tourStartDate === 'string') {
+                    if (tourStartDate.includes(' ')) {
+                        tourStartDate = tourStartDate.split(' ')[0];
+                    } else if (tourStartDate.includes('T')) {
+                        tourStartDate = tourStartDate.split('T')[0];
+                    } else if (tourStartDate.length > 10) {
+                        tourStartDate = tourStartDate.substring(0, 10);
+                    }
+                }
+                
+                if (typeof tourEndDate === 'string') {
+                    if (tourEndDate.includes(' ')) {
+                        tourEndDate = tourEndDate.split(' ')[0];
+                    } else if (tourEndDate.includes('T')) {
+                        tourEndDate = tourEndDate.split('T')[0];
+                    } else if (tourEndDate.length > 10) {
+                        tourEndDate = tourEndDate.substring(0, 10);
+                    }
+                }
+                
+                console.log(`🚕 Setting date constraints - Start: ${tourStartDate}, End: ${tourEndDate}`);
                 
                 // Set min and max attributes to restrict date selection
                 bookingDateInput.setAttribute('min', tourStartDate);
                 bookingDateInput.setAttribute('max', tourEndDate);
                 pickupDateInput.setAttribute('min', tourStartDate);
                 pickupDateInput.setAttribute('max', tourEndDate);
+                
+                console.log(`🚕 Date inputs min/max attributes set:`, {
+                    bookingDateMin: bookingDateInput.getAttribute('min'),
+                    bookingDateMax: bookingDateInput.getAttribute('max'),
+                    pickupDateMin: pickupDateInput.getAttribute('min'),
+                    pickupDateMax: pickupDateInput.getAttribute('max')
+                });
                 
                 // Set values from real data or defaults
                 bookingDateInput.value = travelPointData.bookingDate ? 
@@ -15108,7 +16550,7 @@ function loadTravelPointDataForEdit(tourId, travelPointOrderIndex, bookingIndex)
                 
                 entryTimeInput.value = travelPointData.entrytime || "07:00";
                 
-                console.log(`Date constraints set: ${tourStartDate} to ${tourEndDate}`);
+                console.log(`🚕 Final date constraints applied: ${tourStartDate} to ${tourEndDate}`);
             }
         })
         .catch(error => {
@@ -15198,21 +16640,94 @@ function saveIndividualTravelPointChanges(tourId, travelPointOrderIndex, booking
             return;
         }
         
-        // Validate dates are within tour travel period
+        // Validate dates are within tour travel period using string comparison
         const tourData = getTourDataFromPage(tourId);
-        const tourStartDate = new Date(tourData?.check_in_time || "2025-09-16");
-        const tourEndDate = new Date(tourData?.check_out_time || "2025-09-20");
-        const selectedBookingDate = new Date(bookingDate);
-        const selectedPickupDate = new Date(pickupDate);
         
-        if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
-            alert(`Booking date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
-            return;
-        }
-        
-        if (selectedPickupDate < tourStartDate || selectedPickupDate > tourEndDate) {
-            alert(`Pickup date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
-            return;
+        if (!tourData || !tourData.check_in_time || !tourData.check_out_time) {
+            console.warn('🚕 Tour data not available for validation');
+            // Continue without validation if tour data is not available
+        } else {
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
+            
+            let checkInStr = String(tourData.check_in_time);
+            let checkOutStr = String(tourData.check_out_time);
+            
+            // Handle various datetime formats
+            if (checkInStr.includes(' ')) {
+                tourStartDate = checkInStr.split(' ')[0];
+            } else if (checkInStr.includes('T')) {
+                tourStartDate = checkInStr.split('T')[0];
+            } else if (checkInStr.length >= 10) {
+                tourStartDate = checkInStr.substring(0, 10);
+            } else {
+                tourStartDate = checkInStr;
+            }
+            
+            if (checkOutStr.includes(' ')) {
+                tourEndDate = checkOutStr.split(' ')[0];
+            } else if (checkOutStr.includes('T')) {
+                tourEndDate = checkOutStr.split('T')[0];
+            } else if (checkOutStr.length >= 10) {
+                tourEndDate = checkOutStr.substring(0, 10);
+            } else {
+                tourEndDate = checkOutStr;
+            }
+            
+            console.log('🚕 Travel point save validation:', {
+                tourStartDate: tourStartDate,
+                tourEndDate: tourEndDate,
+                bookingDate: bookingDate,
+                pickupDate: pickupDate
+            });
+            
+            // Validate extracted dates format and perform string comparison
+            if (tourStartDate && tourEndDate && tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) && tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+                    try {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        alert(`Booking date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+                    } catch (error) {
+                        alert(`Booking date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+                    }
+                    return;
+                }
+                
+                if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+                    try {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        alert(`Pickup date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+                    } catch (error) {
+                        alert(`Pickup date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+                    }
+                    return;
+                }
+            } else {
+                console.warn('🚕 Invalid tour date format for validation:', { tourStartDate, tourEndDate });
+                // Continue without validation if dates are invalid
+            }
         }
         
         console.log('Saving individual travel point changes:', {
@@ -16458,6 +17973,82 @@ function createAndShowIndividualLocalTransportModal(tourId, localTransportOrderI
 }
 
 function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookingIndex) {
+    // Get tour data for date constraints
+    const tourData = getTourDataFromPage(tourId);
+    console.log('🚐 Local Transport - Tour data retrieved:', tourData);
+    
+    // Extract date strings using timezone-safe approach
+    let tourStartDate = '';
+    let tourEndDate = '';
+    let travelPeriodDisplay = 'Loading...';
+    
+    if (tourData && tourData.check_in_time && tourData.check_out_time) {
+        console.log('🚐 Raw tour dates:', {
+            check_in_time: tourData.check_in_time,
+            check_out_time: tourData.check_out_time
+        });
+        
+        // Extract YYYY-MM-DD part from datetime strings - more robust parsing
+        let checkInStr = String(tourData.check_in_time);
+        let checkOutStr = String(tourData.check_out_time);
+        
+        // Handle various datetime formats
+        if (checkInStr.includes(' ')) {
+            tourStartDate = checkInStr.split(' ')[0];
+        } else if (checkInStr.includes('T')) {
+            tourStartDate = checkInStr.split('T')[0];
+        } else if (checkInStr.length >= 10) {
+            tourStartDate = checkInStr.substring(0, 10);
+        } else {
+            tourStartDate = checkInStr;
+        }
+        
+        if (checkOutStr.includes(' ')) {
+            tourEndDate = checkOutStr.split(' ')[0];
+        } else if (checkOutStr.includes('T')) {
+            tourEndDate = checkOutStr.split('T')[0];
+        } else if (checkOutStr.length >= 10) {
+            tourEndDate = checkOutStr.substring(0, 10);
+        } else {
+            tourEndDate = checkOutStr;
+        }
+        
+        console.log('🚐 Extracted date strings:', {
+            tourStartDate: tourStartDate,
+            tourEndDate: tourEndDate
+        });
+        
+        // Validate extracted dates
+        if (tourStartDate && tourEndDate && tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) && tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Format display dates
+            try {
+                const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                travelPeriodDisplay = `${startDateFormatted} to ${endDateFormatted}`;
+                console.log('🚐 Formatted display dates:', travelPeriodDisplay);
+            } catch (error) {
+                console.error('🚐 Error formatting dates:', error);
+                travelPeriodDisplay = `${tourStartDate} to ${tourEndDate}`;
+            }
+        } else {
+            console.warn('🚐 Invalid date format extracted:', { tourStartDate, tourEndDate });
+            tourStartDate = '';
+            tourEndDate = '';
+        }
+    } else {
+        console.warn('🚐 Tour data or dates not available:', tourData);
+    }
+    
     return `
         <form id="editLocalTransportForm_${tourId}_${localTransportOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -16502,7 +18093,7 @@ function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookin
                 <i class="ri-information-line fs-5 me-3 text-info"></i>
                 <div>
                     <h6 class="mb-1 fw-bold text-info">Travel Date Constraint</h6>
-                    <small id="edit_local_transport_date_constraint_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-muted">Local transport booking must be within the tour travel period</small>
+                    <small id="edit_local_transport_date_constraint_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="text-muted">Local transport booking must be within the tour travel period: <strong>${travelPeriodDisplay}</strong></small>
                 </div>
             </div>
             
@@ -16521,9 +18112,12 @@ function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookin
                                    class="form-control form-control-lg" 
                                    id="edit_local_transport_booking_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
                                    name="booking_date"
+                                   min="${tourStartDate}"
+                                   max="${tourEndDate}"
                                    required
-                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <small class="text-muted">Select date within your travel dates</small>
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;"
+                                   onchange="validateLocalTransportDates('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')">
+                            <small class="text-muted">Select date within your travel dates (${travelPeriodDisplay})</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">Pickup Date</label>
@@ -16531,9 +18125,12 @@ function generateEditLocalTransportForm(tourId, localTransportOrderIndex, bookin
                                    class="form-control form-control-lg" 
                                    id="edit_local_transport_pickup_date_${tourId}_${localTransportOrderIndex}_${bookingIndex}"
                                    name="pickup_date"
+                                   min="${tourStartDate}"
+                                   max="${tourEndDate}"
                                    required
-                                   style="border-radius: 8px; border: 2px solid #e9ecef;">
-                            <small class="text-muted">Select pickup date within your travel dates</small>
+                                   style="border-radius: 8px; border: 2px solid #e9ecef;"
+                                   onchange="validateLocalTransportDates('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')">
+                            <small class="text-muted">Select pickup date within your travel dates (${travelPeriodDisplay})</small>
                         </div>
                     </div>
                 </div>
@@ -16892,16 +18489,46 @@ function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, booking
                 });
                 
                 if (bookingDateInput && pickupDateInput && entryTimeInput) {
-                // Set date constraints based on tour travel period
-                const tourStartDate = tourData?.check_in_time || "2025-09-16";
-                const tourEndDate = tourData?.check_out_time || "2025-09-20";
-                
-                try {
-                    // Set min and max attributes to restrict date selection
-                    bookingDateInput.setAttribute('min', tourStartDate);
-                    bookingDateInput.setAttribute('max', tourEndDate);
-                    pickupDateInput.setAttribute('min', tourStartDate);
-                    pickupDateInput.setAttribute('max', tourEndDate);
+                    // Set date constraints based on tour travel period - extract date part only
+                    let tourStartDate = tourData?.check_in_time || "2025-09-16";
+                    let tourEndDate = tourData?.check_out_time || "2025-09-20";
+                    
+                    // Extract YYYY-MM-DD part from datetime strings to avoid timezone issues
+                    if (typeof tourStartDate === 'string') {
+                        if (tourStartDate.includes(' ')) {
+                            tourStartDate = tourStartDate.split(' ')[0];
+                        } else if (tourStartDate.includes('T')) {
+                            tourStartDate = tourStartDate.split('T')[0];
+                        } else if (tourStartDate.length > 10) {
+                            tourStartDate = tourStartDate.substring(0, 10);
+                        }
+                    }
+                    
+                    if (typeof tourEndDate === 'string') {
+                        if (tourEndDate.includes(' ')) {
+                            tourEndDate = tourEndDate.split(' ')[0];
+                        } else if (tourEndDate.includes('T')) {
+                            tourEndDate = tourEndDate.split('T')[0];
+                        } else if (tourEndDate.length > 10) {
+                            tourEndDate = tourEndDate.substring(0, 10);
+                        }
+                    }
+                    
+                    console.log(`🚐 Setting date constraints - Start: ${tourStartDate}, End: ${tourEndDate}`);
+                    
+                    try {
+                        // Set min and max attributes to restrict date selection
+                        bookingDateInput.setAttribute('min', tourStartDate);
+                        bookingDateInput.setAttribute('max', tourEndDate);
+                        pickupDateInput.setAttribute('min', tourStartDate);
+                        pickupDateInput.setAttribute('max', tourEndDate);
+                        
+                        console.log(`🚐 Date inputs min/max attributes set:`, {
+                            bookingDateMin: bookingDateInput.getAttribute('min'),
+                            bookingDateMax: bookingDateInput.getAttribute('max'),
+                            pickupDateMin: pickupDateInput.getAttribute('min'),
+                            pickupDateMax: pickupDateInput.getAttribute('max')
+                        });
                     
                     // Set values from real data or defaults
                     const bookingDateValue = localTransportData.bookingDate ? 
@@ -16975,9 +18602,32 @@ function loadLocalTransportDataForEdit(tourId, localTransportOrderIndex, booking
             
             if (bookingDateInput && pickupDateInput && entryTimeInput) {
                 try {
-                    // Set date constraints even in error case
-                    const tourStartDate = tourData?.check_in_time || "2025-09-16";
-                    const tourEndDate = tourData?.check_out_time || "2025-09-20";
+                    // Set date constraints even in error case - extract date part only
+                    let tourStartDate = tourData?.check_in_time || "2025-09-16";
+                    let tourEndDate = tourData?.check_out_time || "2025-09-20";
+                    
+                    // Extract YYYY-MM-DD part from datetime strings
+                    if (typeof tourStartDate === 'string') {
+                        if (tourStartDate.includes(' ')) {
+                            tourStartDate = tourStartDate.split(' ')[0];
+                        } else if (tourStartDate.includes('T')) {
+                            tourStartDate = tourStartDate.split('T')[0];
+                        } else if (tourStartDate.length > 10) {
+                            tourStartDate = tourStartDate.substring(0, 10);
+                        }
+                    }
+                    
+                    if (typeof tourEndDate === 'string') {
+                        if (tourEndDate.includes(' ')) {
+                            tourEndDate = tourEndDate.split(' ')[0];
+                        } else if (tourEndDate.includes('T')) {
+                            tourEndDate = tourEndDate.split('T')[0];
+                        } else if (tourEndDate.length > 10) {
+                            tourEndDate = tourEndDate.substring(0, 10);
+                        }
+                    }
+                    
+                    console.log(`🚐 [ERROR CASE] Setting date constraints - Start: ${tourStartDate}, End: ${tourEndDate}`);
                     
                     bookingDateInput.setAttribute('min', tourStartDate);
                     bookingDateInput.setAttribute('max', tourEndDate);
@@ -17061,21 +18711,94 @@ function saveIndividualLocalTransportChanges(tourId, localTransportOrderIndex, b
             return;
         }
         
-        // Validate dates are within tour travel period
+        // Validate dates are within tour travel period using string comparison
         const tourData = getTourDataFromPage(tourId);
-        const tourStartDate = new Date(tourData?.check_in_time || "2025-09-16");
-        const tourEndDate = new Date(tourData?.check_out_time || "2025-09-20");
-        const selectedBookingDate = new Date(bookingDate);
-        const selectedPickupDate = new Date(pickupDate);
         
-        if (selectedBookingDate < tourStartDate || selectedBookingDate > tourEndDate) {
-            alert(`Booking date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
-            return;
-        }
-        
-        if (selectedPickupDate < tourStartDate || selectedPickupDate > tourEndDate) {
-            alert(`Pickup date must be between ${tourData?.check_in_time || "Sep 16, 2025"} and ${tourData?.check_out_time || "Sep 20, 2025"}`);
-            return;
+        if (!tourData || !tourData.check_in_time || !tourData.check_out_time) {
+            console.warn('🚐 Tour data not available for validation');
+            // Continue without validation if tour data is not available
+        } else {
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
+            
+            let checkInStr = String(tourData.check_in_time);
+            let checkOutStr = String(tourData.check_out_time);
+            
+            // Handle various datetime formats
+            if (checkInStr.includes(' ')) {
+                tourStartDate = checkInStr.split(' ')[0];
+            } else if (checkInStr.includes('T')) {
+                tourStartDate = checkInStr.split('T')[0];
+            } else if (checkInStr.length >= 10) {
+                tourStartDate = checkInStr.substring(0, 10);
+            } else {
+                tourStartDate = checkInStr;
+            }
+            
+            if (checkOutStr.includes(' ')) {
+                tourEndDate = checkOutStr.split(' ')[0];
+            } else if (checkOutStr.includes('T')) {
+                tourEndDate = checkOutStr.split('T')[0];
+            } else if (checkOutStr.length >= 10) {
+                tourEndDate = checkOutStr.substring(0, 10);
+            } else {
+                tourEndDate = checkOutStr;
+            }
+            
+            console.log('🚐 Local transport save validation:', {
+                tourStartDate: tourStartDate,
+                tourEndDate: tourEndDate,
+                bookingDate: bookingDate,
+                pickupDate: pickupDate
+            });
+            
+            // Validate extracted dates format and perform string comparison
+            if (tourStartDate && tourEndDate && tourStartDate.match(/^\d{4}-\d{2}-\d{2}$/) && tourEndDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+                    try {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        alert(`Booking date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+                    } catch (error) {
+                        alert(`Booking date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+                    }
+                    return;
+                }
+                
+                if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+                    try {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                        });
+                        alert(`Pickup date must be within the tour travel period: ${startDateFormatted} to ${endDateFormatted}`);
+                    } catch (error) {
+                        alert(`Pickup date must be within the tour travel period: ${tourStartDate} to ${tourEndDate}`);
+                    }
+                    return;
+                }
+            } else {
+                console.warn('🚐 Invalid tour date format for validation:', { tourStartDate, tourEndDate });
+                // Continue without validation if dates are invalid
+            }
         }
         
         console.log('Saving individual local transport changes:', {
@@ -17113,7 +18836,7 @@ function saveIndividualLocalTransportChanges(tourId, localTransportOrderIndex, b
                 closeIndividualLocalTransportModal(modalId);
                 
                 // Show success message
-                alert(data.message || 'Local transport booking updated successfully!');
+                alert(data.message || '✅ Local transport booking updated successfully!');
                 
                 // Refresh the page to show updated data
                 window.location.reload();
@@ -17453,7 +19176,7 @@ function saveLocalTransportChanges(tourId, localTransportOrderIndex, localTransp
             closeLocalTransportEditModal(editModalId);
             
             // Show success message
-            const successMessage = data.message || 'Local transport booking updated successfully!';
+            const successMessage = data.message || '✅ Local transport booking updated successfully!';
             alert(successMessage);
             
             // Refresh the page to show updated data
@@ -18023,7 +19746,7 @@ function generateEditHotelForm(tourId, hotelOrderIndex, bookingIndex) {
                             </label>
                             <input type="date" 
                                    class="form-control form-control-lg" 
-                                   name="check_out_date" 
+                                   name="check_out_date"
                                    id="checkOutDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" 
                                    required
                                    onchange="validateHotelDates(${tourId}, ${hotelOrderIndex}, ${bookingIndex})">
@@ -18755,21 +20478,79 @@ function loadHotelDataForEdit(tourId, hotelOrderIndex, bookingIndex) {
             if (checkInInput && checkOutInput) {
                 // Set min and max dates based on tour travel dates
                 if (tourData.check_in_time) {
-                    const minDate = new Date(tourData.check_in_time).toISOString().split('T')[0];
+                    // Handle both date-only and datetime formats, avoid timezone issues
+                    let minDate;
+                    if (tourData.check_in_time.includes(' ')) {
+                        // DateTime format like '2025-09-01 00:00:00' - extract date part only
+                        minDate = tourData.check_in_time.split(' ')[0];
+                    } else if (tourData.check_in_time.includes('T')) {
+                        // ISO format - extract date part only
+                        minDate = tourData.check_in_time.split('T')[0];
+                    } else {
+                        // Already in YYYY-MM-DD format
+                        minDate = tourData.check_in_time;
+                    }
                     checkInInput.min = minDate;
                     checkOutInput.min = minDate;
+                    
+                    console.log('Set min date for hotel booking:', minDate, 'from tour start:', tourData.check_in_time);
                 }
                 if (tourData.check_out_time) {
-                    const maxDate = new Date(tourData.check_out_time).toISOString().split('T')[0];
+                    // Handle both date-only and datetime formats, avoid timezone issues
+                    let maxDate;
+                    if (tourData.check_out_time.includes(' ')) {
+                        // DateTime format like '2025-09-04 00:00:00' - extract date part only
+                        maxDate = tourData.check_out_time.split(' ')[0];
+                    } else if (tourData.check_out_time.includes('T')) {
+                        // ISO format - extract date part only
+                        maxDate = tourData.check_out_time.split('T')[0];
+                    } else {
+                        // Already in YYYY-MM-DD format
+                        maxDate = tourData.check_out_time;
+                    }
                     checkInInput.max = maxDate;
                     checkOutInput.max = maxDate;
+                    
+                    console.log('Set max date for hotel booking:', maxDate, 'from tour end:', tourData.check_out_time);
                 }
                 
                 // Set current booking dates if available
                 if (hotelData.bookingDate && Array.isArray(hotelData.bookingDate) && hotelData.bookingDate.length >= 2) {
                     checkInInput.value = hotelData.bookingDate[0];
                     checkOutInput.value = hotelData.bookingDate[1];
+                    console.log('Set current hotel booking dates:', hotelData.bookingDate);
                 }
+                
+                // Force update date input constraints after a short delay to ensure DOM is ready
+                setTimeout(() => {
+                    if (tourData.check_in_time && tourData.check_out_time) {
+                        // Handle both date-only and datetime formats, avoid timezone issues
+                        let minDate, maxDate;
+                        
+                        if (tourData.check_in_time.includes(' ')) {
+                            minDate = tourData.check_in_time.split(' ')[0];
+                        } else if (tourData.check_in_time.includes('T')) {
+                            minDate = tourData.check_in_time.split('T')[0];
+                        } else {
+                            minDate = tourData.check_in_time;
+                        }
+                        
+                        if (tourData.check_out_time.includes(' ')) {
+                            maxDate = tourData.check_out_time.split(' ')[0];
+                        } else if (tourData.check_out_time.includes('T')) {
+                            maxDate = tourData.check_out_time.split('T')[0];
+                        } else {
+                            maxDate = tourData.check_out_time;
+                        }
+                        
+                        checkInInput.setAttribute('min', minDate);
+                        checkInInput.setAttribute('max', maxDate);
+                        checkOutInput.setAttribute('min', minDate);
+                        checkOutInput.setAttribute('max', maxDate);
+                        
+                        console.log('Hotel date constraints applied - Min:', minDate, 'Max:', maxDate);
+                    }
+                }, 100);
             }
         })
         .catch(error => {
@@ -18793,7 +20574,11 @@ function getTourDataFromPage(tourId) {
             const checkOut = tourRow.getAttribute('data-check-out');
             
             if (checkIn && checkOut) {
-                console.log('Found dates in table row data attributes:', { checkIn, checkOut });
+                console.log('Found tour dates in table row data attributes:');
+                console.log('  Check-in:', checkIn);
+                console.log('  Check-out:', checkOut);
+                console.log('  Parsed check-in date:', new Date(checkIn));
+                console.log('  Parsed check-out date:', new Date(checkOut));
                 return {
                     tour_id: tourId,
                     check_in_time: checkIn,
@@ -18978,9 +20763,9 @@ function validateHotelDates(tourId, hotelOrderIndex, bookingIndex) {
         const checkInDate = checkInInput.value;
         const checkOutDate = checkOutInput.value;
         
-        // Validate check-out is after check-in
-        if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
-            alert('Check-out date must be after check-in date');
+        // Validate check-out is not before check-in (same date is allowed for day-use bookings)
+        if (checkInDate && checkOutDate && checkOutDate < checkInDate) {
+            alert('Check-out date cannot be before check-in date');
             checkOutInput.value = '';
             return false;
         }
@@ -18988,19 +20773,43 @@ function validateHotelDates(tourId, hotelOrderIndex, bookingIndex) {
         // Validate dates are within tour travel period
         const tourData = getTourDataFromPage(tourId);
         if (tourData && tourData.check_in_time && tourData.check_out_time) {
-            const tourStart = new Date(tourData.check_in_time);
-            const tourEnd = new Date(tourData.check_out_time);
-            const selectedCheckIn = new Date(checkInDate);
-            const selectedCheckOut = new Date(checkOutDate);
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
             
-            if (checkInDate && (selectedCheckIn < tourStart || selectedCheckIn > tourEnd)) {
-                alert('Check-in date must be within the tour travel period');
-                checkInInput.value = '';
-                return false;
+            if (tourData.check_in_time.includes(' ')) {
+                tourStartDate = tourData.check_in_time.split(' ')[0];
+            } else if (tourData.check_in_time.includes('T')) {
+                tourStartDate = tourData.check_in_time.split('T')[0];
+            } else {
+                tourStartDate = tourData.check_in_time;
             }
             
-            if (checkOutDate && (selectedCheckOut < tourStart || selectedCheckOut > tourEnd)) {
-                alert('Check-out date must be within the tour travel period');
+            if (tourData.check_out_time.includes(' ')) {
+                tourEndDate = tourData.check_out_time.split(' ')[0];
+            } else if (tourData.check_out_time.includes('T')) {
+                tourEndDate = tourData.check_out_time.split('T')[0];
+            } else {
+                tourEndDate = tourData.check_out_time;
+            }
+            
+            console.log('Hotel date validation:');
+            console.log('  Tour period: ', tourStartDate, 'to', tourEndDate);
+            console.log('  Selected check-in: ', checkInDate);
+            console.log('  Selected check-out: ', checkOutDate);
+            
+            // Compare date strings directly (YYYY-MM-DD format)
+            // if (checkInDate && (checkInDate < tourStartDate || checkInDate > tourEndDate)) {
+            //     const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            //     const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            //     alert(`Check-in date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
+            //     checkInInput.value = '';
+            //     return false;
+            // }
+            
+            if (checkOutDate && (checkOutDate < tourStartDate || checkOutDate > tourEndDate)) {
+                const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                alert(`Check-out date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
                 checkOutInput.value = '';
                 return false;
             }
@@ -19641,15 +21450,15 @@ function generateVouchers() {
 }
 
 function showUpcomingTours() {
-    // Filter to show only upcoming tours
-    document.getElementById('timeFilter').value = 'this_week';
+    // Filter to show only upcoming tours based on current date logic
     filterTable();
 }
 
 function resetFilters() {
     document.getElementById('searchInput').value = '';
-    document.getElementById('timeFilter').value = '';
+    document.getElementById('statusFilter').value = '';
     document.getElementById('destinationFilter').value = '';
+    document.getElementById('agentFilter').value = '';
     const dr = document.getElementById('dateRange');
     const ds = document.getElementById('dateRangeStart');
     const de = document.getElementById('dateRangeEnd');
@@ -19660,31 +21469,15 @@ function resetFilters() {
 }
 
 window.filterTable = function() {
-    console.log('filterTable function called');
-    
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const timeFilter = document.getElementById('timeFilter')?.value || '';
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
-    console.log('Filter values:', {
-        searchTerm,
-        statusFilter,
-        destinationFilter,
-        agentFilter,
-        timeFilter,
-        dateStart,
-        dateEnd
-    });
-    
     const rows = document.querySelectorAll('#toursTable tbody tr');
-    console.log('Total rows found:', rows.length);
-    
     let visibleCount = 0;
-    let hiddenCount = 0;
     
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
@@ -19692,7 +21485,6 @@ window.filterTable = function() {
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const executionStatus = row.getAttribute('data-execution-status') || '';
         const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
         const confirmationDateText = row.cells[7]?.textContent || '';
@@ -19704,22 +21496,9 @@ window.filterTable = function() {
             show = false;
         }
         
-        if (statusFilter && statusFilter !== '') {
-            // Use the data attribute for more reliable status filtering
-            const filterText = statusFilter.toLowerCase();
-            
-            // Debug logging
-            console.log('Status filtering:', {
-                statusFilter: statusFilter,
-                filterText: filterText,
-                executionStatus: executionStatus,
-                executionStatusLower: executionStatus.toLowerCase(),
-                match: executionStatus.toLowerCase() === filterText
-            });
-            
-            if (executionStatus.toLowerCase() !== filterText) {
-                show = false;
-            }
+        // Status filter - use data attribute for accurate filtering
+        if (statusFilter && executionStatus !== statusFilter) {
+            show = false;
         }
         
         if (destinationFilter && destination !== destinationFilter) {
@@ -19758,49 +21537,12 @@ window.filterTable = function() {
             }
         }
         
-        if (timeFilter) {
-             const daysToGoMatch = travelDates.match(/(\d+) days to go/);
-             const daysToGo = daysToGoMatch ? parseInt(daysToGoMatch[1]) : null;
-             const isStartingToday = travelDates.includes('starting today');
-             const isInProgress = travelDates.includes('started') || travelDates.includes('days ago');
-             
-             if (timeFilter === 'this_week') {
-                 // Show tours starting within 7 days or starting today
-                 if (!((daysToGo !== null && daysToGo <= 7) || isStartingToday)) {
-                     show = false;
-                 }
-             } else if (timeFilter === 'next_week') {
-                 // Show tours starting in 8-14 days
-                 if (!(daysToGo !== null && daysToGo >= 8 && daysToGo <= 14)) {
-                     show = false;
-                 }
-             } else if (timeFilter === 'this_month') {
-                 // Show tours starting within 30 days
-                 if (!((daysToGo !== null && daysToGo <= 30) || isStartingToday)) {
-                     show = false;
-                 }
-             } else if (timeFilter === 'next_month') {
-                 // Show tours starting in 31-60 days
-                 if (!(daysToGo !== null && daysToGo >= 31 && daysToGo <= 60)) {
-                     show = false;
-                 }
-             }
-         }
-        
         row.style.display = show ? '' : 'none';
-        
-        if (show) {
-            visibleCount++;
-        } else {
-            hiddenCount++;
-        }
+        if (show) visibleCount++;
     });
     
-    console.log('Filtering results:', {
-        visible: visibleCount,
-        hidden: hiddenCount,
-        total: visibleCount + hiddenCount
-    });
+    // Update visible count display
+    updateFilterResults(visibleCount, rows.length);
 
     // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
@@ -19867,7 +21609,6 @@ function resetFilters() {
     document.getElementById('statusFilter').value = '';
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
-    document.getElementById('timeFilter').value = '';
     const dr = document.getElementById('dateRange');
     const ds = document.getElementById('dateRangeStart');
     const de = document.getElementById('dateRangeEnd');
@@ -19875,7 +21616,44 @@ function resetFilters() {
     if (ds) ds.value = '';
     if (de) de.value = '';
     filterTable();
+    
+    // Show success message
+    showFilterResetMessage();
 }
+
+function updateFilterResults(visibleCount, totalCount) {
+    // Update the table header to show filter results
+    const tableHeader = document.querySelector('#toursTable').closest('.card').querySelector('.card-header h5');
+    if (tableHeader) {
+        if (visibleCount === totalCount) {
+            tableHeader.textContent = 'Definite Bookings List';
+        } else {
+            tableHeader.innerHTML = `Definite Bookings List <span class="badge bg-primary ms-2">${visibleCount} of ${totalCount} shown</span>`;
+        }
+    }
+}
+
+function showFilterResetMessage() {
+    // Create a temporary success message
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <i class="ri-check-circle-line me-2"></i>
+        <strong>Filters Reset!</strong> All filters have been cleared.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
+
 
 // Filter functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -19883,7 +21661,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const timeFilter = document.getElementById('timeFilter');
     const dateRange = document.getElementById('dateRange');
     const dateRangeStart = document.getElementById('dateRangeStart');
     const dateRangeEnd = document.getElementById('dateRangeEnd');
@@ -19893,7 +21670,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    if (timeFilter) timeFilter.addEventListener('change', filterTable);
     // Date range picker will be initialized in scripts section where jQuery is available
     
     // Apply initial filter on page load to show today's data
@@ -20317,13 +22093,33 @@ function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
             
             // Set travel date range information with proper formatting
             if (travelDateRangeElement && tourData.check_in_time && tourData.check_out_time) {
-                const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
+                // Extract date strings to avoid timezone issues
+                let tourStartDate, tourEndDate;
+                
+                if (tourData.check_in_time.includes(' ')) {
+                    tourStartDate = tourData.check_in_time.split(' ')[0];
+                } else if (tourData.check_in_time.includes('T')) {
+                    tourStartDate = tourData.check_in_time.split('T')[0];
+                } else {
+                    tourStartDate = tourData.check_in_time;
+                }
+                
+                if (tourData.check_out_time.includes(' ')) {
+                    tourEndDate = tourData.check_out_time.split(' ')[0];
+                } else if (tourData.check_out_time.includes('T')) {
+                    tourEndDate = tourData.check_out_time.split('T')[0];
+                } else {
+                    tourEndDate = tourData.check_out_time;
+                }
+                
+                // Format dates for display using the extracted date strings
+                const startDate = new Date(tourStartDate).toLocaleDateString('en-US', { 
                     weekday: 'short', 
                     year: 'numeric', 
                     month: 'short', 
                     day: 'numeric' 
                 });
-                const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
+                const endDate = new Date(tourEndDate).toLocaleDateString('en-US', { 
                     weekday: 'short', 
                     year: 'numeric', 
                     month: 'short', 
@@ -20340,15 +22136,60 @@ function loadAttractionDataForEdit(tourId, attractionOrderIndex, bookingIndex) {
             const timeRangeDisplay = document.getElementById(`timeRangeDisplay_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
             
             if (bookingDateInput) {
-                // Set min and max dates based on tour travel dates
+                // Set min and max dates based on tour travel dates - avoid timezone issues
                 if (tourData.check_in_time) {
-                    const minDate = new Date(tourData.check_in_time).toISOString().split('T')[0];
+                    // Extract date string to avoid timezone conversion issues
+                    let minDate;
+                    if (tourData.check_in_time.includes(' ')) {
+                        minDate = tourData.check_in_time.split(' ')[0];
+                    } else if (tourData.check_in_time.includes('T')) {
+                        minDate = tourData.check_in_time.split('T')[0];
+                    } else {
+                        minDate = tourData.check_in_time;
+                    }
                     bookingDateInput.min = minDate;
+                    console.log('Set attraction min date:', minDate, 'from:', tourData.check_in_time);
                 }
                 if (tourData.check_out_time) {
-                    const maxDate = new Date(tourData.check_out_time).toISOString().split('T')[0];
+                    // Extract date string to avoid timezone conversion issues
+                    let maxDate;
+                    if (tourData.check_out_time.includes(' ')) {
+                        maxDate = tourData.check_out_time.split(' ')[0];
+                    } else if (tourData.check_out_time.includes('T')) {
+                        maxDate = tourData.check_out_time.split('T')[0];
+                    } else {
+                        maxDate = tourData.check_out_time;
+                    }
                     bookingDateInput.max = maxDate;
+                    console.log('Set attraction max date:', maxDate, 'from:', tourData.check_out_time);
                 }
+                
+                // Force update date input constraints after a short delay
+                setTimeout(() => {
+                    if (tourData.check_in_time && tourData.check_out_time) {
+                        let minDate, maxDate;
+                        
+                        if (tourData.check_in_time.includes(' ')) {
+                            minDate = tourData.check_in_time.split(' ')[0];
+                        } else if (tourData.check_in_time.includes('T')) {
+                            minDate = tourData.check_in_time.split('T')[0];
+                        } else {
+                            minDate = tourData.check_in_time;
+                        }
+                        
+                        if (tourData.check_out_time.includes(' ')) {
+                            maxDate = tourData.check_out_time.split(' ')[0];
+                        } else if (tourData.check_out_time.includes('T')) {
+                            maxDate = tourData.check_out_time.split('T')[0];
+                        } else {
+                            maxDate = tourData.check_out_time;
+                        }
+                        
+                        bookingDateInput.setAttribute('min', minDate);
+                        bookingDateInput.setAttribute('max', maxDate);
+                        console.log('Attraction date constraints applied - Min:', minDate, 'Max:', maxDate);
+                    }
+                }, 100);
                 
                 // Set current booking date if available
                 if (attractionData.attractionDetails?.booking_date) {
@@ -20455,10 +22296,6 @@ function getAttractionServiceData(tourId, attractionOrderIndex, bookingIndex) {
         });
     });
 }
-=======
-    }
-</script>
->>>>>>> c1a6bb7aeed746b5772857578a3af651134946e5
 
 function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
     try {
@@ -20470,13 +22307,35 @@ function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
         
         // Validate date is within tour travel period
         const tourData = getTourDataFromPage(tourId);
-        if (tourData && tourData.check_in_time && tourData.check_out_time) {
-            const tourStart = new Date(tourData.check_in_time);
-            const tourEnd = new Date(tourData.check_out_time);
-            const selectedDate = new Date(bookingDate);
+        if (tourData && tourData.check_in_time && tourData.check_out_time && bookingDate) {
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
             
-            if (bookingDate && (selectedDate < tourStart || selectedDate > tourEnd)) {
-                alert('Visit date must be within the tour travel period');
+            if (tourData.check_in_time.includes(' ')) {
+                tourStartDate = tourData.check_in_time.split(' ')[0];
+            } else if (tourData.check_in_time.includes('T')) {
+                tourStartDate = tourData.check_in_time.split('T')[0];
+            } else {
+                tourStartDate = tourData.check_in_time;
+            }
+            
+            if (tourData.check_out_time.includes(' ')) {
+                tourEndDate = tourData.check_out_time.split(' ')[0];
+            } else if (tourData.check_out_time.includes('T')) {
+                tourEndDate = tourData.check_out_time.split('T')[0];
+            } else {
+                tourEndDate = tourData.check_out_time;
+            }
+            
+            console.log('Attraction date validation:');
+            console.log('  Tour period: ', tourStartDate, 'to', tourEndDate);
+            console.log('  Selected visit date: ', bookingDate);
+            
+            // Compare date strings directly (YYYY-MM-DD format)
+            if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+                const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                alert(`Visit date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
                 bookingDateInput.value = '';
                 return false;
             }
@@ -21301,13 +23160,33 @@ function loadRestaurantDataForEdit(tourId, restaurantOrderIndex, bookingIndex) {
             
             // Set travel date range information with proper formatting
             if (travelDateRangeElement && tourData.check_in_time && tourData.check_out_time) {
-                const startDate = new Date(tourData.check_in_time).toLocaleDateString('en-US', { 
+                // Extract date strings to avoid timezone issues
+                let tourStartDate, tourEndDate;
+                
+                if (tourData.check_in_time.includes(' ')) {
+                    tourStartDate = tourData.check_in_time.split(' ')[0];
+                } else if (tourData.check_in_time.includes('T')) {
+                    tourStartDate = tourData.check_in_time.split('T')[0];
+                } else {
+                    tourStartDate = tourData.check_in_time;
+                }
+                
+                if (tourData.check_out_time.includes(' ')) {
+                    tourEndDate = tourData.check_out_time.split(' ')[0];
+                } else if (tourData.check_out_time.includes('T')) {
+                    tourEndDate = tourData.check_out_time.split('T')[0];
+                } else {
+                    tourEndDate = tourData.check_out_time;
+                }
+                
+                // Format dates for display using the extracted date strings
+                const startDate = new Date(tourStartDate).toLocaleDateString('en-US', { 
                     weekday: 'short', 
                     year: 'numeric', 
                     month: 'short', 
                     day: 'numeric' 
                 });
-                const endDate = new Date(tourData.check_out_time).toLocaleDateString('en-US', { 
+                const endDate = new Date(tourEndDate).toLocaleDateString('en-US', { 
                     weekday: 'short', 
                     year: 'numeric', 
                     month: 'short', 
@@ -21324,15 +23203,60 @@ function loadRestaurantDataForEdit(tourId, restaurantOrderIndex, bookingIndex) {
             const timeDisplay = document.getElementById(`timeDisplay_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
             
             if (bookingDateInput) {
-                // Set min and max dates based on tour travel dates
+                // Set min and max dates based on tour travel dates - avoid timezone issues
                 if (tourData.check_in_time) {
-                    const minDate = new Date(tourData.check_in_time).toISOString().split('T')[0];
+                    // Extract date string to avoid timezone conversion issues
+                    let minDate;
+                    if (tourData.check_in_time.includes(' ')) {
+                        minDate = tourData.check_in_time.split(' ')[0];
+                    } else if (tourData.check_in_time.includes('T')) {
+                        minDate = tourData.check_in_time.split('T')[0];
+                    } else {
+                        minDate = tourData.check_in_time;
+                    }
                     bookingDateInput.min = minDate;
+                    console.log('Set restaurant min date:', minDate, 'from:', tourData.check_in_time);
                 }
                 if (tourData.check_out_time) {
-                    const maxDate = new Date(tourData.check_out_time).toISOString().split('T')[0];
+                    // Extract date string to avoid timezone conversion issues
+                    let maxDate;
+                    if (tourData.check_out_time.includes(' ')) {
+                        maxDate = tourData.check_out_time.split(' ')[0];
+                    } else if (tourData.check_out_time.includes('T')) {
+                        maxDate = tourData.check_out_time.split('T')[0];
+                    } else {
+                        maxDate = tourData.check_out_time;
+                    }
                     bookingDateInput.max = maxDate;
+                    console.log('Set restaurant max date:', maxDate, 'from:', tourData.check_out_time);
                 }
+                
+                // Force update date input constraints after a short delay
+                setTimeout(() => {
+                    if (tourData.check_in_time && tourData.check_out_time) {
+                        let minDate, maxDate;
+                        
+                        if (tourData.check_in_time.includes(' ')) {
+                            minDate = tourData.check_in_time.split(' ')[0];
+                        } else if (tourData.check_in_time.includes('T')) {
+                            minDate = tourData.check_in_time.split('T')[0];
+                        } else {
+                            minDate = tourData.check_in_time;
+                        }
+                        
+                        if (tourData.check_out_time.includes(' ')) {
+                            maxDate = tourData.check_out_time.split(' ')[0];
+                        } else if (tourData.check_out_time.includes('T')) {
+                            maxDate = tourData.check_out_time.split('T')[0];
+                        } else {
+                            maxDate = tourData.check_out_time;
+                        }
+                        
+                        bookingDateInput.setAttribute('min', minDate);
+                        bookingDateInput.setAttribute('max', maxDate);
+                        console.log('Restaurant date constraints applied - Min:', minDate, 'Max:', maxDate);
+                    }
+                }, 100);
                 
                 // Set current booking date if available
                 if (restaurantData.restaurantDetails?.booking_date) {
@@ -21598,13 +23522,35 @@ function validateRestaurantDate(tourId, restaurantOrderIndex, bookingIndex) {
         
         // Validate date is within tour travel period
         const tourData = getTourDataFromPage(tourId);
-        if (tourData && tourData.check_in_time && tourData.check_out_time) {
-            const tourStart = new Date(tourData.check_in_time);
-            const tourEnd = new Date(tourData.check_out_time);
-            const selectedDate = new Date(bookingDate);
+        if (tourData && tourData.check_in_time && tourData.check_out_time && bookingDate) {
+            // Extract date strings to avoid timezone issues
+            let tourStartDate, tourEndDate;
             
-            if (bookingDate && (selectedDate < tourStart || selectedDate > tourEnd)) {
-                alert('Dining date must be within the tour travel period');
+            if (tourData.check_in_time.includes(' ')) {
+                tourStartDate = tourData.check_in_time.split(' ')[0];
+            } else if (tourData.check_in_time.includes('T')) {
+                tourStartDate = tourData.check_in_time.split('T')[0];
+            } else {
+                tourStartDate = tourData.check_in_time;
+            }
+            
+            if (tourData.check_out_time.includes(' ')) {
+                tourEndDate = tourData.check_out_time.split(' ')[0];
+            } else if (tourData.check_out_time.includes('T')) {
+                tourEndDate = tourData.check_out_time.split('T')[0];
+            } else {
+                tourEndDate = tourData.check_out_time;
+            }
+            
+            console.log('Restaurant date validation:');
+            console.log('  Tour period: ', tourStartDate, 'to', tourEndDate);
+            console.log('  Selected dining date: ', bookingDate);
+            
+            // Compare date strings directly (YYYY-MM-DD format)
+            if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+                const tourStartFormatted = new Date(tourStartDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                const tourEndFormatted = new Date(tourEndDate).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                alert(`Dining date must be within the tour travel period: ${tourStartFormatted} to ${tourEndFormatted}`);
                 bookingDateInput.value = '';
                 return false;
             }
@@ -23132,32 +25078,831 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             }, 1500); // Slightly longer delay to ensure user sees the success message
         });
     }
-    
-    // Test function for status filter
-    function testStatusFilter() {
-        console.log('Testing status filter...');
+
+
+
+    function createAndShowArrivalEditModal(tourId, arrivalOrderIndex, bookingIndex) {
+        console.log('🛬 Opening arrival edit modal for:', { tourId, arrivalOrderIndex, bookingIndex });
+        const editModalId = `editArrivalModal_${tourId}_${arrivalOrderIndex}_${bookingIndex}`;
         
-        const statusFilter = document.getElementById('statusFilter');
-        const rows = document.querySelectorAll('#toursTable tbody tr');
+        const editModalHTML = `
+            <div class="modal fade" id="${editModalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content shadow-lg" style="border-radius: 15px;">
+                        <!-- Modal Header -->
+                        <div class="modal-header bg-gradient-primary text-white" style="border-radius: 15px 15px 0 0;">
+                            <h5 class="modal-title fw-bold">
+                                <i class="fas fa-plane-arrival me-2"></i>Edit Arrival Service
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeArrivalEditModal('${editModalId}')"></button>
+                        </div>
+                        
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="alert alert-info border-0 shadow-sm">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Tour Travel Period:</strong> <span id="arrival_travel_dates_${editModalId}">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <form id="arrivalEditForm_${editModalId}">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="arrival_booking_date_${editModalId}" class="form-label fw-semibold">
+                                            <i class="fas fa-calendar-day me-2 text-primary"></i>Booking Date
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control form-control-lg" 
+                                               id="arrival_booking_date_${editModalId}" 
+                                               name="booking_date" 
+                                               required 
+                                               onchange="validateArrivalDates('${tourId}', '${arrivalOrderIndex}', '${bookingIndex}', '${editModalId}')">
+                                        <div class="form-text">Select the service booking date</div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="arrival_pickup_date_${editModalId}" class="form-label fw-semibold">
+                                            <i class="fas fa-calendar-check me-2 text-success"></i>Pickup Date
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control form-control-lg" 
+                                               id="arrival_pickup_date_${editModalId}" 
+                                               name="pickup_date" 
+                                               required 
+                                               onchange="validateArrivalDates('${tourId}', '${arrivalOrderIndex}', '${bookingIndex}', '${editModalId}')">
+                                        <div class="form-text">Select the pickup date</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="arrival_entry_time_${editModalId}" class="form-label fw-semibold">
+                                            <i class="fas fa-clock me-2 text-warning"></i>Service Time
+                                        </label>
+                                        <input type="time" 
+                                               class="form-control form-control-lg" 
+                                               id="arrival_entry_time_${editModalId}" 
+                                               name="entry_time" 
+                                               required>
+                                        <div class="form-text">Select the service time</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hidden Fields -->
+                                <input type="hidden" id="arrivalBookingId_${tourId}_${arrivalOrderIndex}_${bookingIndex}" name="booking_id">
+                            </form>
+                        </div>
+                        
+                        <!-- Modal Footer -->
+                        <div class="modal-footer bg-light" style="border-radius: 0 0 15px 15px;">
+                            <button type="button" class="btn btn-secondary btn-lg" onclick="closeArrivalEditModal('${editModalId}')">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn btn-primary btn-lg" onclick="saveArrivalChanges('${tourId}', '${arrivalOrderIndex}', '${bookingIndex}', '${editModalId}')">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
         
-        console.log('Status filter value:', statusFilter?.value);
-        console.log('Total rows:', rows.length);
+        // Remove existing modal if present
+        const existingModal = document.getElementById(editModalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
         
-        // Test first few rows
-        rows.forEach((row, index) => {
-            if (index < 3) { // Only test first 3 rows
-                const executionStatus = row.getAttribute('data-execution-status');
-                const statusCell = row.cells[8]?.querySelector('.badge')?.textContent;
-                console.log(`Row ${index + 1}:`, {
-                    executionStatus,
-                    statusCell,
-                    row: row
-                });
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', editModalHTML);
+        
+        // Load data and show modal
+        loadArrivalDataForEdit(tourId, arrivalOrderIndex, bookingIndex, editModalId);
+        
+        // Show modal
+        const modalElement = document.getElementById(editModalId);
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+
+    function closeArrivalEditModal(editModalId) {
+        const modalElement = document.getElementById(editModalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
             }
-        });
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    }
+
+    function loadArrivalDataForEdit(tourId, arrivalOrderIndex, bookingIndex, editModalId) {
+        console.log('🛬 Loading arrival data with parameters:', { tourId, arrivalOrderIndex, bookingIndex, editModalId });
         
-        // Test filtering
-        filterTable();
+        fetch('{{ url("/booking/get-arrival-data") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                arrival_order_index: arrivalOrderIndex,
+                booking_index: bookingIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🛬 Arrival data received from server:', data);
+            if (data.success && data.data) {
+                const arrivalDetails = data.data;
+                console.log('🛬 Complete arrival data structure:', arrivalDetails);
+                
+                // Get tour data for date constraints
+                const tourData = getTourDataFromPage(tourId);
+                console.log('🛬 Tour data for date constraints:', tourData);
+                
+                // Set date constraints using timezone-safe approach
+                let tourStartDate, tourEndDate;
+                
+                if (tourData.check_in_time) {
+                    if (tourData.check_in_time.includes(' ')) {
+                        tourStartDate = tourData.check_in_time.split(' ')[0];
+                    } else if (tourData.check_in_time.includes('T')) {
+                        tourStartDate = tourData.check_in_time.split('T')[0];
+                    } else {
+                        tourStartDate = tourData.check_in_time;
+                    }
+                }
+                
+                if (tourData.check_out_time) {
+                    if (tourData.check_out_time.includes(' ')) {
+                        tourEndDate = tourData.check_out_time.split(' ')[0];
+                    } else if (tourData.check_out_time.includes('T')) {
+                        tourEndDate = tourData.check_out_time.split('T')[0];
+                    } else {
+                        tourEndDate = tourData.check_out_time;
+                    }
+                }
+                
+                console.log('🛬 Set date constraints - Min:', tourStartDate, 'Max:', tourEndDate);
+                
+                // Set min/max dates for date inputs
+                if (tourStartDate && tourEndDate) {
+                    const bookingDateInput = document.getElementById(`arrival_booking_date_${editModalId}`);
+                    const pickupDateInput = document.getElementById(`arrival_pickup_date_${editModalId}`);
+                    
+                    if (bookingDateInput) {
+                        bookingDateInput.min = tourStartDate;
+                        bookingDateInput.max = tourEndDate;
+                    }
+                    if (pickupDateInput) {
+                        pickupDateInput.min = tourStartDate;
+                        pickupDateInput.max = tourEndDate;
+                    }
+                    
+                    // Update travel dates display
+                    const travelDatesSpan = document.getElementById(`arrival_travel_dates_${editModalId}`);
+                    if (travelDatesSpan) {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        travelDatesSpan.textContent = `${startDateFormatted} to ${endDateFormatted}`;
+                    }
+                }
+                
+                // Populate form fields
+                if (arrivalDetails.booking_date) {
+                    let bookingDate = arrivalDetails.booking_date;
+                    if (bookingDate.includes(' ')) {
+                        bookingDate = bookingDate.split(' ')[0];
+                    } else if (bookingDate.includes('T')) {
+                        bookingDate = bookingDate.split('T')[0];
+                    }
+                    document.getElementById(`arrival_booking_date_${editModalId}`).value = bookingDate;
+                }
+                
+                if (arrivalDetails.pickup_date) {
+                    let pickupDate = arrivalDetails.pickup_date;
+                    if (pickupDate.includes(' ')) {
+                        pickupDate = pickupDate.split(' ')[0];
+                    } else if (pickupDate.includes('T')) {
+                        pickupDate = pickupDate.split('T')[0];
+                    }
+                    document.getElementById(`arrival_pickup_date_${editModalId}`).value = pickupDate;
+                }
+                
+                if (arrivalDetails.entry_time) {
+                    // Convert time to 24-hour format for input
+                    let timeValue = arrivalDetails.entry_time;
+                    if (timeValue.includes('AM') || timeValue.includes('PM')) {
+                        timeValue = convertTo24HourFormat(timeValue);
+                    }
+                    document.getElementById(`arrival_entry_time_${editModalId}`).value = timeValue;
+                }
+                
+                // Store booking ID
+                const bookingId = arrivalDetails.booking_id || arrivalDetails.id;
+                if (bookingId) {
+                    document.getElementById(`arrivalBookingId_${tourId}_${arrivalOrderIndex}_${bookingIndex}`).value = bookingId;
+                }
+                
+            } else {
+                console.error('🛬 Failed to load arrival data:', data.message || 'Unknown error');
+                alert('Failed to load arrival data: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('🛬 Error loading arrival data:', error);
+            alert('Network error occurred while loading arrival data. Please try again.');
+        });
+    }
+
+    function validateArrivalDates(tourId, arrivalOrderIndex, bookingIndex, editModalId) {
+        const bookingDate = document.getElementById(`arrival_booking_date_${editModalId}`).value;
+        const pickupDate = document.getElementById(`arrival_pickup_date_${editModalId}`).value;
+        
+        if (!bookingDate || !pickupDate) {
+            return true; // Don't validate if dates are not selected yet
+        }
+        
+        const tourData = getTourDataFromPage(tourId);
+        if (!tourData.check_in_time || !tourData.check_out_time) {
+            console.warn('🛬 Tour dates not available for validation');
+            return true;
+        }
+        
+        // Extract date strings to avoid timezone issues
+        let tourStartDate, tourEndDate;
+        
+        if (tourData.check_in_time.includes(' ')) {
+            tourStartDate = tourData.check_in_time.split(' ')[0];
+        } else if (tourData.check_in_time.includes('T')) {
+            tourStartDate = tourData.check_in_time.split('T')[0];
+        } else {
+            tourStartDate = tourData.check_in_time;
+        }
+        
+        if (tourData.check_out_time.includes(' ')) {
+            tourEndDate = tourData.check_out_time.split(' ')[0];
+        } else if (tourData.check_out_time.includes('T')) {
+            tourEndDate = tourData.check_out_time.split('T')[0];
+        } else {
+            tourEndDate = tourData.check_out_time;
+        }
+        
+        console.log('🛬 Arrival date validation:');
+        console.log('  Tour period:', tourStartDate, 'to', tourEndDate);
+        console.log('  Selected booking date:', bookingDate);
+        console.log('  Selected pickup date:', pickupDate);
+        
+        // Validate booking date
+        if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+            alert(`Booking date must be within the tour travel period: ${new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })} to ${new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })}`);
+            return false;
+        }
+        
+        // Validate pickup date
+        if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+            alert(`Pickup date must be within the tour travel period: ${new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })} to ${new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })}`);
+            return false;
+        }
+        
+        return true;
+    }
+
+    function saveArrivalChanges(tourId, arrivalOrderIndex, bookingIndex, editModalId) {
+        console.log('🛬 Saving arrival changes for:', { tourId, arrivalOrderIndex, bookingIndex, editModalId });
+        
+        const bookingDate = document.getElementById(`arrival_booking_date_${editModalId}`).value;
+        const pickupDate = document.getElementById(`arrival_pickup_date_${editModalId}`).value;
+        const entryTime = document.getElementById(`arrival_entry_time_${editModalId}`).value;
+        
+        // Validate dates
+        if (!validateArrivalDates(tourId, arrivalOrderIndex, bookingIndex, editModalId)) {
+            return;
+        }
+        
+        if (!bookingDate || !pickupDate || !entryTime) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        // Convert 24-hour time to 12-hour format for storage
+        const formattedTime = convertTo12HourFormat(entryTime);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        const requestData = {
+            tour_id: tourId,
+            arrival_order_index: arrivalOrderIndex,
+            booking_index: bookingIndex,
+            booking_date: bookingDate,
+            pickup_date: pickupDate,
+            entry_time: formattedTime
+        };
+        
+        console.log('🛬 Sending arrival update request:', requestData);
+        
+        fetch('{{ url("/booking/update-arrival-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🛬 Arrival update response from server:', data);
+            
+            if (data.success) {
+                // Show success message
+                const successMessage = `
+                    ✅ Arrival service updated successfully!
+                    
+                    Booking Date: ${new Date(bookingDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })}
+                    Pickup Date: ${new Date(pickupDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })}
+                    Service Time: ${formattedTime}
+                    
+                    The booking details have been updated.
+                `;
+                
+                setTimeout(() => {
+                    alert(successMessage);
+                    closeArrivalEditModal(editModalId);
+                    window.location.reload();
+                }, 100);
+                
+            } else {
+                alert('Error: ' + (data.message || 'Failed to update arrival booking'));
+            }
+        })
+        .catch(error => {
+            console.error('🛬 Error saving arrival changes:', error);
+            alert('Network error occurred. Please try again.');
+        });
+    }
+
+    // =========================
+    // DEPARTURE (EXIT_PORT) EDIT MODAL FUNCTIONS
+    // =========================
+
+    function createAndShowDepartureEditModal(tourId, departureOrderIndex, bookingIndex) {
+        console.log('🛫 Opening departure edit modal for:', { tourId, departureOrderIndex, bookingIndex });
+        const editModalId = `editDepartureModal_${tourId}_${departureOrderIndex}_${bookingIndex}`;
+        
+        const editModalHTML = `
+            <div class="modal fade" id="${editModalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content shadow-lg" style="border-radius: 15px;">
+                        <!-- Modal Header -->
+                        <div class="modal-header bg-gradient-danger text-white" style="border-radius: 15px 15px 0 0;">
+                            <h5 class="modal-title fw-bold">
+                                <i class="fas fa-plane-departure me-2"></i>Edit Departure Service
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" onclick="closeDepartureEditModal('${editModalId}')"></button>
+                        </div>
+                        
+                        <!-- Modal Body -->
+                        <div class="modal-body p-4">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="alert alert-info border-0 shadow-sm">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Tour Travel Period:</strong> <span id="departure_travel_dates_${editModalId}">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <form id="departureEditForm_${editModalId}">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="departure_booking_date_${editModalId}" class="form-label fw-semibold">
+                                            <i class="fas fa-calendar-day me-2 text-primary"></i>Booking Date
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control form-control-lg" 
+                                               id="departure_booking_date_${editModalId}" 
+                                               name="booking_date" 
+                                               required 
+                                               onchange="validateDepartureDates('${tourId}', '${departureOrderIndex}', '${bookingIndex}', '${editModalId}')">
+                                        <div class="form-text">Select the service booking date</div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="departure_pickup_date_${editModalId}" class="form-label fw-semibold">
+                                            <i class="fas fa-calendar-check me-2 text-success"></i>Pickup Date
+                                        </label>
+                                        <input type="date" 
+                                               class="form-control form-control-lg" 
+                                               id="departure_pickup_date_${editModalId}" 
+                                               name="exit_pickup_date" 
+                                               required 
+                                               onchange="validateDepartureDates('${tourId}', '${departureOrderIndex}', '${bookingIndex}', '${editModalId}')">
+                                        <div class="form-text">Select the pickup date</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="departure_entry_time_${editModalId}" class="form-label fw-semibold">
+                                            <i class="fas fa-clock me-2 text-warning"></i>Service Time
+                                        </label>
+                                        <input type="time" 
+                                               class="form-control form-control-lg" 
+                                               id="departure_entry_time_${editModalId}" 
+                                               name="entry_time" 
+                                               required>
+                                        <div class="form-text">Select the service time</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hidden Fields -->
+                                <input type="hidden" id="departureBookingId_${tourId}_${departureOrderIndex}_${bookingIndex}" name="booking_id">
+                            </form>
+                        </div>
+                        
+                        <!-- Modal Footer -->
+                        <div class="modal-footer bg-light" style="border-radius: 0 0 15px 15px;">
+                            <button type="button" class="btn btn-secondary btn-lg" onclick="closeDepartureEditModal('${editModalId}')">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                            <button type="button" class="btn btn-danger btn-lg" onclick="saveDepartureChanges('${tourId}', '${departureOrderIndex}', '${bookingIndex}', '${editModalId}')">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if present
+        const existingModal = document.getElementById(editModalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', editModalHTML);
+        
+        // Load data and show modal
+        loadDepartureDataForEdit(tourId, departureOrderIndex, bookingIndex, editModalId);
+        
+        // Show modal
+        const modalElement = document.getElementById(editModalId);
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+
+    function closeDepartureEditModal(editModalId) {
+        const modalElement = document.getElementById(editModalId);
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            }
+            setTimeout(() => {
+                modalElement.remove();
+            }, 300);
+        }
+    }
+
+    function loadDepartureDataForEdit(tourId, departureOrderIndex, bookingIndex, editModalId) {
+        console.log('🛫 Loading departure data with parameters:', { tourId, departureOrderIndex, bookingIndex, editModalId });
+        
+        fetch('{{ url("/booking/get-departure-data") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                departure_order_index: departureOrderIndex,
+                booking_index: bookingIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🛫 Departure data received from server:', data);
+            if (data.success && data.data) {
+                const departureDetails = data.data;
+                console.log('🛫 Complete departure data structure:', departureDetails);
+                
+                // Get tour data for date constraints
+                const tourData = getTourDataFromPage(tourId);
+                console.log('🛫 Tour data for date constraints:', tourData);
+                
+                // Set date constraints using timezone-safe approach
+                let tourStartDate, tourEndDate;
+                
+                if (tourData.check_in_time) {
+                    if (tourData.check_in_time.includes(' ')) {
+                        tourStartDate = tourData.check_in_time.split(' ')[0];
+                    } else if (tourData.check_in_time.includes('T')) {
+                        tourStartDate = tourData.check_in_time.split('T')[0];
+                    } else {
+                        tourStartDate = tourData.check_in_time;
+                    }
+                }
+                
+                if (tourData.check_out_time) {
+                    if (tourData.check_out_time.includes(' ')) {
+                        tourEndDate = tourData.check_out_time.split(' ')[0];
+                    } else if (tourData.check_out_time.includes('T')) {
+                        tourEndDate = tourData.check_out_time.split('T')[0];
+                    } else {
+                        tourEndDate = tourData.check_out_time;
+                    }
+                }
+                
+                console.log('🛫 Set date constraints - Min:', tourStartDate, 'Max:', tourEndDate);
+                
+                // Set min/max dates for date inputs
+                if (tourStartDate && tourEndDate) {
+                    const bookingDateInput = document.getElementById(`departure_booking_date_${editModalId}`);
+                    const pickupDateInput = document.getElementById(`departure_pickup_date_${editModalId}`);
+                    
+                    if (bookingDateInput) {
+                        bookingDateInput.min = tourStartDate;
+                        bookingDateInput.max = tourEndDate;
+                    }
+                    if (pickupDateInput) {
+                        pickupDateInput.min = tourStartDate;
+                        pickupDateInput.max = tourEndDate;
+                    }
+                    
+                    // Update travel dates display
+                    const travelDatesSpan = document.getElementById(`departure_travel_dates_${editModalId}`);
+                    if (travelDatesSpan) {
+                        const startDateFormatted = new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        const endDateFormatted = new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        travelDatesSpan.textContent = `${startDateFormatted} to ${endDateFormatted}`;
+                    }
+                }
+                
+                // Populate form fields
+                if (departureDetails.booking_date) {
+                    let bookingDate = departureDetails.booking_date;
+                    if (bookingDate.includes(' ')) {
+                        bookingDate = bookingDate.split(' ')[0];
+                    } else if (bookingDate.includes('T')) {
+                        bookingDate = bookingDate.split('T')[0];
+                    }
+                    document.getElementById(`departure_booking_date_${editModalId}`).value = bookingDate;
+                }
+                
+                if (departureDetails.exit_pickup_date) {
+                    let pickupDate = departureDetails.exit_pickup_date;
+                    if (pickupDate.includes(' ')) {
+                        pickupDate = pickupDate.split(' ')[0];
+                    } else if (pickupDate.includes('T')) {
+                        pickupDate = pickupDate.split('T')[0];
+                    }
+                    document.getElementById(`departure_pickup_date_${editModalId}`).value = pickupDate;
+                }
+                
+                if (departureDetails.entry_time) {
+                    // Convert time to 24-hour format for input
+                    let timeValue = departureDetails.entry_time;
+                    if (timeValue.includes('AM') || timeValue.includes('PM')) {
+                        timeValue = convertTo24HourFormat(timeValue);
+                    }
+                    document.getElementById(`departure_entry_time_${editModalId}`).value = timeValue;
+                }
+                
+                // Store booking ID
+                const bookingId = departureDetails.booking_id || departureDetails.id;
+                if (bookingId) {
+                    document.getElementById(`departureBookingId_${tourId}_${departureOrderIndex}_${bookingIndex}`).value = bookingId;
+                }
+                
+            } else {
+                console.error('🛫 Failed to load departure data:', data.message || 'Unknown error');
+                alert('Failed to load departure data: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('🛫 Error loading departure data:', error);
+            alert('Network error occurred while loading departure data. Please try again.');
+        });
+    }
+
+    function validateDepartureDates(tourId, departureOrderIndex, bookingIndex, editModalId) {
+        const bookingDate = document.getElementById(`departure_booking_date_${editModalId}`).value;
+        const pickupDate = document.getElementById(`departure_pickup_date_${editModalId}`).value;
+        
+        if (!bookingDate || !pickupDate) {
+            return true; // Don't validate if dates are not selected yet
+        }
+        
+        const tourData = getTourDataFromPage(tourId);
+        if (!tourData.check_in_time || !tourData.check_out_time) {
+            console.warn('🛫 Tour dates not available for validation');
+            return true;
+        }
+        
+        // Extract date strings to avoid timezone issues
+        let tourStartDate, tourEndDate;
+        
+        if (tourData.check_in_time.includes(' ')) {
+            tourStartDate = tourData.check_in_time.split(' ')[0];
+        } else if (tourData.check_in_time.includes('T')) {
+            tourStartDate = tourData.check_in_time.split('T')[0];
+        } else {
+            tourStartDate = tourData.check_in_time;
+        }
+        
+        if (tourData.check_out_time.includes(' ')) {
+            tourEndDate = tourData.check_out_time.split(' ')[0];
+        } else if (tourData.check_out_time.includes('T')) {
+            tourEndDate = tourData.check_out_time.split('T')[0];
+        } else {
+            tourEndDate = tourData.check_out_time;
+        }
+        
+        console.log('🛫 Departure date validation:');
+        console.log('  Tour period:', tourStartDate, 'to', tourEndDate);
+        console.log('  Selected booking date:', bookingDate);
+        console.log('  Selected pickup date:', pickupDate);
+        
+        // Validate booking date
+        if (bookingDate < tourStartDate || bookingDate > tourEndDate) {
+            alert(`Booking date must be within the tour travel period: ${new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })} to ${new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })}`);
+            return false;
+        }
+        
+        // Validate pickup date
+        if (pickupDate < tourStartDate || pickupDate > tourEndDate) {
+            alert(`Pickup date must be within the tour travel period: ${new Date(tourStartDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })} to ${new Date(tourEndDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+            })}`);
+            return false;
+        }
+        
+        return true;
+    }
+
+    function saveDepartureChanges(tourId, departureOrderIndex, bookingIndex, editModalId) {
+        console.log('🛫 Saving departure changes for:', { tourId, departureOrderIndex, bookingIndex, editModalId });
+        
+        const bookingDate = document.getElementById(`departure_booking_date_${editModalId}`).value;
+        const exitPickupDate = document.getElementById(`departure_pickup_date_${editModalId}`).value;
+        const entryTime = document.getElementById(`departure_entry_time_${editModalId}`).value;
+        
+        // Validate dates
+        if (!validateDepartureDates(tourId, departureOrderIndex, bookingIndex, editModalId)) {
+            return;
+        }
+        
+        if (!bookingDate || !exitPickupDate || !entryTime) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        // Convert 24-hour time to 12-hour format for storage
+        const formattedTime = convertTo12HourFormat(entryTime);
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        const requestData = {
+            tour_id: tourId,
+            departure_order_index: departureOrderIndex,
+            booking_index: bookingIndex,
+            booking_date: bookingDate,
+            exit_pickup_date: exitPickupDate,
+            entry_time: formattedTime
+        };
+        
+        console.log('🛫 Sending departure update request:', requestData);
+        
+        fetch('{{ url("/booking/update-departure-booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('🛫 Departure update response from server:', data);
+            
+            if (data.success) {
+                // Show success message
+                const successMessage = `
+                    ✅ Departure service updated successfully!
+                    
+                    Booking Date: ${new Date(bookingDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })}
+                    Pickup Date: ${new Date(exitPickupDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    })}
+                    Service Time: ${formattedTime}
+                    
+                    The booking details have been updated.
+                `;
+                
+                setTimeout(() => {
+                    alert(successMessage);
+                    closeDepartureEditModal(editModalId);
+                    window.location.reload();
+                }, 100);
+                
+            } else {
+                alert('Error: ' + (data.message || 'Failed to update departure booking'));
+            }
+        })
+        .catch(error => {
+            console.error('🛫 Error saving departure changes:', error);
+            alert('Network error occurred. Please try again.');
+        });
     }
 </script>
 
@@ -23222,4 +25967,3 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 @endsection
 
 @extends('layouts.datatablejs')
-

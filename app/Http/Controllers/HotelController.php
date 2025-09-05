@@ -3394,11 +3394,30 @@ class HotelController extends Controller
 
     public function orderSelectHotel(Request $request)
     {
-        dd($request->all());
-        $hotelId = $request->input('hotel_id');
-        $user = Auth::user();
-        $hotel = Hotel::find($hotelId);
-        $hotel->addDmcId($user->userId);
+        $bookingData = json_decode($request->input('booking_data'), true);
+        $agentId = $request->input('agent_id');
+        $tourId = $request->input('tour_id');
+        
+        // Generate a unique booking ID
+        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        }
+        
+        $order = \App\Models\Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => [$bookingData],
+            'type' => 'hotel',
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+        
+        return back()->with('success', 'Hotel selected successfully');
     }
     
 }

@@ -111,8 +111,6 @@ class SingleTourPackageController extends Controller
                     if($enquiry->attraction_ids){
                         $attraction_ids = json_decode($enquiry->attraction_ids, true);
                         $attractions = Attraction::whereIn('attraction_id', $attraction_ids)->get();
-
-                        
                     }
                     
                     // Get guides
@@ -307,11 +305,13 @@ class SingleTourPackageController extends Controller
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
 
         $attractions = Attraction::with('tickets')->whereJsonContains('dmc_id', $userDmcId)->get();
+        $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
+        $dmc_id = CommonHelper::getDmcId(Auth::user());
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         $portsQuery = Port::query();
-        if ($request->has('country') && $request->country) {
-            $country = Country::find($request->country);
+        if ($tour->destination) {
+            $country = Country::where('name', $tour->destination)->first();
             if ($country) {
                 $portsQuery->where('country', $country->name);
             }
@@ -359,7 +359,7 @@ class SingleTourPackageController extends Controller
         }
 
         
-        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id'));
+        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles'));
     }
 
     /**
@@ -488,8 +488,9 @@ class SingleTourPackageController extends Controller
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
-        
-            EnquiryForm::where('enquiry_id', $request->enquiry_id)->update(['unique_tour_id' => $thisTour->unique_tour_id]);
+            if($request->enquiry_id){
+                EnquiryForm::where('enquiry_id', $request->enquiry_id)->update(['unique_tour_id' => $thisTour->unique_tour_id]);
+            }
             // Return JSON response for AJAX
             if ($request->ajax()) {
                 return response()->json([
@@ -500,8 +501,6 @@ class SingleTourPackageController extends Controller
                     'tour' => $tour
                 ]);
             }
-            
-            
 
             return redirect()->route('single-tour-package.create')
                 ->with('success', 'Tour package created successfully! Tour ID: ' . $display_id);
@@ -1828,6 +1827,33 @@ class SingleTourPackageController extends Controller
                 'exit_port_data' => $request->exit_port_data
             ]);
             
+            // Debug: Log transport data specifically
+            $transportData = $request->transport_data;
+            if ($transportData) {
+                try {
+                    $decodedTransport = json_decode($transportData, true);
+                    \Log::info("Transport data decoded successfully", [
+                        'count' => count($decodedTransport),
+                        'data' => $decodedTransport
+                    ]);
+                    
+                    // Log each transport item
+                    foreach ($decodedTransport as $index => $transport) {
+                        \Log::info("Transport item {$index} details:", [
+                            'id' => $transport['id'] ?? 'no_id',
+                            'travel_type' => $transport['travel_type'] ?? 'no_travel_type',
+                            'type' => $transport['type'] ?? 'no_type',
+                            'vehicles_name' => $transport['vehicles_name'] ?? 'no_vehicle_name',
+                            'bookingType' => $transport['bookingType'] ?? 'no_booking_type'
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    \Log::error("Error decoding transport data: " . $e->getMessage());
+                }
+            } else {
+                \Log::info("No transport data received");
+            }
+            
             // Also log to file for debugging
             file_put_contents(storage_path('logs/transport_debug.log'), 
                 "=== TRANSPORT DEBUG " . date('Y-m-d H:i:s') . " ===\n" .
@@ -2118,10 +2144,32 @@ class SingleTourPackageController extends Controller
                                 'total_transports' => count($decodedData),
                                 'transport_data' => $decodedData
                             ]);
+                            // Debug: Log each transport item individually
+                            foreach ($decodedData as $index => $transport) {
+                                \Log::info("Transport item {$index}", [
+                                    'id' => $transport['id'] ?? 'no_id',
+                                    'travel_type' => $transport['travel_type'] ?? 'no_travel_type',
+                                    'type' => $transport['type'] ?? 'no_type',
+                                    'vehicles_name' => $transport['vehicles_name'] ?? 'no_vehicle_name',
+                                    'bookingType' => $transport['bookingType'] ?? 'no_booking_type',
+                                    'pickup_coords' => $transport['PickupPlaceid'] ?? 'no_pickup_coords',
+                                    'dropoff_coords' => $transport['DropoffPlaceid'] ?? 'no_dropoff_coords'
+                                ]);
+                            }
                             
                             foreach ($decodedData as $transport) {
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                
+                                if ($orderType === 'travel_point') {
+                                    \Log::info("✅ PROCESSING POINT-TO-POINT TRANSPORT", [
+                                        'transport_id' => $transport['id'] ?? 'no_id',
+                                        'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
+                                        'pickup_location' => $transport['entrypickup'] ?? 'no_pickup',
+                                        'dropoff_location' => $transport['entrydropoff'] ?? 'no_dropoff',
+                                        'travel_type' => $orderType
+                                    ]);
+                                }
                                 
                                 \Log::info("Processing individual transport", [
                                     'transport_id' => $transport['id'] ?? 'no_id',
@@ -2146,7 +2194,7 @@ class SingleTourPackageController extends Controller
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
-                                    'bookingType' => $transport['bookingType'] ?? 'booking', // Use bookingType from transport data
+                                    'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                 ]);
 
                                 \Log::info("Transport order created successfully", [
@@ -2198,7 +2246,7 @@ class SingleTourPackageController extends Controller
                                     'data' => [$transport], // Store transport data as array
                                     'type' => $orderType, // Use the specific travel type
                                     'status' => 1,
-                                    'bookingType' => $transport['bookingType'] ?? 'booking', // Use bookingType from transport data
+                                    'bookingType' => $transport['bookingType'] ?? 'enquiry', // Use bookingType from transport data
                                 ]);
 
                                 \Log::info("{$type} transport order created successfully", [
@@ -2437,5 +2485,52 @@ class SingleTourPackageController extends Controller
         ]);
         
         return back()->with('success', 'Attraction selected successfully');
+    }
+    
+    public function orderSelectTransport(Request $request)
+    {
+        $request->validate([
+            'transport_data' => 'required|json',
+            'agent_id' => 'required',
+            'tour_id' => 'required',
+            'pickup_zone_id' => 'required',
+            'dropoff_zone_id' => 'required',
+            'pickup_time' => 'required',
+            'vehicle_id' => 'required',
+        ]);
+
+        $transportData = json_decode($request->input('transport_data'), true);
+        $agentId = $request->input('agent_id');
+        $tourId = $request->input('tour_id');
+        
+        // Generate a unique booking ID
+        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        }
+        
+        // Log the transport data for debugging
+        \Log::info("Processing transport order", [
+            'transport_data' => $transportData,
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId
+        ]);
+        
+        // Create order
+        $order = \App\Models\Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => $transportData,
+            'type' => 'transport',
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+        
+        return back()->with('success', 'Transport service booked successfully');
     }
 } 

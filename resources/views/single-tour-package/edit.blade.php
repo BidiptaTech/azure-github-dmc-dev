@@ -205,6 +205,16 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
+
+                                
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addTransportService(); return false;">
+                                            <i class="ri-car-line fs-1 mb-2"></i>
+                                            <span class="fw-bold">Local Transport</span>
+                                            <small class="opacity-75">Port Pickup Service</small>
+                                        </button>
+                                    </div>
+                                
                                 <div class="col-md-3">
                                     <button type="button" class="btn btn-primary btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addHotelService()">
                                         <i class="ri-hotel-line fs-1 mb-2"></i>
@@ -233,7 +243,15 @@
                                         <small class="opacity-75">Book Tickets</small>
                                     </button>
                                 </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-info btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addLocalTransferService(); return false;">
+                                        <i class="ri-taxi-line fs-1 mb-2"></i>
+                                        <span class="fw-bold">Local Transfer</span>
+                                        <small class="opacity-75">Book Local Transport</small>
+                                    </button>
                             </div>
+                            </div>
+                            
                             <div class="row mt-3">
                                 <div class="col-12">
                                     <div class="alert alert-success border-0">
@@ -1436,7 +1454,669 @@
         </div>
     </div>
 </div>
- add mordel here please as it is in atttached code
+<!-- Transport Selection Modal -->
+<div class="modal fade" id="transportSelectionModal" tabindex="-1" aria-labelledby="transportSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="transportSelectionModalLabel">
+                    <i class="ri-car-line me-2"></i>Transport Service Selection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="transportSelectionForm" onsubmit="return false;">
+                    <input type="hidden" id="modal_transport_tour_id" name="tour_id">
+                    <input type="hidden" id="modal_transport_country" name="country">
+                    <input type="hidden" id="modal_transport_city" name="city">
+                    <input type="hidden" id="modal_transport_start_date" name="start_date">
+                    <input type="hidden" id="modal_transport_end_date" name="end_date">
+                    
+                    <div class="card border-primary shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <div class="d-flex align-items-center">
+                                <span class="service-icon me-3">
+                                    <i class="ri-login-circle-line fs-4"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">Transport Services</h6>
+                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body bg-white">
+                            <div class="row g-4 align-items-end">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                        </label>
+                                        <div class="position-relative">
+                                            <select class="form-select pickup-zone-select border-2" id="modal_transport_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
+                                                <option value="">Select pickup location</option>
+                                                @foreach($ports as $port)
+                                                <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                        </label>
+                                        <div class="position-relative">
+                                            <select class="form-select dropoff-zone-select border-2" id="modal_transport_dropoff_zone" name="dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;">
+                                                <option value="">Select dropoff location</option>
+                                                
+                                                <!-- Hotels -->
+                                                <optgroup label="Hotels">
+                                                @foreach($hotels as $hotel)
+                                                <option value="hotel_{{ $hotel->id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                @endforeach
+                                                </optgroup>
+                                                
+                                                <!-- Attractions -->
+                                                <optgroup label="Attractions">
+                                                @foreach($attractions as $attraction)
+                                                <option value="attraction_{{ $attraction->id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                @endforeach
+                                                </optgroup>
+                                                
+                                                <!-- Restaurants -->
+                                                <optgroup label="Restaurants">
+                                                @foreach($restaurants as $restaurant)
+                                                <option value="restaurant_{{ $restaurant->id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                @endforeach
+                                                </optgroup>
+                                            </select>
+                                            <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone()">
+                                                <i class="ri-close-line text-muted"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                        </label>
+                                        <div class="position-relative">
+                                            <select class="form-select border-2" id="modal_transport_pickup_time" name="pickup_time" style="padding-left: 45px;">
+                                                <option value="">Select The Time</option>
+                                                <option value="12:00 AM">12:00 AM</option>
+                                                <option value="01:00 AM">01:00 AM</option>
+                                                <option value="02:00 AM">02:00 AM</option>
+                                                <option value="03:00 AM">03:00 AM</option>
+                                                <option value="04:00 AM">04:00 AM</option>
+                                                <option value="05:00 AM">05:00 AM</option>
+                                                <option value="06:00 AM">06:00 AM</option>
+                                                <option value="07:00 AM">07:00 AM</option>
+                                                <option value="08:00 AM">08:00 AM</option>
+                                                <option value="09:00 AM">09:00 AM</option>
+                                                <option value="10:00 AM">10:00 AM</option>
+                                                <option value="11:00 AM">11:00 AM</option>
+                                                <option value="12:00 PM">12:00 PM</option>
+                                                <option value="01:00 PM">01:00 PM</option>
+                                                <option value="02:00 PM">02:00 PM</option>
+                                                <option value="03:00 PM">03:00 PM</option>
+                                                <option value="04:00 PM">04:00 PM</option>
+                                                <option value="05:00 PM">05:00 PM</option>
+                                                <option value="06:00 PM">06:00 PM</option>
+                                                <option value="07:00 PM">07:00 PM</option>
+                                                <option value="08:00 PM">08:00 PM</option>
+                                                <option value="09:00 PM">09:00 PM</option>
+                                                <option value="10:00 PM">10:00 PM</option>
+                                                <option value="11:00 PM">11:00 PM</option>
+                                            </select>
+                                            <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label class="form-label fw-semibold text-muted mb-2">
+                                            <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                        </label>
+                                        <div class="position-relative">
+                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly style="padding-left: 45px;">
+                                            <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles()" id="transport_search_btn">
+                                        <i class="ri-search-line me-2"></i>Search Vehicles
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Vehicle Results Section (Hidden Initially) -->
+                            <div class="row mt-4" id="transport_vehicle_results" style="display: none;">
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-car-line me-2 fs-4"></i>
+                                            <div>
+                                                <strong>Available Vehicles</strong>
+                                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle + Service Type in one row -->
+                                <div class="col-12">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Vehicle</label>
+                                            <select class="form-select vehicle-select" 
+                                                    id="modal_transport_vehicle_id" 
+                                                    name="vehicle_id" 
+                                                    onchange="updateVehicleDetails()">
+                                                <option value="">Choose vehicle</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Service Type</label>
+                                            <select class="form-select service-type-select" 
+                                                    id="modal_transport_service_type" 
+                                                    name="service_type" 
+                                                    onchange="updatePricing()">
+                                                <option value="">Select service type</option>
+                                                <option value="Shared">Shared</option>
+                                                <option value="Private">Private</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Guest Information -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" value="1" onchange="updatePricing()">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Price Display for Transport -->
+                                    <div class="col-12 mt-3">
+                                        <div id="transport_price_display" class="alert alert-success" style="display: none;">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Price Information</strong>
+                                                    <div id="transport_price_details" class="small">Select a vehicle and service type to see pricing</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Hidden fields for transport pricing -->
+                                        <input type="hidden" name="transport_base_price" id="modal_transport_base_price" value="0">
+                                        <input type="hidden" name="transport_total_price" id="modal_transport_total_price" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-warning" onclick="confirmTransportSelection()">
+                            <i class="ri-check-line me-1"></i>Confirm Transport Selection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End of Transport Selection Modal -->
+
+<!-- Local Transfer Selection Modal -->
+<div class="modal fade" id="localTransferSelectionModal" tabindex="-1" aria-labelledby="localTransferSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="localTransferSelectionModalLabel">
+                    <i class="ri-taxi-line me-2"></i>Local Transfer Service Selection
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="localTransferSelectionForm" onsubmit="return false;">
+                    <input type="hidden" id="local_transfer_tour_id" name="tour_id">
+                    <input type="hidden" id="local_transfer_country" name="country">
+                    <input type="hidden" id="local_transfer_city" name="city">
+                    <input type="hidden" id="local_transfer_start_date" name="start_date">
+                    <input type="hidden" id="local_transfer_end_date" name="end_date">
+                    
+                    <div class="card border-info shadow-sm mb-4">
+                        <div class="card-header bg-info text-white">
+                            <div class="d-flex align-items-center">
+                                <span class="service-icon me-3">
+                                    <i class="ri-login-circle-line fs-4"></i>
+                                </span>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">Local Transfer Services</h6>
+                                    <small class="opacity-75">Configure pickup and dropoff locations</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body bg-white">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_point" value="point_to_point" onchange="handleLocalTransferServiceTypeChange('point_to_point')">
+                                        <label class="form-check-label fw-semibold" for="local_transfer_service_type_point">
+                                            <i class="ri-route-line me-1"></i>Point To Point
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_hourly" value="hourly" onchange="handleLocalTransferServiceTypeChange('hourly')">
+                                        <label class="form-check-label fw-semibold" for="local_transfer_service_type_hourly">
+                                            <i class="ri-time-line me-1"></i>Hourly
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
+                                        <label class="form-check-label fw-semibold text-success" for="local_transfer_service_type_local">
+                                            <i class="ri-car-line me-1"></i>Local Transfer
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-4 align-items-end">
+                                <!-- Local Transfer Fields (Default) -->
+                                <div class="col-12">
+                                    <div id="local_transfer_fields" class="row g-4 align-items-end local-transfer-fields d-none">
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select pickup-zone-select border-2" id="local_transfer_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
+                                                        <option value="">Select pickup location</option>
+                                                        @foreach($ports as $port)
+                                                        <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select dropoff-zone-select border-2" id="local_transfer_dropoff_zone" name="dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                        <option value="">Select pickup location first</option>
+                                                        <!-- Hotels -->
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="hotel_{{ $hotel->id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        
+                                                        <!-- Attractions -->
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="attraction_{{ $attraction->id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        
+                                                        <!-- Restaurants -->
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="restaurant_{{ $restaurant->id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                    </select>
+                                                    <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearLocalTransferDropoffZone()">
+                                                        <i class="ri-close-line text-muted"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_pickup_time" name="pickup_time" style="padding-left: 45px;">
+                                                        <option value="">Select The Time</option>
+                                                        <option value="12:00 AM">12:00 AM</option>
+                                                        <option value="01:00 AM">01:00 AM</option>
+                                                        <option value="02:00 AM">02:00 AM</option>
+                                                        <option value="03:00 AM">03:00 AM</option>
+                                                        <option value="04:00 AM">04:00 AM</option>
+                                                        <option value="05:00 AM">05:00 AM</option>
+                                                        <option value="06:00 AM">06:00 AM</option>
+                                                        <option value="07:00 AM">07:00 AM</option>
+                                                        <option value="08:00 AM">08:00 AM</option>
+                                                        <option value="09:00 AM">09:00 AM</option>
+                                                        <option value="10:00 AM">10:00 AM</option>
+                                                        <option value="11:00 AM">11:00 AM</option>
+                                                        <option value="12:00 PM">12:00 PM</option>
+                                                        <option value="01:00 PM">01:00 PM</option>
+                                                        <option value="02:00 PM">02:00 PM</option>
+                                                        <option value="03:00 PM">03:00 PM</option>
+                                                        <option value="04:00 PM">04:00 PM</option>
+                                                        <option value="05:00 PM">05:00 PM</option>
+                                                        <option value="06:00 PM">06:00 PM</option>
+                                                        <option value="07:00 PM">07:00 PM</option>
+                                                        <option value="08:00 PM">08:00 PM</option>
+                                                        <option value="09:00 PM">09:00 PM</option>
+                                                        <option value="10:00 PM">10:00 PM</option>
+                                                        <option value="11:00 PM">11:00 PM</option>
+                                                    </select>
+                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                                </label>
+                                                <div class="position-relative">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly style="padding-left: 45px;">
+                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Point To Point Fields (Hidden Initially) -->
+                                <div class="col-12">
+                                    <div id="point_to_point_fields" class="row g-4 align-items-end point-to-point-fields d-none">
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                </label>
+                                                <div class="position-relative location-input">
+                                                    <select type="text" class="form-control border-2" id="local_transfer_point_pickup_location" name="point_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                        <option value="">Select pickup location</option>
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                    </select>
+                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
+                                                </label>
+                                                <div class="position-relative location-input">
+                                                <select type="text" class="form-control border-2" id="local_transfer_point_dropoff_location" name="point_dropoff_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                        <option value="">Select dropoff location</option>
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="{{ $hotel->hotel_unique_id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="{{ $attraction->attraction_id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="{{ $restaurant->restaurant_id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                    </select>
+                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_point_pickup_time" name="point_pickup_time" style="padding-left: 45px;">
+                                                        <option value="">Select time</option>
+                                                        <option value="12:00 AM">12:00 AM</option>
+                                                        <option value="01:00 AM">01:00 AM</option>
+                                                        <option value="02:00 AM">02:00 AM</option>
+                                                        <option value="03:00 AM">03:00 AM</option>
+                                                        <option value="04:00 AM">04:00 AM</option>
+                                                        <option value="05:00 AM">05:00 AM</option>
+                                                        <option value="06:00 AM">06:00 AM</option>
+                                                        <option value="07:00 AM">07:00 AM</option>
+                                                        <option value="08:00 AM">08:00 AM</option>
+                                                        <option value="09:00 AM">09:00 AM</option>
+                                                        <option value="10:00 AM">10:00 AM</option>
+                                                        <option value="11:00 AM">11:00 AM</option>
+                                                        <option value="12:00 PM">12:00 PM</option>
+                                                        <option value="01:00 PM">01:00 PM</option>
+                                                        <option value="02:00 PM">02:00 PM</option>
+                                                        <option value="03:00 PM">03:00 PM</option>
+                                                        <option value="04:00 PM">04:00 PM</option>
+                                                        <option value="05:00 PM">05:00 PM</option>
+                                                        <option value="06:00 PM">06:00 PM</option>
+                                                        <option value="07:00 PM">07:00 PM</option>
+                                                        <option value="08:00 PM">08:00 PM</option>
+                                                        <option value="09:00 PM">09:00 PM</option>
+                                                        <option value="10:00 PM">10:00 PM</option>
+                                                        <option value="11:00 PM">11:00 PM</option>
+                                                    </select>
+                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 point-to-point-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                                </label>
+                                                <div class="position-relative">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_point_pickup_date" name="point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_point_to_point_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hourly Fields (Hidden Initially) -->
+                                <div class="col-12">
+                                    <div id="hourly_fields" class="hourly-fields row g-4 col-12 align-items-end d-none">
+                                        <div class="col-md-4 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
+                                                </label>
+                                                <div class="position-relative location-input">
+                                                    <input type="text" class="form-control border-2" id="local_transfer_hourly_pickup_location" name="hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                    <i class="ri-search-line position-absolute text-success location-icon"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-warning me-2"></i>Pick Up Time
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_hourly_pickup_time" name="hourly_pickup_time" style="padding-left: 45px;">
+                                                        <option value="">Select time</option>
+                                                        <option value="12:00 AM">12:00 AM</option>
+                                                        <option value="01:00 AM">01:00 AM</option>
+                                                        <option value="02:00 AM">02:00 AM</option>
+                                                        <option value="03:00 AM">03:00 AM</option>
+                                                        <option value="04:00 AM">04:00 AM</option>
+                                                        <option value="05:00 AM">05:00 AM</option>
+                                                        <option value="06:00 AM">06:00 AM</option>
+                                                        <option value="07:00 AM">07:00 AM</option>
+                                                        <option value="08:00 AM">08:00 AM</option>
+                                                        <option value="09:00 AM">09:00 AM</option>
+                                                        <option value="10:00 AM">10:00 AM</option>
+                                                        <option value="11:00 AM">11:00 AM</option>
+                                                        <option value="12:00 PM">12:00 PM</option>
+                                                        <option value="01:00 PM">01:00 PM</option>
+                                                        <option value="02:00 PM">02:00 PM</option>
+                                                        <option value="03:00 PM">03:00 PM</option>
+                                                        <option value="04:00 PM">04:00 PM</option>
+                                                        <option value="05:00 PM">05:00 PM</option>
+                                                        <option value="06:00 PM">06:00 PM</option>
+                                                        <option value="07:00 PM">07:00 PM</option>
+                                                        <option value="08:00 PM">08:00 PM</option>
+                                                        <option value="09:00 PM">09:00 PM</option>
+                                                        <option value="10:00 PM">10:00 PM</option>
+                                                        <option value="11:00 PM">11:00 PM</option>
+                                                    </select>
+                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
+                                                </label>
+                                                <div class="position-relative">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100 py-2" onclick="searchLocalTransferVehicles()" id="local_transfer_hourly_search_btn" disabled>
+                                                <i class="ri-search-line me-2"></i>Search Vehicles
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Vehicle Results Section (Hidden Initially) -->
+                            <div class="row mt-4" id="local_transfer_vehicle_results" d-none>
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-car-line me-2 fs-4"></i>
+                                            <div>
+                                                <strong>Available Vehicles</strong>
+                                                <div class="small text-muted">Select your preferred vehicle and service type below</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Vehicle + Service Type in one row -->
+                                <div class="col-12">
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-semibold">Vehicle</label>
+                                            <select class="form-select vehicle-select" 
+                                                    id="local_transfer_vehicle_id" 
+                                                    name="vehicle_id" 
+                                                    onchange="updateLocalTransferVehicleDetails()">
+                                                <option value="">Choose vehicle</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold">Service Type</label>
+                                            <select class="form-select" 
+                                                    id="local_transfer_service_type" 
+                                                    name="service_type" 
+                                                    onchange="updateLocalTransferPricing()">
+                                                <option value="">Select service type</option>
+                                                <option value="Shared">Shared</option>
+                                                <option value="Private">Private</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Guest Information -->
+                                    <div class="row mt-3">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold">Number of Passengers</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                                    <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" value="1" onchange="updateLocalTransferPricing()">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Price Display for Local Transfer -->
+                                    <div class="col-12 mt-3">
+                                        <div id="local_transfer_price_display" class="alert alert-success" style="display: none;">
+                                            <div class="d-flex align-items-center">
+                                                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                                                <div>
+                                                    <strong>Price Information</strong>
+                                                    <div id="local_transfer_price_details" class="small">Select a vehicle and service type to see pricing</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Hidden fields for local transfer pricing -->
+                                        <input type="hidden" name="local_transfer_base_price" id="local_transfer_base_price" value="0">
+                                        <input type="hidden" name="local_transfer_total_price" id="local_transfer_total_price" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-info" onclick="confirmLocalTransferSelection()">
+                            <i class="ri-check-line me-1"></i>Confirm Local Transfer Selection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End of Local Transfer Selection Modal -->
 
 @endsection
 
@@ -1961,7 +2641,792 @@
             priceDisplay.style.display = 'none';
         }
     }
+    
+    // Transport Modal Functions
+    function showTransportSelectionModal(tourId, country, city, startDate, endDate) {
+        console.log('Showing transport selection modal with data:', { tourId, country, city, startDate, endDate });
+        
+        // Set hidden fields
+        document.getElementById('modal_transport_tour_id').value = tourId;
+        document.getElementById('modal_transport_country').value = country;
+        document.getElementById('modal_transport_city').value = city;
+        document.getElementById('modal_transport_start_date').value = startDate;
+        document.getElementById('modal_transport_end_date').value = endDate;
+        // Pickup date is now hardcoded and readonly in the HTML
+        
+        // Initialize the modal
+        const transportModal = new bootstrap.Modal(document.getElementById('transportSelectionModal'));
+        transportModal.show();
+        
+        // Initialize the transport modal with a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            initializeTransportModal();
+        }, 100);
+    }
+    
+    function showLocalTransferSelectionModal(tourId, country, city, startDate, endDate) {
+        console.log('Showing local transfer selection modal with data:', { tourId, country, city, startDate, endDate });
+        
+        // Initialize the modal
+        const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
+        localTransferModal.show();
+        
+        // Set hidden fields
+        document.getElementById('local_transfer_tour_id').value = tourId;
+        document.getElementById('local_transfer_country').value = country;
+        document.getElementById('local_transfer_city').value = city;
+        document.getElementById('local_transfer_start_date').value = startDate;
+        document.getElementById('local_transfer_end_date').value = endDate;
+        
+        // Initialize the local transfer modal with a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            initializeLocalTransferModal();
+        }, 100);
+    }
+    
+    function initializeTransportModal() {
+        // Load zones for pickup
+        loadZonesForPickup();
+        
+        // Add event listeners
+        const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        if (pickupZoneSelect) {
+            pickupZoneSelect.addEventListener('change', onPickupZoneChange);
+        }
+        
+        const searchBtn = document.getElementById('transport_search_btn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', searchVehicles);
+        }
+    }
+    
+    function initializeLocalTransferModal() {
+        // Set up event listeners for local transfer modal
+        const localTransferPickupZoneSelect = document.getElementById('local_transfer_pickup_zone');
+        if (localTransferPickupZoneSelect) {
+            localTransferPickupZoneSelect.addEventListener('change', handleLocalTransferPickupZoneChange);
+        }
+        
+        const localTransferSearchBtn = document.getElementById('local_transfer_search_btn');
+        if (localTransferSearchBtn) {
+            localTransferSearchBtn.addEventListener('click', searchLocalTransferVehicles);
+        }
+        
+        // Set default service type to 'local_transfer'
+        const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
+        if (localTransferServiceType) {
+            localTransferServiceType.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
+        }
+    }
+    
+    function loadZonesForPickup() {
+        // No need to load zones as they are already populated from backend
+        console.log('Pickup zones already populated from backend');
+        
+        // We can filter the zones based on the selected country/city if needed
+        const country = document.getElementById('modal_transport_country').value;
+        const city = document.getElementById('modal_transport_city').value;
+        
+        console.log('Current country and city:', { country, city });
+        
+        // If you want to filter the existing options based on country/city:
+        // const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        // if (pickupZoneSelect) {
+        //     Array.from(pickupZoneSelect.options).forEach(option => {
+        //         if (option.value) {
+        //             const portData = JSON.parse(option.getAttribute('data-port'));
+        //             option.style.display = (portData.country === country) ? '' : 'none';
+        //         }
+        //     });
+        // }
+    }
+    
+    function handleLocalTransferPickupZoneChange() {
+        const pickupZoneId = document.getElementById('local_transfer_pickup_zone').value;
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        
+        if (dropoffZoneSelect) {
+            // Enable/disable based on pickup selection
+            if (pickupZoneId) {
+                dropoffZoneSelect.disabled = false;
+                
+                // Enable the search button if both pickup and dropoff are selected
+                const dropoffZoneId = dropoffZoneSelect.value;
+                const searchBtn = document.getElementById('local_transfer_search_btn');
+                if (searchBtn) {
+                    searchBtn.disabled = !dropoffZoneId;
+                }
+            } else {
+                dropoffZoneSelect.disabled = true;
+                
+                // Disable search button if pickup is not selected
+                const searchBtn = document.getElementById('local_transfer_search_btn');
+                if (searchBtn) {
+                    searchBtn.disabled = true;
+                }
+            }
+        }
+    }
+    
+    function clearLocalTransferDropoffZone() {
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.value = '';
+            
+            // Disable search button when dropoff is cleared
+            const searchBtn = document.getElementById('local_transfer_search_btn');
+            if (searchBtn) {
+                searchBtn.disabled = true;
+            }
+        }
+    }
+    
+    function handleLocalTransferServiceTypeChange(serviceType) {
+        // Get all field containers using querySelectorAll to get collections
+        const local_transfer_fields = document.getElementById('local_transfer_fields');
+        const point_to_point_fields = document.getElementById('point_to_point_fields');
+        const hourly_fields = document.getElementById('hourly_fields');
+        
+        // Hide vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
+        }
+        
+        // Show fields based on selected service type
+        if (serviceType === 'local_transfer') {
+            local_transfer_fields.classList.remove('d-none');
+            point_to_point_fields.classList.add('d-none');
+            hourly_fields.classList.add('d-none');
 
+        } else if (serviceType === 'point_to_point') {
+
+            point_to_point_fields.classList.remove('d-none');
+            local_transfer_fields.classList.add('d-none');
+            hourly_fields.classList.add('d-none');
+            
+        } else if (serviceType === 'hourly') {
+
+            hourly_fields.classList.remove('d-none');
+            local_transfer_fields.classList.add('d-none');
+            point_to_point_fields.classList.add('d-none');
+        }
+    }
+    
+    function searchPointToPointVehicles() {
+        const pickupLocation = document.getElementById('local_transfer_point_pickup_location').value;
+        const dropoffLocation = document.getElementById('local_transfer_point_dropoff_location').value;
+        const pickupTime = document.getElementById('local_transfer_point_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_point_pickup_date').value;
+        
+        if (!pickupLocation || !dropoffLocation || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for point to point:', { pickupLocation, dropoffLocation, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load vehicles
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add vehicles from backend data
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function searchHourlyVehicles() {
+        const pickupLocation = document.getElementById('local_transfer_hourly_pickup_location').value;
+        const pickupTime = document.getElementById('local_transfer_hourly_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_hourly_pickup_date').value;
+        
+        if (!pickupLocation || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for hourly:', { pickupLocation, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load vehicles
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add vehicles from backend data
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function onPickupZoneChange() {
+        const pickupZoneId = document.getElementById('modal_transport_pickup_zone').value;
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        
+        if (dropoffZoneSelect) {
+            // We don't need to clear or repopulate the dropdown as it's already populated from the backend
+            // Just enable/disable based on pickup selection
+            
+            if (pickupZoneId) {
+                dropoffZoneSelect.disabled = false;
+                
+                // Optionally, we could filter out the pickup location from dropoff options
+                // But we'll keep all options available for now
+                
+                // If you want to filter out the pickup location, uncomment this code:
+                /*
+                Array.from(dropoffZoneSelect.options).forEach(option => {
+                    if (option.value === pickupZoneId) {
+                        option.disabled = true;
+                    } else {
+                        option.disabled = false;
+                    }
+                });
+                */
+            } else {
+                dropoffZoneSelect.disabled = true;
+            }
+        }
+    }
+    
+    function clearDropoffZone() {
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.value = '';
+        }
+    }
+    
+    function searchVehicles() {
+        const pickupZoneId = document.getElementById('modal_transport_pickup_zone').value;
+        const dropoffZoneId = document.getElementById('modal_transport_dropoff_zone').value;
+        const pickupTime = document.getElementById('modal_transport_pickup_time').value;
+        const pickupDate = document.getElementById('modal_transport_pickup_date').value;
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('transport_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load sample vehicles (replace with actual API call)
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add sample vehicles (replace with actual data from API)
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function searchLocalTransferVehicles() {
+        const pickupZoneId = document.getElementById('local_transfer_pickup_zone').value;
+        const dropoffZoneId = document.getElementById('local_transfer_dropoff_zone').value;
+        const pickupTime = document.getElementById('local_transfer_pickup_time').value;
+        const pickupDate = document.getElementById('local_transfer_pickup_date').value;
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate) {
+            showNotification('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Searching vehicles for local transfer:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        
+        // Show the vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'block';
+        }
+        
+        // Load vehicles
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        if (vehicleSelect) {
+            // Clear existing options
+            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+            
+            // Add vehicles from backend data
+            const vehicles = @json($vehicles);
+            
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.vehicle_id;
+                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
+                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                vehicleSelect.appendChild(option);
+            });
+        }
+    }
+    
+    function updateVehicleDetails() {
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        
+        if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
+            serviceTypeSelect.disabled = false;
+            updatePricing();
+        }
+    }
+    
+    function updateLocalTransferVehicleDetails() {
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        
+        if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
+            serviceTypeSelect.disabled = false;
+            updateLocalTransferPricing();
+        }
+    }
+    
+    function updatePricing() {
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        const passengersInput = document.getElementById('modal_transport_passengers');
+        const priceDisplay = document.getElementById('transport_price_display');
+        const priceDetails = document.getElementById('transport_price_details');
+        
+        if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
+            return;
+        }
+        
+        if (vehicleSelect.value && serviceTypeSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const serviceType = serviceTypeSelect.value;
+            const passengers = parseInt(passengersInput.value) || 1;
+            
+            // Calculate base price
+            let basePrice = vehicleData.base_price;
+            
+            // Apply service type multiplier
+            const serviceMultiplier = serviceType === 'Private' ? 1.5 : 1.0;
+            
+            // Calculate total price
+            const totalPrice = basePrice * serviceMultiplier;
+            
+            // Format price details
+            priceDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">Service: ${serviceType} (${serviceType === 'Private' ? '+50%' : 'Standard'})</div>
+                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                </div>
+                <div class="small mt-2">
+                    <i class="ri-information-line me-1"></i>
+                    Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                </div>
+            `;
+            
+            // Update hidden fields
+            document.getElementById('modal_transport_base_price').value = basePrice.toFixed(2);
+            document.getElementById('modal_transport_total_price').value = totalPrice.toFixed(2);
+            
+            priceDisplay.style.display = 'block';
+        } else {
+            priceDisplay.style.display = 'none';
+        }
+    }
+    
+    function updateLocalTransferPricing() {
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        const passengersInput = document.getElementById('local_transfer_passengers');
+        const priceDisplay = document.getElementById('local_transfer_price_display');
+        const priceDetails = document.getElementById('local_transfer_price_details');
+        
+        if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
+            return;
+        }
+        
+        if (vehicleSelect.value && serviceTypeSelect.value) {
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const serviceType = serviceTypeSelect.value;
+            const passengers = parseInt(passengersInput.value) || 1;
+            
+            // Calculate base price
+            let basePrice = vehicleData.base_price;
+            
+            // Apply service type multiplier
+            const serviceMultiplier = serviceType === 'Private' ? 1.5 : 1.0;
+            
+            // Calculate total price
+            const totalPrice = basePrice * serviceMultiplier;
+            
+            // Format price details
+            priceDetails.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">Service: ${serviceType} (${serviceType === 'Private' ? '+50%' : 'Standard'})</div>
+                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                </div>
+                <div class="small mt-2">
+                    <i class="ri-information-line me-1"></i>
+                    Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                </div>
+            `;
+            
+            // Update hidden fields
+            document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
+            document.getElementById('local_transfer_total_price').value = totalPrice.toFixed(2);
+            
+            priceDisplay.style.display = 'block';
+        } else {
+            priceDisplay.style.display = 'none';
+        }
+    }
+    
+    function confirmTransportSelection() {
+        const formData = new FormData(document.getElementById('transportSelectionForm'));
+        const pickupZoneId = formData.get('pickup_zone_id');
+        const dropoffZoneId = formData.get('dropoff_zone_id');
+        const pickupTime = formData.get('pickup_time');
+        const vehicleId = formData.get('vehicle_id');
+        const serviceType = formData.get('service_type');
+        const customer_info = getCustomerInfo();
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
+            showNotification('Please complete all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Customer info:', customer_info);
+        
+        // Get selected vehicle details
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        
+        console.log('Vehicle data:', vehicleData);
+        
+        // Get tour details
+        const tourId = document.getElementById('modal_transport_tour_id').value;
+        const country = document.getElementById('modal_transport_country').value;
+        const city = document.getElementById('modal_transport_city').value;
+        const startDate = document.getElementById('modal_transport_start_date').value;
+        const endDate = document.getElementById('modal_transport_end_date').value;
+        const pickupDate = document.getElementById('modal_transport_pickup_date').value;
+        const passengers = document.getElementById('modal_transport_passengers').value;
+        const totalPrice = document.getElementById('modal_transport_total_price').value;
+        
+        // Get location details
+        const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        const pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
+        const dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
+        
+        // Determine location types based on the value prefix
+        const dropoffValue = dropoffZoneSelect.value;
+        let dropoffLocationType = 'port';
+        
+        if (dropoffValue.startsWith('hotel_')) {
+            dropoffLocationType = 'hotel';
+        } else if (dropoffValue.startsWith('attraction_')) {
+            dropoffLocationType = 'attraction';
+        } else if (dropoffValue.startsWith('restaurant_')) {
+            dropoffLocationType = 'restaurant';
+        }
+        
+        // Check if this is a local transfer or transport service
+        const isLocalTransfer = document.getElementById('transportSelectionModalLabel').innerHTML.includes('Local Transfer');
+        const serviceTypeLabel = isLocalTransfer ? 'local_transfer' : 'travel_point';
+        
+        // Build the transport booking data
+        const transportData = {
+            id: Date.now().toString(), // Generate a unique ID
+            travel_type: serviceTypeLabel,
+            type: serviceTypeLabel,
+            vehicles_id: vehicleId,
+            vehicles_name: vehicleData.name || 'Vehicle',
+            entrypickup: pickupZoneName,
+            entrydropoff: dropoffZoneName,
+            pickupdate: pickupDate,
+            pickuptime: pickupTime,
+            adults: passengers,
+            children: '0',
+            infants: '0',
+            PickupPlaceid: pickupZoneId,
+            DropoffPlaceid: dropoffZoneId,
+            dropoff_location_type: dropoffLocationType,
+            basePrice: vehicleData.base_price || 0,
+            totalPrice: totalPrice,
+            service_type: serviceType,
+            bookingType: 'enquiry',
+            dmc_id: 4, // Replace with actual DMC ID
+            agent_id: document.getElementById('agent_id').value,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                countryCode: customer_info.countryCode,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            }
+        };
+        
+        console.log('Transport booking data:', transportData);
+        
+        // Create a form to submit the transport data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ route('orders.transport.select') }}";
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+        
+        // Add the transport data as JSON
+        const transportDataInput = document.createElement('input');
+        transportDataInput.type = 'hidden';
+        transportDataInput.name = 'transport_data';
+        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+        form.appendChild(transportDataInput);
+        
+        // Add basic form fields
+        const basicData = {
+            tour_id: tourId,
+            agent_id: document.getElementById('agent_id').value,
+            pickup_zone_id: pickupZoneId,
+            dropoff_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            passengers: passengers,
+            country: country,
+            city: city,
+            transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
+        };
+        
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('transportSelectionModal'));
+        modal.hide();
+        
+        // Show success message
+        const serviceLabel = isLocalTransfer ? 'Local transfer' : 'Transport';
+        showNotification(`${serviceLabel} service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+    }
+
+    function confirmLocalTransferSelection() {
+        const formData = new FormData(document.getElementById('localTransferSelectionForm'));
+        const pickupZoneId = formData.get('pickup_zone_id');
+        const dropoffZoneId = formData.get('dropoff_zone_id');
+        const pickupTime = formData.get('pickup_time');
+        const vehicleId = formData.get('vehicle_id');
+        const serviceType = formData.get('service_type');
+        const customer_info = getCustomerInfo();
+        
+        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
+            showNotification('Please complete all required fields', 'warning');
+            return;
+        }
+        
+        console.log('Customer info for local transfer:', customer_info);
+        
+        // Get selected vehicle details
+        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        
+        console.log('Vehicle data for local transfer:', vehicleData);
+        
+        // Get tour details
+        const tourId = document.getElementById('local_transfer_tour_id').value;
+        const country = document.getElementById('local_transfer_country').value;
+        const city = document.getElementById('local_transfer_city').value;
+        const startDate = document.getElementById('local_transfer_start_date').value;
+        const endDate = document.getElementById('local_transfer_end_date').value;
+        const pickupDate = document.getElementById('local_transfer_pickup_date').value;
+        const passengers = document.getElementById('local_transfer_passengers').value;
+        const totalPrice = document.getElementById('local_transfer_total_price').value;
+        
+        // Get location details
+        const pickupZoneSelect = document.getElementById('local_transfer_pickup_zone');
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        const pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
+        const dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
+        
+        // Determine location types based on the value prefix
+        const dropoffValue = dropoffZoneSelect.value;
+        let dropoffLocationType = 'port';
+        
+        if (dropoffValue.startsWith('hotel_')) {
+            dropoffLocationType = 'hotel';
+        } else if (dropoffValue.startsWith('attraction_')) {
+            dropoffLocationType = 'attraction';
+        } else if (dropoffValue.startsWith('restaurant_')) {
+            dropoffLocationType = 'restaurant';
+        }
+        
+        // Build the transport booking data
+        const transportData = {
+            id: Date.now().toString(), // Generate a unique ID
+            travel_type: 'local_transfer', // Local transfer
+            type: 'local_transfer',
+            vehicles_id: vehicleId,
+            vehicles_name: vehicleData.name || 'Vehicle',
+            entrypickup: pickupZoneName,
+            entrydropoff: dropoffZoneName,
+            pickupdate: pickupDate,
+            pickuptime: pickupTime,
+            adults: passengers,
+            children: '0',
+            infants: '0',
+            PickupPlaceid: pickupZoneId,
+            DropoffPlaceid: dropoffZoneId,
+            dropoff_location_type: dropoffLocationType,
+            basePrice: vehicleData.base_price || 0,
+            totalPrice: totalPrice,
+            service_type: serviceType,
+            bookingType: 'enquiry',
+            dmc_id: 4, // Replace with actual DMC ID
+            agent_id: document.getElementById('agent_id').value,
+            fullName: customer_info.fullName,
+            email: customer_info.email,
+            phone: customer_info.phone,
+            countryCode: customer_info.countryCode,
+            address1: customer_info.address1,
+            address2: customer_info.address2,
+            state: customer_info.state,
+            zip: customer_info.zip,
+            specialRequests: customer_info.specialRequests,
+            userInfo: {
+                fullName: customer_info.fullName,
+                email: customer_info.email,
+                phone: customer_info.phone,
+                countryCode: customer_info.countryCode,
+                address1: customer_info.address1,
+                address2: customer_info.address2,
+                state: customer_info.state,
+                zip: customer_info.zip
+            }
+        };
+        
+        console.log('Local transfer booking data:', transportData);
+        
+        // Create a form to submit the transport data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ route('orders.transport.select') }}";
+        
+        // Add CSRF token
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = "{{ csrf_token() }}";
+        form.appendChild(token);
+        
+        // Add the transport data as JSON
+        const transportDataInput = document.createElement('input');
+        transportDataInput.type = 'hidden';
+        transportDataInput.name = 'transport_data';
+        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+        form.appendChild(transportDataInput);
+        
+        // Add basic form fields
+        const basicData = {
+            tour_id: tourId,
+            agent_id: document.getElementById('agent_id').value,
+            pickup_zone_id: pickupZoneId,
+            dropoff_zone_id: dropoffZoneId,
+            pickup_time: pickupTime,
+            pickup_date: pickupDate,
+            vehicle_id: vehicleId,
+            service_type: serviceType,
+            passengers: passengers,
+            country: country,
+            city: city,
+            transport_type: 'local_transfer' // Specify local transfer type
+        };
+        
+        for (const [key, value] of Object.entries(basicData)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('localTransferSelectionModal'));
+        modal.hide();
+        
+        // Show success message
+        showNotification(`Local transfer service booked successfully! From: ${pickupZoneName} To: ${dropoffZoneName}`, 'success');
+    }
+    
     const attractionBaseUrl = "{{ route('orders.attractions.select') }}";
     function confirmAttractionSelection() {
         const formData = new FormData(document.getElementById('attractionSelectionForm'));
@@ -2138,6 +3603,48 @@
         
         // Show attraction selection modal
         showAttractionSelectionModal(tourId, country, city, startDate, endDate);
+        return false;
+    }
+    
+    function addTransportService() {
+        console.log('addTransportService called');
+        
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        console.log('Tour data for transport:', { tourId, country, city, startDate, endDate });
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return false;
+        }
+        
+        // Show transport selection modal
+        showTransportSelectionModal(tourId, country, city, startDate, endDate);
+        return false;
+    }
+    
+    function addLocalTransferService() {
+        console.log('addLocalTransferService called');
+        
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const city = document.getElementById('city').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        console.log('Tour data for local transfer:', { tourId, country, city, startDate, endDate });
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return false;
+        }
+        
+        // Show local transfer selection modal (using the same modal as transport)
+        showLocalTransferSelectionModal(tourId, country, city, startDate, endDate);
         return false;
     }
 
@@ -3054,7 +4561,7 @@
         
         // Initialize modal functionality after modal is shown
         setTimeout(() => {
-            initializeRestaurantModal();
+        initializeRestaurantModal();
         }, 100);
         
         // Load restaurants for the city
@@ -3710,7 +5217,7 @@
     });
 
     function getCustomerInfo(){
-        const fullName = document.getElementById('customerFullName')?.value || '';
+            const fullName = document.getElementById('customerFullName')?.value || '';
         const email = document.getElementById('customerEmail')?.value || '';
         const phone = document.getElementById('customerPhone')?.value || '';
         const countryCode = document.getElementById('customerCountryCode')?.value || '';
@@ -3722,7 +5229,7 @@
         let customer_info = @json($customer_info);
         if(Object.keys(customer_info).length === 0){
             customer_info = {
-                fullName: fullName,
+                    fullName: fullName,
                 email: email,
                 phone: phone,
                 countryCode: countryCode,
