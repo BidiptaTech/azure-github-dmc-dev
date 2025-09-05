@@ -1502,7 +1502,16 @@ class HotelController extends Controller
     * Date 18-11-2024
     */
     public function updaterates(Request $request){
-        
+        $auth_user = Auth::user();
+        // Get DMC users for admin dropdown (only for admin users)
+        $dmcUsers = collect();
+        if ($auth_user->role_id == 1 || $auth_user->role_id == 20) {
+            $dmcUsers = User::whereIn('role_id', [11,20])
+                           ->where('user_type', 2)
+                           ->select('userId', 'name', 'company_name')
+                           ->orderBy('company_name', 'asc')
+                           ->get();
+        }
         $rate_id = $request->rate_id;
         $hotel = Hotel::where('hotel_unique_id', $request->hotel_id)->first();
         $rate = Rate::where('rate_id', $rate_id)->where('hotel_id', $request->hotel_id)->first();
@@ -1523,7 +1532,7 @@ class HotelController extends Controller
 
         if ($rate->save()) {
             $rates = Rate::where('event_type', '!=', 'Season')->where('hotel_id', $request->hotel_id)->get();
-            return view('hotel.rates', compact('hotel', 'rates'))
+            return view('hotel.rates', compact('hotel', 'rates', 'dmcUsers', 'auth_user'))
                 ->with('success', 'Rates details saved successfully!');
         } else {
             return redirect()->back()
