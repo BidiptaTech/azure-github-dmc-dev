@@ -2344,10 +2344,10 @@ class TourController extends Controller
                     Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
                             ->where('tour_id', '!=', $tour_id)
                             ->update(['deleted_at' => now()]);
-                            
+                    $acceptEnquiry = Enquiry::where('status', 2)->where('tour_id', $tour_id)->first();     
                     return response()->json([
                         'success' => true,
-                        'actual_amount' => $currentEnquiry->actual_amount,
+                        'actual_amount' => $acceptEnquiry->actual_amount,
                         'message' => 'Booking accepted successfully.'
                     ], 200);
                 }
