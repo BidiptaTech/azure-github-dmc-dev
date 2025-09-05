@@ -411,12 +411,13 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
+                                <div class="d-flex gap-2">
+                                    @if($tour->adult > 0)
+                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
+                                    @endif
+                                    @if($tour->child > 0)
+                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
+                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -708,16 +709,14 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex gap-2">
-                                    @if($tour->adult > 0)
-                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
-                                    @endif
-                                    @if($tour->child > 0)
-                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
-                                    @endif
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
+                                    <small class="text-muted">
+                                        <i class="fas fa-building me-1"></i>
+                                        {{ $tour->agent_company_name ?? 'N/A' }}
+                                    </small>
                                 </div>
                             </td>
-                            
                             <td>
                                 <div class="d-flex flex-column">
                                     @if($tour->check_in_time)

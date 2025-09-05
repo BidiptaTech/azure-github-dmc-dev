@@ -101,6 +101,27 @@
     .modal-xl {
         max-width: 95%;
     }
+
+    /* Payment amount input styling */
+    .form-control.is-valid {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
+
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+
+    .payment-info-text {
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Warning message styling */
+    .text-warning small {
+        font-weight: 500;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -631,6 +652,7 @@
                         <div class="mb-4">
                             <label for="payment_amount{{ $booking->booking_id }}" class="form-label fw-bold d-flex align-items-center">
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
+                                <small class="text-muted ms-2">(Max: {{ $currency ?? 'SGD' }} {{ number_format($totalPrice, 2) }})</small>
                             </label>
                             <div class="input-group">
                                 <span class="input-group-text">{{ $currency ?? 'SGD' }}</span>
@@ -640,7 +662,18 @@
                                     name="payment_amount" 
                                     step="0.01" 
                                     min="0.01" 
+                                    max="{{ $totalPrice }}"
+                                    value="{{ $totalPrice }}"
+                                    data-max-amount="{{ $totalPrice }}"
+                                    oninput="validateAmount(this, {{ $totalPrice }})"
                                     required>
+                            </div>
+                            <small class="text-info payment-info-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Total package price: {{ $currency ?? 'SGD' }} {{ number_format($totalPrice, 2) }}
+                            </small>
+                            <div id="amountWarning{{ $booking->booking_id }}" class="text-warning mt-1" style="display: none;">
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>Amount adjusted to maximum allowed</small>
                             </div>
                         </div>
                         
@@ -687,7 +720,7 @@
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-2"></i>Cancel
                     </button>
-                    <button type="button" class="btn btn-success" id="savePaymentBtn{{ $booking->booking_id }}" onclick="submitPaymentForm({{ $booking->booking_id }})">
+                    <button type="button" class="btn btn-success" id="savePaymentBtn{{ $booking->booking_id }}" data-booking-id="{{ $booking->booking_id }}">
                         <i class="fas fa-save me-2"></i>Save Payment Details
                     </button>
                 </div>
@@ -749,29 +782,77 @@
     });
  });
 
-// Payment Modal Functions
-function validateAmount(input, maxAmount) {
-    if (parseFloat(input.value) > maxAmount) {
-        input.value = maxAmount;
-    }
-}
+// Payment Modal Functions - Removed duplicate function
 
-// These functions are no longer needed with the simplified payment form
-// Keeping a simplified version of validateAmount for reference
+// Payment form validation and submission functions
 function validateAmount(input, maxAmount) {
-    if (parseFloat(input.value) > maxAmount) {
+    const currentValue = parseFloat(input.value);
+    const max = parseFloat(maxAmount);
+    
+    // Get booking ID from input ID
+    const bookingId = input.id.replace('payment_amount', '');
+    const warningElement = document.getElementById(`amountWarning${bookingId}`);
+    
+    if (currentValue > max) {
         input.value = maxAmount;
+        
+        // Show inline warning message
+        if (warningElement) {
+            warningElement.style.display = 'block';
+            // Hide warning after 3 seconds
+            setTimeout(() => {
+                warningElement.style.display = 'none';
+            }, 3000);
+        }
+    } else {
+        // Hide warning if amount is valid
+        if (warningElement) {
+            warningElement.style.display = 'none';
+        }
+    }
+    
+    // Add visual feedback for valid amounts
+    if (currentValue > 0 && currentValue <= max) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+    } else if (currentValue > max) {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+    } else {
+        input.classList.remove('is-valid', 'is-invalid');
     }
 }
 
 function validatePaymentAmountInput(bookingId) {
     const paymentAmount = document.getElementById(`payment_amount${bookingId}`);
     
-    if (!paymentAmount || parseFloat(paymentAmount.value) <= 0) {
-        // Show error using SweetAlert instead of DOM elements
+    if (!paymentAmount) {
+        Swal.fire({
+            title: 'Validation Error',
+            text: 'Payment amount field not found',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+        return false;
+    }
+    
+    const currentValue = parseFloat(paymentAmount.value);
+    const maxAmount = parseFloat(paymentAmount.getAttribute('data-max-amount'));
+    
+    if (currentValue <= 0) {
         Swal.fire({
             title: 'Validation Error',
             text: 'Payment amount must be greater than zero',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+        return false;
+    }
+    
+    if (currentValue > maxAmount) {
+        Swal.fire({
+            title: 'Validation Error',
+            text: `Payment amount cannot exceed SGD ${maxAmount.toFixed(2)}`,
             icon: 'error',
             confirmButtonText: 'OK'
         });
@@ -782,10 +863,41 @@ function validatePaymentAmountInput(bookingId) {
 }
 
 function submitPaymentForm(bookingId) {
+    console.log('Submitting payment form for booking:', bookingId);
+    
     if (validatePaymentAmountInput(bookingId)) {
-        document.getElementById(`paymentForm${bookingId}`).submit();
+        const form = document.getElementById(`paymentForm${bookingId}`);
+        if (form) {
+            form.submit();
+        } else {
+            console.error('Payment form not found for booking ID:', bookingId);
+            Swal.fire({
+                title: 'Error',
+                text: 'Payment form not found. Please refresh the page and try again.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        }
     }
 }
+
+// Handle save payment button click
+$(document).on('click', '[id^="savePaymentBtn"]', function() {
+    const bookingId = $(this).data('booking-id');
+    console.log('Save payment button clicked for booking:', bookingId);
+    
+    if (bookingId) {
+        submitPaymentForm(bookingId);
+    } else {
+        console.error('Booking ID not found on save payment button');
+        Swal.fire({
+            title: 'Error',
+            text: 'Booking ID not found. Please refresh the page and try again.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+    }
+});
 
 // Handle confirm payment button click
 $(document).ready(function() {
