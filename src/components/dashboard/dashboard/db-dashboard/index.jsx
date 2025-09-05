@@ -531,7 +531,7 @@ const DashboardLayout = () => {
               />
               <Tab
                 icon={<EmailOutlined />}
-                label="Booking Enquiries"
+                label="Quick Enquiries"
                 iconPosition="start"
                 {...a11yProps(1)}
               />
