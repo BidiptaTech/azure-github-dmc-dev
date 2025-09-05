@@ -387,12 +387,10 @@ const HotelConfigSummary = ({
     // Hotel nights should be the same for all rooms in the same hotel, so take from first room
     const hotelNights = configurations.length > 0 ? (configurations[0].nights || 0) : 0;
     const totalGuests = configurations.reduce((sum, config) => sum + (config.selectedGuests || 0), 0);
-    const totalMealPlanCost = configurations.reduce((sum, config) => {
-      const mealPlanCost = (config.guestMealPlans || []).reduce((mealSum, mealPlanData) => {
-        const price = mealPlanData?.price || 0;
-        return mealSum + price;
-      }, 0);
-      return sum + mealPlanCost;
+    const totalRoomCost = configurations.reduce((sum, config) => {
+      // Use total price (room + meals) for hotel summary
+      const roomTotalPrice = config.mealPlanDetails?.totalPrice || 0;
+      return sum + roomTotalPrice;
     }, 0);
     
     const dateRanges = configurations
@@ -425,7 +423,7 @@ const HotelConfigSummary = ({
       totalRooms: configurations.length,
       hotelNights, 
       totalGuests, 
-      totalMealPlanCost, 
+      totalRoomCost, // Updated variable name to reflect total room cost (room + meals)
       dateRanges,
       overallCheckIn,
       overallCheckOut,
@@ -687,24 +685,24 @@ const HotelConfigSummary = ({
                    </Box>
                  </Box>
                  
-                 {/* Price Display - Compact */}
-                 {hotelSummary.totalMealPlanCost > 0 && PriceHide === "0" ? (
-                   <Chip
-                     label={`$${hotelSummary.totalMealPlanCost.toFixed(2)}`}
-                     size="small"
-                     color="success"
-                     variant="filled"
-                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
-                   />
-                 ):(
-                   <Chip
-                     label="Price hide"
-                     size="small"
-                     color="success"
-                     variant="filled"
-                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
-                   />
-                   )}
+                                 {/* Price Display - Compact */}
+                {hotelSummary.totalRoomCost > 0 && PriceHide === "0" ? (
+                  <Chip
+                    label={`$${hotelSummary.totalRoomCost.toFixed(2)}`}
+                    size="small"
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                ):(
+                  <Chip
+                    label="Price hide"
+                    size="small"
+                    color="success"
+                    variant="filled"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                  )}
                </Box>
             </AccordionSummary>
 
@@ -803,106 +801,152 @@ const HotelConfigSummary = ({
                                <strong>Guests:</strong> {config.selectedGuests || 0} • <strong>Nights:</strong> {config.nights || 0}
                              </Typography>
                              
-                             {/* Selected Meal Plans */}
-                             <Box sx={{ mt: 0.6 }}>
-                               <Typography variant="caption" sx={{ 
-                                 fontWeight: 600, 
-                                 color: 'primary.main',
-                                 display: 'flex',
-                                 alignItems: 'center',
-                                 fontSize: '0.65rem'
-                               }}>
-                                 <RestaurantMenuIcon sx={{ fontSize: 10, mr: 0.3 }} />
-                                 Meal Plans:
-                               </Typography>
-                               
-                               {config.guestMealPlans && config.guestMealPlans.length > 0 ? (
-                                 <Box sx={{ mt: 0.4 }}>
-                                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, mb: 0.4 }}>
-                                     {config.guestMealPlans.map((mealPlan, mealIndex) => (
-                                       <Box key={mealIndex} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                         <Typography variant="caption" sx={{ 
-                                           color: 'text.secondary',
-                                           fontSize: '0.65rem'
-                                         }}>
-                                           Guest {mealIndex + 1}: {mealPlan?.name || 'Room Only'}
-                                         </Typography>
-                                         {mealPlan?.price > 0 && PriceHide === "0" ? (
-                                           <Typography variant="caption" sx={{ 
-                                             color: 'success.main',
-                                             fontSize: '0.6rem',
-                                             fontWeight: 600
-                                           }}>
-                                             ${mealPlan.price.toFixed(2)}
-                                           </Typography>
-                                         ):(
-                                           <Typography variant="caption" sx={{ 
-                                             color: 'success.main',
-                                             fontSize: '0.6rem',
-                                             fontWeight: 600
-                                           }}>
-                                             Price hide
-                                           </Typography>
-                                         )}
-                                       </Box>
-                                     ))}
-                                   </Box>
-                                   
-                                   {/* Room Meal Total */}
-                                   {(() => {
-                                     const roomMealTotal = config.guestMealPlans.reduce((sum, meal) => sum + (meal?.price || 0), 0);
-                                     return roomMealTotal > 0 && (
-                                       <Box sx={{ 
-                                         pt: 0.4, 
-                                         borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
-                                         display: 'flex', 
-                                         justifyContent: 'space-between',
-                                         alignItems: 'center'
-                                       }}>
-                                         <Typography variant="caption" sx={{ 
-                                           fontWeight: 600,
-                                           fontSize: '0.65rem',
-                                           color: 'success.main'
-                                         }}>
-                                           Room Total:
-                                         </Typography>
-                                         {PriceHide === "0" ? (
-                                         <Chip 
-                                           label={`$${roomMealTotal.toFixed(2)}`}
-                                           size="small" 
-                                           color="success"
-                                           variant="filled"
-                                           sx={{ 
-                                             height: 16, 
-                                             fontSize: '0.6rem',
-                                             fontWeight: 600
-                                           }}
-                                         />
-                                         ):(
-                                           <Chip 
-                                             label="Price hide"
-                                             size="small"
-                                             color="success"
-                                             variant="filled"
-                                             sx={{ fontWeight: 600, fontSize: '0.6rem', height: '16px' }}
-                                           />
-                                         )}
-                                       </Box>
-                                     );
-                                   })()}
-                                 </Box>
-                               ) : (
-                                 <Box sx={{ mt: 0.4 }}>
-                                   <Typography variant="caption" sx={{ 
-                                     color: 'warning.main',
-                                     fontSize: '0.65rem',
-                                     fontStyle: 'italic'
-                                   }}>
-                                     No meal plans selected yet
-                                   </Typography>
-                                 </Box>
-                               )}
-                             </Box>
+                                                         {/* Room Meal Plan */}
+                            <Box sx={{ mt: 0.6 }}>
+                              <Typography variant="caption" sx={{ 
+                                fontWeight: 600, 
+                                color: 'primary.main',
+                                display: 'flex',
+                                alignItems: 'center',
+                                fontSize: '0.65rem'
+                              }}>
+                                <RestaurantMenuIcon sx={{ fontSize: 10, mr: 0.3 }} />
+                                Room Meal Plan:
+                              </Typography>
+                              
+                              {config.selectedMealPlan && config.mealPlanDetails ? (
+                                <Box sx={{ mt: 0.4 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.4 }}>
+                                    <Typography variant="caption" sx={{ 
+                                      color: 'text.secondary',
+                                      fontSize: '0.65rem',
+                                      flex: 1
+                                    }}>
+                                      {config.mealPlanDetails.title || 'Room Only'}
+                                    </Typography>
+                                    {config.mealPlanDetails.totalPrice > 0 && PriceHide === "0" ? (
+                                      <Typography variant="caption" sx={{ 
+                                        color: 'success.main',
+                                        fontSize: '0.6rem',
+                                        fontWeight: 600
+                                      }}>
+                                        ${config.mealPlanDetails.totalPrice.toFixed(2)}
+                                      </Typography>
+                                    ) : PriceHide !== "0" ? (
+                                      <Typography variant="caption" sx={{ 
+                                        color: 'success.main',
+                                        fontSize: '0.6rem',
+                                        fontWeight: 600
+                                      }}>
+                                        Price hidden
+                                      </Typography>
+                                    ) : null}
+                                  </Box>
+                                  
+                                  {/* Guest Count & Per Person Price Info */}
+                                  {config.selectedGuests > 1 && config.mealPlanDetails.totalPrice > 0 && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      borderTop: '1px dashed rgba(76, 175, 80, 0.3)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        For {config.selectedGuests} guests:
+                                      </Typography>
+                                      {PriceHide === "0" && (
+                                        <Typography variant="caption" sx={{ 
+                                          fontSize: '0.6rem',
+                                          color: 'success.main'
+                                        }}>
+                                          ${(config.mealPlanDetails.totalPrice / config.selectedGuests).toFixed(2)} per guest
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  )}
+                                  
+                                  {/* Meal Plan Breakdown */}
+                                  {config.mealPlanDetails.price > 0 && PriceHide === "0" && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      mt: 0.4,
+                                      borderTop: '1px dashed rgba(76, 175, 80, 0.2)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        Meals only:
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.6rem',
+                                        color: 'text.secondary'
+                                      }}>
+                                        ${config.mealPlanDetails.price.toFixed(2)}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                  
+                                  {/* Room + Meal Total */}
+                                  {config.mealPlanDetails.totalPrice > 0 && (
+                                    <Box sx={{ 
+                                      pt: 0.4, 
+                                      mt: 0.4,
+                                      borderTop: '1px solid rgba(76, 175, 80, 0.3)',
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}>
+                                      <Typography variant="caption" sx={{ 
+                                        fontWeight: 600,
+                                        fontSize: '0.65rem',
+                                        color: 'success.main'
+                                      }}>
+                                        Room + Meal Total:
+                                      </Typography>
+                                      {PriceHide === "0" ? (
+                                        <Chip 
+                                          label={`$${config.mealPlanDetails.totalPrice.toFixed(2)}`}
+                                          size="small" 
+                                          color="success"
+                                          variant="filled"
+                                          sx={{ 
+                                            height: 16, 
+                                            fontSize: '0.6rem',
+                                            fontWeight: 600
+                                          }}
+                                        />
+                                      ) : (
+                                        <Chip 
+                                          label="Price hidden"
+                                          size="small"
+                                          color="success"
+                                          variant="filled"
+                                          sx={{ fontWeight: 600, fontSize: '0.6rem', height: '16px' }}
+                                        />
+                                      )}
+                                    </Box>
+                                  )}
+                                </Box>
+                              ) : (
+                                <Box sx={{ mt: 0.4 }}>
+                                  <Typography variant="caption" sx={{ 
+                                    color: 'warning.main',
+                                    fontSize: '0.65rem',
+                                    fontStyle: 'italic'
+                                  }}>
+                                    No meal plan selected yet
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
                            </Box>
 
                                                      {/* Action Indicator */}
