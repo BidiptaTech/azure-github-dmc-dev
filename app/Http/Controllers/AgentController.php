@@ -71,25 +71,12 @@ class AgentController extends Controller
         }
 
         if($dmc_id){
-            $agents = Agent::where('status', 1)->where(function($query) use ($dmc_id) {
-                $query->whereRaw("CASE 
-                    WHEN dmc_id IS NOT NULL 
-                    THEN (
-                        CASE 
-                            WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                            THEN dmc_id::jsonb @> ?::jsonb
-                            WHEN dmc_id::text ~ '^\\{.*\\}$'
-                            THEN dmc_id::jsonb @> ?::jsonb
-                            ELSE dmc_id::text LIKE ?
-                        END 
-                    )
-                    ELSE false
-                END", [
-                    json_encode([$dmc_id]),
-                    json_encode([$dmc_id]),
-                    "%{$dmc_id}%"
-                ]); 
-            })->orderBy('created_at', 'desc')->get();
+
+            $agencies = Agency::where('status', 1)
+            ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
+            ->orderBy('created_at', 'desc')
+            ->get();
+            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->get();
         }
 
         // For debugging
