@@ -426,13 +426,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
 
   return (
     <SearchContainer>
-      <Box sx={{ mb: 1.5 }}>
-        <InputLabel sx={{ mb: 0.8, fontSize: 14, fontWeight: 500, color: 'text.primary' }}>
-          Select Hotel {formattedHotels.length > 0 && (
-            <CountBadge label={formattedHotels.length} size="small" variant="outlined" />
-          )}
-        </InputLabel>
-        
+      <Box sx={{ mb: 0 }}>
         <Autocomplete
           value={selectedHotel}
           onChange={(event, newValue) => {
@@ -490,8 +484,10 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
               {...params}
               label="Search hotels"
               fullWidth
+              sx={{ height: '56px' }}
               InputProps={{
                 ...params.InputProps,
+                sx: { height: '56px' },
                 endAdornment: (
                   <>
                     {status === "loading" && <CircularProgress color="inherit" size={20} />}
@@ -503,7 +499,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
           )}
         />
         
-        {selectedHotel && (
+        {/* {selectedHotel && (
           <Box sx={{ mt: 1.5 }}>
             <Paper
               variant="outlined"
@@ -562,7 +558,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
               </Box>
             </Paper>
           </Box>
-        )}
+        )} */}
       </Box>
     </SearchContainer>
   );
