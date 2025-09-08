@@ -58,6 +58,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/refund-policies', 'App\Http\Controllers\Api\HotelPolicyController@fetchHotelRefundPolicies');
 
     Route::get('/agents-list', 'App\Http\Controllers\Api\EnquiryController@agentLists');
+    Route::get('/agencies-list', 'App\Http\Controllers\Api\EnquiryController@agencyLists');
 
     Route::get('/tour-list', 'App\Http\Controllers\Api\TourController@tourlists');
     Route::post('/tour-status', 'App\Http\Controllers\Api\TourController@TourStatus');

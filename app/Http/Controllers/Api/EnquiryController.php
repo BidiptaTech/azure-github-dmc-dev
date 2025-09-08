@@ -998,7 +998,17 @@ class EnquiryController extends Controller
     public function agentLists(Request $request)
     {
         $user = auth()->user();
-        // Check if user is a DMC role (Sales Head, Sales Manager, or Asst Sales Manager)
+        $agency_id = $request->agency_id;
+        
+        // Check if agency_id is provided
+        if (!$agency_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Agency ID is required',
+            ], 400);
+        }
+        
+        // Check if user is authorized
         if (!in_array($user?->role_id, [33, 37, 38, 34, 124, 125])) {
             return response()->json([
                 'success' => false,
@@ -1006,78 +1016,86 @@ class EnquiryController extends Controller
             ], 401);
         }
 
-        $agents = collect(); // default empty
-        $dmc_id = null;
-
-        switch ($user->role_id) {
-            case 33: // Sales Head
-            case 34: // Operation Head
-            case 128: // Sales Head
-            case 129: // Sales Head
-            case 130: // Sales Head
-            case 134: // Sales Head
-            case 135: // Sales Head
-            case 136: // Sales Head
-            case 138: // Sales Head
-                
-                $dmc_id = $user->created_by;
-                break;
-                
-            case 37: // Sales Manager
-            case 124: // Operation Manager
-                $sales_head = User::where('userId', $user->created_by)->first();
-                $dmc_id = $sales_head->created_by;
-                break;
-                
-            case 38: // Assistant Sales Manager
-            case 125: // Operation Manager
-                $sales_manager = User::where('userId', $user->created_by)->first();
-                $sales_head = User::where('userId', $sales_manager->created_by)->first();
-                $dmc_id = $sales_head->created_by;
-                break;                    
-                
-            default:
-                // For all other roles, get the parent DMC's agents
-                $dmc_id = null;
-                break;
-        }
-
-        if($dmc_id){
-            $agencies = Agency::where('status', 1)->where(function($query) use ($dmc_id) {
-                $query->whereRaw("CASE 
-                    WHEN dmc_id IS NOT NULL 
-                    THEN (
-                        CASE 
-                            WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                            THEN dmc_id::jsonb @> ?::jsonb
-                            WHEN dmc_id::text ~ '^\\{.*\\}$'
-                            THEN dmc_id::jsonb @> ?::jsonb
-                            ELSE dmc_id::text LIKE ?
-                        END 
-                    )
-                    ELSE false
-                END", [
-                    json_encode([$dmc_id]),
-                    json_encode([$dmc_id]),
-                    "%{$dmc_id}%"
-                ]); 
-            })->get();
-            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->get();
-        }
-
-        // For debugging
-        \Log::info('Agents Query', [
-            'role_id' => $user->role_id,
-            'user_id' => $user->userId,
-            'agent_count' => $agents->count(),
-            'agencies' => $agencies->pluck('dmc_id', 'agency_id')
-        ]);
+        // Convert agency_id to integer for proper matching
+        $agency_id = (int) $agency_id;
+        
+        // Get agents for the specific agency
+        $agents = Agent::where('agency_id', $agency_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($agent) {
+                return [
+                    'agent_id' => $agent->agent_id,
+                    'agent_name' => $agent->name,
+                ];
+            });
 
         return response()->json([
             'success' => true,
-            'message' => 'DMC agents retrieved successfully',
+            'message' => 'Agency agents retrieved successfully',
             'agents' => $agents,
         ]);
     }
+
+    public function agencyLists(Request $request)
+    {
+        $user = auth()->user();
+        $country = $request->country;
+        $dmc_id = $request->dmc_id;
+
+        if (!$country || !$dmc_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Country and DMC ID are required',
+            ]);
+        }
+        // dd($country, $dmc_id);
+
+        if (!in_array($user->role_id, [33, 37, 38, 34, 124, 125])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to access this agency',
+            ]);
+        }
+
+        // Convert dmc_id from request to integer for proper matching
+        $requested_dmc_id = (int) $dmc_id;
+
+        // Query agencies where dmc_id JSON array contains the requested dmc_id
+        $agencies = Agency::where('status', 1)
+            ->where('country', $country)
+            ->whereJsonContains('dmc_id', $requested_dmc_id)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($agency) {
+                return [
+                    'agency_id' => $agency->agency_id,
+                    'agency_name' => $agency->agency_name,
+                    'email' => $agency->email,
+                    'phone' => $agency->phone,
+                    'country' => $agency->country,
+                    'city' => $agency->city,
+                    'address' => $agency->address,
+                    'postal_code' => $agency->postal_code,
+                    'branches' => collect($agency->branches ?? [])->map(function ($branch) {
+                        return [
+                            'email' => $branch['email'] ?? null,
+                            'phone' => $branch['phone'] ?? null,
+                            'country' => $branch['country'] ?? null,
+                            'city' => $branch['city'] ?? null,
+                            'postal_code' => $branch['postal_code'] ?? null,
+                            'address' => $branch['address'] ?? null,
+                        ];
+                    })->toArray(),
+                ];
+            });
+            
+        return response()->json([
+            'success' => true,
+            'message' => 'Agencies retrieved successfully',
+            'agencies' => $agencies,
+        ]);
+    }
+
 
 }
