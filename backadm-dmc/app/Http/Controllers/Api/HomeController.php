@@ -314,7 +314,7 @@ class HomeController extends Controller
             'dmc_id' => $get_dmc_id,
             'mode' => $mode,
         ];
-        $ticket = Ticket::where('attraction_id', $attractionId)->get();
+        $ticket = Ticket::where('attraction_id', $attractionId)->where('dmc_id', $get_dmc_id)->get();
         $ticketPrices = [];
         if($ticket){
             foreach($ticket as $t){
