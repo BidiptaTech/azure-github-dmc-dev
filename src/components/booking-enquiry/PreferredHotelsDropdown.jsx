@@ -29,22 +29,43 @@ const SearchContainer = styled(Box)(({ theme }) => ({
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 350,
+  maxHeight: 210,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),
   boxShadow: theme.shadows[3],
+  borderRadius: theme.spacing(1),
+  // Fix scrolling issues
+  scrollbarWidth: "thin",
+  "&::-webkit-scrollbar": {
+    width: "6px",
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: theme.palette.grey[400],
+    borderRadius: "3px",
+    "&:hover": {
+      backgroundColor: theme.palette.grey[600],
+    },
+  },
 }));
 
 const HotelOption = styled(ListItem)(({ theme }) => ({
   cursor: "pointer",
   padding: theme.spacing(1.5, 2),
   borderBottom: `1px solid ${theme.palette.divider}`,
+  minHeight: "auto",
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
   },
   "&:last-child": {
     borderBottom: "none",
+    paddingBottom: theme.spacing(2), // Extra padding for last item
+  },
+  "&:first-child": {
+    paddingTop: theme.spacing(1.5),
   },
 }));
 
@@ -208,7 +229,17 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
 
         {isDropdownOpen && !showOthersInput && (
           <DropdownContainer ref={dropdownRef}>
-            <List disablePadding>
+            <List 
+              disablePadding 
+              sx={{ 
+                maxHeight: "100%", 
+                overflow: "visible",
+                paddingBottom: 0,
+                "& .MuiListItem-root:last-child": {
+                  marginBottom: 0,
+                }
+              }}
+            >
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
                   <CircularProgress size={20} sx={{ mr: 1 }} />

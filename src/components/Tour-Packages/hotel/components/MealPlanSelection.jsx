@@ -55,8 +55,19 @@ const MealPlanSelection = ({
   // Check if loading or missing essential data
   if (isLoading) {
     return (
-      <Box sx={{ width: '100%', mt: 2 }}>
-        <Paper elevation={1} sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+      <Box sx={{ width: '100%', mt: 0 }}>
+        <Paper 
+          elevation={1} 
+          sx={{ 
+            height: '56px',
+            display: 'flex',
+            alignItems: 'center',
+            px: 2,
+            bgcolor: '#f5f5f5',
+            borderRadius: 1,
+            border: '1px solid rgba(0, 0, 0, 0.23)'
+          }}
+        >
           <Typography variant="body2">Loading meal plan options...</Typography>
         </Paper>
       </Box>
@@ -66,32 +77,38 @@ const MealPlanSelection = ({
   // Check if room data or bed type is missing
   if (!bedType) {
     return (
-      <Box sx={{ width: '100%', mt: 2 }}>
-        <Alert 
-          severity="info" 
+      <Box sx={{ width: '100%', mt: 0 }}>
+        <Paper 
+          elevation={0}
           sx={{ 
-            borderRadius: '12px'
+            height: '56px',
+            display: 'flex',
+            alignItems: 'center',
+            px: 2,
+            bgcolor: 'rgba(25, 118, 210, 0.04)',
+            border: '1px solid rgba(25, 118, 210, 0.2)',
+            borderRadius: 1
           }}
         >
-          <Typography variant="body2">
-            Please select a bed type to view available meal plans.
+          <Typography variant="body2" sx={{ fontSize: '0.875rem', color: 'primary.main' }}>
+            Please select a bed type first
           </Typography>
-        </Alert>
+        </Paper>
       </Box>
     );
   }
   
   return (
-    <Box sx={{ mt: 1.5 }}>
+    <Box sx={{ mt: 0 }}>
       <Button
         fullWidth
         variant="outlined"
         disabled={!bedType}
         onClick={(event) => setMealPlanAnchorEl(event.currentTarget)}
         sx={{ 
+          height: '56px',
           justifyContent: 'flex-start',
           textAlign: 'left',
-          py: 1,
           px: 1.5,
           color: 'text.primary',
           borderColor: 'rgba(0, 0, 0, 0.23)',

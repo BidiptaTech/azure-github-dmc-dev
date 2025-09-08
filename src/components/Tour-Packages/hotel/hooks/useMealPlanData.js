@@ -38,8 +38,8 @@ const useMealPlanData = (roomType, bedType, personCount = 1) => {
       return MEAL_PLAN_OPTIONS;
     }
     
-    console.log("useMealPlanData - Found room data:", roomData);
-    console.log("useMealPlanData - Bed details:", roomData?.bed_details);
+    // console.log("useMealPlanData - Found room data:", roomData);
+    // console.log("useMealPlanData - Bed details:", roomData?.bed_details);
     
     // Validate API response structure
     const validateApiResponse = (data) => {
@@ -82,34 +82,21 @@ const useMealPlanData = (roomType, bedType, personCount = 1) => {
     const doublePrice = parseFloat(roomData?.double_price || singlePrice * 2);
     const extraBedPrice = parseFloat(roomData?.bed_details?.[0]?.extra_bed_price || roomData?.extra_bed_price || 0);
     const extraBedAvailable = roomData?.extra_bed !== false && parseFloat(roomData?.extra_bed_price || roomData?.bed_details?.[0]?.extra_bed_price || 0) > 0;
-    
-    console.log("useMealPlanData - Raw price data from API:", {
-      single_price: roomData?.single_price,
-      double_price: roomData?.double_price,
-      extra_bed_price: roomData?.bed_details?.[0]?.extra_bed_price || roomData?.extra_bed_price,
-      extra_bed: roomData?.extra_bed,
-      rooms_only: roomData?.rooms_only,
-      breakfast: roomData?.breakfast,
-      complemenatry_breakfast_included: roomData?.complemenatry_breakfast_included
-    });
-    
-    console.log("useMealPlanData - Parsed prices:", { singlePrice, doublePrice, extraBedPrice, extraBedAvailable });
-    
     // Calculate base price based on person count for room
     // 1 guest: single price, 2 guests: double price, 3+ guests: handle extra bed logic
     const getBasePriceForPersonCount = (count) => {
-      if (count <= 1) return singlePrice;
+      if (count <= 1) return singlePrice;  
       if (count === 2) return doublePrice;
       
-      // For 3+ guests: check extra bed availability
-      if (count >= 3) {
-        // If extra bed is available and has a price, use it
-        if (extraBedAvailable) {
-          // For each additional person beyond 2, add extra bed price
+      // For 3+ guests: apply extra bed logic only to additional guests beyond 2
+      if (count > 2) {
+        // If extra bed is available and person count > 1, add extra bed price for additional guests
+        if (extraBedAvailable && count > 1) {
+          // Double price + extra bed price for each additional guest beyond 2
           return doublePrice + (extraBedPrice * (count - 2));
         } else {
-          // If extra bed is not available or free, use single price for additional guests
-          return doublePrice + (singlePrice * (count - 2));
+          // If extra bed is not available, use single price for additional guests
+          return doublePrice;
         }
       }
       
@@ -131,29 +118,29 @@ const useMealPlanData = (roomType, bedType, personCount = 1) => {
     // Extract meal types for better descriptions
     const breakfastType = roomData?.breakfast_type || '';
     const lunchType = roomData?.lunch_type || '';
-    const dinnerType = roomData?.dinner_type || '';
+    const dinnerType = roomData?.dinner_type || ''; 
     
     // Check if breakfast is complimentary
     const isBreakfastFree = roomData?.complemenatry_breakfast_included === true;
     const effectiveBreakfastPrice = isBreakfastFree ? 0 : breakfastPrice;
     
-    console.log("useMealPlanData - Raw meal data from API:", {
-      breakfast_price: roomData?.breakfast_price,
-      lunch_price: roomData?.lunch_price,
-      dinner_price: roomData?.dinner_price,
-      breakfast_type: roomData?.breakfast_type,
-      lunch_type: roomData?.lunch_type,
-      dinner_type: roomData?.dinner_type
-    });
+    // console.log("useMealPlanData - Raw meal data from API:", {
+    //   breakfast_price: roomData?.breakfast_price,
+    //   lunch_price: roomData?.lunch_price,
+    //   dinner_price: roomData?.dinner_price,
+    //   breakfast_type: roomData?.breakfast_type,
+    //   lunch_type: roomData?.lunch_type,
+    //   dinner_type: roomData?.dinner_type
+    // });
     
-    console.log("useMealPlanData - Meal availability:", { breakfast, lunch, dinner });
-    console.log("useMealPlanData - Parsed meal prices:", { 
-      breakfastPrice, 
-      lunchPrice, 
-      dinnerPrice, 
-      isBreakfastFree,
-      effectiveBreakfastPrice 
-    });
+    // console.log("useMealPlanData - Meal availability:", { breakfast, lunch, dinner });
+    // console.log("useMealPlanData - Parsed meal prices:", { 
+    //   breakfastPrice, 
+    //   lunchPrice, 
+    //   dinnerPrice, 
+    //   isBreakfastFree,
+    //   effectiveBreakfastPrice 
+    // });
     
     // Create meal plan options based on room data
     const availableMealPlans = [];
@@ -317,7 +304,7 @@ const useMealPlanData = (roomType, bedType, personCount = 1) => {
       });
     }
     
-    console.log("useMealPlanData - Generated meal plans:", availableMealPlans);
+    // console.log("useMealPlanData - Generated meal plans:", availableMealPlans);
     
     return availableMealPlans;
   }, [roomDatas, roomType, bedType, personCount]);

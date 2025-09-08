@@ -28,11 +28,25 @@ const SearchContainer = styled(Box)(({ theme }) => ({
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 350,
+  maxHeight: 210,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),
   boxShadow: theme.shadows[3],
+  // Fix scrolling issues
+  scrollbarWidth: "thin",
+  "&::-webkit-scrollbar": {
+    width: "6px",
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: theme.palette.grey[100],
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: theme.palette.grey[400],
+    borderRadius: "3px",
+  },
+  // Ensure proper padding at bottom
+  paddingBottom: theme.spacing(0.5),
 }));
 
 const RestaurantOption = styled(ListItem)(({ theme }) => ({
@@ -49,6 +63,7 @@ const RestaurantOption = styled(ListItem)(({ theme }) => ({
   },
   "&:last-child": {
     borderBottom: "none",
+    marginBottom: theme.spacing(0.5), // Add extra margin to last item
   },
 }));
 

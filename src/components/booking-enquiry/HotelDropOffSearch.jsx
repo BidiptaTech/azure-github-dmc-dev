@@ -32,7 +32,7 @@ const PriceChip = styled(Chip)(({ theme }) => ({
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 350,
+  maxHeight: 210,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),

@@ -429,12 +429,46 @@ export default function HotelComponent({ searchParams }) {
     });
   };
 
-  // Handler for adding more rooms to the same hotel
+  // Handler for adding more rooms to the same hotel - Enhanced with validation
   const handleAddMoreRooms = () => {
     console.log("Add more rooms clicked for hotel:", hotelConfigurations[activeHotelIndex]?.hotelDetails?.hotel_name);
     
+    // Check if there are any incomplete hotels (without hotelId)
+    const incompleteHotels = hotelConfigurations.filter(config => !config.hotelId);
+    
+    if (incompleteHotels.length > 0) {
+      console.warn("Cannot add more rooms: There are incomplete hotel configurations");
+      setAlert({
+        show: true,
+        message: `Please select a hotel for all incomplete rooms first before adding more rooms`,
+        severity: 'warning'
+      });
+      
+      // Focus on the first incomplete hotel
+      const firstIncompleteIndex = hotelConfigurations.findIndex(config => !config.hotelId);
+      if (firstIncompleteIndex !== -1) {
+        setActiveHotelIndex(firstIncompleteIndex);
+      }
+      
+      // Hide message after 5 seconds
+      setTimeout(() => {
+        setAlert(prev => ({ ...prev, show: false }));
+      }, 5000);
+      
+      return;
+    }
+    
     if (!hotelConfigurations[activeHotelIndex]?.hotelId) {
-      console.warn("Cannot add room: No hotel selected");
+      console.warn("Cannot add room: No hotel selected for current configuration");
+      setAlert({
+        show: true,
+        message: 'Please select a hotel for the current room first',
+        severity: 'warning'
+      });
+      
+      setTimeout(() => {
+        setAlert(prev => ({ ...prev, show: false }));
+      }, 3000);
       return;
     }
     
@@ -484,12 +518,51 @@ export default function HotelComponent({ searchParams }) {
     }, 3000);
   };
 
-  // Handler for adding new hotel
+  // Handler for adding new hotel - Enhanced with validation
   const handleAddNewHotel = () => {
     console.log("Add new hotel clicked");
+    
+    // Check if there are any incomplete hotels (without hotelId)
+    const incompleteHotels = hotelConfigurations.filter(config => !config.hotelId);
+    
+    if (incompleteHotels.length > 0) {
+      console.warn("Cannot add new hotel: There are incomplete hotel configurations");
+      setAlert({
+        show: true,
+        message: `Please select a hotel for ${incompleteHotels.length} incomplete room${incompleteHotels.length > 1 ? 's' : ''} first`,
+        severity: 'warning'
+      });
+      
+      // Focus on the first incomplete hotel
+      const firstIncompleteIndex = hotelConfigurations.findIndex(config => !config.hotelId);
+      if (firstIncompleteIndex !== -1) {
+        setActiveHotelIndex(firstIncompleteIndex);
+      }
+      
+      // Hide message after 5 seconds
+      setTimeout(() => {
+        setAlert(prev => ({ ...prev, show: false }));
+      }, 5000);
+      
+      return;
+    }
+    
+    // All current hotels are configured, proceed with adding new hotel
     const newConfig = createInitialHotelConfiguration(searchCriteria);
     setHotelConfigurations(prevConfigurations => [...prevConfigurations, newConfig]);
-    setActiveHotelIndex(prevIndex => prevIndex + 1);
+    setActiveHotelIndex(hotelConfigurations.length); // Set to the new configuration index
+    
+    // Show success message
+    setAlert({
+      show: true,
+      message: 'New hotel room added! Please select your hotel.',
+      severity: 'success'
+    });
+    
+    // Hide message after 3 seconds
+    setTimeout(() => {
+      setAlert(prev => ({ ...prev, show: false }));
+    }, 3000);
   };
 
 
