@@ -205,16 +205,13 @@
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
-
-                                
-                                    <div class="col-md-3">
-                                        <button type="button" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addTransportService(); return false;">
-                                            <i class="ri-car-line fs-1 mb-2"></i>
-                                            <span class="fw-bold">Local Transport</span>
-                                            <small class="opacity-75">Port Pickup Service</small>
-                                        </button>
-                                    </div>
-                                
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addTransportService(); return false;">
+                                        <i class="ri-car-line fs-1 mb-2"></i>
+                                        <span class="fw-bold">Local Transport</span>
+                                        <small class="opacity-75">Port Pickup Service</small>
+                                    </button>
+                                </div>
                                 <div class="col-md-3">
                                     <button type="button" class="btn btn-primary btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addHotelService()">
                                         <i class="ri-hotel-line fs-1 mb-2"></i>
@@ -249,7 +246,7 @@
                                         <span class="fw-bold">Local Transfer</span>
                                         <small class="opacity-75">Book Local Transport</small>
                                     </button>
-                            </div>
+                                </div>
                             </div>
                             
                             <div class="row mt-3">
@@ -303,7 +300,7 @@
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                                     <h6 class="mb-0">Attraction Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->id }})">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
                                                         </button>
                                                     </div>
@@ -387,7 +384,7 @@
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                                     <h6 class="mb-0">Tour Guide Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->id }})">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
                                                         </button>
                                                     </div>
@@ -459,7 +456,7 @@
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                                     <h6 class="mb-0">Restaurant Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->id }})">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
                                                         </button>
                                                     </div>
@@ -581,11 +578,11 @@
                                                 <div class="transport-item mb-3 p-3 border rounded">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
-                                                                                                            <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->id }})">
-                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                        </button>
-                                                    </div>
+                                                                                                                                                                <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     @php
                                                         $transportData = $order->processed_data;
@@ -635,11 +632,11 @@
                                                 <div class="transport-item mb-3 p-3 border rounded">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
-                                                                                                            <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->id }})">
-                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                        </button>
-                                                    </div>
+                                                                                                                                                                 <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     @php
                                                         $transportData = $order->processed_data;
@@ -689,11 +686,11 @@
                                                 <div class="transport-item mb-3 p-3 border rounded">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Local Transport #{{ $index + 1 }}</h6>
-                                                                                                            <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->id }})">
-                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                        </button>
-                                                    </div>
+                                                                                                                                                                 <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     @php
                                                         $transportData = $order->processed_data;
@@ -742,9 +739,6 @@
                                 </div>
                                 @endif
                             </div>
-
-
-
                         </div>
                     </div>
                 </div>
@@ -1746,9 +1740,26 @@
                                                 <div class="position-relative">
                                                     <select class="form-select pickup-zone-select border-2" id="local_transfer_pickup_zone" name="pickup_zone_id" style="padding-left: 45px;">
                                                         <option value="">Select pickup location</option>
+                                                        <optgroup label="Ports">
                                                         @foreach($ports as $port)
-                                                        <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                            <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
                                                         @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Hotels">
+                                                        @foreach($hotels as $hotel)
+                                                        <option value="hotel_{{ $hotel->id }}" data-hotel="{{ json_encode($hotel) }}">{{ $hotel->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Attractions">
+                                                        @foreach($attractions as $attraction)
+                                                        <option value="attraction_{{ $attraction->id }}" data-attraction="{{ json_encode($attraction) }}">{{ $attraction->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
+                                                        <optgroup label="Restaurants">
+                                                        @foreach($restaurants as $restaurant)
+                                                        <option value="restaurant_{{ $restaurant->id }}" data-restaurant="{{ json_encode($restaurant) }}">{{ $restaurant->name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
                                                     </select>
                                                     <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
@@ -1762,6 +1773,12 @@
                                                 <div class="position-relative">
                                                     <select class="form-select dropoff-zone-select border-2" id="local_transfer_dropoff_zone" name="dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
                                                         <option value="">Select pickup location first</option>
+                                                        <!-- Ports -->
+                                                        <optgroup label="Ports">
+                                                        @foreach($ports as $port)
+                                                        <option value="{{ $port->id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
+                                                        @endforeach
+                                                        </optgroup>
                                                         <!-- Hotels -->
                                                         <optgroup label="Hotels">
                                                         @foreach($hotels as $hotel)

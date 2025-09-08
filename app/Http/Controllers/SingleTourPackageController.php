@@ -281,6 +281,7 @@ class SingleTourPackageController extends Controller
             \Log::error('No tour_id provided');
             return redirect()->back()->with('error', 'Tour ID is required to edit tour services.');
         }
+        $tour_id = Crypt::decrypt($tour_id);
         $tour = Tour::where('tour_id', $tour_id)->first();
         $tour_agent = Agent::select('name', 'agent_id')->where('agent_id', $tour->agent_id)->first();
         $agent_name = $tour_agent->name;

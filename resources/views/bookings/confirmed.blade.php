@@ -839,7 +839,7 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     
-                                    <a href="{{ route('tour.editpackage', $tour->tour_id) }}" 
+                                    <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-warning btn-sm rounded-pill">
                                         <i class="ri-settings-3-line"></i> Edit Tour
                                     </a>
