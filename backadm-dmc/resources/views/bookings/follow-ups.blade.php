@@ -4,6 +4,22 @@
 
 <!-- Date Range Picker CSS -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+
+<style>
+/* Loading spinner animation for cancel button */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -480,10 +496,17 @@
                                 </div>
                             </td> --}}
                             <td>
-                                <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                   class="btn btn-outline-primary btn-sm rounded-pill">
-                                    <i class="ri-eye-line"></i> View
-                                </a>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="btn btn-outline-primary btn-sm rounded-pill">
+                                        <i class="ri-eye-line"></i> View
+                                    </a>
+                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
+                                            class="btn btn-outline-danger btn-sm rounded-pill" 
+                                            id="cancel-btn-{{ $tour->tour_id }}">
+                                        <i class="ri-delete-bin-line"></i> Cancel
+                                    </button>
+                                </div>
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -3446,6 +3469,89 @@ function markAsLost(tourId) {
         console.log('Marking tour', tourId, 'as lost');
     }
 }
+
+window.cancelTour = function(encryptedTourId, displayId) {
+    // Show SweetAlert confirmation dialog
+    Swal.fire({
+        title: 'Cancel Tour?',
+        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Extract tour ID from the encrypted string to match the button ID
+            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
+            const button = tourIdMatch;
+            const originalContent = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
+            button.disabled = true;
+            
+            // Send AJAX request to cancel tour
+            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Update button to show cancelled state
+                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
+                    button.classList.remove('btn-outline-danger');
+                    button.classList.add('btn-success');
+                    button.disabled = true;
+                    
+                    // Refresh the page after a short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message || 'Failed to cancel tour',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Restore button state
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling tour:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the tour. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Restore button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            });
+        }
+    });
+};
 
 function scheduleFollowUp() {
     const selectedTours = document.querySelectorAll('.row-checkbox:checked');
