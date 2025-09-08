@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchLists } from "@/slice/common/TourlistSlice";
-import { fetchAgentList } from '@/slice/common/agentListSlice';
+import { fetchAgencies, fetchAgentList } from '@/slice/common/agentListSlice';
 
 import { 
   Container, 
@@ -28,6 +28,7 @@ import {
     EventNote,
   EmailOutlined,
   CardGiftcardOutlined,
+  Public,
   People,
   FilterList,
   Analytics,
@@ -54,8 +55,13 @@ const SalesManagerDashboard = () => {
     setMainTabValue(newValue);
   };
     const {agents,error} = useSelector((state) => state.agentList);
+    const countrylist = useSelector((state) => state.auth.user_country);
+    const dmcId = useSelector((state) => state.dmc.dmcId);
     const selectedAgent = useSelector((state) => state.editing.agentId) || '';
+    const [selectedCountry, setSelectedCountry] = useState('');
     // console.log(agents,"agentlist");
+    console.log("countrylist",countrylist);
+    console.log("dmcId",dmcId);
 
         useEffect(() => {
     // Fetch agent list on component mount
@@ -87,6 +93,14 @@ const SalesManagerDashboard = () => {
         dispatch(fetchLists({ reset: true }));
       }
       console.log('Selected agent:', agentId);
+    };
+
+    const handleCountryChange = (event) => {
+      const value = event.target.value;
+      setSelectedCountry(value);
+      dispatch(fetchAgencies(dmcId, value))
+      // You can add additional logic here to filter agents by country if needed
+      console.log('Selected country:', value);
     };
 
     // Filter agents based on search term
@@ -231,15 +245,191 @@ function a11yProps(index) {
                     </Stack>
                     
 
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        background: "#f8f9fa",
-                        borderRadius: "12px",
-                        border: "1px solid rgba(0, 0, 0, 0.1)",
-                        minWidth: 250,
-                      }}
-                    >
+                    {/* Dropdowns Container */}
+                    <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                      {/* Country Selection Dropdown */}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          background: "#f8f9fa",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(0, 0, 0, 0.1)",
+                          minWidth: 250,
+                          flex: 1,
+                        }}
+                      >
+                      <FormControl
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "transparent",
+                            "& fieldset": {
+                              border: "none",
+                            },
+                            "&:hover fieldset": {
+                              border: "none",
+                            },
+                            "&.Mui-focused fieldset": {
+                              border: "none",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "text.secondary",
+                            "&.Mui-focused": {
+                              color: "primary.main",
+                            },
+                          },
+                          "& .MuiSelect-select": {
+                            color: "text.primary",
+                            padding: "12px 16px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          },
+                          "& .MuiSelect-icon": {
+                            color: "text.secondary",
+                          },
+                        }}
+                      >
+                        <InputLabel id="country-select-label">
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Public sx={{ fontSize: 16 }} />
+                            <span>Select Country</span>
+                          </Stack>
+                        </InputLabel>
+                        <Select
+                          labelId="country-select-label"
+                          id="country-select"
+                          value={selectedCountry || ""}
+                          onChange={handleCountryChange}
+                          label="Select Country"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              backgroundColor: "#f8fafc",
+                              borderColor: "#e2e8f0",
+                              "&:hover": {
+                                borderColor: "#94a3b8",
+                              },
+                              "&.Mui-focused": {
+                                borderColor: "#3b82f6",
+                                boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.1)",
+                              },
+                            },
+                            "& .MuiSelect-icon": {
+                              color: "#64748b",
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "#475569",
+                              "&.Mui-focused": {
+                                color: "#3b82f6",
+                              },
+                            },
+                          }}
+                          MenuProps={{
+                            PaperProps: {
+                              sx: {
+                                maxHeight: 300,
+                                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px",
+                                "& .MuiMenuItem-root": {
+                                  fontSize: "0.9rem",
+                                  padding: "12px 16px",
+                                  "&:hover": {
+                                    backgroundColor: "#f1f5f9",
+                                  },
+                                  "&.Mui-selected": {
+                                    backgroundColor: "#dbeafe",
+                                    color: "#1e40af",
+                                    "&:hover": {
+                                      backgroundColor: "#bfdbfe",
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          }}
+                        >
+                          <MenuItem value="">
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Public sx={{ fontSize: 18, color: "#3b82f6" }} />
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: "#1e293b" }}>
+                                  All Countries
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: "#64748b", fontSize: "0.75rem" }}>
+                                  View all countries
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </MenuItem>
+                          {countrylist && countrylist.length > 0 ? (
+                            countrylist.map((country) => (
+                              <MenuItem key={country.code} value={country.code}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <Box
+                                    sx={{
+                                      width: 24,
+                                      height: 24,
+                                      borderRadius: "50%",
+                                      backgroundColor: "#3b82f6",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: "0.7rem",
+                                      fontWeight: 600,
+                                      color: "white",
+                                    }}
+                                  >
+                                    {country.code}
+                                  </Box>
+                                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2 }}>
+                                      {country.name}
+                                    </Typography>
+                                    <Typography 
+                                      variant="caption" 
+                                      sx={{ 
+                                        color: "#059669", 
+                                        fontSize: "0.7rem",
+                                        lineHeight: 1.2,
+                                        display: "block",
+                                        fontWeight: 500
+                                      }}
+                                    >
+                                      +{country.country_code}
+                                    </Typography>
+                                  </Box>
+                                </Stack>
+                              </MenuItem>
+                            ))
+                          ) : (
+                            <MenuItem disabled>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Public sx={{ fontSize: 18, color: "#64748b" }} />
+                                <Typography variant="body2" sx={{ color: "#64748b", fontStyle: "italic" }}>
+                                  No countries available
+                                </Typography>
+                              </Stack>
+                            </MenuItem>
+                          )}
+                        </Select>
+                      </FormControl>
+                      </Paper>
+
+                      {/* Agent Selection Dropdown */}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          background: "#f8f9fa",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(0, 0, 0, 0.1)",
+                          minWidth: 250,
+                          flex: 1,
+                        }}
+                      >
                       <FormControl
                         variant="outlined"
                         size="small"
@@ -476,7 +666,8 @@ function a11yProps(index) {
                           ) : null}
                         </Select>
                       </FormControl>
-                    </Paper>
+                      </Paper>
+                    </Stack>
                   </Stack>
                 </Grow>
               </Stack>
