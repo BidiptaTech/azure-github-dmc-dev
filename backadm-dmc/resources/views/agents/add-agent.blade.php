@@ -55,7 +55,7 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
-        @if(auth()->user()->role_id == 11)
+        {{-- @if(auth()->user()->role_id == 11)
         <!-- Search Section - Only visible to DMC -->
         <div class="card mb-4">
             <h5 class="card-header">Search Existing Agent</h5>
@@ -107,7 +107,7 @@
                 </div>
             </div>
         </div>
-        @endif
+        @endif --}}
 
         <!-- Rest of your form -->
         <div class="card mb-6">
@@ -125,10 +125,21 @@
                         <label for="company_name" class="form-label"><strong>Select Agency Company</strong><span class="text-danger">*</span></label>
                         <select class="form-control select2" id="agency_id" name="agency_id">
                             <option value="">Select Agency</option>
-                            @foreach($agency as $a)
-                                <option value="{{ $a->agency_id }}">{{ $a->agency_name }}</option>
-                            @endforeach
+                            @if(count($agency) > 0)
+                                @foreach($agency as $a)
+                                    <option value="{{ $a->agency_id }}">{{ $a->agency_name }}</option>
+                                @endforeach
+                            @else
+                                <option value="" disabled>No agencies found</option>
+                            @endif
                         </select>
+                        
+                        @if(count($agency) == 0)
+                            <div class="alert alert-warning mt-2" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No agencies available!</strong> Please contact administrator to add agencies first.
+                            </div>
+                        @endif
                         @error('agency_id')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
@@ -175,7 +186,7 @@
                     </div> -->
 
 
-                    <div class="col-md-3 mb-3" id="user_coun">
+                    {{-- <div class="col-md-3 mb-3" id="user_coun">
                         <div class="mb-3">
                             <label for="user_country" class="form-label">
                                 <strong>Agent Country</strong>
@@ -208,7 +219,7 @@
                         @error('agent_address')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
 
                     <div class="col-md-3 mb-4">
                         <label for="country" class="form-label"><strong>Service Country</strong><span class="text-danger">*</span></label>
@@ -224,12 +235,11 @@
                         @enderror
                     </div>                  
 
-                    <div class="col-md-2 mb-3">
+                    {{-- <div class="col-md-2 mb-3">
                         <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
                                 style="color: red; font-weight: bold;">*</span></label>
                         <select class="form-control select2" id="inputCountryCode" name="code" required>
                             <option value="">Choose...</option>
-                            {{-- {{ dd($countryCodes) }} --}}
                             @foreach($countryCodes as $key => $value)
                             <option value="{{ $key }}" @if($key == '65') selected @endif >{{ $value }}</option>
                             @endforeach
@@ -237,13 +247,22 @@
                         @error('code')
                         <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
                     
                     <div class="col-md-3 mb-3">
                         <label for="phone" class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
                         <input type="text" class="form-control @error('phone') is-invalid @enderror" id="phone" name="phone" value="{{ old('phone') }}" placeholder="Phone No" oninput="validatePhoneNumber(this)">
                         <small class="validation-message text-danger" id="phone-validation-message"></small>
                         @error('phone')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label for="phone" class="form-label"><strong>Designation</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control @error('designation') is-invalid @enderror" id="designation" name="designation" value="{{ old('designation') }}" placeholder="Designation">
+                        <small class="validation-message text-danger" id="designation-validation-message"></small>
+                        @error('designation')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -272,7 +291,7 @@
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div> --}}
-                    <div class="col-md-3 mb-3">
+                    {{-- <div class="col-md-3 mb-3">
                         <label for="agent_image" class="form-label"><strong>Agency Logo</strong><span class="text-danger">*</span></label>
                         <input type="file" class="form-control @error('agent_image') is-invalid @enderror" name="agent_image" required>
                         @error('agent_image')
@@ -285,7 +304,7 @@
                         @error('image')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
                 </div>
                 <div class="row">
                     <div class="col-md-4 mb-3">

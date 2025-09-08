@@ -93,13 +93,13 @@
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <label for="company_name" class="form-label"><strong>Select Agency Company</strong><span class="text-danger">*</span></label>
-                        <select class="form-control select2" id="agency_id" name="company_name">
+                        <select class="form-control select2" id="agency_id" name="agency_id">
                             <option value="">Select Agency</option>
                             @foreach($agency as $a)
-                                <option value="{{ $a->agency_name }}" {{ $agent->company_name == $a->agency_name ? 'selected' : '' }}>{{ $a->agency_name }}</option>
+                                <option value="{{ $a->agency_id }}" {{ $agent->agency_id == $a->agency_id ? 'selected' : '' }}>{{ $a->agency_name }}</option>
                             @endforeach
                         </select>
-                        @error('company_name')
+                        @error('agency_id')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
@@ -137,7 +137,7 @@
                     </div> -->
 
                     {{-- NEW SECTIONS: Agent Country, Agent City, Country Code --}}
-                    <div class="col-md-3 mb-3" id="user_coun">
+                    {{-- <div class="col-md-3 mb-3" id="user_coun">
                         <div class="mb-3">
                             <label for="user_country" class="form-label">
                                 <strong>Agent Country</strong>
@@ -163,7 +163,6 @@
                             </label>
                             <select class="form-control select2" id="city" name="city" required>
                                 <option value="">Select country first...</option>
-                                {{-- Cities will be populated by AJAX based on selected country --}}
                             </select>
                             @error('city')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -177,9 +176,9 @@
                         @error('agent_address')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
 
-                    <div class="col-md-2 mb-3">
+                    {{-- <div class="col-md-2 mb-3">
                         <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
                                 style="color: red; font-weight: bold;">*</span></label>
                         <select class="form-control select2" id="inputCountryCode" name="code" required>
@@ -191,12 +190,18 @@
                         @error('code')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>Phone No</strong><span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="phone" name="phone" value="{{ $agent->phone }}" required oninput="validatePhoneNumber(this)">
                         <small class="validation-message text-danger" id="phone-validation-message"></small>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label"><strong>Designation</strong><span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="designation" name="designation" value="{{ $agent->designation }}" required>
+                        <small class="validation-message text-danger" id="designation-validation-message"></small>
                     </div>
 
                     {{-- <div class="col-md-3 mb-3">
@@ -265,7 +270,7 @@
                     </div> --}}
 
                     <!-- Image Upload with Preview & Remove - UPDATED STYLING -->
-                    <div class="col-md-3 mb-3">
+                    {{-- <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>Agency Logo</strong></label>
                         <input type="file" class="form-control" name="agent_image" id="agent_image_input">
                         <div id="agent_image_preview">
@@ -288,9 +293,9 @@
                                 </div>
                         @endif
                         </div>
-                    </div>
+                    </div> --}}
 
-                    <div class="col-md-3 mb-3">
+                    {{-- <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>ID Proof (Image)</strong></label>
                         <input type="file" class="form-control" name="image" id="id_proof_input">
                         <div id="id_proof_preview">
@@ -312,8 +317,8 @@
                                     </div>
                                 </div>
                         @endif
-                    </div>
-                </div>
+                        </div>
+                </div> --}}
 
                 <div class="row">
                     <div class="col-md-4 mb-3">

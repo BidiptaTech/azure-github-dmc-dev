@@ -1736,7 +1736,7 @@
                 @if(!(auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123 ))
                 @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent'))
                 <li class="menu-header mt-5">
-                    <span class="menu-header-text" data-i18n="User & Agent Management">User & Agent Management</span>
+                    <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
                 <li class="menu-item @if(Request::is('users*', 'agents*', 'roles*', 'features*')) open @endif">
                     <a href="#" class="menu-link menu-toggle">
@@ -1760,7 +1760,7 @@
                         @if(hasPermission('view agent'))
                         <li class="menu-item @if(Request::is('agents')) active @endif">
                             <a href="{{ route('agents.index') }}" class="menu-link">
-                                <div data-i18n="Agents">Agents</div>
+                                <div data-i18n="Travel Agents">Travel Agents</div>
                             </a>
                         </li>
                         @endif
