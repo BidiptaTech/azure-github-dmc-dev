@@ -844,6 +844,12 @@
                                         <i class="ri-settings-3-line"></i> Edit Tour
                                     </a>
                                     
+                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
+                                            class="btn btn-outline-danger btn-sm rounded-pill" 
+                                            id="cancel-btn-{{ $tour->tour_id }}">
+                                        <i class="ri-delete-bin-line"></i> Cancel
+                                    </button>
+                                    
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment History
@@ -24324,7 +24330,133 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 // Old jQuery-based date calculation removed - now using direct onchange handlers with calculateGuideDisplayDueDate function
 
+// Tour cancellation function
+window.cancelTour = function(encryptedTourId, displayId) {
+    // Show SweetAlert confirmation dialog
+    Swal.fire({
+        title: 'Cancel Tour?',
+        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Extract tour ID from the encrypted string to match the button ID
+            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
+            const button = tourIdMatch;
+            const originalContent = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
+            button.disabled = true;
+            
+            // Send AJAX request to cancel tour
+            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Update button to show cancelled state
+                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
+                    button.classList.remove('btn-outline-danger');
+                    button.classList.add('btn-success');
+                    button.disabled = true;
+                    
+                    // Refresh the page after a short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message || 'Failed to cancel tour',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Restore button state
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling tour:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the tour. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Restore button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            });
+        }
+    });
+};
+
+// Notification helper function
+window.showNotification = function(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+};
+
 </script>
+
+<style>
+/* Loading spinner animation for cancel button */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Tour status badge styling */
+.tour-status .badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+</style>
+
 @endsection
 
 @section('scripts')
