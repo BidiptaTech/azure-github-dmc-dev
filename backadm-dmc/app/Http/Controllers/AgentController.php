@@ -76,7 +76,7 @@ class AgentController extends Controller
             ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
             ->orderBy('created_at', 'desc')
             ->get();
-            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->get();
+            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->orderBy('created_at', 'desc')->get();
         }
 
         // For debugging
