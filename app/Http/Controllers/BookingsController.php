@@ -1151,4 +1151,50 @@ class BookingsController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Cancel a tour by updating tour_status to 'Cancel'
+     */
+    public function cancelTour(Request $request, $encryptedId)
+    {
+        try {
+            // Decrypt the tour ID
+            $tourId = Crypt::decrypt($encryptedId);
+            
+            // Find the tour
+            $tour = Tour::where('tour_id', $tourId)->first();
+            
+            if (!$tour) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tour not found'
+                ], 404);
+            }
+            
+            // Check if tour is already cancelled
+            if ($tour->tour_status === 'Cancel') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tour is already cancelled'
+                ], 400);
+            }
+            
+            // Update tour status to Cancel
+            $tour->tour_status = 'Cancel-'.$tour->tour_status;
+            $tour->save();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Tour cancelled successfully',
+                'tour_id' => $tour->display_id,
+                'new_status' => 'Cancel'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel tour: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

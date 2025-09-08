@@ -4,6 +4,10 @@
 
 <!-- Date Range Picker CSS -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -413,12 +417,22 @@
                                 </div>
                             </td> --}}
                             <td>
-                                <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                   class="btn btn-outline-primary btn-sm rounded-pill">
-                                    <i class="ri-eye-line"></i> View
-                                </a>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
+                                       style="width: 32px; height: 32px;"
+                                       title="View Tour Details">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
+                                            class="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center" 
+                                            style="width: 32px; height: 32px;"
+                                            id="cancel-btn-{{ $tour->tour_id }}"
+                                            title="Cancel Tour">
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </div>
                             </td>
-                            
                         </tr>
                         @empty
                         <span class="text-muted">No new enquiries found</span>
@@ -3540,48 +3554,91 @@ function updateFilterResults(visibleCount, totalCount) {
 }
 
 function showFilterResetMessage() {
-    // Create a temporary success message
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-    alertDiv.innerHTML = `
-        <i class="ri-check-circle-line me-2"></i>
-        <strong>Filters Reset!</strong> All filters have been cleared successfully.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 3000);
+    // Show SweetAlert success message
+    Swal.fire({
+        title: 'Filters Reset!',
+        text: 'All filters have been cleared successfully.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true
+    });
 }
 
 function convertToProspect(tourId) {
-    if (confirm('Are you sure you want to move this enquiry to Follow Up?')) {
-        // Implementation for status update
-        console.log('Converting tour', tourId, 'to Prospect status');
-        // Add AJAX call here
-    }
+    Swal.fire({
+        title: 'Move to Follow Up?',
+        text: 'Are you sure you want to move this enquiry to Follow Up?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, move it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Implementation for status update
+            console.log('Converting tour', tourId, 'to Prospect status');
+            // Add AJAX call here
+            Swal.fire({
+                title: 'Moved!',
+                text: 'Enquiry has been moved to Follow Up.',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
+        }
+    });
 }
 
 function convertToTentative(tourId) {
-    if (confirm('Are you sure you want to mark this enquiry as Tentative?')) {
-        // Implementation for status update
-        console.log('Converting tour', tourId, 'to Tentative status');
-        // Add AJAX call here
-    }
+    Swal.fire({
+        title: 'Mark as Tentative?',
+        text: 'Are you sure you want to mark this enquiry as Tentative?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, mark it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Implementation for status update
+            console.log('Converting tour', tourId, 'to Tentative status');
+            // Add AJAX call here
+            Swal.fire({
+                title: 'Updated!',
+                text: 'Enquiry has been marked as Tentative.',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
+        }
+    });
 }
 
 function deleteTour(tourId) {
-    if (confirm('Are you sure you want to delete this tour? This action cannot be undone.')) {
-        // Implementation for deletion
-        console.log('Deleting tour', tourId);
-        // Add AJAX call here
-    }
+    Swal.fire({
+        title: 'Delete Tour?',
+        text: 'Are you sure you want to delete this tour? This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Implementation for deletion
+            console.log('Deleting tour', tourId);
+            // Add AJAX call here
+            Swal.fire({
+                title: 'Deleted!',
+                text: 'Tour has been deleted successfully.',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
+        }
+    });
 }
 
 function exportData() {
@@ -3614,16 +3671,12 @@ function openServiceModal(serviceType, tourId, event) {
         console.log('Available service modals on page:', availableModals);
         
         // Show user-friendly error
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Modal Not Found',
-                text: `Could not find ${serviceType} details modal for tour ${tourId}. Please refresh the page and try again.`,
-                icon: 'error',
-                confirmButtonText: 'OK'
-            });
-        } else {
-            alert(`Could not find ${serviceType} details modal for tour ${tourId}. Please refresh the page and try again.`);
-        }
+        Swal.fire({
+            title: 'Modal Not Found',
+            text: `Could not find ${serviceType} details modal for tour ${tourId}. Please refresh the page and try again.`,
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
         return;
     }
     
@@ -3672,16 +3725,12 @@ function openServiceModal(serviceType, tourId, event) {
     } catch (error) {
         console.error('Error opening modal:', error);
         
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Error',
-                text: 'An error occurred while opening the modal. Please try again.',
-                icon: 'error',
-                confirmButtonText: 'OK'
-            });
-        } else {
-            alert('An error occurred while opening the modal. Please try again.');
-        }
+        Swal.fire({
+            title: 'Error',
+            text: 'An error occurred while opening the modal. Please try again.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
     }
 }
 
@@ -3992,8 +4041,135 @@ function testServices() {
                 }, 3000);
             }
         };
+        
+        // Tour cancellation function
+        window.cancelTour = function(encryptedTourId, displayId) {
+            // Show SweetAlert confirmation dialog
+            Swal.fire({
+                title: 'Cancel Tour?',
+                text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, cancel it!',
+                cancelButtonText: 'No, keep it'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Extract tour ID from the encrypted string to match the button ID
+                    const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
+                    const button = tourIdMatch;
+                    const originalContent = button.innerHTML;
+                    
+                    // Show loading state
+                    button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
+                    button.disabled = true;
+                    
+                    // Send AJAX request to cancel tour
+                    fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success message
+                            Swal.fire({
+                                title: 'Cancelled!',
+                                text: data.message,
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            });
+                            
+                            // Update button to show cancelled state
+                            button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
+                            button.classList.remove('btn-outline-danger');
+                            button.classList.add('btn-success');
+                            button.disabled = true;
+                            
+                            // Refresh the page after a short delay to show updated data
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                            
+                        } else {
+                            // Show error message
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message || 'Failed to cancel tour',
+                                icon: 'error',
+                                confirmButtonText: 'OK'
+                            });
+                            
+                            // Reset button state
+                            button.innerHTML = originalContent;
+                            button.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error cancelling tour:', error);
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Error cancelling tour. Please try again.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                        
+                        // Reset button state
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    });
+                }
+            });
+        };
+        
+        // Notification helper function
+        window.showNotification = function(message, type = 'info') {
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 'alert-info';
+            
+            const notification = document.createElement('div');
+            notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        };
     }
 </script>
+
+<style>
+/* Loading spinner animation for cancel button */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Tour status badge styling */
+.tour-status .badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+</style>
+
 @endsection
 
 @extends('layouts.datatablejs')
