@@ -42,7 +42,7 @@ const HotelConfigSummary = ({
   const searchCriteria = useSelector(state => state.tourPackages?.searchCriteria);
   const tourDates = searchCriteria?.dates || [];
 
-  // Calculate overall booking status
+  // Enhanced booking status calculation with validation logic
   const bookingStatus = React.useMemo(() => {
     if (!hotelConfigurations || hotelConfigurations.length === 0) {
       return { 
@@ -50,7 +50,9 @@ const HotelConfigSummary = ({
         message: 'No hotels added yet',
         completedRooms: 0,
         totalRooms: 0,
-        progress: 0
+        progress: 0,
+        canAddNewHotel: true,
+        incompleteHotels: []
       };
     }
 
@@ -59,15 +61,40 @@ const HotelConfigSummary = ({
       config.hotelId && config.roomTypeId && config.bedTypeId
     ).length;
     
+    // Find incomplete hotels (those without hotelId - not selected yet)
+    const incompleteHotels = hotelConfigurations
+      .map((config, index) => ({ ...config, index }))
+      .filter(config => !config.hotelId);
+    
+    // Find partially configured hotels (selected hotel but missing room/bed)
+    const partiallyConfigured = hotelConfigurations.filter(config => 
+      config.hotelId && (!config.roomTypeId || !config.bedTypeId)
+    );
+    
     const progress = totalRooms > 0 ? (completedRooms / totalRooms) * 100 : 0;
+    
+    // Can only add new hotel if there are no incomplete hotels
+    const canAddNewHotel = incompleteHotels.length === 0;
 
-    if (completedRooms === 0) {
+    if (incompleteHotels.length > 0) {
       return { 
-        status: 'started', 
-        message: 'Hotel booking in progress',
+        status: 'incomplete', 
+        message: `${incompleteHotels.length} hotel${incompleteHotels.length > 1 ? 's' : ''} need${incompleteHotels.length === 1 ? 's' : ''} to be selected first`,
         completedRooms,
         totalRooms,
-        progress
+        progress,
+        canAddNewHotel,
+        incompleteHotels
+      };
+    } else if (completedRooms === 0) {
+      return { 
+        status: 'started', 
+        message: 'Hotels selected, configure rooms and beds',
+        completedRooms,
+        totalRooms,
+        progress,
+        canAddNewHotel,
+        incompleteHotels
       };
     } else if (completedRooms === totalRooms) {
       return { 
@@ -75,35 +102,55 @@ const HotelConfigSummary = ({
         message: 'All hotels fully configured',
         completedRooms,
         totalRooms,
-        progress
+        progress,
+        canAddNewHotel,
+        incompleteHotels
       };
     } else {
       return { 
         status: 'partial', 
-        message: 'Some hotels need configuration',
+        message: 'Some rooms need configuration',
         completedRooms,
         totalRooms,
-        progress
+        progress,
+        canAddNewHotel,
+        incompleteHotels
       };
     }
   }, [hotelConfigurations]);
 
-  // Group configurations by hotel ID
+  // Group configurations by hotel ID - Enhanced to handle incomplete configurations
   const groupedConfigurations = React.useMemo(() => {
     const grouped = {};
+    const unconfiguredHotels = [];
     
     hotelConfigurations.forEach((config, index) => {
       if (config.hotelId) {
+        // Configured hotels with valid hotelId
         if (!grouped[config.hotelId]) {
           grouped[config.hotelId] = {
             hotelDetails: config.hotelDetails || {},
-            configurations: []
+            configurations: [],
+            isConfigured: true
           };
         }
         grouped[config.hotelId].configurations.push({
           ...config,
           originalIndex: index
         });
+      } else {
+        // Unconfigured hotels without hotelId - group them separately
+        const unconfiguredGroupKey = `unconfigured_${index}`;
+        grouped[unconfiguredGroupKey] = {
+          hotelDetails: { hotel_name: `Hotel ${unconfiguredHotels.length + 1} (Not Selected)` },
+          configurations: [{
+            ...config,
+            originalIndex: index
+          }],
+          isConfigured: false,
+          isUnconfigured: true
+        };
+        unconfiguredHotels.push(config);
       }
     });
     
@@ -186,8 +233,8 @@ const HotelConfigSummary = ({
     );
   }
 
-  // Status indicator component
-  const StatusIndicator = ({ status, progress, completedRooms, totalRooms }) => {
+  // Enhanced Status indicator component with validation info
+  const StatusIndicator = ({ status, progress, completedRooms, totalRooms, message, canAddNewHotel, incompleteHotels }) => {
     const getStatusConfig = () => {
       switch (status) {
         case 'complete':
@@ -196,6 +243,13 @@ const HotelConfigSummary = ({
             color: 'success',
             bgcolor: '#e8f5e8',
             borderColor: '#4caf50'
+          };
+        case 'incomplete':
+          return {
+            icon: <ErrorOutlineIcon />,
+            color: 'error',
+            bgcolor: '#ffebee',
+            borderColor: '#f44336'
           };
         case 'partial':
           return {
@@ -236,7 +290,7 @@ const HotelConfigSummary = ({
               Hotel Booking Status
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-              {completedRooms} of {totalRooms} rooms configured
+              {message}
             </Typography>
           </Box>
           <Chip 
@@ -246,6 +300,15 @@ const HotelConfigSummary = ({
             sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
           />
         </Box>
+        
+        {/* Show incomplete hotel warning */}
+        {incompleteHotels && incompleteHotels.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 1, py: 0.4 }}>
+            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+              <strong>Action Required:</strong> Please select a hotel for Room {incompleteHotels[0].index + 1} before adding more hotels.
+            </Typography>
+          </Alert>
+        )}
         
         <LinearProgress 
           variant="determinate" 
@@ -263,8 +326,8 @@ const HotelConfigSummary = ({
     );
   };
 
-  // Quick action buttons
-  const QuickActions = () => (
+  // Enhanced Quick action buttons with validation
+  const QuickActions = ({ canAddNewHotel, incompleteHotels }) => (
     <Paper elevation={1} sx={{ p: 1.5, mb: 1.5, borderRadius: 1.5, bgcolor: '#f8f9fa' }}>
       <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', fontSize: '0.8rem' }}>
         <EditIcon sx={{ mr: 0.6, fontSize: '1rem' }} />
@@ -279,48 +342,73 @@ const HotelConfigSummary = ({
             size="small"
             startIcon={<AddIcon />}
             onClick={onAddMoreRooms}
-            disabled={!onAddMoreRooms}
+            disabled={!onAddMoreRooms || !canAddNewHotel}
             sx={{ 
               py: 0.8,
               justifyContent: 'flex-start',
               textTransform: 'none',
               fontWeight: 500,
-              fontSize: '0.75rem'
+              fontSize: '0.75rem',
+              opacity: !canAddNewHotel ? 0.6 : 1
             }}
           >
             <Box sx={{ textAlign: 'left', ml: 0.6 }}>
               <Typography variant="subtitle2" sx={{ fontSize: '0.75rem' }}>Add More Rooms</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                Same hotel, additional rooms
+                {!canAddNewHotel ? 'Select hotel first' : 'Same hotel, additional rooms'}
               </Typography>
             </Box>
           </Button>
         </Grid>
         
         <Grid item xs={12} sm={6}>
-          <Button
-            fullWidth
-            variant="contained"
-            size="small"
-            startIcon={<AddBusinessIcon />}
-            onClick={onAddNewHotel}
-            sx={{ 
-              py: 0.8,
-              justifyContent: 'flex-start',
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: '0.75rem'
-            }}
+          <Tooltip 
+            title={!canAddNewHotel ? `Please select a hotel for the current configuration first` : 'Add a different hotel'}
+            arrow
           >
-            <Box sx={{ textAlign: 'left', ml: 0.6 }}>
-              <Typography variant="subtitle2" color="white" sx={{ fontSize: '0.75rem' }}>Add Different Hotel</Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.65rem' }}>
-                New hotel location
-              </Typography>
-            </Box>
-          </Button>
+            <span>
+              <Button
+                fullWidth
+                variant={canAddNewHotel ? "contained" : "outlined"}
+                size="small"
+                startIcon={canAddNewHotel ? <AddBusinessIcon /> : <WarningIcon />}
+                onClick={canAddNewHotel ? onAddNewHotel : null}
+                disabled={!canAddNewHotel}
+                color={canAddNewHotel ? "primary" : "warning"}
+                sx={{ 
+                  py: 0.8,
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                  opacity: !canAddNewHotel ? 0.7 : 1
+                }}
+              >
+                <Box sx={{ textAlign: 'left', ml: 0.6 }}>
+                  <Typography variant="subtitle2" color={canAddNewHotel ? "white" : "warning.main"} sx={{ fontSize: '0.75rem' }}>
+                    {canAddNewHotel ? 'Add Different Hotel' : 'Complete Current Hotel'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ 
+                    color: canAddNewHotel ? 'rgba(255,255,255,0.8)' : 'rgba(237, 108, 2, 0.7)', 
+                    fontSize: '0.65rem' 
+                  }}>
+                    {canAddNewHotel ? 'New hotel location' : 'Select hotel first'}
+                  </Typography>
+                </Box>
+              </Button>
+            </span>
+          </Tooltip>
         </Grid>
       </Grid>
+      
+      {/* Show validation message */}
+      {!canAddNewHotel && incompleteHotels && incompleteHotels.length > 0 && (
+        <Alert severity="info" sx={{ mt: 1, py: 0.4 }}>
+          <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+            💡 <strong>Tip:</strong> Click on "Room {incompleteHotels[0].index + 1}" below to select a hotel, then you can add more hotels or rooms.
+          </Typography>
+        </Alert>
+      )}
     </Paper>
   );
 
@@ -498,10 +586,16 @@ const HotelConfigSummary = ({
         progress={bookingStatus.progress}
         completedRooms={bookingStatus.completedRooms}
         totalRooms={bookingStatus.totalRooms}
+        message={bookingStatus.message}
+        canAddNewHotel={bookingStatus.canAddNewHotel}
+        incompleteHotels={bookingStatus.incompleteHotels}
       />
 
       {/* Quick Actions */}
-      <QuickActions />
+      <QuickActions 
+        canAddNewHotel={bookingStatus.canAddNewHotel}
+        incompleteHotels={bookingStatus.incompleteHotels}
+      />
 
              {/* Hotel Configurations */}
        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -512,6 +606,7 @@ const HotelConfigSummary = ({
       {Object.entries(groupedConfigurations).map(([hotelId, hotelGroup]) => {
         const hotel = hotelGroup.hotelDetails;
         const configurations = hotelGroup.configurations;
+        const isUnconfigured = hotelGroup.isUnconfigured;
         const hotelSummary = getHotelSummary(configurations);
         
         const hotelDateValidation = isHotelDateInRange(
@@ -540,27 +635,52 @@ const HotelConfigSummary = ({
         
         return (
                      <Accordion 
-             key={hotelId}
-             expanded={isExpanded}
-             onChange={() => handleAccordionChange(hotelId)}
-             elevation={isActiveHotel ? 2 : 1}
-             sx={{ 
-               mb: 1,
-               border: hasDateConflicts ? '1px solid #f44336' : isActiveHotel ? '1px solid #3554D1' : hasDateIssues ? '1px solid #ff9800' : '1px solid rgba(0, 0, 0, 0.12)',
-               borderRadius: 1.5,
-               background: hasDateConflicts
-                 ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%)'
-                 : isActiveHotel 
-                   ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.05) 0%, rgba(53, 84, 209, 0.02) 100%)'
-                   : 'white',
-               transition: 'all 0.3s ease',
-               '&:before': {
-                 display: 'none' // Remove default MUI accordion border
-               }
-             }}
-           >
+            key={hotelId}
+            expanded={isExpanded}
+            onChange={() => handleAccordionChange(hotelId)}
+            elevation={isActiveHotel ? 2 : 1}
+            sx={{ 
+              mb: 1,
+              border: isUnconfigured
+                ? '2px dashed #f44336'
+                : hasDateConflicts 
+                  ? '1px solid #f44336' 
+                  : isActiveHotel 
+                    ? '1px solid #3554D1' 
+                    : hasDateIssues 
+                      ? '1px solid #ff9800' 
+                      : '1px solid rgba(0, 0, 0, 0.12)',
+              borderRadius: 1.5,
+              background: isUnconfigured
+                ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.08) 0%, rgba(244, 67, 54, 0.03) 100%)'
+                : hasDateConflicts
+                  ? 'linear-gradient(135deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.02) 100%)'
+                  : isActiveHotel 
+                    ? 'linear-gradient(135deg, rgba(53, 84, 209, 0.05) 0%, rgba(53, 84, 209, 0.02) 100%)'
+                    : 'white',
+              transition: 'all 0.3s ease',
+              '&:before': {
+                display: 'none' // Remove default MUI accordion border
+              }
+            }}
+          >
+            {/* Unconfigured Hotel Alert */}
+            {isUnconfigured && (
+              <Alert 
+                severity="error" 
+                icon={<ErrorOutlineIcon />}
+                sx={{ borderRadius: '8px 8px 0 0', border: 'none', bgcolor: '#ffebee' }}
+              >
+                <Typography variant="body2">
+                  <strong>Hotel Selection Required:</strong> Please select a hotel for this room configuration.
+                  <br />
+                  <em>Click on the room below and choose your preferred hotel to continue.</em>
+                </Typography>
+              </Alert>
+            )}
+            
             {/* Date Range Warning */}
-            {(hasDateIssues || hasDateConflicts) && (
+            {!isUnconfigured && (hasDateIssues || hasDateConflicts) && (
               <Alert 
                 severity={hasDateConflicts ? "error" : "warning"} 
                 icon={<WarningIcon />}
@@ -585,14 +705,15 @@ const HotelConfigSummary = ({
             )}
             
                          <AccordionSummary
-               expandIcon={
-                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                   {hasDateConflicts && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
-                   {hasDateIssues && !hasDateConflicts && <WarningIcon sx={{ color: 'warning.main', fontSize: 14 }} />}
-                   {isActiveHotel && <EditIcon sx={{ color: 'primary.main', fontSize: 12 }} />}
-                   <ExpandMoreIcon />
-                 </Box>
-               }
+              expandIcon={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                  {isUnconfigured && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
+                  {!isUnconfigured && hasDateConflicts && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
+                  {!isUnconfigured && hasDateIssues && !hasDateConflicts && <WarningIcon sx={{ color: 'warning.main', fontSize: 14 }} />}
+                  {isActiveHotel && <EditIcon sx={{ color: 'primary.main', fontSize: 12 }} />}
+                  <ExpandMoreIcon />
+                </Box>
+              }
                sx={{ 
                  p: 1,
                  minHeight: '40px',
@@ -606,17 +727,24 @@ const HotelConfigSummary = ({
                }}
              >
                              {/* Hotel Header - Compact Summary */}
-               <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 1 }}>
-                 <Avatar 
-                   sx={{
-                     bgcolor: hasDateConflicts ? '#f44336' : hasDateIssues ? '#ff9800' : '#3554D1', 
-                     width: 28,
-                     height: 28,
-                     mr: 0.8
-                   }}
-                 >
-                   <HotelIcon fontSize="small" />
-                 </Avatar>
+              <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, pr: 1 }}>
+                <Avatar 
+                  sx={{
+                    bgcolor: isUnconfigured 
+                      ? '#f44336' 
+                      : hasDateConflicts 
+                        ? '#f44336' 
+                        : hasDateIssues 
+                          ? '#ff9800' 
+                          : '#3554D1', 
+                    width: 28,
+                    height: 28,
+                    mr: 0.8,
+                    border: isUnconfigured ? '2px solid #f44336' : 'none'
+                  }}
+                >
+                  {isUnconfigured ? <ErrorOutlineIcon fontSize="small" /> : <HotelIcon fontSize="small" />}
+                </Avatar>
                  
                  <Box sx={{ flex: 1 }}>
                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.6 }}>
@@ -628,7 +756,17 @@ const HotelConfigSummary = ({
                        <Chip label="Editing" size="small" color="primary" sx={{ fontSize: '0.65rem', height: '20px' }} />
                      )}
                      
-                     {hasDateConflicts && (
+                     {isUnconfigured && (
+                       <Chip 
+                         label="Select Hotel" 
+                         size="small" 
+                         color="error" 
+                         icon={<ErrorOutlineIcon />}
+                         sx={{ fontSize: '0.65rem', height: '20px', animation: 'pulse 1.5s infinite' }}
+                       />
+                     )}
+                     
+                     {!isUnconfigured && hasDateConflicts && (
                        <Chip 
                          label="Date Issue" 
                          size="small" 
@@ -638,16 +776,18 @@ const HotelConfigSummary = ({
                        />
                      )}
                      
-                     {hasDateIssues && !hasDateConflicts && (
+                     {!isUnconfigured && hasDateIssues && !hasDateConflicts && (
                        <Chip label="Issue" size="small" color="warning" sx={{ fontSize: '0.65rem', height: '20px' }} />
                      )}
                      
-                     <Chip 
-                       label={`${Math.round(hotelProgress)}% Complete`}
-                       size="small" 
-                       color={hotelProgress === 100 ? 'success' : hotelProgress > 0 ? 'warning' : 'default'}
-                       sx={{ fontSize: '0.65rem', height: '20px' }}
-                     />
+                     {!isUnconfigured && (
+                       <Chip 
+                         label={`${Math.round(hotelProgress)}% Complete`}
+                         size="small" 
+                         color={hotelProgress === 100 ? 'success' : hotelProgress > 0 ? 'warning' : 'default'}
+                         sx={{ fontSize: '0.65rem', height: '20px' }}
+                       />
+                     )}
                    </Box>
                    
                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.4, mt: 0.4 }}>
@@ -686,7 +826,15 @@ const HotelConfigSummary = ({
                  </Box>
                  
                                  {/* Price Display - Compact */}
-                {hotelSummary.totalRoomCost > 0 && PriceHide === "0" ? (
+               {isUnconfigured ? (
+                  <Chip
+                    label="Select Hotel First"
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
+                  />
+                ) : hotelSummary.totalRoomCost > 0 && PriceHide === "0" ? (
                   <Chip
                     label={`$${hotelSummary.totalRoomCost.toFixed(2)}`}
                     size="small"
@@ -694,7 +842,7 @@ const HotelConfigSummary = ({
                     variant="filled"
                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
                   />
-                ):(
+                ) : (
                   <Chip
                     label="Price hide"
                     size="small"
@@ -702,7 +850,7 @@ const HotelConfigSummary = ({
                     variant="filled"
                     sx={{ fontWeight: 600, fontSize: '0.65rem', height: '20px' }}
                   />
-                  )}
+                )}
                </Box>
             </AccordionSummary>
 
