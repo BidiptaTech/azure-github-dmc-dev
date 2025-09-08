@@ -984,7 +984,7 @@ const EnquiryList = () => {
                     <TableCell>
                       <Box sx={{ display: "flex", alignItems: "center" }}>
                         <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
-                          {enquiry.approx_price ? `$${parseFloat(enquiry.approx_price).toLocaleString()}` : 'N/A'}
+                          {enquiry.approx_price ? `SGD ${parseFloat(enquiry.approx_price).toLocaleString()}` : 'N/A'}
                         </Typography>
                       </Box>
                     </TableCell>
