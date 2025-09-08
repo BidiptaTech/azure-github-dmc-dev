@@ -4,6 +4,37 @@ import Cookies from "js-cookie";
 
 import { BASE_URL } from '@/services/api';
 
+export const fetchAgencies= createAsyncThunk(
+  'agentList/fetchAgencies',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+    //   const { token } = getState().auth;
+      const token = Cookies.get("authToken");
+      
+      if (!token) {
+        return rejectWithValue('Authentication token not found');
+      }
+      
+      const response = await axios.get(`${BASE_URL}/agencies-list`,{
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        }
+      });
+      
+      if (response.data.success) {
+        // console.log(response.data.success);
+        return response.data.agents;
+        
+      } else {
+        return rejectWithValue(response.data.message || 'Failed to fetch enquiries');
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred while fetching data');
+    }
+  }
+);
 
 export const fetchAgentList = createAsyncThunk(
   'agentList/fetchAgentList',
