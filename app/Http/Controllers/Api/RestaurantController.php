@@ -202,7 +202,7 @@ class RestaurantController extends Controller
         $country = $restaurant->country;
         $check_country = Country::whereRaw('LOWER(name) = ?', [strtolower($country)])->first();
         $country_tax = $check_country->tax_percentage ?? 0;
-        $meals = Meal::where('restaurant_id', $restaurantId)
+        $meals = Meal::where('restaurant_id', $restaurantId)->where('dmc_id', $get_dmc_id)
         ->get(['meal_id', 'name', 'type', 'is_active', 'item_description', 'restaurant_id', 'meal_period', 'price', 'adult_price', 'child_price', 'category', 'item_type'])
         ->map(function ($meal) use ($dmcId, $mode, $get_dmc_id) {
             $prices = null;
