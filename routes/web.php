@@ -120,6 +120,8 @@ Route::get('/clear', function () {
             Route::post('/orders/restaurants/select', [SingleTourPackageController::class, 'orderSelectRestaurant'])->name('orders.restaurants.select');
             Route::post('/orders/attractions/select', [SingleTourPackageController::class, 'orderSelectAttraction'])->name('orders.attractions.select');
             Route::post('/orders/transport/select', [SingleTourPackageController::class, 'orderSelectTransport'])->name('orders.transport.select');
+
+            Route::post('/orders/local-transfer/select', [SingleTourPackageController::class, 'orderSelectLocalTransfer'])->name('orders.local-transfer.select');
             
             Route::get('/services/attractions', [AttractionController::class, 'dmcAttractionsSelection'])->name('services.attractions');
             Route::post('/services/attractions/update', [AttractionController::class, 'updateDmcAttractions'])->name('services.attractions.update');
@@ -178,7 +180,7 @@ Route::get('/clear', function () {
             Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurants'])->name('fetch-restaurants-by-dmc');
             Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
             Route::get('/fetch-zones-by-dmc', [SingleTourPackageController::class, 'fetchZones'])->name('fetch-zones-by-dmc');
-            Route::get('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');
+            Route::post('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');
             Route::get('/fetch-vehicles-by-city-dmc', [SingleTourPackageController::class, 'fetchVehiclesByCityAndDmc'])->name('fetch-vehicles-by-city-dmc');
             Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService')->name('save-service');
             // authentication check for admin

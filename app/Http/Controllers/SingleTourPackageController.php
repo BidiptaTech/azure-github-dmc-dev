@@ -345,22 +345,91 @@ class SingleTourPackageController extends Controller
         }
         // Group orders by type and process the data
         $ordersByType = [];
+        $hotelOrders = [];
+        $ordersByDay = [];
+        
+        // Calculate tour days
+        $checkInDate = \Carbon\Carbon::parse($tour->check_in_time);
+        $checkOutDate = \Carbon\Carbon::parse($tour->check_out_time);
+        $tourDays = [];
+        
+        // Generate array of tour days
+        $currentDate = $checkInDate->copy();
+        $dayNumber = 1;
+        while ($currentDate <= $checkOutDate) {
+            $tourDays[$currentDate->format('Y-m-d')] = [
+                'day_number' => $dayNumber,
+                'date' => $currentDate->copy(),
+                'orders' => []
+            ];
+            $currentDate->addDay();
+            $dayNumber++;
+        }
+        
         foreach ($orders as $order) {
             $type = $order->type;
-            if (!isset($ordersByType[$type])) {
-                $ordersByType[$type] = [];
-            }
             
             // Parse the JSON data
             $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
             
             // Add processed data to the order
             $order->processed_data = $orderData;
-            $ordersByType[$type][] = $order;
+            
+            // Separate hotel orders
+            if ($type === 'hotel') {
+                $hotelOrders[] = $order;
+            } else {
+                // Group by type for compatibility
+                if (!isset($ordersByType[$type])) {
+                    $ordersByType[$type] = [];
+                }
+                $ordersByType[$type][] = $order;
+                
+                // Group by day based on booking date
+                $bookingDate = null;
+                
+                // Extract booking date from order data
+                if (isset($orderData[0]['bookingDate'])) {
+                    $bookingDate = $orderData[0]['bookingDate'];
+                } elseif (isset($orderData['bookingDate'])) {
+                    $bookingDate = $orderData['bookingDate'];
+                } elseif (isset($orderData[0]['pickupdate'])) {
+                    $bookingDate = $orderData[0]['pickupdate'];
+                } elseif (isset($orderData['pickupdate'])) {
+                    $bookingDate = $orderData['pickupdate'];
+                } elseif (isset($orderData[0]['exitpickupdate'])) {
+                    $bookingDate = $orderData[0]['exitpickupdate'];
+                } elseif (isset($orderData['exitpickupdate'])) {
+                    $bookingDate = $orderData['exitpickupdate'];
+                }
+                
+                // Handle special cases for entry/exit ports
+                if ($type === 'entry_port') {
+                    $bookingDate = $checkInDate->format('Y-m-d');
+                } elseif ($type === 'exit_port') {
+                    $bookingDate = $checkOutDate->format('Y-m-d');
+                }
+                
+                // Add order to the appropriate day
+                if ($bookingDate) {
+                    // Handle array of dates (shouldn't happen for non-hotel bookings, but just in case)
+                    if (is_array($bookingDate)) {
+                        $bookingDate = $bookingDate[0];
+                    }
+                    
+                    // Normalize date format
+                    $bookingDate = \Carbon\Carbon::parse($bookingDate)->format('Y-m-d');
+                    
+                    // Add to the appropriate day if it's within tour dates
+                    if (isset($tourDays[$bookingDate])) {
+                        $tourDays[$bookingDate]['orders'][] = $order;
+                    }
+                }
+            }
         }
 
         
-        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles'));
+        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles', 'hotelOrders', 'tourDays'));
     }
 
     /**
@@ -1520,7 +1589,7 @@ class SingleTourPackageController extends Controller
     {
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
-            $dmcId = $user->created_by;
+            $dmcId = CommonHelper::getDmcId($user);
             $fromZoneId = $request->from_zone_id;
             $toZoneId = $request->to_zone_id;
             $fromZoneType = $request->from_zone_type;
@@ -1541,8 +1610,8 @@ class SingleTourPackageController extends Controller
             }
 
             // Determine the correct IDs based on location types
-            $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType);
-            $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType);
+            $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId);
+            $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
 
             // Debug logging for zone ID resolution
             \Log::info('Zone ID Resolution Debug', [
@@ -1557,17 +1626,11 @@ class SingleTourPackageController extends Controller
 
             // Fetch vehicles that have zone mappings between the actual zone IDs
             // Try both directions to ensure bidirectional route coverage
-            $vehicleMappings = VehicleZoneMapping::where(function($query) use ($actualFromZoneId, $actualToZoneId) {
-                $query->where(function($subQuery) use ($actualFromZoneId, $actualToZoneId) {
-                    // Original direction
-                    $subQuery->where('from_zone_id', $actualFromZoneId)
-                             ->where('to_zone_id', $actualToZoneId);
-                })->orWhere(function($subQuery) use ($actualFromZoneId, $actualToZoneId) {
-                    // Reverse direction for bidirectional routes
-                    $subQuery->where('from_zone_id', $actualToZoneId)
-                             ->where('to_zone_id', $actualFromZoneId);
-                });
-            })->get();
+
+            $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
+                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
+                ->get();
+            
                 
             // Debug logging for zone mapping query
             \Log::info('Vehicle Zone Mapping Query Debug (Bidirectional)', [
@@ -1580,34 +1643,35 @@ class SingleTourPackageController extends Controller
             ]);
                 
             // Format the response with vehicle details and pricing
-            $vehicles = $vehicleMappings->map(function ($mapping) {
-                $vehicle = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type')
-                    ->where('vehicle_id', $mapping->vehicle_id)
-                    ->first();
-                    
-                if (!$vehicle) {
-                    return null;
-                }
-                
-                return [
-                    'vehicle_id' => $vehicle->vehicle_id,
-                    'vehicle_name' => $vehicle->vehicle_name,
-                    'vehicle_type' => $vehicle->vehicle_type,
-                    'seating_capacity' => $vehicle->seating_capacity,
-                    'vehicle_model' => $vehicle->vehicle_model,
-                    'image' => $vehicle->image,
-                    'base_price' => $vehicle->base_price,
-                    'sharable_base_price' => $vehicle->sharable_base_price,
-                    'service_type' => $vehicle->service_type,
-                    'from_zone' => $mapping->fromZone->zone_name ?? '',
-                    'to_zone' => $mapping->toZone->zone_name ?? '',
-                    'mapping_id' => $mapping->mapping_id,
-                    // Use the zone mapping prices instead of vehicle base prices
-                    'private_price' => $mapping->private_price,
-                    'shared_price' => $mapping->shared_price
-                ];
-            })->filter()->values(); // Remove null values and reindex
+            
 
+
+            $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
+                ->map(function ($mapping) {
+                    $vehicle = $mapping->vehicle;
+                    if (!$vehicle) {
+                        return null;
+                    }
+                    return [
+                        'vehicle_id' => $vehicle->vehicle_id,
+                        'vehicle_name' => $vehicle->vehicle_name,
+                        'vehicle_type' => $vehicle->vehicle_type,
+                        'seating_capacity' => $vehicle->seating_capacity,
+                        'vehicle_model' => $vehicle->vehicle_model,
+                        'image' => $vehicle->image,
+                        'base_price' => $vehicle->base_price,
+                        'sharable_base_price' => $vehicle->sharable_base_price,
+                        'service_type' => $vehicle->service_type,
+                        'from_zone' => $mapping->fromZone->zone_name ?? '',
+                        'to_zone' => $mapping->toZone->zone_name ?? '',
+                        'mapping_id' => $mapping->mapping_id,
+                        // ✅ Zone mapping prices
+                        'private_price' => $mapping->private_price,
+                        'shared_price' => $mapping->shared_price,
+                    ];
+                })
+                ->filter()
+                ->values();
             // Debug logging for final response
             \Log::info('Final Vehicle Response', [
                 'from_zone_id' => $actualFromZoneId,
@@ -1641,7 +1705,7 @@ class SingleTourPackageController extends Controller
     /**
      * Get the actual zone ID based on location type and ID
      */
-    private function getActualZoneId($locationId, $locationType = null)
+    private function getActualZoneId($locationId, $locationType = null, $dmcId = null)
     {
         // If no type specified, assume it's already the correct ID
         if (!$locationType) {
@@ -1650,21 +1714,31 @@ class SingleTourPackageController extends Controller
 
         switch ($locationType) {
             case 'port':
+                case 'Port':
                 // For ports, get the port_id
                 $port = Port::where('id', $locationId)->first();
                 return $port ? $port->port_id : $locationId;
                 
             case 'attraction':
-                // For attractions, use attraction_id directly
+                case 'Attraction':
+                // For attractions, get the zone_id for the specific DMC
+                $attraction = Attraction::where('attraction_id', $locationId)->first();
+                if ($attraction && $dmcId) {
+                    return $attraction->getZoneForDmc($dmcId);
+                }
                 return $locationId;
                 
             case 'hotel':
+                case 'Hotel':
                 // For hotels, use hotel_unique_id directly
-                return $locationId;
+                $hotel = Hotel::where('hotel_unique_id', $locationId)->first();
+                return $hotel->getZoneForDmc($dmcId);
                 
             case 'restaurant':
+                case 'Restaurant':
                 // For restaurants, use restaurant_id directly
-                return $locationId;
+                $restaurant = Restaurant::where('restaurant_id', $locationId)->first();
+                return $restaurant->getZoneForDmc($dmcId);
                 
             default:
                 // For unknown types, return the original ID
@@ -2533,7 +2607,7 @@ class SingleTourPackageController extends Controller
             'agent_id' => $agentId,
             'tour_id' => $tourId,
             'data' => $transportData,
-            'type' => 'transport',
+            'type' => $request->input('type'),
             'bookingType' => 'enquiry',
             'discount' => 0,
             'markup_percentage' => 0,
@@ -2541,5 +2615,62 @@ class SingleTourPackageController extends Controller
         ]);
         
         return back()->with('success', 'Transport service booked successfully');
+    }
+
+    public function orderSelectLocalTransfer(Request $request)
+    {
+       
+        $request->validate([
+            'booking_data' => 'required|json',
+            'type' => 'required|string|in:travel_hourly,travel_point,local_transport,local_transport_dropoff'
+        ]);
+
+        $transportData = json_decode($request->input('booking_data'), true);
+        $serviceType = $request->input('type');
+        $tourId = $transportData[0]['tour_id'];
+        $tour = Tour::where('tour_id', $tourId)->first();
+        $agent_id = $tour->agent_id;
+
+        $max_book_id = Order::max('booking_id') ?? 0;
+        $bookingId = CommonHelper::createId($max_book_id);
+        while (Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = CommonHelper::createId($bookingId);
+        }
+
+        // Map service type to appropriate order type
+        $orderType = match($serviceType) {
+            'travel_hourly' => 'travel_hourly',
+            'travel_point' => 'travel_point',
+            'local_transport' => 'local_transport',
+            default => 'local_transport'
+        };
+
+        $order = Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agent_id,
+            'tour_id' => $tourId,
+            'data' => $transportData,
+            'type' => $orderType,
+            'bookingType' => 'enquiry',
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+
+        // Get success message based on service type
+        $successMessage = match($serviceType) {
+            'travel_hourly' => 'Hourly travel service booked successfully',
+            'travel_point' => 'Point to point travel service booked successfully',
+            'local_transport' => 'Local transfer service booked successfully',
+            default => 'Transfer service booked successfully'
+        };
+
+        return response()->json([
+            'success' => true,
+            'message' => $successMessage,
+            'booking_id' => $bookingId,
+            'service_type' => $serviceType,
+            'order_type' => $orderType
+        ]);
     }
 } 
