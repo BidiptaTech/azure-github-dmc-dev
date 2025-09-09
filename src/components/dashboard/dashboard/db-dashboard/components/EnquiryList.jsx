@@ -147,7 +147,9 @@ const EnquiryList = () => {
       setIsRefreshing(false);
     }
   };
-
+useEffect(() => {
+  handleRefresh();
+}, []);
   // Initial data fetch
   // useEffect(() => {
   //   if (status === "idle") {
@@ -285,7 +287,7 @@ const EnquiryList = () => {
       return 0;
     }
 
-    if (orderBy === "travelers") {
+    if (orderBy === "guest") {
       const totalA = a.adult + a.child + a.infant;
       const totalB = b.adult + b.child + b.infant;
       if (totalB < totalA) {
@@ -394,6 +396,9 @@ const EnquiryList = () => {
   const formatDate = (dateString) => {
     return dayjs(dateString).format("MMM DD, YYYY HH:mm");
   };
+  const formatDate1 = (dateString) => {
+    return dayjs(dateString).format("DD-MM-YYYY");
+  };
 
  
 
@@ -488,287 +493,553 @@ const EnquiryList = () => {
   }
 
   return (
-    <Box sx={{ width: "100%" }}>
-      {/* Enhanced Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={2}>
+    <Box sx={{ 
+      width: "100%",
+      // Global scrollbar styling for consistency
+      '& *::-webkit-scrollbar': {
+        width: '8px',
+        height: '8px',
+      },
+      '& *::-webkit-scrollbar-track': {
+        background: alpha('#667eea', 0.1),
+        borderRadius: '10px',
+      },
+      '& *::-webkit-scrollbar-thumb': {
+        background: 'linear-gradient(45deg, #667eea, #764ba2)',
+        borderRadius: '10px',
+        '&:hover': {
+          background: 'linear-gradient(45deg, #764ba2, #667eea)',
+        },
+      },
+    }}>
+      {/* Compact Enhanced Stats Cards */}
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha("#1976d2", 0.04), 
-            height: "100%",
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha("#1976d2", 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(102, 126, 234, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: "center", py: 3 }}>
+            <CardContent sx={{ textAlign: "center", py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <EventIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <EventIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
               <Typography
-                variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
+                variant="h5"
+                sx={{ fontWeight: 800, color: "white", mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}
               >
                 {stats.total}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                Total Enquiries
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                📊 Total Enquiries
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha("#1976d2", 0.04), 
-            height: "100%",
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha("#1976d2", 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(255, 107, 107, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: "center", py: 3 }}>
+            <CardContent sx={{ textAlign: "center", py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <HotelIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <HotelIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
               <Typography
-                variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
+                variant="h5"
+                sx={{ fontWeight: 800, color: "white", mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}
               >
                 {stats.withHotel}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Hotel
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                🏨 With Hotel
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha("#1976d2", 0.04), 
-            height: "100%",
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha("#1976d2", 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(253, 203, 110, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: "center", py: 3 }}>
+            <CardContent sx={{ textAlign: "center", py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <LocalTaxiIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <LocalTaxiIcon sx={{ color: '#d63031', fontSize: 20 }} />
                 </Avatar>
               </Box>
               <Typography
-                variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
+                variant="h5"
+                sx={{ fontWeight: 800, color: "#d63031", mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.1)', lineHeight: 1 }}
               >
                 {stats.withPickup}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Pickup
+              <Typography variant="caption" sx={{ color: '#d63031', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                🚕 With Pickup
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha('#1976d2', 0.04), 
-            height: '100%',
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha('#1976d2', 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(116, 185, 255, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <DirectionsBoatIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <DirectionsBoatIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}>
                 {stats.withPort}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Port
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                ⛵ With Port
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha('#1976d2', 0.04), 
-            height: '100%',
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha('#1976d2', 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(253, 121, 168, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <AttractionsIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <AttractionsIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}>
                 {stats.withAttractions}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Attractions
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                🎡 Attractions
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha('#1976d2', 0.04), 
-            height: '100%',
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha('#1976d2', 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(162, 155, 254, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                <ParkIcon />
-
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <ParkIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}>
                 {stats.withPackagedAttractions}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Packaged Attractions
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                🎢 Packages
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha('#1976d2', 0.04), 
-            height: '100%',
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #55a3ff 0%, #003d82 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha('#1976d2', 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(85, 163, 255, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
+            <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <RestaurantIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <RestaurantIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2', mb: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}>
                 {stats.withRestaurants}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Restaurants
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                🍽️ Restaurants
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <Card sx={{ 
-            bgcolor: alpha("#1976d2", 0.04), 
-            height: "100%",
-            transition: 'all 0.3s ease',
+            background: 'linear-gradient(135deg, #00b894 0%, #00cec9 100%)',
+            height: 120,
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
+            borderRadius: 3,
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+            },
             '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: 3,
-              bgcolor: alpha("#1976d2", 0.08),
+              transform: 'translateY(-6px) scale(1.02)',
+              boxShadow: '0 15px 30px rgba(0, 184, 148, 0.4)',
+              '&::before': {
+                opacity: 1,
+              }
             }
           }}>
-            <CardContent sx={{ textAlign: "center", py: 3 }}>
+            <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ bgcolor: '#1976d2', width: 40, height: 40 }}>
-                  <PersonIcon />
+                <Avatar sx={{ 
+                  bgcolor: 'rgba(255,255,255,0.2)', 
+                  width: 35, 
+                  height: 35,
+                  backdropFilter: 'blur(10px)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  <PersonIcon sx={{ color: 'white', fontSize: 20 }} />
                 </Avatar>
               </Box>
               <Typography
-                variant="h4"
-                sx={{ fontWeight: 700, color: "#1976d2", mb: 1 }}
+                variant="h5"
+                sx={{ fontWeight: 800, color: "white", mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}
               >
                 {stats.withGuides}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500 }}>
-                With Guides
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+                👨‍🏫 With Guides
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Enhanced Filters Section */}
+      {/* Advanced Modern Filters Section */}
       <Paper 
+        elevation={0}
         sx={{ 
-          p: 3, 
-          mb: 3, 
-          borderRadius: 2, 
-          bgcolor: alpha('#1976d2', 0.02),
-          border: `1px solid ${alpha('#1976d2', 0.1)}`
+          p: 4, 
+          mb: 4, 
+          borderRadius: 4, 
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.3)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #667eea 0%, #764ba2 25%, #fd79a8 50%, #fdcb6e 75%, #74b9ff 100%)',
+          }
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
-            Search & Filter Enquiries
-          </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '50%',
+              p: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+            }}>
+              <EventIcon sx={{ color: 'white', fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography variant="h5" sx={{ 
+                fontWeight: 800, 
+                background: 'linear-gradient(45deg, #667eea, #764ba2)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 0.5
+              }}>
+                🔍 Advanced Search & Filter
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                Find and filter enquiries with powerful search options
+              </Typography>
+            </Box>
+          </Box>
           <Button
-            variant="outlined"
-            color="primary"
+            variant="contained"
             startIcon={<RefreshIcon />}
             onClick={handleRefresh}
             disabled={isRefreshing || status === 'loading'}
             sx={{
-              borderRadius: 2,
+              background: 'linear-gradient(45deg, #667eea, #764ba2)',
+              borderRadius: 3,
               textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+              transition: 'all 0.3s ease',
               '&:hover': {
-                backgroundColor: alpha('#1976d2', 0.08),
+                background: 'linear-gradient(45deg, #764ba2, #667eea)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+              },
+              '&:disabled': {
+                background: 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                color: '#a0aec0'
               }
             }}
           >
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            {isRefreshing ? '🔄 Refreshing...' : '⚡ Refresh Data'}
           </Button>
         </Box>
-        <Grid container spacing={3}>
+        <Grid container spacing={4}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               name="searchId"
-              label="🔍 Search by Booking ID or Multi-Enquiry ID"
+              label="🔍 Search by Booking ID"
               variant="outlined"
               fullWidth
               value={filters.searchId}
               onChange={handleFilterChange}
-              size="small"
+              size="medium"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
+                  borderRadius: 3,
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.95)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                   },
+                  '&:hover fieldset': {
+                    borderColor: '#667eea',
+                    borderWidth: 2,
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(255,255,255,1)',
+                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.2)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#667eea',
+                    borderWidth: 2,
+                  }
                 },
+                '& .MuiInputLabel-root': {
+                  fontWeight: 600,
+                  '&.Mui-focused': {
+                    color: '#667eea',
+                  }
+                }
               }}
               placeholder="Enter booking ID or multi-enquiry ID..."
             />
@@ -781,14 +1052,39 @@ const EnquiryList = () => {
               fullWidth
               value={filters.country}
               onChange={handleFilterChange}
-              size="small"
+              size="medium"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
+                  borderRadius: 3,
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.95)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                   },
+                  '&:hover fieldset': {
+                    borderColor: '#fd79a8',
+                    borderWidth: 2,
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(255,255,255,1)',
+                    boxShadow: '0 4px 20px rgba(253, 121, 168, 0.2)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#fd79a8',
+                    borderWidth: 2,
+                  }
                 },
+                '& .MuiInputLabel-root': {
+                  fontWeight: 600,
+                  '&.Mui-focused': {
+                    color: '#fd79a8',
+                  }
+                }
               }}
+              placeholder="Enter country name..."
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -799,50 +1095,104 @@ const EnquiryList = () => {
               fullWidth
               value={filters.city}
               onChange={handleFilterChange}
-              size="small"
+              size="medium"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
+                  borderRadius: 3,
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.95)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                   },
+                  '&:hover fieldset': {
+                    borderColor: '#fdcb6e',
+                    borderWidth: 2,
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(255,255,255,1)',
+                    boxShadow: '0 4px 20px rgba(253, 203, 110, 0.2)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#fdcb6e',
+                    borderWidth: 2,
+                  }
                 },
+                '& .MuiInputLabel-root': {
+                  fontWeight: 600,
+                  '&.Mui-focused': {
+                    color: '#fdcb6e',
+                  }
+                }
               }}
+              placeholder="Enter city name..."
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>📅 Date Range</InputLabel>
+            <FormControl fullWidth size="medium">
+              <InputLabel sx={{ 
+                fontWeight: 600,
+                '&.Mui-focused': {
+                  color: '#74b9ff',
+                }
+              }}>📅 Date Range</InputLabel>
               <Select
                 name="dateRange"
                 value={filters.dateRange}
                 label="📅 Date Range"
                 onChange={handleFilterChange}
                 sx={{
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#1976d2',
+                  borderRadius: 3,
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.95)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                   },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#74b9ff',
+                    borderWidth: 2,
+                  },
+                  '&.Mui-focused': {
+                    background: 'rgba(255,255,255,1)',
+                    boxShadow: '0 4px 20px rgba(116, 185, 255, 0.2)',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#74b9ff',
+                    borderWidth: 2,
+                  }
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      borderRadius: 3,
+                      mt: 1,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      '& .MuiMenuItem-root': {
+                        borderRadius: 2,
+                        mx: 1,
+                        my: 0.5,
+                        '&:hover': {
+                          background: 'linear-gradient(45deg, #74b9ff, #0984e3)',
+                          color: 'white',
+                        }
+                      }
+                    }
+                  }
                 }}
               >
-                <MenuItem value="all">All Dates</MenuItem>
-                <MenuItem value="upcoming">Upcoming</MenuItem>
-                <MenuItem value="past">Past</MenuItem>
+                <MenuItem value="all">🌐 All Dates</MenuItem>
+                <MenuItem value="upcoming">⏭️ Upcoming Tours</MenuItem>
+                <MenuItem value="past">📅 Past Tours</MenuItem>
               </Select>
             </FormControl>
           </Grid>
         </Grid>
-        
-        {/* Search Results Info */}
-        {(filters.searchId || filters.country || filters.city || filters.dateRange !== 'all') && (
-          <Box sx={{ mt: 2, p: 2, bgcolor: alpha('#1976d2', 0.05), borderRadius: 1 }}>
-                          <Typography variant="body2" color="primary">
-                📊 Showing {filteredEnquiries.length} of {enquiries.length} enquiries
-                {filters.searchId && ` • Searching for: "${filters.searchId}" (in Booking ID or Multi-Enquiry ID)`}
-                {filters.country && ` • Country: ${filters.country}`}
-                {filters.city && ` • City: ${filters.city}`}
-                {filters.dateRange !== 'all' && ` • Date: ${filters.dateRange}`}
-              </Typography>
-          </Box>
-        )}
       </Paper>
 
       <Paper sx={{ 
@@ -851,8 +1201,9 @@ const EnquiryList = () => {
         borderRadius: 3, 
         mb: 2,
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        border: `1px solid ${alpha('#1976d2', 0.1)}`,
-        position: 'relative'
+        border: `1px solid ${alpha('#667eea', 0.1)}`,
+        position: 'relative',
+        maxWidth: '100%', // Prevent overflow
       }}>
         {/* Loading overlay for refresh */}
         {status === 'loading' && enquiries.length > 0 && (
@@ -874,146 +1225,245 @@ const EnquiryList = () => {
             <CircularProgress size={24} />
           </Box>
         )}
-        <TableContainer sx={{ maxHeight: 600 }}>
-          <Table stickyHeader aria-label="enquiries table">
+        <TableContainer 
+          sx={{ 
+            maxHeight: 600,
+            borderRadius: 3,
+            overflowX: 'hidden', // Remove horizontal scrollbar
+            overflowY: 'auto',   // Keep vertical scrollbar
+            '&::-webkit-scrollbar': {
+              width: '8px',
+              height: '0px', // Remove horizontal scrollbar completely
+            },
+            '&::-webkit-scrollbar-track': {
+              background: alpha('#667eea', 0.1),
+              borderRadius: '10px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'linear-gradient(45deg, #667eea, #764ba2)',
+              borderRadius: '10px',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #764ba2, #667eea)',
+              },
+            },
+          }}
+        >
+          <Table stickyHeader aria-label="enquiries table" sx={{ 
+            tableLayout: 'fixed',
+            width: '100%',
+            minWidth: 'unset', // Remove minimum width constraints
+          }}>
             <TableHead>
-              <TableRow>
-                <SortableTableCell id="display_id" label="ID" />
-                <SortableTableCell id="location" label="Location" />
-                <SortableTableCell id="dates" label="Dates" />
-                <SortableTableCell id="travelers" label="Travelers" />
-                <SortableTableCell id="price" label="Approx Price" />
-                <SortableTableCell id="services" label="Services" />
-                <SortableTableCell id="created_at" label="Created" />
+              <TableRow sx={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+               
+              }}>
+                <SortableTableCell id="display_id" label="Enquiry ID" sx={{ width: '8%' }} />
+                <SortableTableCell id="location" label="📍Location" sx={{ width: '15%' }} />
+                <SortableTableCell id="dates" label="📅Tour Date" sx={{ width: '18%' }} />
+                <SortableTableCell id="guest" label="👥Guest" sx={{ width: '12%' }} />
+                <SortableTableCell id="price" label="💰Price" sx={{ width: '10%' }} />
+                <SortableTableCell id="services" label="🏨Services" sx={{ width: '25%' }} />
+                <SortableTableCell id="created_at" label="⏰Created" sx={{ width: '12%' }} />
                 {(userRole === "Sales Head(DMC)" ||
                   userRole === "Sales Manager (DMC)" ||
                   userRole === "Assistant Manager (DMC)") && (
                   <SortableTableCell
                     id="actions"
-                    label="Actions"
+                    label="⚡ Actions"
                     disableSort={true}
+                    sx={{ width: '10%' }}
                   />
                 )}
               </TableRow>
             </TableHead>
             <TableBody>
               {paginatedEnquiries.length > 0 ? (
-                paginatedEnquiries.map((enquiry) => (
-                  <TableRow hover key={enquiry.id} >
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontWeight: 700, color: "#1976d2" }}
-                      >
-                        {enquiry.display_id}
-                     {enquiry.multi_enq_id && ( 
-                      <Chip
-                        label={enquiry.multi_enq_id}
-                        color="primary"
-                        variant="filled"
-                      
-                        size="small"
-                      
-                     />
-                     )}
-                      </Typography>
+                paginatedEnquiries.map((enquiry, index) => (
+                  <TableRow 
+                    hover 
+                    key={enquiry.id}
+                    sx={{
+                      background: index % 2 === 0 
+                        ? 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)'
+                        : 'linear-gradient(135deg, rgba(248,250,252,0.7) 0%, rgba(241,245,249,0.7) 100%)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)',
+                        transform: 'scale(1.01)',
+                        boxShadow: '0 4px 20px rgba(59, 130, 246, 0.15)',
+                        '& .MuiTableCell-root': {
+                          borderColor: alpha('#3b82f6', 0.2),
+                        }
+                      },
+                      '& .MuiTableCell-root': {
+                        borderBottom: `1px solid ${alpha('#e2e8f0', 0.8)}`,
+                        padding: '16px 8px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }
+                    }}
+                  >
+                    <TableCell sx={{ width: '8%', whiteSpace: 'normal' }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ 
+                            fontWeight: 700, 
+                            background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            fontSize: '0.9rem'
+                          }}
+                        >
+                          {enquiry.display_id}
+                        </Typography>
+                        {enquiry.multi_enq_id && ( 
+                          <Chip
+                            label={enquiry.multi_enq_id}
+                            size="small"
+                            sx={{
+                              background: 'linear-gradient(45deg, #667eea, #764ba2)',
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: '20px',
+                              '& .MuiChip-label': {
+                                padding: '0 6px',
+                              }
+                            }}
+                          />
+                        )}
+                      </Box>
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <LocationIcon
-                          fontSize="small"
-                          color="action"
-                          sx={{ mr: 1 }}
-                        />
+                    <TableCell sx={{ width: '15%', whiteSpace: 'normal' }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{
+                          background: 'linear-gradient(45deg, #ff6b6b, #ee5a24)',
+                          borderRadius: '50%',
+                          p: 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <LocationIcon
+                            fontSize="small"
+                            sx={{ color: 'white' }}
+                          />
+                        </Box>
                         <Box>
-                          <Typography variant="body2">
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2d3748' }}>
                             {enquiry.city}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography variant="caption" sx={{ color: '#718096', fontWeight: 500 }}>
                             {enquiry.country}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <EventIcon
-                          fontSize="small"
-                          color="action"
-                          sx={{ mr: 1 }}
-                        />
+                    <TableCell sx={{ width: '18%', whiteSpace: 'normal' }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{
+                          background: 'linear-gradient(45deg, #4ecdc4, #44a08d)',
+                          borderRadius: '50%',
+                          p: 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <EventIcon
+                            fontSize="small"
+                            sx={{ color: 'white' }}
+                          />
+                        </Box>
                         <Box>
-                          <Typography variant="body2">
-                            {formatDate(enquiry.check_in_time)}
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2d3748' }}>
+                            {formatDate1(enquiry.check_in_time)}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            to {formatDate(enquiry.check_out_time)}
+                          <Typography variant="caption" sx={{ color: '#718096', fontWeight: 500 }}>
+                            to {formatDate1(enquiry.check_out_time)}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <PeopleIcon
-                          fontSize="small"
-                          color="action"
-                          sx={{ mr: 1 }}
-                        />
+                    <TableCell sx={{ width: '12%', whiteSpace: 'normal' }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{
+                          background: 'linear-gradient(45deg, #a8edea, #fed6e3)',
+                          borderRadius: '50%',
+                          p: 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <PeopleIcon
+                            fontSize="small"
+                            sx={{ color: '#4a5568' }}
+                          />
+                        </Box>
                         <Box>
-                          <Typography variant="body2">
-                            {enquiry.adult + enquiry.child + enquiry.infant}{" "}
-                            Total
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2d3748' }}>
+                            {enquiry.adult + enquiry.child + enquiry.infant} Total
                           </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {enquiry.adult} Adult
-                            {enquiry.adult !== 1 ? "s" : ""},
-                            {enquiry.child > 0
-                              ? ` ${enquiry.child} Child${
-                                  enquiry.child !== 1 ? "ren" : ""
-                                }`
-                              : ""}
-                            {enquiry.infant > 0
-                              ? `, ${enquiry.infant} Infant${
-                                  enquiry.infant !== 1 ? "s" : ""
-                                }`
-                              : ""}
+                          <Typography variant="caption" sx={{ color: '#718096', fontWeight: 500 }}>
+                            {enquiry.adult}A
+                            {enquiry.child > 0 ? `, ${enquiry.child}C` : ""}
+                            {enquiry.infant > 0 ? `, ${enquiry.infant}I` : ""}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#2e7d32' }}>
+                    <TableCell sx={{ width: '10%' }}>
+                      <Box sx={{ 
+                        display: "flex", 
+                        alignItems: "center",
+                        background: 'linear-gradient(45deg, rgba(46, 125, 50, 0.1), rgba(102, 187, 106, 0.1))',
+                        borderRadius: 2,
+                        p: 1,
+                        border: '1px solid rgba(46, 125, 50, 0.2)'
+                      }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 700, 
+                            background: 'linear-gradient(45deg, #2e7d32, #66bb6a)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            fontSize: '0.9rem'
+                          }}
+                        >
                           {enquiry.approx_price ? `SGD ${parseFloat(enquiry.approx_price).toLocaleString()}` : 'N/A'}
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '25%', whiteSpace: 'normal' }}>
                       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                         <Tooltip
-                          title={
-                            enquiry.hotel
-                              ? "View Hotel Details"
-                              : "Hotel Not Selected"
-                          }
+                          title={enquiry.hotel ? "🏨 View Hotel Details" : "🏨 Hotel Not Selected"}
+                          placement="top"
+                          arrow
                         >
                           <span>
                             <IconButton
                               size="small"
-                              color={enquiry.hotel ? "primary" : "default"}
                               disabled={!enquiry.hotel}
-                              onClick={() =>
-                                enquiry.hotel &&
-                                handleServiceClick(enquiry, "hotel")
-                              }
+                              onClick={() => enquiry.hotel && handleServiceClick(enquiry, "hotel")}
                               sx={{
-                                backgroundColor: enquiry.hotel
-                                  ? alpha("#1976d2", 0.1)
-                                  : "transparent",
+                                background: enquiry.hotel
+                                  ? 'linear-gradient(45deg, #667eea, #764ba2)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.hotel ? 'white' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.hotel ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none',
                                 "&:hover": {
-                                  backgroundColor: enquiry.hotel
-                                    ? alpha("#1976d2", 0.2)
-                                    : "transparent",
+                                  background: enquiry.hotel
+                                    ? 'linear-gradient(45deg, #5a67d8, #667eea)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.hotel ? 'scale(1.1) rotate(5deg)' : 'none',
+                                  boxShadow: enquiry.hotel ? '0 6px 20px rgba(102, 126, 234, 0.6)' : 'none',
                                 },
                               }}
                             >
@@ -1021,17 +1471,27 @@ const EnquiryList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={enquiry.local_transfer ? "View Pickup Details" : "Pickup Not Selected"}>
+                        <Tooltip title={enquiry.local_transfer ? "🚕 View Pickup Details" : "🚕 Pickup Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton 
                               size="small" 
-                              color={enquiry.local_transfer ? "primary" : "default"}
                               disabled={!enquiry.local_transfer}
                               onClick={() => enquiry.local_transfer && handleServiceClick(enquiry, 'local_transfer')}
                               sx={{ 
-                                backgroundColor: enquiry.local_transfer ? alpha('#1976d2', 0.1) : 'transparent',
+                                background: enquiry.local_transfer
+                                  ? 'linear-gradient(45deg, #ffeaa7, #fdcb6e)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.local_transfer ? '#d63031' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.local_transfer ? '0 4px 15px rgba(253, 203, 110, 0.4)' : 'none',
                                 '&:hover': {
-                                  backgroundColor: enquiry.local_transfer ? alpha('#1976d2', 0.2) : 'transparent',
+                                  background: enquiry.local_transfer
+                                    ? 'linear-gradient(45deg, #fdcb6e, #e17055)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.local_transfer ? 'scale(1.1) rotate(-5deg)' : 'none',
+                                  boxShadow: enquiry.local_transfer ? '0 6px 20px rgba(253, 203, 110, 0.6)' : 'none',
                                 }
                               }}
                             >
@@ -1039,17 +1499,27 @@ const EnquiryList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={enquiry.port ? "View Port Details" : "Port Not Selected"}>
+                        <Tooltip title={enquiry.port ? "⛵ View Port Details" : "⛵ Port Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton 
                               size="small" 
-                              color={enquiry.port ? "primary" : "default"}
                               disabled={!enquiry.port}
                               onClick={() => enquiry.port && handleServiceClick(enquiry, 'port')}
                               sx={{ 
-                                backgroundColor: enquiry.port ? alpha('#1976d2', 0.1) : 'transparent',
+                                background: enquiry.port
+                                  ? 'linear-gradient(45deg, #74b9ff, #0984e3)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.port ? 'white' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.port ? '0 4px 15px rgba(116, 185, 255, 0.4)' : 'none',
                                 '&:hover': {
-                                  backgroundColor: enquiry.port ? alpha('#1976d2', 0.2) : 'transparent',
+                                  background: enquiry.port
+                                    ? 'linear-gradient(45deg, #0984e3, #2d3436)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.port ? 'scale(1.1) rotate(5deg)' : 'none',
+                                  boxShadow: enquiry.port ? '0 6px 20px rgba(116, 185, 255, 0.6)' : 'none',
                                 }
                               }}
                             >
@@ -1057,24 +1527,27 @@ const EnquiryList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={enquiry.attraction ? "View Attraction Details" : "Attractions Not Selected"}>
+                        <Tooltip title={enquiry.attraction ? "🎡 View Attraction Details" : "🎡 Attractions Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton 
                               size="small" 
-                              color={enquiry.attraction ? "primary" : "default"}
                               disabled={!enquiry.attraction}
-                              onClick={() =>
-                                enquiry.attraction &&
-                                handleServiceClick(enquiry, "attraction")
-                              }
+                              onClick={() => enquiry.attraction && handleServiceClick(enquiry, "attraction")}
                               sx={{
-                                backgroundColor: enquiry.attraction
-                                  ? alpha("#1976d2", 0.1)
-                                  : "transparent",
+                                background: enquiry.attraction
+                                  ? 'linear-gradient(45deg, #fd79a8, #e84393)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.attraction ? 'white' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.attraction ? '0 4px 15px rgba(253, 121, 168, 0.4)' : 'none',
                                 "&:hover": {
-                                  backgroundColor: enquiry.attraction
-                                    ? alpha("#1976d2", 0.2)
-                                    : "transparent",
+                                  background: enquiry.attraction
+                                    ? 'linear-gradient(45deg, #e84393, #d63031)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.attraction ? 'scale(1.1) rotate(-5deg)' : 'none',
+                                  boxShadow: enquiry.attraction ? '0 6px 20px rgba(253, 121, 168, 0.6)' : 'none',
                                 },
                               }}
                             >
@@ -1082,24 +1555,27 @@ const EnquiryList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={enquiry.packaged_attractions ? "View Packaged Attractions Details" : "Packaged Attractions Not Selected"}>
+                        <Tooltip title={enquiry.packaged_attractions ? "🎢 View Packaged Attractions Details" : "🎢 Packaged Attractions Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton 
                               size="small" 
-                              color={enquiry.packaged_attractions ? "primary" : "default"}
                               disabled={!enquiry.packaged_attractions}
-                              onClick={() =>
-                                enquiry.packaged_attractions &&
-                                handleServiceClick(enquiry, "packaged_attractions")
-                              }
+                              onClick={() => enquiry.packaged_attractions && handleServiceClick(enquiry, "packaged_attractions")}
                               sx={{
-                                backgroundColor: enquiry.packaged_attractions
-                                  ? alpha("#1976d2", 0.1)
-                                  : "transparent",
+                                background: enquiry.packaged_attractions
+                                  ? 'linear-gradient(45deg, #a29bfe, #6c5ce7)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.packaged_attractions ? 'white' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.packaged_attractions ? '0 4px 15px rgba(162, 155, 254, 0.4)' : 'none',
                                 "&:hover": {
-                                  backgroundColor: enquiry.packaged_attractions
-                                    ? alpha("#1976d2", 0.2)
-                                    : "transparent",
+                                  background: enquiry.packaged_attractions
+                                    ? 'linear-gradient(45deg, #6c5ce7, #5f3dc4)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.packaged_attractions ? 'scale(1.1) rotate(5deg)' : 'none',
+                                  boxShadow: enquiry.packaged_attractions ? '0 6px 20px rgba(162, 155, 254, 0.6)' : 'none',
                                 },
                               }}
                             >
@@ -1107,30 +1583,27 @@ const EnquiryList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip
-                          title={
-                            enquiry.restaurant
-                              ? "View Restaurant Details"
-                              : "Restaurants Not Selected"
-                          }
-                        >
+                        <Tooltip title={enquiry.restaurant ? "🍽️ View Restaurant Details" : "🍽️ Restaurants Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton
                               size="small"
-                              color={enquiry.restaurant ? "primary" : "default"}
                               disabled={!enquiry.restaurant}
-                              onClick={() =>
-                                enquiry.restaurant &&
-                                handleServiceClick(enquiry, "restaurant")
-                              }
+                              onClick={() => enquiry.restaurant && handleServiceClick(enquiry, "restaurant")}
                               sx={{
-                                backgroundColor: enquiry.restaurant
-                                  ? alpha("#1976d2", 0.1)
-                                  : "transparent",
+                                background: enquiry.restaurant
+                                  ? 'linear-gradient(45deg, #fd79a8, #fdcb6e)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.restaurant ? 'white' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.restaurant ? '0 4px 15px rgba(253, 121, 168, 0.4)' : 'none',
                                 "&:hover": {
-                                  backgroundColor: enquiry.restaurant
-                                    ? alpha("#1976d2", 0.2)
-                                    : "transparent",
+                                  background: enquiry.restaurant
+                                    ? 'linear-gradient(45deg, #e17055, #d63031)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.restaurant ? 'scale(1.1) rotate(-5deg)' : 'none',
+                                  boxShadow: enquiry.restaurant ? '0 6px 20px rgba(253, 121, 168, 0.6)' : 'none',
                                 },
                               }}
                             >
@@ -1138,30 +1611,27 @@ const EnquiryList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip
-                          title={
-                            enquiry.guide
-                              ? "View Guide Details"
-                              : "Guide Not Selected"
-                          }
-                        >
+                        <Tooltip title={enquiry.guide ? "👨‍🏫 View Guide Details" : "👨‍🏫 Guide Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton
                               size="small"
-                              color={enquiry.guide ? "primary" : "default"}
                               disabled={!enquiry.guide}
-                              onClick={() =>
-                                enquiry.guide &&
-                                handleServiceClick(enquiry, "guide")
-                              }
+                              onClick={() => enquiry.guide && handleServiceClick(enquiry, "guide")}
                               sx={{
-                                backgroundColor: enquiry.guide
-                                  ? alpha("#1976d2", 0.1)
-                                  : "transparent",
+                                background: enquiry.guide
+                                  ? 'linear-gradient(45deg, #00b894, #00cec9)'
+                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
+                                color: enquiry.guide ? 'white' : '#a0aec0',
+                                width: 32,
+                                height: 32,
+                                transition: 'all 0.3s ease',
+                                boxShadow: enquiry.guide ? '0 4px 15px rgba(0, 184, 148, 0.4)' : 'none',
                                 "&:hover": {
-                                  backgroundColor: enquiry.guide
-                                    ? alpha("#1976d2", 0.2)
-                                    : "transparent",
+                                  background: enquiry.guide
+                                    ? 'linear-gradient(45deg, #00cec9, #55a3ff)'
+                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
+                                  transform: enquiry.guide ? 'scale(1.1) rotate(5deg)' : 'none',
+                                  boxShadow: enquiry.guide ? '0 6px 20px rgba(0, 184, 148, 0.6)' : 'none',
                                 },
                               }}
                             >
@@ -1171,22 +1641,58 @@ const EnquiryList = () => {
                         </Tooltip>
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDate(enquiry.created_at)}
-                      </Typography>
+                    <TableCell sx={{ width: '12%', whiteSpace: 'normal' }}>
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.8 }}>
+                        <Box sx={{
+                          background: 'linear-gradient(45deg, #636e72, #2d3436)',
+                          borderRadius: '50%',
+                          p: 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          mt: 0.3
+                        }}>
+                          <AccessTimeIcon
+                            fontSize="small"
+                            sx={{ color: 'white' }}
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#2d3748', fontSize: '0.75rem', lineHeight: 1.2 }}>
+                            {dayjs(enquiry.created_at).format("DD-MM-YYYY")}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#718096', fontWeight: 500, fontSize: '0.65rem', lineHeight: 1.2 }}>
+                            {dayjs(enquiry.created_at).format("HH:mm")}
+                          </Typography>
+                        </Box>
+                      </Box>
                     </TableCell>
                     {(userRole === "Sales Head(DMC)" ||
                       userRole === "Sales Manager (DMC)" ||
                       userRole === "Assistant Manager (DMC)") && (
-                      <TableCell>
+                      <TableCell sx={{ width: '10%' }}>
                         <Button
-                          size="medium"
+                          size="small"
                           variant="contained"
-                          color="primary"
                           onClick={() => handleConvert(enquiry)}
+                          sx={{
+                            background: 'linear-gradient(45deg, #667eea, #764ba2)',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            borderRadius: 3,
+                            textTransform: 'none',
+                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              background: 'linear-gradient(45deg, #764ba2, #667eea)',
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+                            }
+                          }}
                         >
-                          Create Tour
+                          ⚡ Create Tour
                         </Button>
                       </TableCell>
                     )}
