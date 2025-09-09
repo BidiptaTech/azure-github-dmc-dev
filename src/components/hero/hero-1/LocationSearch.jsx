@@ -168,7 +168,7 @@ const SearchBar = ({ onLocationSelect }) => {
             type="search"
             placeholder="Select a country"
             className="js-search js-dd-focus pr-30 text-xs"
-            style={{ fontSize: "13.5px" }}
+            style={{ fontSize: "11.5px" }}
             value={searchValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}

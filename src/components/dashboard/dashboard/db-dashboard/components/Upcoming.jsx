@@ -80,7 +80,7 @@ const getBackgroundColor = (tour_status) => {
     case "Refund - Pending":
       return "rgba(255, 103, 2, 0.66)"; // Professional light deep orange
     case "Refunded":
-      return "rgba(2, 255, 15, 0.53)"; // Professional light deep orange
+      return "rgba(0, 136, 7, 0.66)"; // Professional light deep orange
     case "Pending":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Tentative":
@@ -523,9 +523,9 @@ export default function Pending() {
           );
 
           if (hasProcessedStatus) {
-            toast.info(
-              "This enquiry has already been processed (Booked or Cancelled)"
-            );
+            setSnackbarMessage("This enquiry has already been processed (Booked or Cancelled)");
+            setSnackbarSeverity("info");
+            setOpenSnackbar(true);
             return;
           }
 
@@ -554,7 +554,9 @@ export default function Pending() {
       setIsEnquiryModalVisible(true);
     } catch (error) {
       console.error("Error preparing enquiry:", error);
-      toast.error("Could not prepare the enquiry. Please try again.");
+      setSnackbarMessage("Could not prepare the enquiry. Please try again.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     }
   };
 
@@ -1571,9 +1573,9 @@ export default function Pending() {
 
         // If the status is 2 or 3, close the modal and don't show it
         if (hasStatusBookedOrCancel) {
-          toast.info(
-            "This enquiry has already been processed (Booked or Cancelled)"
-          );
+          setSnackbarMessage("This enquiry has already been processed (Booked or Cancelled)");
+          setSnackbarSeverity("info");
+          setOpenSnackbar(true);
           setLoadingEnquiryHistory(false);
           return;
         }
@@ -1638,7 +1640,9 @@ export default function Pending() {
       // Comment is required only for 'enquiry' type
       if (type === "enquiry" && !enquiryComment.trim()) {
         setCommentError(true);
-        toast.error("Please enter a comment for the enquiry");
+        setSnackbarMessage("Please enter a comment for the enquiry");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1646,7 +1650,9 @@ export default function Pending() {
       const AgentId = Cookies.get("AgentId");
 
       if (!authToken || !AgentId) {
-        toast.error("Authorization failed. Please login again.");
+        setSnackbarMessage("Authorization failed. Please login again.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1716,7 +1722,9 @@ export default function Pending() {
       const tour_id = bookings.id || bookings.data?.id || tourId;
 
       if (!tour_id) {
-        toast.error("Tour ID is missing. Cannot submit enquiry.");
+        setSnackbarMessage("Tour ID is missing. Cannot submit enquiry.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1749,7 +1757,7 @@ export default function Pending() {
 
         switch (type) {
           case "accept":
-            successMessage = "Enquiry accepted successfully!";
+            successMessage = "Enquiry accepted successfully with amount: " + response.data.actual_amount;
             // Store the tour ID that has a processed enquiry
             setTourWithProcessedEnquiry(tour_id);
             break;
@@ -1762,7 +1770,9 @@ export default function Pending() {
             successMessage = "Enquiry submitted successfully!";
         }
 
-        toast.success(successMessage);
+        setSnackbarMessage(successMessage);
+        setSnackbarSeverity("success");
+        setOpenSnackbar(true);
 
         // Close the modal for all types using the handleCloseEnquiryModal
         handleCloseEnquiryModal();
@@ -1770,13 +1780,15 @@ export default function Pending() {
         // Refresh the list
         dispatch(fetchLists({ reset: true }));
       } else {
-        toast.error(
-          response.data?.message || "Operation failed. Please try again."
-        );
+        setSnackbarMessage(response.data?.message || "Operation failed. Please try again.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
       }
     } catch (error) {
       console.error(`Error during ${type} operation:`, error);
-      toast.error("Something went wrong. Please try again later.");
+      setSnackbarMessage("Something went wrong. Please try again later.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     }
   };
 
@@ -2434,6 +2446,7 @@ export default function Pending() {
                                 alignItems: "center",
                               }}
                             >
+                              {/* View button - always visible */}
                               <Tooltip title="View Details" arrow>
                                 <IconButton
                                   size="small"
@@ -2452,47 +2465,52 @@ export default function Pending() {
                                 </IconButton>
                               </Tooltip>
 
-                              {/* Only render Edit button if editOff is not 1 */}
-                              {list.editOff !== 1 && list.tour_status?.toLowerCase().startsWith("cancel") && (
-                                <Tooltip title="Add More Services" arrow>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleEdit(list)}
-                                    sx={{
-                                      color: "#2e7d32",
-                                      width: "20px",
-                                      height: "20px",
-                                      padding: "2px",
-                                      "&:hover": {
-                                        color: "#1b5e20",
-                                      },
-                                    }}
-                                  >
-                                    <Edit sx={{ fontSize: "14px" }} />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
+                              {/* Show other buttons only if status doesn't start with "Cancel" */}
+                              {!list.tour_status?.toLowerCase().startsWith("cancel") && (
+                                <>
+                                  {/* Only render Edit button if editOff is not 1 */}
+                                  {list.editOff !== 1 && (
+                                    <Tooltip title="Add More Services" arrow>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleEdit(list)}
+                                        sx={{
+                                          color: "#2e7d32",
+                                          width: "20px",
+                                          height: "20px",
+                                          padding: "2px",
+                                          "&:hover": {
+                                            color: "#1b5e20",
+                                          },
+                                        }}
+                                      >
+                                        <Edit sx={{ fontSize: "14px" }} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
 
-                              {list.booking_type === "enquiry" &&
-                                userRole === "Agent" && (
-                                  <Tooltip title="Negotiate" arrow>
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleDirectEnquiry(list)}
-                                      sx={{
-                                        color: "#7b1fa2",
-                                        width: "20px",
-                                        height: "20px",
-                                        padding: "2px",
-                                        "&:hover": {
-                                          color: "#4a148c",
-                                        },
-                                      }}
-                                    >
-                                      <AttachMoney sx={{ fontSize: "14px" }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
+                                  {/* Negotiate button for enquiry type and Agent role */}
+                                  {list.booking_type === "enquiry" && userRole === "Agent" && (
+                                    <Tooltip title="Negotiate" arrow>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleDirectEnquiry(list)}
+                                        sx={{
+                                          color: "#7b1fa2",
+                                          width: "20px",
+                                          height: "20px",
+                                          padding: "2px",
+                                          "&:hover": {
+                                            color: "#4a148c",
+                                          },
+                                        }}
+                                      >
+                                        <AttachMoney sx={{ fontSize: "14px" }} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </td>
                           <td className="booking-id-column">
@@ -2531,8 +2549,8 @@ export default function Pending() {
                                   style={{
 
                                     textAlign: "center",
-                                    backgroundColor: "#3554D1",
-                                    color: "#fff",
+                                    //backgroundColor: "#3554D1",
+                                    color: "#3554D1",
                                     padding: "5px 10px",
                                     borderRadius: "50px",
                                     cursor: "pointer",
@@ -2694,6 +2712,7 @@ export default function Pending() {
                               style={{
                                 display: "flex",
                                 alignItems: "center",
+                                justifyContent: "center",
                                 gap: "6px",
                                 backgroundColor: getBackgroundColor(list.tour_status),
                                 padding: "4px 8px",
