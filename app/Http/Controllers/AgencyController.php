@@ -18,16 +18,25 @@ class AgencyController extends Controller
     public function index()
     {
         try {
+            
             $dmc_id = $this->getDmcIdByUserRole();
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
-        
+        $authUser = Auth::user();
         // Filter agencies that have the current DMC ID in their dmc_id JSON field
-        $agencies = Agency::with(['creator', 'updater'])
+        if($authUser->role_id == 1 || $authUser->role_id == 2 || $authUser->role_id == 3 || $authUser->role_id == 4 || $authUser->role_id == 19 || $authUser->role_id == 20){
+            $agencies = Agency::with(['creator', 'updater'])
+                         ->orderBy('created_at', 'desc')
+                         ->get();
+        }
+        else{
+            $agencies = Agency::with(['creator', 'updater'])
                          ->whereJsonContains('dmc_id', $dmc_id)
                          ->orderBy('created_at', 'desc')
                          ->get();
+        }
+        
                          
         return view('agencies.index', compact('agencies'));
     }

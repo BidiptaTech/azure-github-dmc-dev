@@ -157,7 +157,7 @@
                           {{ $user->company_name }}
                       </span>
                   @else
-                      <span class="text-muted">No</span>
+                      <span class="text-muted">No DMC Assigned</span>
                   @endif
                 </td>                                               
                 <td>{{ $agent->company_name ?? 'N/A' }}</td>
