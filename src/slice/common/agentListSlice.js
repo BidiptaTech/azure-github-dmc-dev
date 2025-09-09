@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import Cookies from "js-cookie";
+import { logoutUser } from './authSlices';
 
 import { BASE_URL } from '@/services/api';
 
