@@ -10959,7 +10959,7 @@ function loadDropoffZones(day, section) {
          vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
          vehicleSelect.disabled = true;
          
-         fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+         fetch(`{{ url(route('fetch-vehicles-by-zones')) }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
              .then(response => response.json())
              .then(data => {
                  if (data.success && data.vehicles && data.vehicles.length > 0) {
@@ -11562,7 +11562,7 @@ window.saveService = function(day, type) {
          searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
          searchBtn.disabled = true;
 
-         fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+         fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
                              .then(response => response.json())
                 .then(data => {
                  console.log('Vehicle search response (city-based):', data);
@@ -11692,10 +11692,10 @@ window.saveService = function(day, type) {
             section: section,
             pickup_location: pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text,
             dropoff_location: dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text,
-            url: `{{ route('fetch-vehicles-by-zones') }}?${params}`
+            url: `{{ url(route('fetch-vehicles-by-zones')) }}?${params}`
         });
 
-                         fetch(`{{ route('fetch-vehicles-by-zones') }}?${params}`)
+                         fetch(`{{ url(route('fetch-vehicles-by-zones')) }}?${params}`)
          .then(response => response.json())
          .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
@@ -13586,7 +13586,7 @@ window.saveService = function(day, type) {
                     searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
                     searchBtn.disabled = true;
 
-                    fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+                    fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
                         .then(response => response.json())
                         .then(data => {
                             console.log('Point-to-Point vehicle search response:', data);
