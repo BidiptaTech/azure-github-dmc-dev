@@ -75,36 +75,43 @@ class CountryController extends Controller
         if(!$createdByDmc){
             return response()->json(['error' => 'Agent DMC not found'], 404);
         }
+        $agentDmcIds = null;
+        if($user->agency_id){
         $agency = Agency::where('agency_id', $user->agency_id)->first();
-        $agentDmcIds = $agency->dmc_id;
+            $agentDmcIds = $agency->dmc_id;
+        }
         if(!$agentDmcIds){
-            return response()->json(['error' => 'DMC not found'], 404);
+            $agentDmcIds = [];
         }
-        // Handle JSON array or comma-separated string
-        
-        // Ensure all values are integers
-        $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
-        
+        else{
+            $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+        }
         if (empty($agentDmcIds)) {
-            return response()->json(['error' => 'No DMC IDs found'], 404);
-        }
-
-        if (count($agentDmcIds) > 1 && $createdByDmc->role_id != 20) {
-            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
-        }
-        elseif (count($agentDmcIds) == 1 && $createdByDmc->role_id != 20) {
-            $dmcs = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('userId', $agentDmcIds[0] )->first();
-            if (!$dmcs) {
-                return response()->json(['error' => 'DMC not found'], 404);
-            }
-            return response()->json(['data' => $dmcs]);
-        }
-        elseif ($createdByDmc->role_id == 20) {
             $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11);
         }
-        else {
-            return response()->json(['error' => 'DMC not found'], 404);
+
+        else{
+            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
         }
+
+        // if (count($agentDmcIds) > 1 && $createdByDmc->role_id != 20) {
+            
+        // }
+        // elseif (count($agentDmcIds) == 1 && $createdByDmc->role_id != 20) {
+        //     $dmcs = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('userId', $agentDmcIds[0] )->first();
+        //     if (!$dmcs) {
+        //         $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
+        //     }
+        //     else{
+        //         $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('userId', $agentDmcIds[0] );
+        //     }
+        // }
+        // elseif ($createdByDmc->role_id == 20) {
+        //     $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11);
+        // }
+        // else {
+        //     $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->whereIn('userId', $agentDmcIds);
+        // }
 
         // Apply country filter if provided
         if ($request->has('country')) {
@@ -170,14 +177,12 @@ class CountryController extends Controller
                 $query->where('name', 'like', "%{$search}%");
             });
         }
-        
         // Apply pagination
         $perPage = $request->input('per_page', 10); // Default 10 items per page
         $page = $request->input('page', 1);
         
         // Get paginated results
         $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
-        
         return response()->json($dmcs);
     }
 

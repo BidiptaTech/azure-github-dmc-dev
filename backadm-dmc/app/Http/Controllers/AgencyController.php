@@ -18,16 +18,25 @@ class AgencyController extends Controller
     public function index()
     {
         try {
+            
             $dmc_id = $this->getDmcIdByUserRole();
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
-        
+        $authUser = Auth::user();
         // Filter agencies that have the current DMC ID in their dmc_id JSON field
-        $agencies = Agency::with(['creator', 'updater'])
+        if($authUser->role_id == 1 || $authUser->role_id == 2 || $authUser->role_id == 3 || $authUser->role_id == 4 || $authUser->role_id == 19 || $authUser->role_id == 20){
+            $agencies = Agency::with(['creator', 'updater'])
+                         ->orderBy('created_at', 'desc')
+                         ->get();
+        }
+        else{
+            $agencies = Agency::with(['creator', 'updater'])
                          ->whereJsonContains('dmc_id', $dmc_id)
                          ->orderBy('created_at', 'desc')
                          ->get();
+        }
+        
                          
         return view('agencies.index', compact('agencies'));
     }
@@ -73,7 +82,14 @@ class AgencyController extends Controller
 
         // Check if agency email is soft deleted
         $deletedAgency = Agency::withTrashed()->where('email', $request->input('email'))->first();
-        $dmc_id = $this->getDmcIdByUserRole();
+        $isAdmin = false;
+        $authUser = Auth::user();
+        if($authUser->role_id == 1 || $authUser->role_id == 2 || $authUser->role_id == 3 || $authUser->role_id == 4 || $authUser->role_id == 19 || $authUser->role_id == 20){
+            $isAdmin = true;
+        }else{
+            $dmc_id = $this->getDmcIdByUserRole();
+            $isAdmin = false;
+        }
 
         if ($deletedAgency && $deletedAgency->trashed()) {
             // Restore and update
@@ -119,12 +135,11 @@ class AgencyController extends Controller
         $agency->card_number = $request->input('card_number');
         $agency->branches = $request->input('branches', []);
         $agency->created_by = Auth::user()->userId;
-        $agency->dmc_id = [$dmc_id];
+        $agency->dmc_id = !$isAdmin ? [$dmc_id] : null;
 
         if ($agency->save()) {
             return redirect()->route('agencies.index')->with('success', 'Agency created successfully!');
         }
-
         return redirect()->back()->with('error', 'Failed to create agency. Please try again.');
     }
 
