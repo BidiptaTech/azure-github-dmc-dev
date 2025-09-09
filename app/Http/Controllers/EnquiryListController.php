@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Models\Agency;
 
 class EnquiryListController extends Controller
 {
@@ -57,31 +58,13 @@ class EnquiryListController extends Controller
             }
 
             // Include the package and agent relationships to access package and agent details
-            $enquiries = EnquiryForm::with(['agent' => function($query) use ($dmc_id) {
-                $query->where(function($q) use ($dmc_id) {
-                    $q->whereRaw("CASE 
-                        WHEN dmc_id IS NOT NULL 
-                        THEN (
-                            CASE 
-                                WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                THEN dmc_id::jsonb @> ?::jsonb
-                                WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                THEN dmc_id::jsonb @> ?::jsonb
-                                ELSE dmc_id::text LIKE ?
-                            END
-                        )
-                        ELSE false
-                    END", [
-                        json_encode([$dmc_id]),
-                        json_encode([$dmc_id]),
-                        "%{$dmc_id}%"
-                    ]);
-                });
-            }])
-            ->where('dmc_id', $dmc_id)
-            ->where('unique_tour_id', null)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            $enquiries = EnquiryForm::with('agent.agency')
+                ->whereHas('agent.agency', function($query) use ($dmc_id) {
+                    $query->whereRaw("dmc_id::jsonb @> ?::jsonb", [ json_encode([$dmc_id]) ]);
+                })
+                ->whereNull('unique_tour_id')
+                ->orderBy('created_at', 'desc')
+                ->get();
         }
         elseif($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $enquiries = EnquiryForm::with(['agent'])
