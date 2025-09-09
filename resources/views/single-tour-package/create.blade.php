@@ -492,10 +492,65 @@
             <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
             <input type="hidden" id="portBookings" name="port_bookings" value="[]">
             
+            @php
+                // Get current user
+                $currentUser = auth()->user();
+                $currentUserId = $currentUser->userId;
+                $currentUserRole = $currentUser->role_id;
+                
+                // Determine created_by based on role hierarchy
+                $createdBy = null;
+                $dmcUser = null;
+                $isPointToPoint = false;
+                
+                if ($currentUserRole == 33) { // Sales Head
+                    $createdBy = $currentUser->created_by; // DMC
+                } elseif ($currentUserRole == 37) { // SM (Sales Manager)
+                    $createdBy = $currentUserId; // Sales Head is the current user
+                } elseif ($currentUserRole == 38) { // ASM (Assistant Sales Manager)
+                    $createdBy = $currentUser->created_by; // SM
+                }
+                
+                // If we have a created_by, get the DMC user to check zone_id
+                if ($createdBy) {
+                    // For role 33 (Sales Head), created_by is directly the DMC
+                    if ($currentUserRole == 33) {
+                        $dmcUser = \App\Models\User::where('userId', $createdBy)->first();
+                    } 
+                    // For role 37 (SM), we need to get the DMC from the Sales Head's created_by
+                    elseif ($currentUserRole == 37) {
+                        $salesHead = \App\Models\User::where('userId', $createdBy)->first();
+                        if ($salesHead) {
+                            $dmcUser = \App\Models\User::where('userId', $salesHead->created_by)->first();
+                        }
+                    }
+                    // For role 38 (ASM), we need to go SM -> Sales Head -> DMC
+                    elseif ($currentUserRole == 38) {
+                        $sm = \App\Models\User::where('userId', $createdBy)->first();
+                        if ($sm) {
+                            $salesHead = \App\Models\User::where('userId', $sm->created_by)->first();
+                            if ($salesHead) {
+                                $dmcUser = \App\Models\User::where('userId', $salesHead->created_by)->first();
+                            }
+                        }
+                    }
+                }
+                
+                // Check if zone_id = 0 for Point-to-Point functionality
+                if ($dmcUser && isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
+                    $isPointToPoint = true;
+                }
+                
+                // Final DMC ID for the form
+                $finalDmcId = $dmcUser ? $dmcUser->userId : $currentUser->created_by;
+            @endphp
+            
             <!-- DMC Information -->
-            <input type="hidden" id="dmc_id" name="dmc_id" value="{{ auth()->user()->created_by }}">
-            <input type="hidden" id="current_user_id" name="current_user_id" value="{{ auth()->user()->userId }}">
-            <input type="hidden" id="current_user_role" name="current_user_role" value="{{ auth()->user()->role_id }}">
+            <input type="hidden" id="dmc_id" name="dmc_id" value="{{ $finalDmcId }}">
+            <input type="hidden" id="current_user_id" name="current_user_id" value="{{ $currentUserId }}">
+            <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
+            <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
+            <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
             
             <!-- JSON Data Fields for Service Orders -->
             <input type="hidden" id="hotel_data" name="hotel_data" value="">
@@ -1075,7 +1130,7 @@
                             
                             // Price mode information
                             priceMode: hotel.priceMode || 'dmc',
-                            priceModeId: parseInt('{{ auth()->user()->created_by }}') || 0,
+                            priceModeId: parseInt('{{ $finalDmcId }}') || 0,
                             
                             // Rooms Array - Include the selected room data
                             rooms: [{
@@ -1230,9 +1285,11 @@
                     
                     // Get current DMC information
                     const dmcInfo = {
-                        dmc_id: '{{ auth()->user()->created_by }}',
-                        user_id: '{{ auth()->user()->userId }}',
-                        role_id: '{{ auth()->user()->role_id }}'
+                        dmc_id: '{{ $finalDmcId }}',
+                        user_id: '{{ $currentUserId }}',
+                        role_id: '{{ $currentUserRole }}',
+                        created_by: '{{ $createdBy }}',
+                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                     };
                     
                     // Get all attraction selections from all days
@@ -1361,9 +1418,11 @@
                     
                     // Get current DMC information
                     const dmcInfo = {
-                        dmc_id: '{{ auth()->user()->created_by }}',
-                        user_id: '{{ auth()->user()->userId }}',
-                        role_id: '{{ auth()->user()->role_id }}'
+                        dmc_id: '{{ $finalDmcId }}',
+                        user_id: '{{ $currentUserId }}',
+                        role_id: '{{ $currentUserRole }}',
+                        created_by: '{{ $createdBy }}',
+                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                     };
                     
                     console.log('=== UPDATING GUIDE DATA FIELD ===');
@@ -1519,9 +1578,11 @@
                     
                     // Get current DMC information
                     const dmcInfo = {
-                        dmc_id: '{{ auth()->user()->created_by }}',
-                        user_id: '{{ auth()->user()->userId }}',
-                        role_id: '{{ auth()->user()->role_id }}'
+                        dmc_id: '{{ $finalDmcId }}',
+                        user_id: '{{ $currentUserId }}',
+                        role_id: '{{ $currentUserRole }}',
+                        created_by: '{{ $createdBy }}',
+                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                     };
                     
                     document.querySelectorAll('.restaurant-select').forEach(select => {
@@ -1659,9 +1720,11 @@
                     
                     // Get current DMC information
                     const dmcInfo = {
-                        dmc_id: '{{ auth()->user()->created_by }}',
-                        user_id: '{{ auth()->user()->userId }}',
-                        role_id: '{{ auth()->user()->role_id }}'
+                        dmc_id: '{{ $finalDmcId }}',
+                        user_id: '{{ $currentUserId }}',
+                        role_id: '{{ $currentUserRole }}',
+                        created_by: '{{ $createdBy }}',
+                        is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                     };
                     
                     // Get all transport selections - handle both single and multiple transport patterns
@@ -1999,25 +2062,46 @@
                     
                     // 4. Collect Entry/Exit Port Transport Data
                     console.log('=== COLLECTING ENTRY/EXIT PORT TRANSPORTS ===');
-                    const entryExitFields = document.querySelectorAll('select[name*="_pickup_zone_id"]');
+                    
+                    // First try zone-based fields (when zone is enabled)
+                    const entryExitFields = document.querySelectorAll('select[name*="_entry_pickup_zone_id"], select[name*="_exit_pickup_zone_id"]');
+                    console.log(`Found ${entryExitFields.length} zone-based entry/exit fields`);
+                    
                     entryExitFields.forEach(field => {
+                        console.log(`Checking entry/exit field: ${field.name} = ${field.value}`);
                         if (field.value) {
-                            const nameMatch = field.name.match(/day(\d+)_(entry|exit)(?:_(\d+))?_(?:pickup_zone_id)/);
+                            const nameMatch = field.name.match(/day(\d+)_(entry|exit)_pickup_zone_id/);
                             if (nameMatch) {
                                 const day = nameMatch[1];
                                 const section = nameMatch[2]; // entry or exit
-                                const transportIndex = nameMatch[3];
-                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                const fieldSuffix = ''; // No transport index for entry/exit ports
                                 
-                                console.log(`Processing ${section} port field: ${field.name} = ${field.value}`);
+                                console.log(`✅ Processing ${section} port field: ${field.name} = ${field.value}`);
                                 
                                 const dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
                                 const vehicleSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_service_type"]`);
-                                const timeSelect = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_pickup_time"]`);
-                                const dateInput = document.querySelector(`input[name="day${day}_${section}${fieldSuffix}_pickup_date"]`);
+                                // Handle different time and date field names for entry vs exit
+                                const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
+                                const dateFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_date` : `day${day}_${section}${fieldSuffix}_pickup_date`;
+                                const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
+                                const dateInput = document.querySelector(`input[name="${dateFieldName}"]`);
+                                
+                                console.log(`🔍 Related fields for ${section} port:`, {
+                                    dropoffField: dropoffField?.name || 'NOT_FOUND',
+                                    dropoffValue: dropoffField?.value || 'NO_VALUE',
+                                    vehicleSelect: vehicleSelect?.name || 'NOT_FOUND',
+                                    vehicleValue: vehicleSelect?.value || 'NO_VALUE',
+                                    serviceTypeSelect: serviceTypeSelect?.name || 'NOT_FOUND',
+                                    serviceTypeValue: serviceTypeSelect?.value || 'NO_VALUE',
+                                    timeFieldName: timeFieldName,
+                                    timeValue: timeSelect?.value || 'NO_VALUE',
+                                    dateFieldName: dateFieldName,
+                                    dateValue: dateInput?.value || 'NO_VALUE'
+                                });
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
+                                    console.log(`✅ All required fields found for ${section} port - proceeding with data creation`);
                                     const pickupZone = field.options[field.selectedIndex];
                                     const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
@@ -2085,7 +2169,7 @@
                                             bookingType: "enquiry"
                                         };
                                         entryPortArray.push(transportData);
-                                        console.log(`✅ Added entry port transport: ${transportData.vehicles_name}`);
+                                        console.log(`✅ Added entry port transport: ${transportData.vehicles_name}`, transportData);
                                     } else if (section === 'exit') {
                                         const transportData = {
                                             id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -2133,12 +2217,202 @@
                                             specialRequests: customerData.specialRequests
                                         };
                                         exitPortArray.push(transportData);
-                                        console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`);
+                                        console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`, transportData);
                                     }
+                                } else {
+                                    console.log(`❌ Missing required fields for ${section} port:`, {
+                                        vehicleSelect: vehicleSelect?.value || 'MISSING',
+                                        serviceTypeSelect: serviceTypeSelect?.value || 'MISSING',
+                                        dropoffField: dropoffField?.value || 'MISSING'
+                                    });
                                 }
                             }
                         }
                     });
+                    
+                    // If no zone-based entry/exit fields found, try Google Maps location fields (when zone is disabled)
+                    if (entryExitFields.length === 0) {
+                        console.log('No zone-based entry/exit fields found. Trying Google Maps location fields...');
+                        
+                        // Look for Google Maps location input fields
+                        const googleMapsEntryFields = document.querySelectorAll('input[name*="_entry_pickup_location"], input[name*="_entry_dropoff_location"]');
+                        const googleMapsExitFields = document.querySelectorAll('input[name*="_exit_pickup_location"], input[name*="_exit_dropoff_location"]');
+                        
+                        console.log(`Found ${googleMapsEntryFields.length} Google Maps entry fields`);
+                        console.log(`Found ${googleMapsExitFields.length} Google Maps exit fields`);
+                        
+                        // Process Google Maps entry fields
+                        googleMapsEntryFields.forEach(field => {
+                            if (field.value) {
+                                const nameMatch = field.name.match(/day(\d+)_entry_(pickup|dropoff)_location/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const direction = nameMatch[2]; // pickup or dropoff
+                                    
+                                    console.log(`Processing Google Maps entry ${direction} field: ${field.name} = ${field.value}`);
+                                    
+                                    // Find related fields for this entry port
+                                    const vehicleSelect = document.querySelector(`select[name="day${day}_entry_vehicle_id"]`);
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_entry_service_type"]`);
+                                    const timeSelect = document.querySelector(`select[name="day${day}_entry_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_entry_pickup_date"]`);
+                                    
+                                    // Get coordinates from hidden fields
+                                    const latField = document.querySelector(`input[name="day${day}_entry_${direction}_lat"]`);
+                                    const lngField = document.querySelector(`input[name="day${day}_entry_${direction}_lng"]`);
+                                    const placeIdField = document.querySelector(`input[name="day${day}_entry_${direction}_place_id"]`);
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_entry_total_price`)?.value || 0);
+                                        
+                                        // Get pickup and dropoff locations
+                                        const pickupField = document.querySelector(`input[name="day${day}_entry_pickup_location"]`);
+                                        const dropoffField = document.querySelector(`input[name="day${day}_entry_dropoff_location"]`);
+                                        
+                                        if (pickupField?.value && dropoffField?.value) {
+                                            const transportData = {
+                                                id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                countryCode: customerData.countryCode,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests,
+                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                                image: vehicle.dataset.image || "",
+                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                                vehicles_name: vehicle.text,
+                                                Mode: "dmc",
+                                                type: serviceTypeSelect.value || "",
+                                                vehicle_type: vehicle.dataset.vehicle_type || "",
+                                                vehicle_model: vehicle.dataset.vehicle_model || "",
+                                                model_year: vehicle.dataset.model_year || "",
+                                                seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
+                                                travel_type: "entry_port",
+                                                entrypickup: pickupField.value,
+                                                entrydropoff: dropoffField.value,
+                                                PickupPlaceid: {
+                                                    lat: latField?.value || "",
+                                                    lng: lngField?.value || ""
+                                                },
+                                                DropoffPlaceid: {
+                                                    lat: document.querySelector(`input[name="day${day}_entry_dropoff_lat"]`)?.value || "",
+                                                    lng: document.querySelector(`input[name="day${day}_entry_dropoff_lng"]`)?.value || ""
+                                                },
+                                                pickupdate: dateInput?.value || getTourDateForDay(day),
+                                                entrytime: timeSelect?.value || "12:00 PM",
+                                                adults: adultCount,
+                                                children: childCount,
+                                                totalPrice: totalPrice,
+                                                Tax: "7.00",
+                                                distance: 0,
+                                                Night_Start_Time: "10:00:00",
+                                                Night_End_Time: "20:00:00",
+                                                city: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
+                                                country: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
+                                                bookingType: "enquiry"
+                                            };
+                                            
+                                            entryPortArray.push(transportData);
+                                            console.log(`✅ Added Google Maps entry port transport: ${transportData.vehicles_name}`);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Process Google Maps exit fields
+                        googleMapsExitFields.forEach(field => {
+                            if (field.value) {
+                                const nameMatch = field.name.match(/day(\d+)_exit_(pickup|dropoff)_location/);
+                                if (nameMatch) {
+                                    const day = nameMatch[1];
+                                    const direction = nameMatch[2]; // pickup or dropoff
+                                    
+                                    console.log(`Processing Google Maps exit ${direction} field: ${field.name} = ${field.value}`);
+                                    
+                                    // Find related fields for this exit port
+                                    const vehicleSelect = document.querySelector(`select[name="day${day}_exit_vehicle_id"]`);
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_exit_service_type"]`);
+                                    const timeSelect = document.querySelector(`select[name="day${day}_exit_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_exit_pickup_date"]`);
+                                    
+                                    // Get coordinates from hidden fields
+                                    const latField = document.querySelector(`input[name="day${day}_exit_${direction}_lat"]`);
+                                    const lngField = document.querySelector(`input[name="day${day}_exit_${direction}_lng"]`);
+                                    const placeIdField = document.querySelector(`input[name="day${day}_exit_${direction}_place_id"]`);
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                        const adultCount = parseInt(document.getElementById('adult_count')?.value || 0);
+                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_exit_total_price`)?.value || 0);
+                                        
+                                        // Get pickup and dropoff locations
+                                        const pickupField = document.querySelector(`input[name="day${day}_exit_pickup_location"]`);
+                                        const dropoffField = document.querySelector(`input[name="day${day}_exit_dropoff_location"]`);
+                                        
+                                        if (pickupField?.value && dropoffField?.value) {
+                                            const transportData = {
+                                                id: `exit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                countryCode: customerData.countryCode,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests,
+                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                                image: vehicle.dataset.image || "",
+                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                                vehicles_name: vehicle.text,
+                                                Mode: "dmc",
+                                                type: serviceTypeSelect.value || "",
+                                                vehicle_type: vehicle.dataset.vehicle_type || "",
+                                                vehicle_model: vehicle.dataset.vehicle_model || "",
+                                                model_year: vehicle.dataset.model_year || "",
+                                                seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
+                                                travel_type: "exit_port",
+                                                exitpickup: pickupField.value,
+                                                exitdropoff: dropoffField.value,
+                                                PickupPlaceid: {
+                                                    lat: latField?.value || "",
+                                                    lng: lngField?.value || ""
+                                                },
+                                                DropoffPlaceid: {
+                                                    lat: document.querySelector(`input[name="day${day}_exit_dropoff_lat"]`)?.value || "",
+                                                    lng: document.querySelector(`input[name="day${day}_exit_dropoff_lng"]`)?.value || ""
+                                                },
+                                                exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                                entrytime: timeSelect?.value || "04:00 PM",
+                                                adults: adultCount,
+                                                children: childCount,
+                                                totalPrice: totalPrice,
+                                                Tax: "7.00",
+                                                distance: 0,
+                                                Night_Start_Time: "10:00:00",
+                                                Night_End_Time: "20:00:00",
+                                                city: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
+                                                country: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
+                                                bookingType: "enquiry"
+                                            };
+                                            
+                                            exitPortArray.push(transportData);
+                                            console.log(`✅ Added Google Maps exit port transport: ${transportData.vehicles_name}`);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
                     
                     // ===== FINAL SUMMARY =====
                     console.log('=== SEGREGATED TRANSPORT COLLECTION SUMMARY ===');
@@ -2210,11 +2484,17 @@
                     const entryPortDataField = document.getElementById('entry_port_data');
                     if (entryPortDataField) {
                         entryPortDataField.value = JSON.stringify(entryPortArray);
+                        console.log('✅ Set entry_port_data field:', entryPortDataField.value);
+                    } else {
+                        console.log('❌ entry_port_data field not found!');
                     }
                     
                     const exitPortDataField = document.getElementById('exit_port_data');
                     if (exitPortDataField) {
                         exitPortDataField.value = JSON.stringify(exitPortArray);
+                        console.log('✅ Set exit_port_data field:', exitPortDataField.value);
+                    } else {
+                        console.log('❌ exit_port_data field not found!');
                     }
                     
                     // Debug: Log the final values being set
@@ -2924,9 +3204,9 @@
                     } catch (error) {
                         console.error('Error saving orders:', error);
                         alert('Error saving orders: ' + error.message);
-                    }
-                }
-            </script>
+ }
+}
+</script>
                 </form>
             </div>
             
@@ -4477,7 +4757,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Get current user's DMC ID from authentication
-        const currentDmcId = '{{ auth()->user()->created_by }}';
+        const currentDmcId = '{{ $finalDmcId }}';
         console.log('Current DMC ID:', currentDmcId);
         
         // Show DMC info in loading status
@@ -4558,7 +4838,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Selected hotel data:', selectedHotel);
         
         // Get current user's DMC ID for room filtering
-        const currentDmcId = '{{ auth()->user()->created_by }}';
+        const currentDmcId = '{{ $finalDmcId }}';
         
         // Show loading state with DMC info
         if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Loading rooms for DMC...</option>';
@@ -5510,7 +5790,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                           <i class="ri-login-circle-line fs-4"></i>
                                       </span>
                                       <div>
-                                          <h6 class="mb-0 fw-bold">Entry Port Services</h6>
+                                          <h6 class="mb-0 fw-bold">Arrival Services</h6>
                                           <small class="opacity-75">Arrival transportation</small>
                                       </div>
                                       <span class="badge bg-success ms-auto">
@@ -5697,7 +5977,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                           <i class="ri-logout-circle-line fs-4"></i>
                                       </span>
                                       <div>
-                                          <h6 class="mb-0 fw-bold">Exit Port Services</h6>
+                                          <h6 class="mb-0 fw-bold">Departure Services</h6>
                                           <small class="opacity-75">Departure transportation</small>
                                       </div>
                                       <span class="badge bg-warning ms-auto">
@@ -9720,23 +10000,45 @@ document.addEventListener('DOMContentLoaded', function() {
      }
  }
  
- // Function to enable search button when pickup time changes
- function enableSearchButton(day, section) {
-     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
-     if (!searchBtn) return;
-     
-     // Normalize section name for transport type detection
-     let baseSection = section;
-     if (section === 'transport_additional' || section === 'transport_hourly') {
-         baseSection = 'transport';
-     } else if (section.match(/^transport_\d+_(additional|hourly)$/)) {
-         // Extract the index from section names like 'transport_2_additional' or 'transport_2_hourly'
-         const match = section.match(/^transport_(\d+)_(additional|hourly)$/);
-         if (match) {
-             const index = match[1];
-             baseSection = `transport_${index}`;
-         }
-     }
+// Function to enable search button when pickup time changes
+function enableSearchButton(day, section) {
+    const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+    if (!searchBtn) return;
+    
+    // Check if Point-to-Point mode is enabled
+    const isPointToPointElement = document.getElementById('is_point_to_point');
+    const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+    
+    // For entry/exit ports in Point-to-Point mode, only need city
+    if (isPointToPoint && (section === 'entry' || section === 'exit')) {
+        const citySelect = document.getElementById('city');
+        
+        if (citySelect && citySelect.value) {
+            searchBtn.disabled = false;
+            searchBtn.classList.remove('btn-secondary');
+            searchBtn.classList.add('btn-primary');
+            console.log(`Search button enabled for Point-to-Point ${section} port`);
+        } else {
+            searchBtn.disabled = true;
+            searchBtn.classList.remove('btn-primary');
+            searchBtn.classList.add('btn-secondary');
+            console.log(`Search button disabled for Point-to-Point ${section} port - missing city`);
+        }
+        return;
+    }
+    
+    // Normalize section name for transport type detection
+    let baseSection = section;
+    if (section === 'transport_additional' || section === 'transport_hourly') {
+        baseSection = 'transport';
+    } else if (section.match(/^transport_\d+_(additional|hourly)$/)) {
+        // Extract the index from section names like 'transport_2_additional' or 'transport_2_hourly'
+        const match = section.match(/^transport_(\d+)_(additional|hourly)$/);
+        if (match) {
+            const index = match[1];
+            baseSection = `transport_${index}`;
+        }
+    }
      
      // Check transport type to determine enablement criteria
      const pointToPointRadio = document.querySelector(`input[name="day${day}_${baseSection}_service_type"][value="point_to_point"]`);
@@ -10103,6 +10405,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Populate ports dropdowns after zones are loaded
                 populatePortsDropdowns();
+                
+                // Check if Point-to-Point functionality should be enabled
+                const isPointToPointElement = document.getElementById('is_point_to_point');
+                const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+                console.log('Point-to-Point check:', {
+                    element: !!isPointToPointElement,
+                    value: isPointToPointElement ? isPointToPointElement.value : 'not found',
+                    isEnabled: isPointToPoint
+                });
+                
+                if (isPointToPoint) {
+                    console.log('Point-to-Point functionality enabled (zone_on = 0)');
+                    enablePointToPointFunctionality();
+                } else {
+                    console.log('Point-to-Point functionality disabled (zone_on != 0 or not found)');
+                }
          })
          .catch(error => {
            console.error('Error fetching zones and locations:', error);
@@ -10124,10 +10442,142 @@ document.addEventListener('DOMContentLoaded', function() {
                    select.disabled = true;
                }
            });
-         });
- }
+        });
+}
 
- function loadDropoffZones(day, section) {
+// Function to enable Point-to-Point functionality when zone_on = 0
+function enablePointToPointFunctionality() {
+    console.log('Enabling Point-to-Point functionality for entry and exit ports...');
+    
+    // Find all entry and exit port zone select containers
+    const entryPickupSelects = document.querySelectorAll('select[name*="_entry_pickup_zone_id"]');
+    const entryDropoffSelects = document.querySelectorAll('select[name*="_entry_dropoff_zone_id"]');
+    const exitPickupSelects = document.querySelectorAll('select[name*="_exit_pickup_zone_id"]');
+    const exitDropoffSelects = document.querySelectorAll('select[name*="_exit_dropoff_zone_id"]');
+    
+    console.log(`Found ${entryPickupSelects.length} entry pickup selects`);
+    console.log(`Found ${entryDropoffSelects.length} entry dropoff selects`);
+    console.log(`Found ${exitPickupSelects.length} exit pickup selects`);
+    console.log(`Found ${exitDropoffSelects.length} exit dropoff selects`);
+    
+    // Convert entry pickup selects to Google Maps location inputs
+    entryPickupSelects.forEach((select, index) => {
+        if (select.name) {
+            const dayMatch = select.name.match(/day(\d+)/);
+            const day = dayMatch ? dayMatch[1] : index + 1;
+            convertSelectToLocationInput(select, day, 'entry', 'pickup');
+        }
+    });
+    
+    // Convert entry dropoff selects to Google Maps location inputs
+    entryDropoffSelects.forEach((select, index) => {
+        if (select.name) {
+            const dayMatch = select.name.match(/day(\d+)/);
+            const day = dayMatch ? dayMatch[1] : index + 1;
+            convertSelectToLocationInput(select, day, 'entry', 'dropoff');
+        }
+    });
+    
+    // Convert exit pickup selects to Google Maps location inputs
+    exitPickupSelects.forEach((select, index) => {
+        if (select.name) {
+            const dayMatch = select.name.match(/day(\d+)/);
+            const day = dayMatch ? dayMatch[1] : index + 1;
+            convertSelectToLocationInput(select, day, 'exit', 'pickup');
+        }
+    });
+    
+    // Convert exit dropoff selects to Google Maps location inputs
+    exitDropoffSelects.forEach((select, index) => {
+        if (select.name) {
+            const dayMatch = select.name.match(/day(\d+)/);
+            const day = dayMatch ? dayMatch[1] : index + 1;
+            convertSelectToLocationInput(select, day, 'exit', 'dropoff');
+        }
+    });
+    
+    // Initialize Google Maps autocomplete for the new location inputs
+    setTimeout(() => {
+        initializeGoogleMapsAutocomplete();
+        console.log('Google Maps autocomplete initialized for Point-to-Point entry/exit ports');
+        
+        // Enable search buttons for entry/exit ports since we now have location inputs
+        enablePointToPointSearchButtons();
+    }, 500);
+    
+    console.log('Point-to-Point functionality enabled successfully for entry and exit ports');
+}
+
+// Function to convert zone select to Google Maps location input
+function convertSelectToLocationInput(selectElement, day, portType, direction) {
+    const container = selectElement.closest('.position-relative') || selectElement.parentElement;
+    
+    if (!container) {
+        console.warn(`Container not found for select: ${selectElement.name}`);
+        return;
+    }
+    
+    // Create Google Maps location input HTML
+    const locationInputHtml = `
+        <input type="text" 
+               class="form-control border-2 google-maps-autocomplete" 
+               name="day${day}_${portType}_${direction}_location" 
+               id="day${day}_${portType}_${direction}_location" 
+               placeholder="Search for ${direction} location..." 
+               style="padding-left: 45px;">
+        <i class="ri-map-pin-line position-absolute text-${direction === 'pickup' ? 'success' : 'danger'} location-icon" 
+           style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+        <input type="hidden" name="day${day}_${portType}_${direction}_lat" id="day${day}_${portType}_${direction}_lat">
+        <input type="hidden" name="day${day}_${portType}_${direction}_lng" id="day${day}_${portType}_${direction}_lng">
+        <input type="hidden" name="day${day}_${portType}_${direction}_place_id" id="day${day}_${portType}_${direction}_place_id">
+    `;
+    
+    // Replace the select with location input
+    container.innerHTML = locationInputHtml;
+    container.classList.add('location-input');
+    
+    console.log(`Converted ${portType} ${direction} select to Google Maps location input for day ${day}`);
+}
+
+// Function to enable search buttons for Point-to-Point entry/exit ports
+function enablePointToPointSearchButtons() {
+    console.log('Enabling search buttons for Point-to-Point entry/exit ports...');
+    
+    // Find all entry and exit search buttons
+    const entrySearchButtons = document.querySelectorAll('button[id*="_entry_search_btn"]');
+    const exitSearchButtons = document.querySelectorAll('button[id*="_exit_search_btn"]');
+    
+    console.log(`Found ${entrySearchButtons.length} entry search buttons`);
+    console.log(`Found ${exitSearchButtons.length} exit search buttons`);
+    
+    // Check if city is selected (required for Point-to-Point vehicle search)
+    const citySelect = document.getElementById('city');
+    const citySelected = citySelect && citySelect.value;
+    
+    if (citySelected) {
+        // Enable entry port search buttons
+        entrySearchButtons.forEach(button => {
+            button.disabled = false;
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-primary');
+            console.log(`Enabled entry search button: ${button.id}`);
+        });
+        
+        // Enable exit port search buttons
+        exitSearchButtons.forEach(button => {
+            button.disabled = false;
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-primary');
+            console.log(`Enabled exit search button: ${button.id}`);
+        });
+        
+        console.log('All Point-to-Point entry/exit search buttons enabled');
+    } else {
+        console.log('City not selected - search buttons remain disabled');
+    }
+}
+
+function loadDropoffZones(day, section) {
      const pickupZoneSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
      const dropoffZoneSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
      
@@ -10509,7 +10959,7 @@ document.addEventListener('DOMContentLoaded', function() {
          vehicleSelect.innerHTML = '<option value="">Loading vehicles...</option>';
          vehicleSelect.disabled = true;
          
-         fetch(`{{ route('fetch-vehicles-by-zones') }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
+         fetch(`{{ url(route('fetch-vehicles-by-zones')) }}?from_zone_id=${fromZoneId}&to_zone_id=${toZoneId}`)
              .then(response => response.json())
              .then(data => {
                  if (data.success && data.vehicles && data.vehicles.length > 0) {
@@ -11017,6 +11467,17 @@ window.saveService = function(day, type) {
  function searchVehicles(day, section) {
      console.log(`Searching vehicles for day ${day}, section ${section}`);
      
+     // Check if Point-to-Point mode is enabled
+     const isPointToPointElement = document.getElementById('is_point_to_point');
+     const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+     
+     // For entry/exit ports in Point-to-Point mode, use city-based search
+     if (isPointToPoint && (section === 'entry' || section === 'exit')) {
+         console.log(`Point-to-Point mode detected for ${section} port - using city-based vehicle search`);
+         searchVehiclesPointToPoint(day, section);
+         return;
+     }
+     
      // Normalize section name for element selectors
      // For transport_additional and transport_hourly, use 'transport' as the base section name
      // For transport_${index}_additional and transport_${index}_hourly, use 'transport_${index}' as the base section name
@@ -11101,7 +11562,7 @@ window.saveService = function(day, type) {
          searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
          searchBtn.disabled = true;
 
-         fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+         fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
                              .then(response => response.json())
                 .then(data => {
                  console.log('Vehicle search response (city-based):', data);
@@ -11231,10 +11692,10 @@ window.saveService = function(day, type) {
             section: section,
             pickup_location: pickupZoneSelect.options[pickupZoneSelect.selectedIndex]?.text,
             dropoff_location: dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex]?.text,
-            url: `{{ route('fetch-vehicles-by-zones') }}?${params}`
+            url: `{{ url(route('fetch-vehicles-by-zones')) }}?${params}`
         });
 
-                         fetch(`{{ route('fetch-vehicles-by-zones') }}?${params}`)
+                         fetch(`{{ url(route('fetch-vehicles-by-zones')) }}?${params}`)
          .then(response => response.json())
          .then(data => {
                 console.log('Vehicle search response (zone-based):', data);
@@ -13097,9 +13558,78 @@ window.saveService = function(day, type) {
                      return true;
                  };
                  
-                 // Function to manually trigger autocomplete initialization
-                 window.manualInitAutocomplete = function() {
-                     console.log('Manually initializing Google Maps autocomplete...');
-                     initializeGoogleMapsAutocomplete();
-                 };
+                // Function to manually trigger autocomplete initialization
+                window.manualInitAutocomplete = function() {
+                    console.log('Manually initializing Google Maps autocomplete...');
+                    initializeGoogleMapsAutocomplete();
+                };
+
+                // Function to search vehicles for Point-to-Point entry/exit ports
+                window.searchVehiclesPointToPoint = function(day, section) {
+                    console.log(`Searching Point-to-Point vehicles for day ${day}, section ${section}`);
+                    
+                    const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
+                    const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+                    const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
+                    
+                    // Get city from the city select
+                    const citySelect = document.getElementById('city');
+                    if (!citySelect || !citySelect.value) {
+                        alert('Please select a city first');
+                        return;
+                    }
+                    
+                    const city = citySelect.value;
+                    console.log('Using Point-to-Point city-based endpoint for city:', city);
+
+                    // Show loading state
+                    searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+                    searchBtn.disabled = true;
+
+                    fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Point-to-Point vehicle search response:', data);
+                            if (data.success && data.vehicles && data.vehicles.length > 0) {
+                                // Populate vehicle dropdown
+                                if (vehicleSelect) {
+                                    vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                                    data.vehicles.forEach(vehicle => {
+                                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                                            data-vehicle-name="${vehicle.vehicle_name}" 
+                                            data-vehicle-type="${vehicle.vehicle_type}" 
+                                            data-seating-capacity="${vehicle.seating_capacity}">
+                                            ${vehicleInfo}
+                                        </option>`;
+                                    });
+                                    vehicleSelect.disabled = false;
+                                    
+                                    console.log(`Populated ${data.vehicles.length} vehicles for Point-to-Point ${section} port`);
+                                }
+                                
+                                // Show vehicle results section
+                                if (vehicleResultsDiv) {
+                                    vehicleResultsDiv.style.display = 'block';
+                                    vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+
+                                // Reset search button
+                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                                searchBtn.disabled = false;
+                                
+                                console.log(`Populated ${data.vehicles.length} vehicles in dropdown (Point-to-Point ${section} port)`);
+                            } else {
+                                alert('No vehicles available for this city. Please try a different city.');
+                                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                                searchBtn.disabled = false;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error searching Point-to-Point vehicles:', error);
+                            alert('Error searching vehicles. Please try again.');
+                            searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                            searchBtn.disabled = false;
+                        });
+                };
 </script>

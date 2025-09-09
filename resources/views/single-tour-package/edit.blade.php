@@ -1,5 +1,39 @@
 @extends('layouts.layout')
 @section('content')
+    @php
+        // Get current user information
+        $currentUser = auth()->user();
+        $currentUserId = $currentUser->id;
+        $currentUserRole = $currentUser->role_id;
+        
+        // Determine created_by based on role hierarchy
+        $createdBy = null;
+        $dmcUser = null;
+        $isPointToPoint = false;
+        
+        if ($currentUserRole == 34) { // Sales Head
+            $createdBy = $currentUser->created_by; // DMC
+        } elseif ($currentUserRole == 124) { // SM (Sales Manager)
+            $createdBy = $currentUserId; // Sales Head is the current user
+        } elseif ($currentUserRole == 125) { // ASM (Assistant Sales Manager)
+            $createdBy = $currentUserId; // Sales Manager is the current user
+        }
+        
+        // Get DMC user information
+        if ($createdBy) {
+            $dmcUser = \App\Models\User::find($createdBy);
+            if ($dmcUser) {
+                // Check if zone_id = 0 for Point-to-Point functionality
+                if (isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
+                    $isPointToPoint = true;
+                }
+            }
+        }
+        
+        // Final DMC ID for the form
+        $finalDmcId = $dmcUser ? $dmcUser->id : $currentUser->created_by;
+    @endphp
+    
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <!-- Google Maps API Script -->
@@ -165,6 +199,13 @@
                                     </label>
                                     <input type="text" class="form-control" value="{{ $tour->display_id ?? 'N/A' }}" readonly>
                                     <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
+                                    
+                                    <!-- DMC Information -->
+                                    <input type="hidden" id="dmc_id" name="dmc_id" value="{{ $finalDmcId }}">
+                                    <input type="hidden" id="current_user_id" name="current_user_id" value="{{ $currentUserId }}">
+                                    <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
+                                    <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
+                                    <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
                                 </div>
 
                                 <!-- Country Display -->
@@ -259,7 +300,7 @@
                                 <div class="col-md-3">
                                     <button type="button" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addTransportService(); return false;">
                                         <i class="ri-car-line fs-1 mb-2"></i>
-                                        <span class="fw-bold">Local Transport</span>
+                                        <span class="fw-bold">Arrival</span>
                                         <small class="opacity-75">Port Pickup Service</small>
                                     </button>
                                 </div>
@@ -301,7 +342,7 @@
                                 <div class="col-md-3">
                                     <button type="button" class="btn btn-success btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addDropoffService(); return false;">
                                         <i class="ri-logout-circle-line fs-1 mb-2"></i>
-                                        <span class="fw-bold">Dropoff Transport</span>
+                                        <span class="fw-bold">Departure</span>
                                         <small class="opacity-75">Hotel to Port Dropoff</small>
                                     </button>
                                 </div>
@@ -3416,8 +3457,24 @@
     }
     
     function initializeTransportModal() {
-        // Load zones for pickup
-        loadZonesForPickup();
+        // Check if Point-to-Point functionality should be enabled
+        const isPointToPointElement = document.getElementById('is_point_to_point');
+        const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+        
+        console.log('Transport modal initialization - Point-to-Point check:', {
+            element: !!isPointToPointElement,
+            value: isPointToPointElement ? isPointToPointElement.value : 'not found',
+            isEnabled: isPointToPoint
+        });
+        
+        if (isPointToPoint) {
+            console.log('Point-to-Point functionality enabled for transport modal - converting to Google Maps inputs');
+            enablePointToPointForTransportModal();
+        } else {
+            console.log('Point-to-Point functionality disabled - using zone-based selects');
+            // Load zones for pickup
+            loadZonesForPickup();
+        }
         
         // Disable service type select initially
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
@@ -3435,6 +3492,62 @@
         if (searchBtn) {
             searchBtn.addEventListener('click', searchVehicles);
         }
+    }
+    
+    // Function to enable Point-to-Point functionality for transport modal
+    function enablePointToPointForTransportModal() {
+        console.log('Enabling Point-to-Point functionality for transport modal...');
+        
+        // Convert pickup zone select to Google Maps location input
+        const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+        if (pickupZoneSelect) {
+            convertSelectToLocationInput(pickupZoneSelect, 'modal_transport', 'pickup');
+        }
+        
+        // Convert dropoff zone select to Google Maps location input
+        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+        if (dropoffZoneSelect) {
+            convertSelectToLocationInput(dropoffZoneSelect, 'modal_transport', 'dropoff');
+        }
+        
+        // Initialize Google Maps autocomplete for the new location inputs
+        setTimeout(() => {
+            initializeGoogleMapsAutocomplete();
+            console.log('Google Maps autocomplete initialized for transport modal');
+        }, 500);
+        
+        console.log('Point-to-Point functionality enabled successfully for transport modal');
+    }
+    
+    // Function to convert zone select to Google Maps location input
+    function convertSelectToLocationInput(selectElement, prefix, direction) {
+        const container = selectElement.closest('.position-relative') || selectElement.parentElement;
+        
+        if (!container) {
+            console.warn(`Container not found for select: ${selectElement.id}`);
+            return;
+        }
+        
+        // Create Google Maps location input HTML
+        const locationInputHtml = `
+            <input type="text" 
+                   class="form-control border-2 google-maps-autocomplete" 
+                   name="${prefix}_${direction}_location" 
+                   id="${prefix}_${direction}_location" 
+                   placeholder="Search for ${direction} location..." 
+                   style="padding-left: 45px;">
+            <i class="ri-map-pin-line position-absolute text-${direction === 'pickup' ? 'success' : 'danger'} location-icon" 
+               style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+            <input type="hidden" name="${prefix}_${direction}_lat" id="${prefix}_${direction}_lat">
+            <input type="hidden" name="${prefix}_${direction}_lng" id="${prefix}_${direction}_lng">
+            <input type="hidden" name="${prefix}_${direction}_place_id" id="${prefix}_${direction}_place_id">
+        `;
+        
+        // Replace the select with the new input
+        container.innerHTML = locationInputHtml;
+        container.classList.add('location-input');
+        
+        console.log(`Converted ${prefix} ${direction} select to Google Maps location input`);
     }
     
     function initializeLocalTransferModal() {
@@ -3473,6 +3586,32 @@
     }
 
     function initializeDropoffTransportModal() {
+        // Check if Point-to-Point functionality should be enabled
+        const isPointToPointElement = document.getElementById('is_point_to_point');
+        const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+        
+        console.log('Dropoff transport modal initialization - Point-to-Point check:', {
+            element: !!isPointToPointElement,
+            value: isPointToPointElement ? isPointToPointElement.value : 'not found',
+            isEnabled: isPointToPoint
+        });
+        
+        if (isPointToPoint) {
+            console.log('Point-to-Point functionality enabled for dropoff transport modal - converting to Google Maps inputs');
+            enablePointToPointForDropoffTransportModal();
+            
+            // Enable search button for point-to-point mode
+            const searchBtn = document.getElementById('dropoff_transport_search_btn');
+            if (searchBtn) {
+                searchBtn.disabled = false;
+                searchBtn.classList.remove('btn-secondary');
+                searchBtn.classList.add('btn-success');
+                console.log('Dropoff search button enabled for Point-to-Point mode');
+            }
+        } else {
+            console.log('Point-to-Point functionality disabled - using zone-based selects');
+        }
+        
         // Disable service type select initially
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
         if (serviceTypeSelect) {
@@ -3509,6 +3648,31 @@
         setTimeout(() => {
             checkDropoffFormCompletion();
         }, 100);
+    }
+    
+    // Function to enable Point-to-Point functionality for dropoff transport modal
+    function enablePointToPointForDropoffTransportModal() {
+        console.log('Enabling Point-to-Point functionality for dropoff transport modal...');
+        
+        // Convert pickup zone select to Google Maps location input
+        const pickupZoneSelect = document.getElementById('modal_dropoff_transport_pickup_zone');
+        if (pickupZoneSelect) {
+            convertSelectToLocationInput(pickupZoneSelect, 'modal_dropoff_transport', 'pickup');
+        }
+        
+        // Convert dropoff zone select to Google Maps location input
+        const dropoffZoneSelect = document.getElementById('modal_dropoff_transport_dropoff_zone');
+        if (dropoffZoneSelect) {
+            convertSelectToLocationInput(dropoffZoneSelect, 'modal_dropoff_transport', 'dropoff');
+        }
+        
+        // Initialize Google Maps autocomplete for the new location inputs
+        setTimeout(() => {
+            initializeGoogleMapsAutocomplete();
+            console.log('Google Maps autocomplete initialized for dropoff transport modal');
+        }, 500);
+        
+        console.log('Point-to-Point functionality enabled successfully for dropoff transport modal');
     }
     
     function loadZonesForPickup() {
@@ -3832,6 +3996,21 @@
     }
     
     function searchVehicles() {
+        console.log('searchVehicles called for transport modal');
+        
+        // Check if Point-to-Point mode is enabled
+        const isPointToPointElement = document.getElementById('is_point_to_point');
+        const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+        
+        if (isPointToPoint) {
+            console.log('Point-to-Point mode detected for transport modal - using city-based vehicle search');
+            searchVehiclesForTransportModalPointToPoint();
+            return;
+        }
+        
+        // Zone-based mode
+        console.log('Using zone-based vehicle search for transport modal');
+        
         const pickupZoneId = document.getElementById('modal_transport_pickup_zone').value;
         const dropoffZoneId = document.getElementById('modal_transport_dropoff_zone').value;
         const pickupTime = document.getElementById('modal_transport_pickup_time').value;
@@ -3842,31 +4021,218 @@
             return;
         }
         
-        console.log('Searching vehicles for:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        console.log('Searching vehicles for zone-based transport:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
         
-        // Show the vehicle results section
+        const searchBtn = document.getElementById('transport_search_btn');
         const vehicleResultsSection = document.getElementById('transport_vehicle_results');
-        if (vehicleResultsSection) {
-            vehicleResultsSection.style.display = 'block';
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
         }
         
-        // Load sample vehicles (replace with actual API call)
-        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
-        if (vehicleSelect) {
-            // Clear existing options
-            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+        // Make API call to fetch vehicles by zones
+        fetch(`{{ route('fetch-vehicles-by-zones') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: 'zone',
+                to_zone_type: 'zone'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Zone-based vehicle search response:', data);
             
-            // Add sample vehicles (replace with actual data from API)
-            const vehicles = @json($vehicles);
+            if (data.success && data.vehicles && data.vehicles.length > 0) {
+                // Show the vehicle results section
+                if (vehicleResultsSection) {
+                    vehicleResultsSection.style.display = 'block';
+                }
+                
+                // Populate vehicle dropdown
+                if (vehicleSelect) {
+                    vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                    data.vehicles.forEach(vehicle => {
+                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                            data-vehicle-name="${vehicle.vehicle_name}" 
+                            data-vehicle-type="${vehicle.vehicle_type}" 
+                            data-seating-capacity="${vehicle.seating_capacity}"
+                            data-private-price="${vehicle.private_price || ''}"
+                            data-shared-price="${vehicle.shared_price || ''}"
+                            data-service-type="${vehicle.service_type || ''}"
+                            data-vehicle="${JSON.stringify(vehicle)}">
+                            ${vehicleInfo}
+                        </option>`;
+                    });
+                    vehicleSelect.disabled = false;
+                }
+                
+                console.log(`Populated ${data.vehicles.length} vehicles in dropdown (zone-based transport)`);
+            } else {
+                alert('No vehicles available for this route. Please try different locations.');
+            }
             
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle.vehicle_id;
-                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
-                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
-                vehicleSelect.appendChild(option);
-            });
+            // Reset search button
+            if (searchBtn) {
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error searching vehicles:', error);
+            alert('Error searching vehicles. Please try again.');
+            if (searchBtn) {
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.disabled = false;
+            }
+        });
+    }
+    
+    // Function to search vehicles for transport modal in Point-to-Point mode
+    function searchVehiclesForTransportModalPointToPoint() {
+        console.log('Searching Point-to-Point vehicles for transport modal');
+        
+        // Get city from the city select
+        const citySelect = document.getElementById('city');
+        if (!citySelect || !citySelect.value) {
+            alert('Please select a city first');
+            return;
         }
+        
+        const city = citySelect.value;
+        const searchBtn = document.getElementById('transport_search_btn');
+        const vehicleResultsSection = document.getElementById('transport_vehicle_results');
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        
+        console.log('Using Point-to-Point city-based endpoint for city:', city);
+
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
+        }
+
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Point-to-Point vehicle search response for transport modal:', data);
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    // Show the vehicle results section
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'block';
+                    }
+                    
+                    // Populate vehicle dropdown
+                    if (vehicleSelect) {
+                        vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                        data.vehicles.forEach(vehicle => {
+                            const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                            
+                            // Debug: Log vehicle data before stringifying
+                            console.log('Vehicle data for entry point-to-point:', vehicle);
+                            
+                            try {
+                                const vehicleDataString = JSON.stringify(vehicle);
+                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                                    data-vehicle-name="${vehicle.vehicle_name}" 
+                                    data-vehicle-type="${vehicle.vehicle_type}" 
+                                    data-seating-capacity="${vehicle.seating_capacity}"
+                                    data-private-price="${vehicle.private_price || ''}"
+                                    data-shared-price="${vehicle.shared_price || ''}"
+                                    data-service-type="${vehicle.service_type || ''}"
+                                    data-cost-per-hour="${vehicle.cost_per_hour || ''}"
+                                    data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
+                                    data-vehicle="${vehicleDataString}">
+                                    ${vehicleInfo}
+                                </option>`;
+                            } catch (error) {
+                                console.error('Error stringifying vehicle data:', error);
+                                console.log('Problematic vehicle object:', vehicle);
+                                // Fallback: create option without data-vehicle attribute
+                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}">
+                                    ${vehicleInfo}
+                                </option>`;
+                            }
+                        });
+                        vehicleSelect.disabled = false;
+                        
+                        // Enable service type select
+                        if (serviceTypeSelect) {
+                            serviceTypeSelect.disabled = false;
+                        }
+                        
+                        // Add event listener for vehicle selection to update service type options
+                        vehicleSelect.addEventListener('change', function() {
+                            updateServiceTypeOptionsForTransport();
+                        });
+                        
+                        console.log(`Populated ${data.vehicles.length} vehicles for Point-to-Point transport modal`);
+                    }
+                } else {
+                    alert('No vehicles available for this city. Please try a different city.');
+                }
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error searching Point-to-Point vehicles:', error);
+                alert('Error searching vehicles. Please try again.');
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            });
+    }
+    
+    // Function to update service type options for transport modal
+    function updateServiceTypeOptionsForTransport() {
+        const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        
+        if (!vehicleSelect || !serviceTypeSelect) return;
+        
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
+            serviceTypeSelect.disabled = true;
+            return;
+        }
+        
+        // Clear existing options
+        serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
+        
+        // Always add Private option
+        const privateOption = document.createElement('option');
+        privateOption.value = 'Private';
+        privateOption.textContent = 'Private';
+        serviceTypeSelect.appendChild(privateOption);
+        
+        // Add Shared option if vehicle supports it
+        const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
+        if (vehicleData.sharable || vehicleData.shared_price) {
+            const sharedOption = document.createElement('option');
+            sharedOption.value = 'Shared';
+            sharedOption.textContent = 'Shared';
+            serviceTypeSelect.appendChild(sharedOption);
+        }
+        
+        serviceTypeSelect.disabled = false;
+        console.log('Service type options updated for transport modal');
     }
     
     function searchLocalTransferVehicles() {
@@ -4010,7 +4376,7 @@
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             
             // Update service type options based on vehicle sharable property
             updateServiceTypeOptions(vehicleData, 'modal_transport_service_type');
@@ -4027,7 +4393,7 @@
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             
             // Update service type options based on vehicle sharable property
             updateServiceTypeOptions(vehicleData, 'local_transfer_service_type');
@@ -4076,6 +4442,21 @@
     }
 
     function searchDropoffVehicles() {
+        console.log('searchDropoffVehicles called');
+        
+        // Check if Point-to-Point mode is enabled
+        const isPointToPointElement = document.getElementById('is_point_to_point');
+        const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+        
+        if (isPointToPoint) {
+            console.log('Point-to-Point mode detected for dropoff transport modal - using city-based vehicle search');
+            searchDropoffVehiclesForPointToPoint();
+            return;
+        }
+        
+        // Zone-based mode
+        console.log('Using zone-based vehicle search for dropoff transport modal');
+        
         const pickupZoneId = document.getElementById('modal_dropoff_transport_pickup_zone').value;
         const dropoffZoneId = document.getElementById('modal_dropoff_transport_dropoff_zone').value;
         const pickupTime = document.getElementById('modal_dropoff_transport_pickup_time').value;
@@ -4086,31 +4467,209 @@
             return;
         }
         
-        console.log('Searching vehicles for dropoff service:', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
+        console.log('Searching vehicles for dropoff service (zone-based):', { pickupZoneId, dropoffZoneId, pickupTime, pickupDate });
         
-        // Show the vehicle results section
+        const searchBtn = document.getElementById('dropoff_transport_search_btn');
         const vehicleResultsSection = document.getElementById('dropoff_vehicle_results');
-        if (vehicleResultsSection) {
-            vehicleResultsSection.style.display = 'block';
+        const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
+        
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
         }
         
-        // Load sample vehicles (same as pickup service)
-        const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
-        if (vehicleSelect) {
-            // Clear existing options
-            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+        // Make API call to fetch vehicles by zones
+        fetch(`{{ route('fetch-vehicles-by-zones') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                from_zone_id: pickupZoneId,
+                to_zone_id: dropoffZoneId,
+                from_zone_type: 'zone',
+                to_zone_type: 'zone'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Zone-based dropoff vehicle search response:', data);
             
-            // Add sample vehicles (same data as pickup service)
-            const vehicles = @json($vehicles);
+            if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    // Show the vehicle results section
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'block';
+                        vehicleResultsSection.style.visibility = 'visible';
+                        vehicleResultsSection.classList.remove('d-none');
+                        vehicleResultsSection.classList.add('d-block');
+                        console.log('Dropoff vehicle results section shown (zone-based)');
+                    } else {
+                        console.error('Dropoff vehicle results section not found!');
+                    }
+                
+                // Populate vehicle dropdown
+                if (vehicleSelect) {
+                    vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                    data.vehicles.forEach(vehicle => {
+                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                            data-vehicle-name="${vehicle.vehicle_name}" 
+                            data-vehicle-type="${vehicle.vehicle_type}" 
+                            data-seating-capacity="${vehicle.seating_capacity}"
+                            data-private-price="${vehicle.private_price || ''}"
+                            data-shared-price="${vehicle.shared_price || ''}"
+                            data-service-type="${vehicle.service_type || ''}"
+                            data-vehicle="${JSON.stringify(vehicle)}">
+                            ${vehicleInfo}
+                        </option>`;
+                    });
+                    vehicleSelect.disabled = false;
+                    
+                    // Enable service type select
+                    if (serviceTypeSelect) {
+                        serviceTypeSelect.disabled = false;
+                    }
+                    
+                    // Add event listener for vehicle selection
+                    vehicleSelect.addEventListener('change', function() {
+                        updateDropoffVehicleDetails();
+                    });
+                    
+                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown (zone-based dropoff)`);
+                } else {
+                    console.error('Dropoff vehicle select not found!');
+                }
+            } else {
+                alert('No vehicles available for this route. Please try different locations.');
+            }
             
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle.vehicle_id;
-                option.textContent = `${vehicle.vehicle_name} (${vehicle.seating_capacity} seats)`;
-                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
-                vehicleSelect.appendChild(option);
-            });
+            // Reset search button
+            if (searchBtn) {
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error searching dropoff vehicles:', error);
+            alert('Error searching vehicles. Please try again.');
+            if (searchBtn) {
+                searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                searchBtn.disabled = false;
+            }
+        });
+    }
+    
+    // Function to search dropoff vehicles for Point-to-Point mode
+    function searchDropoffVehiclesForPointToPoint() {
+        console.log('Searching Point-to-Point vehicles for dropoff transport modal');
+        
+        // Get city from the city select
+        const citySelect = document.getElementById('city');
+        if (!citySelect || !citySelect.value) {
+            alert('Please select a city first');
+            return;
         }
+        
+        const city = citySelect.value;
+        const searchBtn = document.getElementById('dropoff_transport_search_btn');
+        const vehicleResultsSection = document.getElementById('dropoff_vehicle_results');
+        const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
+        const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
+        
+        console.log('Using Point-to-Point city-based endpoint for city:', city);
+
+        // Show loading state
+        if (searchBtn) {
+            searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
+            searchBtn.disabled = true;
+        }
+
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Point-to-Point dropoff vehicle search response:', data);
+                
+                if (data.success && data.vehicles && data.vehicles.length > 0) {
+                    // Show the vehicle results section
+                    if (vehicleResultsSection) {
+                        vehicleResultsSection.style.display = 'block';
+                        vehicleResultsSection.style.visibility = 'visible';
+                        vehicleResultsSection.classList.remove('d-none');
+                        vehicleResultsSection.classList.add('d-block');
+                        console.log('Dropoff vehicle results section shown (point-to-point)');
+                    } else {
+                        console.error('Dropoff vehicle results section not found!');
+                    }
+                    
+                    // Populate vehicle dropdown
+                    if (vehicleSelect) {
+                        vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
+                        data.vehicles.forEach(vehicle => {
+                            const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
+                            
+                            // Debug: Log vehicle data before stringifying
+                            console.log('Vehicle data for dropoff point-to-point:', vehicle);
+                            
+                            try {
+                                const vehicleDataString = JSON.stringify(vehicle);
+                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                                    data-vehicle-name="${vehicle.vehicle_name}" 
+                                    data-vehicle-type="${vehicle.vehicle_type}" 
+                                    data-seating-capacity="${vehicle.seating_capacity}"
+                                    data-private-price="${vehicle.private_price || ''}"
+                                    data-shared-price="${vehicle.shared_price || ''}"
+                                    data-service-type="${vehicle.service_type || ''}"
+                                    data-cost-per-hour="${vehicle.cost_per_hour || ''}"
+                                    data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
+                                    data-vehicle="${vehicleDataString}">
+                                    ${vehicleInfo}
+                                </option>`;
+                            } catch (error) {
+                                console.error('Error stringifying vehicle data:', error);
+                                console.log('Problematic vehicle object:', vehicle);
+                                // Fallback: create option without data-vehicle attribute
+                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}">
+                                    ${vehicleInfo}
+                                </option>`;
+                            }
+                        });
+                        vehicleSelect.disabled = false;
+                        
+                        // Enable service type select
+                        if (serviceTypeSelect) {
+                            serviceTypeSelect.disabled = false;
+                        }
+                        
+                        // Add event listener for vehicle selection
+                        vehicleSelect.addEventListener('change', function() {
+                            updateDropoffVehicleDetails();
+                        });
+                        
+                        console.log(`Populated ${data.vehicles.length} vehicles for Point-to-Point dropoff transport modal`);
+                    } else {
+                        console.error('Dropoff vehicle select not found!');
+                    }
+                } else {
+                    alert('No vehicles available for this city. Please try a different city.');
+                }
+                
+                // Reset search button
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error searching Point-to-Point dropoff vehicles:', error);
+                alert('Error searching vehicles. Please try again.');
+                if (searchBtn) {
+                    searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+                    searchBtn.disabled = false;
+                }
+            });
     }
 
     function updateDropoffVehicleDetails() {
@@ -4120,7 +4679,7 @@
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             
             // Update service type options based on vehicle sharable property
             updateServiceTypeOptions(vehicleData, 'modal_dropoff_transport_service_type');
@@ -4153,7 +4712,7 @@
         
         if (vehicleSelect.value && serviceTypeSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             const serviceType = serviceTypeSelect.value;
             const validatedPassengers = parseInt(passengersInput.value) || 1;
             
@@ -4193,16 +4752,57 @@
 
     function confirmDropoffTransportSelection() {
         const formData = new FormData(document.getElementById('dropoffTransportSelectionForm'));
-        const pickupZoneId = formData.get('pickup_zone_id');
-        const dropoffZoneId = formData.get('dropoff_zone_id');
         const pickupTime = formData.get('pickup_time');
         const vehicleId = formData.get('vehicle_id');
         const serviceType = formData.get('service_type');
         const customer_info = getCustomerInfo();
         
-        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
-            showNotification('Please complete all required fields', 'warning');
-            return;
+        // Check if Point-to-Point mode is enabled
+        const isPointToPointElement = document.getElementById('is_point_to_point');
+        const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+        
+        let pickupZoneId, dropoffZoneId, pickupZoneName, dropoffZoneName;
+        
+        if (isPointToPoint) {
+            // Point-to-Point mode: get data from Google Maps inputs
+            const pickupLocation = document.getElementById('modal_dropoff_transport_pickup_location');
+            const dropoffLocation = document.getElementById('modal_dropoff_transport_dropoff_location');
+            const pickupLat = document.getElementById('modal_dropoff_transport_pickup_lat');
+            const pickupLng = document.getElementById('modal_dropoff_transport_pickup_lng');
+            const dropoffLat = document.getElementById('modal_dropoff_transport_dropoff_lat');
+            const dropoffLng = document.getElementById('modal_dropoff_transport_dropoff_lng');
+            
+            if (!pickupLocation || !dropoffLocation || !pickupTime || !vehicleId || !serviceType) {
+                showNotification('Please complete all required fields', 'warning');
+                return;
+            }
+            
+            pickupZoneId = pickupLat.value + ',' + pickupLng.value;
+            dropoffZoneId = dropoffLat.value + ',' + dropoffLng.value;
+            pickupZoneName = pickupLocation.value;
+            dropoffZoneName = dropoffLocation.value;
+            
+            console.log('Point-to-Point dropoff transport data:', {
+                pickupLocation: pickupLocation.value,
+                dropoffLocation: dropoffLocation.value,
+                pickupCoords: pickupZoneId,
+                dropoffCoords: dropoffZoneId
+            });
+        } else {
+            // Zone-based mode: get data from form
+            pickupZoneId = formData.get('pickup_zone_id');
+            dropoffZoneId = formData.get('dropoff_zone_id');
+            
+            if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
+                showNotification('Please complete all required fields', 'warning');
+                return;
+            }
+            
+            // Get zone names for display
+            const pickupZoneSelect = document.getElementById('modal_dropoff_transport_pickup_zone');
+            const dropoffZoneSelect = document.getElementById('modal_dropoff_transport_dropoff_zone');
+            pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
+            dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
         }
         
         console.log('Customer info for dropoff transport:', customer_info);
@@ -4210,13 +4810,17 @@
         // Get selected vehicle details
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
-        
-        // Get zone names for display
-        const pickupZoneSelect = document.getElementById('modal_dropoff_transport_pickup_zone');
-        const dropoffZoneSelect = document.getElementById('modal_dropoff_transport_dropoff_zone');
-        const pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
-        const dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
+        let vehicleData = {};
+        if (selectedOption) {
+            try {
+                const vehicleDataString = selectedOption.getAttribute('data-vehicle');
+                vehicleData = vehicleDataString ? JSON.parse(vehicleDataString) : {};
+            } catch (error) {
+                console.error('Error parsing vehicle data:', error);
+                console.log('Raw vehicle data string:', selectedOption.getAttribute('data-vehicle'));
+                vehicleData = {};
+            }
+        }
 
         // Get tour details
         const tourId = document.getElementById('modal_dropoff_transport_tour_id').value;
@@ -4349,7 +4953,7 @@
         
         if (vehicleSelect.value && serviceTypeSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             const serviceType = serviceTypeSelect.value;
             const passengers = parseInt(passengersInput.value) || 1;
             
@@ -4410,7 +5014,7 @@
         
         if (vehicleSelect.value && serviceTypeSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle'));
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             const serviceType = serviceTypeSelect.value;
             const validatedPassengers = parseInt(passengersInput.value) || 1;
             
@@ -4451,16 +5055,57 @@
 
     function confirmTransportSelection() {
         const formData = new FormData(document.getElementById('transportSelectionForm'));
-        const pickupZoneId = formData.get('pickup_zone_id');
-        const dropoffZoneId = formData.get('dropoff_zone_id');
         const pickupTime = formData.get('pickup_time');
         const vehicleId = formData.get('vehicle_id');
         const serviceType = formData.get('service_type');
         const customer_info = getCustomerInfo();
         
-        if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
-            showNotification('Please complete all required fields', 'warning');
-            return;
+        // Check if Point-to-Point mode is enabled
+        const isPointToPointElement = document.getElementById('is_point_to_point');
+        const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
+        
+        let pickupZoneId, dropoffZoneId, pickupZoneName, dropoffZoneName;
+        
+        if (isPointToPoint) {
+            // Point-to-Point mode: get data from Google Maps inputs
+            const pickupLocation = document.getElementById('modal_transport_pickup_location');
+            const dropoffLocation = document.getElementById('modal_transport_dropoff_location');
+            const pickupLat = document.getElementById('modal_transport_pickup_lat');
+            const pickupLng = document.getElementById('modal_transport_pickup_lng');
+            const dropoffLat = document.getElementById('modal_transport_dropoff_lat');
+            const dropoffLng = document.getElementById('modal_transport_dropoff_lng');
+            
+            if (!pickupLocation || !dropoffLocation || !pickupTime || !vehicleId || !serviceType) {
+                showNotification('Please complete all required fields', 'warning');
+                return;
+            }
+            
+            pickupZoneId = pickupLat.value + ',' + pickupLng.value;
+            dropoffZoneId = dropoffLat.value + ',' + dropoffLng.value;
+            pickupZoneName = pickupLocation.value;
+            dropoffZoneName = dropoffLocation.value;
+            
+            console.log('Point-to-Point entry transport data:', {
+                pickupLocation: pickupLocation.value,
+                dropoffLocation: dropoffLocation.value,
+                pickupCoords: pickupZoneId,
+                dropoffCoords: dropoffZoneId
+            });
+        } else {
+            // Zone-based mode: get data from form
+            pickupZoneId = formData.get('pickup_zone_id');
+            dropoffZoneId = formData.get('dropoff_zone_id');
+            
+            if (!pickupZoneId || !dropoffZoneId || !pickupTime || !vehicleId || !serviceType) {
+                showNotification('Please complete all required fields', 'warning');
+                return;
+            }
+            
+            // Get location details
+            const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
+            const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
+            pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
+            dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
         }
         
         console.log('Customer info:', customer_info);
@@ -4468,7 +5113,17 @@
         // Get selected vehicle details
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
+        let vehicleData = {};
+        if (selectedOption) {
+            try {
+                const vehicleDataString = selectedOption.getAttribute('data-vehicle');
+                vehicleData = vehicleDataString ? JSON.parse(vehicleDataString) : {};
+            } catch (error) {
+                console.error('Error parsing vehicle data:', error);
+                console.log('Raw vehicle data string:', selectedOption.getAttribute('data-vehicle'));
+                vehicleData = {};
+            }
+        }
         
         console.log('Vehicle data:', vehicleData);
         
@@ -4482,15 +5137,9 @@
         const passengers = document.getElementById('modal_transport_passengers').value;
         const totalPrice = document.getElementById('modal_transport_total_price').value;
         
-        // Get location details
-        const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
-        const dropoffZoneSelect = document.getElementById('modal_transport_dropoff_zone');
-        const pickupZoneName = pickupZoneSelect.options[pickupZoneSelect.selectedIndex].text;
-        const dropoffZoneName = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex].text;
-        
         // Get the pickup and dropoff values (values are already the IDs)
-        const pickupValue = pickupZoneSelect.value;
-        const dropoffValue = dropoffZoneSelect.value;
+        const pickupValue = pickupZoneId;
+        const dropoffValue = dropoffZoneId;
         
         // Check if this is a local transfer or transport service
         const isLocalTransfer = document.getElementById('transportSelectionModalLabel').innerHTML.includes('Local Transfer');
@@ -5191,8 +5840,6 @@
         // Show restaurant selection modal
         showRestaurantSelectionModal(tourId, country, city, startDate, endDate);
     }
-    
-
     
     // Hotel Modal Functions
     function initializeHotelModal() {

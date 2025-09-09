@@ -377,7 +377,7 @@
                     <h6 class="mb-2 text-success">How to create an agency:</h6>
                     <ul class="mb-0 small">
                         <li><strong>Step 1:</strong> Fill in the head office information below (marked with "Head Office" badge)</li>
-                        <li><strong>Step 2:</strong> Select country first, then city and ID card types will auto-populate with search functionality</li>
+                        <li><strong>Step 2:</strong> Select country first, then city and Govt. ID card types will auto-populate with search functionality</li>
                         <li><strong>Step 3:</strong> Choose appropriate ID card type and enter card number for verification</li>
                         <li><strong>Step 4:</strong> Click "Add Branch" to add additional branch offices (optional)</li>
                         <li><strong>Step 5:</strong> Each branch requires all fields including ID card details</li>
@@ -387,7 +387,7 @@
             </div>
         </div>
 
-        <form action="{{ route('agencies.store') }}" method="POST" id="agencyForm">
+        <form action="{{ route('agencies.store') }}" method="POST" id="agencyForm" enctype="multipart/form-data">
             @csrf
             
             <!-- Head Office Section -->
@@ -495,6 +495,45 @@
                             @enderror
                         </div>
 
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="contact_person" class="form-label">
+                                <i class="ri-user-line text-primary"></i>
+                                Contact Person <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('contact_person') is-invalid @enderror" 
+                                   id="contact_person" 
+                                   name="contact_person" 
+                                   value="{{ old('contact_person') }}" 
+                                   placeholder="Enter contact person (e.g., John Doe)"
+                                   required>
+                            @error('contact_person')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- Agency Logo -->
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="agency_logo" class="form-label">
+                                <i class="ri-image-line text-primary"></i>
+                                Agency Logo
+                            </label>
+                            <input type="file" 
+                                   class="form-control @error('agency_logo') is-invalid @enderror" 
+                                   id="agency_logo" 
+                                   name="agency_logo" 
+                                   accept="image/*"
+                                   onchange="previewLogo(this)">
+                            <small class="text-muted">Accepted formats: JPG, PNG, GIF (Max: 2MB)</small>
+                            @error('agency_logo')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <!-- Logo Preview -->
+                            <div id="logoPreview" class="mt-2" style="display: none;">
+                                <img id="logoImage" src="" alt="Logo Preview" style="max-width: 150px; max-height: 100px; border-radius: 8px; border: 2px solid #e3e6f0;">
+                            </div>
+                        </div>
+
                         <!-- Postal Code -->
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="postal_code" class="form-label">
@@ -516,7 +555,7 @@
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="id_card_type" class="form-label">
                                 <i class="ri-bank-card-line text-primary"></i>
-                                ID Card Type <span class="text-danger">*</span>
+                                Govt. ID Card Type <span class="text-danger">*</span>
                             </label>
                             <select class="form-select select2 @error('id_card_type') is-invalid @enderror" 
                                     id="id_card_type" 
@@ -696,7 +735,7 @@
                 <div class="col-lg-6 col-md-6 mb-3">
                     <label class="form-label">
                         <i class="ri-bank-card-line text-primary"></i>
-                        ID Card Type <span class="text-danger">*</span>
+                        Govt. ID Card Type <span class="text-danger">*</span>
                     </label>
                     <select class="form-select select2 branch-card-type" 
                             name="branches[INDEX][id_card_type]">
@@ -1020,5 +1059,39 @@ $(document).ready(function() {
     // Test the Ajax route on page load (for debugging)
     console.log('Agency create page loaded. Testing Ajax route...');
 });
+
+// Logo preview function
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // Validate file size (2MB max)
+        if (file.size > 2 * 1024 * 1024) {
+            showNotification('File size must be less than 2MB', 'error');
+            input.value = '';
+            $('#logoPreview').hide();
+            return;
+        }
+        
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!validTypes.includes(file.type)) {
+            showNotification('Please select a valid image file (JPG, PNG, GIF)', 'error');
+            input.value = '';
+            $('#logoPreview').hide();
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            $('#logoImage').attr('src', e.target.result);
+            $('#logoPreview').show();
+            showNotification('Logo preview loaded successfully!', 'success');
+        };
+        reader.readAsDataURL(file);
+    } else {
+        $('#logoPreview').hide();
+    }
+}
 </script>
 @endsection 

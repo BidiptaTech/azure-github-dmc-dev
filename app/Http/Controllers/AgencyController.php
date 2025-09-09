@@ -23,20 +23,19 @@ class AgencyController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
-        $authUser = Auth::user();
+        $user = Auth::user();
         // Filter agencies that have the current DMC ID in their dmc_id JSON field
-        if($authUser->role_id == 1 || $authUser->role_id == 2 || $authUser->role_id == 3 || $authUser->role_id == 4 || $authUser->role_id == 19 || $authUser->role_id == 20){
+        if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $agencies = Agency::with(['creator', 'updater'])
-                         ->orderBy('created_at', 'desc')
-                         ->get();
+                    ->whereJsonContains('dmc_id', $dmc_id)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
         }
         else{
             $agencies = Agency::with(['creator', 'updater'])
-                         ->whereJsonContains('dmc_id', $dmc_id)
-                         ->orderBy('created_at', 'desc')
-                         ->get();
+                    ->orderBy('created_at', 'desc')
+                    ->get();
         }
-        
                          
         return view('agencies.index', compact('agencies'));
     }
@@ -61,10 +60,12 @@ class AgencyController extends Controller
             'phone' => 'required|string|max:20',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
+            'contact_person' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
             'id_card_type' => 'string|max:255',
-            'card_number' => 'string|max:50',  
+            'card_number' => 'string|max:50',
+            'agency_logo' => 'required|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'branches' => 'nullable|array',
             'branches.*.email' => 'required_with:branches|email',
             'branches.*.phone' => 'required_with:branches|string|max:20',
@@ -92,6 +93,17 @@ class AgencyController extends Controller
         }
 
         if ($deletedAgency && $deletedAgency->trashed()) {
+            // Handle logo upload for restored agency
+            $logoPath = $deletedAgency->logo; // Keep existing logo by default
+            if ($request->hasFile('agency_logo')) {
+                try {
+                    $logoUpload = CommonHelper::image_path('file_storage', $request->file('agency_logo'), 'agencies');
+                    $logoPath = $logoUpload['master_value'];
+                } catch (\Exception $e) {
+                    return redirect()->back()->with('error', 'Failed to upload logo: ' . $e->getMessage());
+                }
+            }
+            
             // Restore and update
             $deletedAgency->restore();
             $deletedAgency->fill([
@@ -100,16 +112,29 @@ class AgencyController extends Controller
                 'phone' => $request->input('phone'),
                 'country' => $request->input('country'),
                 'city' => $request->input('city'),
+                'contact_person' => $request->input('contact_person'),
                 'address' => $request->input('address'),
                 'postal_code' => $request->input('postal_code'),
                 'id_card_type' => $request->input('id_card_type'),
                 'card_number' => $request->input('card_number'),
                 'branches' => $request->input('branches', []),
+                'logo' => $logoPath,
                 'updated_by' => Auth::user()->userId,
             ]);
             $deletedAgency->save();
 
             return redirect()->route('agencies.index')->with('success', 'Soft-deleted agency restored and updated successfully!');
+        }
+
+        // Handle logo upload if provided
+        $logoPath = null;
+        if ($request->hasFile('agency_logo')) {
+            try {
+                $logoUpload = CommonHelper::image_path('file_storage', $request->file('agency_logo'));
+                $logoPath = $logoUpload['master_value'];
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'Failed to upload logo: ' . $e->getMessage());
+            }
         }
 
         // Generate unique agency_id following the same pattern as AgentController
@@ -129,13 +154,15 @@ class AgencyController extends Controller
         $agency->phone = $request->input('phone');
         $agency->country = $request->input('country');
         $agency->city = $request->input('city');
+        $agency->contact_person = $request->input('contact_person');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
         $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
         $agency->branches = $request->input('branches', []);
+        $agency->logo = $logoPath;
         $agency->created_by = Auth::user()->userId;
-        $agency->dmc_id = !$isAdmin ? [$dmc_id] : null;
+        $agency->dmc_id = is_array($dmc_id) ? $dmc_id : [$dmc_id];
 
         if ($agency->save()) {
             return redirect()->route('agencies.index')->with('success', 'Agency created successfully!');
@@ -175,10 +202,12 @@ class AgencyController extends Controller
             'phone' => 'required|string|max:20',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
+            'contact_person' => 'required|string|max:255',
             'address' => 'required|string',
             'postal_code' => 'nullable|string|max:20',
             'id_card_type' => 'string|max:255',
             'card_number' => 'string|max:50',
+            'agency_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'branches' => 'nullable|array',
             'branches.*.email' => 'required_with:branches|email',
             'branches.*.phone' => 'required_with:branches|string|max:20',
@@ -194,11 +223,25 @@ class AgencyController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        // Handle logo upload if provided
+        if ($request->hasFile('agency_logo')) {
+            try {
+                $logoUpload = CommonHelper::image_path('file_storage', $request->file('agency_logo'));
+                $agency->logo = $logoUpload['master_value'];
+            } catch (\Exception $e) {
+                return redirect()->back()->with('error', 'Failed to upload logo: ' . $e->getMessage());
+            }
+        } elseif ($request->input('clear_logo') == '1') {
+            // Clear the logo if requested
+            $agency->logo = null;
+        }
+
         $agency->agency_name = $request->input('agency_name');
         $agency->email = $request->input('email');
         $agency->phone = $request->input('phone');
         $agency->country = $request->input('country');
         $agency->city = $request->input('city');
+        $agency->contact_person = $request->input('contact_person');
         $agency->address = $request->input('address');
         $agency->postal_code = $request->input('postal_code');
         $agency->id_card_type = $request->input('id_card_type');
@@ -324,7 +367,7 @@ class AgencyController extends Controller
     {
         // Check if user is DMC (role_id = 11) or has allowed roles
         $user = Auth::user();
-        $allowedRoles = [1,2,3,4,10,11, 19, 20, 33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11,33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
         }
@@ -360,7 +403,7 @@ class AgencyController extends Controller
             $agencyId = $request->input('agency_id');
             $user = Auth::user();
 
-            $allowedRoles = [1,2,3,4,10,11, 19, 20, 33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11,33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138, 128, 129, 134];
             if (!in_array($user->role_id, $allowedRoles)) {
                 return response()->json([
                     'success' => false,
@@ -425,7 +468,7 @@ class AgencyController extends Controller
             $agencyId = $request->input('agency_id');
             $user = Auth::user();
 
-            $allowedRoles = [1,2,3,4,10,11, 19, 20, 33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11,33, 35, 37, 38, 74, 93, 130, 132, 133, 135, 136, 137, 138, 128, 129, 134];
             if (!in_array($user->role_id, $allowedRoles)) {
                 return response()->json([
                     'success' => false,
@@ -480,15 +523,15 @@ class AgencyController extends Controller
     {
         $user = Auth::user();
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4  || $user->role_id == 19|| $user->role_id == 20){
-            $virtualDMC = \App\Models\User::where('role_id', 20)->first();
-            if (!$virtualDMC) {
-                throw new \Exception('Virtual DMC user not found.');
-            }
-            $dmc_id = $virtualDMC->userId;
+            // $virtualDMC = \App\Models\User::where('role_id', 20)->first();
+            // if (!$virtualDMC) {
+            //     throw new \Exception('Virtual DMC user not found.');
+            // }
+            $dmc_id = [];
         }
         elseif($user->role_id == 11){
             $dmc_id = $user->userId;
-        }else if($user->role_id == 35 || in_array($user->role_id, [33,130, 132, 133, 135, 136, 137, 138])){
+        }else if($user->role_id == 35 || in_array($user->role_id, [33, 128, 129, 130, 134, 135, 136, 138])){
             $dmc_id = $user->created_by;
         }else if($user->role_id == 74 || $user->role_id == 37){
             $user_product_head = \App\Models\User::where('userId', $user->created_by)->first();
