@@ -100,7 +100,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   const [countries, setCountries] = useState([]);
   
   const dispatch = useDispatch();
-  const user_country = useSelector((state) => state.auth.user_country);
+  const global_countries = useSelector((state) => state.auth.global_countries);
   const { loading: dmcLoading, error: dmcError } = useSelector((state) => state.dmc);
   
   const defaultCountries = [
@@ -117,12 +117,10 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   ];
 
   useEffect(() => {
-    console.log('User country from Redux:', user_country);
-    
-    const locationContent = user_country && Array.isArray(user_country)
-      ? user_country.map((country, index) => ({
+    const locationContent = global_countries && Array.isArray(global_countries)
+      ? global_countries.map((country, index) => ({
           name: country.name,
-          code: country.code,
+          code: country.country_code,
           key: `country-${index}`
         }))
       : defaultCountries;
@@ -130,9 +128,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
     // Extract just the country names for the autocomplete
     const countryNames = locationContent.map(country => country.name);
     setCountries(countryNames);
-    
-    console.log('Location content:', locationContent);
-  }, [user_country]);
+  }, [global_countries]);
 
   const handleCountryChange = (event, newValue) => {
     setSelectedCountry(newValue || '');
