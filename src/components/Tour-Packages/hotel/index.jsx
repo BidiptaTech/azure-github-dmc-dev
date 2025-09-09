@@ -569,16 +569,18 @@ export default function HotelComponent({ searchParams }) {
 
   // Handler for removing hotel configuration by specific index (for HotelConfigSummary)
   const removeHotelConfiguration = (index) => {
-    console.log("Remove hotel configuration at index:", index);
+   
     
     setHotelConfigurations(prevConfigurations => {
+      // Always allow removing configurations, including the last one
+      // The useEffect will create a new empty placeholder if needed
       if (prevConfigurations.length <= 1) {
-        console.log("Cannot remove hotel: Only one configuration remaining");
-        return prevConfigurations; // Don't remove if it's the last one
+       
+        return []; // Remove the configuration, useEffect will create a new empty one
       }
       
       const newConfigurations = prevConfigurations.filter((_, i) => i !== index);
-      console.log("Hotel configuration removed. New configurations count:", newConfigurations.length);
+      
       return newConfigurations;
     });
     
@@ -587,16 +589,16 @@ export default function HotelComponent({ searchParams }) {
       if (prevIndex === index) {
         // If we removed the active hotel, select the previous one (or 0 if it was the first)
         const newIndex = Math.max(0, prevIndex - 1);
-        console.log("Active hotel index updated from", prevIndex, "to", newIndex, "(removed active hotel)");
+        
         return newIndex;
       } else if (prevIndex > index) {
         // If we removed a hotel before the active one, shift the active index down
         const newIndex = prevIndex - 1;
-        console.log("Active hotel index updated from", prevIndex, "to", newIndex, "(removed hotel before active)");
+        
         return newIndex;
       }
       // If we removed a hotel after the active one, keep the same index
-      console.log("Active hotel index remains", prevIndex, "(removed hotel after active)");
+     
       return prevIndex;
     });
   };
@@ -618,19 +620,13 @@ export default function HotelComponent({ searchParams }) {
         checkInDate = moment(tourSearchCriteria.checkIn, 'DD/MM/YYYY');
         checkOutDate = moment(tourSearchCriteria.checkOut, 'DD/MM/YYYY');
       }
-      console.log("Hotel component dates - Using tour package search criteria (full tour range):", {
-        checkIn: checkInDate.format('YYYY-MM-DD'),
-        checkOut: checkOutDate.format('YYYY-MM-DD')
-      });
+    
     }
     // PRIORITY 2: Use dates from Redux hotel searchState
     else if (searchState?.ucheckIn && searchState?.ucheckOut) {
       checkInDate = moment(searchState.ucheckIn, 'YYYY-MM-DD');
       checkOutDate = moment(searchState.ucheckOut, 'YYYY-MM-DD');
-      console.log("Hotel component dates - Using hotel search state (fallback):", {
-        checkIn: checkInDate.format('YYYY-MM-DD'),
-        checkOut: checkOutDate.format('YYYY-MM-DD')
-      });
+    
     } 
     // PRIORITY 3: Try searchCriteria (formatted dates)
     else if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
