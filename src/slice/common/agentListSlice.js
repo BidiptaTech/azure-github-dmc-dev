@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import Cookies from "js-cookie";
+import { logoutUser } from './authSlices';
 
 import { BASE_URL } from '@/services/api';
 
@@ -67,6 +68,18 @@ const agentListSlice =createSlice({
             state.loading =false;
             state.error =action.payload ||"Failed to fetch agent list"
 
+        })
+        .addCase(logoutUser.fulfilled, (state) => {
+            // Clear agent list when user logs out successfully
+            state.agents = [];
+            state.loading = false;
+            state.error = null;
+        })
+        .addCase(logoutUser.rejected, (state) => {
+            // Clear agent list even if logout fails
+            state.agents = [];
+            state.loading = false;
+            state.error = null;
         })
     }
 
