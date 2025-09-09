@@ -2469,7 +2469,7 @@ export default function Pending() {
                               {!list.tour_status?.toLowerCase().startsWith("cancel") && (
                                 <>
                                   {/* Only render Edit button if editOff is not 1 */}
-                                  {list.editOff !== 1 && (
+                                
                                     <Tooltip title="Add More Services" arrow>
                                       <IconButton
                                         size="small"
@@ -2487,7 +2487,7 @@ export default function Pending() {
                                         <Edit sx={{ fontSize: "14px" }} />
                                       </IconButton>
                                     </Tooltip>
-                                  )}
+                                  
 
                                   {/* Negotiate button for enquiry type and Agent role */}
                                   {list.booking_type === "enquiry" && userRole === "Agent" && (
