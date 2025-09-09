@@ -378,7 +378,7 @@
                     <ul class="mb-0 small">
                         <li><strong>Step 1:</strong> Update head office information below (marked with "Head Office" badge)</li>
                         <li><strong>Step 2:</strong> Country selection will auto-populate cities and ID card types with search functionality</li>
-                        <li><strong>Step 3:</strong> Update ID card type and card number for verification</li>
+                        <li><strong>Step 3:</strong> Update Govt. ID card type and card number for verification</li>
                         <li><strong>Step 4:</strong> Use "Add Branch" to add new branches or "Remove" to delete existing ones</li>
                         <li><strong>Step 5:</strong> All changes will be saved when you click "Update Agency"</li>
                     </ul>
@@ -386,7 +386,7 @@
             </div>
         </div>
 
-        <form action="{{ route('agencies.update', $agency->agency_id) }}" method="POST" id="agencyForm">
+        <form action="{{ route('agencies.update', $agency->agency_id) }}" method="POST" id="agencyForm" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             
@@ -497,6 +497,74 @@
                             @error('city')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                        </div>
+
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="contact_person" class="form-label">
+                                <i class="ri-user-line text-primary"></i>
+                                Contact Person <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('contact_person') is-invalid @enderror" 
+                                   id="contact_person" 
+                                   name="contact_person" 
+                                   value="{{ old('contact_person', $agency->contact_person) }}" 
+                                   placeholder="Enter contact person (e.g., John Doe)"
+                                   required>
+                            @error('contact_person')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- Agency Logo -->
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="agency_logo" class="form-label">
+                                <i class="ri-image-line text-primary"></i>
+                                Agency Logo
+                            </label>
+                            <input type="file" 
+                                   class="form-control @error('agency_logo') is-invalid @enderror" 
+                                   id="agency_logo" 
+                                   name="agency_logo" 
+                                   accept="image/*"
+                                   onchange="previewLogo(this)">
+                            <small class="text-muted">Accepted formats: JPG, PNG, GIF (Max: 2MB)</small>
+                            @error('agency_logo')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            
+                            <!-- Current Logo Display -->
+                            @if($agency->logo && !empty($agency->logo))
+                                <div class="mt-2" id="currentLogoContainer">
+                                    <small class="text-muted d-block mb-1">Current Logo:</small>
+                                    <img src="{{ $agency->logo }}" 
+                                         alt="Current Logo" 
+                                         style="max-width: 150px; max-height: 100px; border-radius: 8px; border: 2px solid #e3e6f0; object-fit: cover;" 
+                                         id="currentLogo"
+                                         onerror="this.style.display='none'; document.getElementById('logoError').style.display='block';">
+                                    <div id="logoError" style="display: none;" class="text-danger small">
+                                        <i class="ri-error-warning-line"></i> Logo could not be loaded
+                                    </div>
+                                </div>
+                            @else
+                                <div class="mt-2" id="currentLogoContainer">
+                                    <small class="text-muted d-block mb-1">Current Logo:</small>
+                                    <div class="text-muted small">
+                                        <i class="ri-image-line"></i> No logo uploaded yet
+                                    </div>
+                                    @if(config('app.debug'))
+                                        <div class="mt-1">
+                                            <small class="text-warning">Debug: Logo = "{{ $agency->logo ?? 'NULL' }}"</small>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
+                            
+                            <!-- Logo Preview -->
+                            <div id="logoPreview" class="mt-2" style="display: none;">
+                                <small class="text-muted d-block mb-1">New Logo Preview:</small>
+                                <img id="logoImage" src="" alt="Logo Preview" style="max-width: 150px; max-height: 100px; border-radius: 8px; border: 2px solid #e3e6f0;">
+                            </div>
                         </div>
 
                         <!-- Postal Code -->
@@ -1231,5 +1299,43 @@ $(document).ready(function() {
         }, 5000);
     }
 });
+
+// Logo preview function
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // Validate file size (2MB max)
+        if (file.size > 2 * 1024 * 1024) {
+            showNotification('File size must be less than 2MB', 'error');
+            input.value = '';
+            $('#logoPreview').hide();
+            return;
+        }
+        
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!validTypes.includes(file.type)) {
+            showNotification('Please select a valid image file (JPG, PNG, GIF)', 'error');
+            input.value = '';
+            $('#logoPreview').hide();
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            $('#logoImage').attr('src', e.target.result);
+            $('#logoPreview').show();
+            // Hide current logo when preview is shown
+            $('#currentLogoContainer').hide();
+            showNotification('Logo preview loaded successfully!', 'success');
+        };
+        reader.readAsDataURL(file);
+    } else {
+        $('#logoPreview').hide();
+        // Show current logo again if file is cleared
+        $('#currentLogoContainer').show();
+    }
+}
 </script>
 @endsection 
