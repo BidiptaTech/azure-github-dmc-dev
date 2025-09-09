@@ -217,10 +217,15 @@
                     </h2>
                     <p class="mb-0 opacity-90">Manage all agencies and their branches from here. Add new agencies or edit existing ones.</p>
                 </div>
+                @php
+                    $allowedRoles = [1, 2, 3, 4, 19, 20];
+                @endphp
                 <div class="col-md-4 text-md-end">
+                    @if(in_array(auth()->user()->role_id, $allowedRoles))
                     <a href="{{ route('agencies.create') }}" class="btn btn-light">
                         <i class="ri-add-line me-1"></i> Add New Agency
                     </a>
+                    @endif
                 </div>
             </div>
         </div>

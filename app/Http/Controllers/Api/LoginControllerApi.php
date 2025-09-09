@@ -665,6 +665,9 @@ class LoginControllerApi extends Controller
         $sgd_tax = Country::where('name', 'Singapore')->first()->tax_percentage ?? 0;
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
 
+        $agency = Agency::where('agency_id', $user->agency_id)->first();
+        $agency_logo = $agency->logo;
+
 
         return response()->json([
             'success' => true,
@@ -678,7 +681,7 @@ class LoginControllerApi extends Controller
                 'profile_picture' => $user->image ?? '',
                 'logo' => $master_dmc->logo ?? '',
                 'dmc_logo' => $dmc_logo ?? '',
-                'agency_logo' => $user->agent_image ?? '',
+                'agency_logo' => $agency_logo ?? '',
                 'dmc_name' => $dmc->company_name ?? '',
                 'country' => $country ?? '',
                 'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],

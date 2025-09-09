@@ -24,6 +24,7 @@ class Agency extends Model
         'id_card_type',
         'card_number',
         'branches',
+        'logo',
         'status',
         'dmc_id',
         'created_by',
