@@ -167,7 +167,10 @@ class CountryController extends Controller
             }
             
             // Apply country filter to query
-            $dmcsQuery->whereIn('country', $requestCountries);
+            $dmcsQuery->whereRaw(
+                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                [ '{' . implode(',', $requestCountries) . '}' ]
+            );
         }
         
         // Apply search if provided
@@ -183,6 +186,15 @@ class CountryController extends Controller
         
         // Get paginated results
         $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
+
+        if($dmcs->isEmpty() && $request->has('country')){
+            $dmcsQuery = User::select('userId', 'salutation', 'name', 'company_name', 'email', 'phone', 'country', 'logo', 'address','zone_on','price_hide')->where('role_id', 11)->whereRaw(
+                "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                [ '{' . implode(',', $requestCountries) . '}' ]
+            );
+            $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
+        }
+       
         return response()->json($dmcs);
     }
 
