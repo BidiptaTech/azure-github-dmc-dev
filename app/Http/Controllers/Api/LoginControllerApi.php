@@ -666,6 +666,19 @@ class LoginControllerApi extends Controller
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
 
 
+        $global_countries = Country::select([
+            'id',
+            'name',
+            'country_code', 
+            'currency',
+            'card_type',
+            'min_length',
+            'max_length',
+            'header_pdf',  
+            'footer_pdf',
+            'is_active',
+            'tax_percentage'
+        ])->where('is_active', 1)->get();
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
@@ -703,6 +716,7 @@ class LoginControllerApi extends Controller
                 'dmc_ids' => $dmc_ids,
                 'dmc_companies' => $dmc_company_names,
                 'zone_on' => $dmc_users->zone_on ?? 0,
+                'global_countries' => $global_countries,
             ],
         ]);
     }
