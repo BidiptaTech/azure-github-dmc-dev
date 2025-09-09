@@ -58,7 +58,7 @@ export const AnimatedBox = ({
         borderRadius: 3,
         border: '1px solid rgba(255, 255, 255, 0.2)',
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'visible',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -246,6 +246,8 @@ export const StaggeredContainer = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
+        overflow: 'visible', // Ensure container allows overflow
+        position: 'relative',
         ...props.sx
       }}
       {...props}
