@@ -52,7 +52,26 @@ const HotelConfigSummary = ({
         totalRooms: 0,
         progress: 0,
         canAddNewHotel: true,
-        incompleteHotels: []
+        incompleteHotels: [],
+        showStatusSection: false // Don't show status section when empty
+      };
+    }
+
+    // Check if there are any meaningful hotel configurations (with actual hotel selections)
+    const meaningfulConfigurations = hotelConfigurations.filter(config => config.hotelId);
+    
+    // If no hotels have been actually selected yet, treat as empty state
+    // This handles the case where hotel component always maintains at least one empty placeholder
+    if (meaningfulConfigurations.length === 0) {
+      return { 
+        status: 'empty', 
+        message: 'No hotels selected yet',
+        completedRooms: 0,
+        totalRooms: 0,
+        progress: 0,
+        canAddNewHotel: true,
+        incompleteHotels: [],
+        showStatusSection: false // Don't show status section until a hotel is selected
       };
     }
 
@@ -84,7 +103,8 @@ const HotelConfigSummary = ({
         totalRooms,
         progress,
         canAddNewHotel,
-        incompleteHotels
+        incompleteHotels,
+        showStatusSection: true // Show status section when there are meaningful configurations
       };
     } else if (completedRooms === 0) {
       return { 
@@ -94,7 +114,8 @@ const HotelConfigSummary = ({
         totalRooms,
         progress,
         canAddNewHotel,
-        incompleteHotels
+        incompleteHotels,
+        showStatusSection: true
       };
     } else if (completedRooms === totalRooms) {
       return { 
@@ -104,7 +125,8 @@ const HotelConfigSummary = ({
         totalRooms,
         progress,
         canAddNewHotel,
-        incompleteHotels
+        incompleteHotels,
+        showStatusSection: true
       };
     } else {
       return { 
@@ -114,7 +136,8 @@ const HotelConfigSummary = ({
         totalRooms,
         progress,
         canAddNewHotel,
-        incompleteHotels
+        incompleteHotels,
+        showStatusSection: true
       };
     }
   }, [hotelConfigurations]);
@@ -123,6 +146,14 @@ const HotelConfigSummary = ({
   const groupedConfigurations = React.useMemo(() => {
     const grouped = {};
     const unconfiguredHotels = [];
+    
+    // Only process configurations if there are meaningful hotel selections
+    const meaningfulConfigurations = hotelConfigurations.filter(config => config.hotelId);
+    
+    // If no meaningful configurations, return empty object (will show empty state)
+    if (meaningfulConfigurations.length === 0) {
+      return {};
+    }
     
     hotelConfigurations.forEach((config, index) => {
       if (config.hotelId) {
@@ -139,18 +170,21 @@ const HotelConfigSummary = ({
           originalIndex: index
         });
       } else {
-        // Unconfigured hotels without hotelId - group them separately
-        const unconfiguredGroupKey = `unconfigured_${index}`;
-        grouped[unconfiguredGroupKey] = {
-          hotelDetails: { hotel_name: `Hotel ${unconfiguredHotels.length + 1} (Not Selected)` },
-          configurations: [{
-            ...config,
-            originalIndex: index
-          }],
-          isConfigured: false,
-          isUnconfigured: true
-        };
-        unconfiguredHotels.push(config);
+        // Only show unconfigured hotels if there are also configured ones
+        // This prevents showing empty placeholder when no hotels selected yet
+        if (meaningfulConfigurations.length > 0) {
+          const unconfiguredGroupKey = `unconfigured_${index}`;
+          grouped[unconfiguredGroupKey] = {
+            hotelDetails: { hotel_name: `Hotel ${unconfiguredHotels.length + 1} (Not Selected)` },
+            configurations: [{
+              ...config,
+              originalIndex: index
+            }],
+            isConfigured: false,
+            isUnconfigured: true
+          };
+          unconfiguredHotels.push(config);
+        }
       }
     });
     
@@ -580,28 +614,33 @@ const HotelConfigSummary = ({
 
   return (
     <Box sx={{ mb: 2 }}>
-      {/* Status Overview */}
-      <StatusIndicator 
-        status={bookingStatus.status}
-        progress={bookingStatus.progress}
-        completedRooms={bookingStatus.completedRooms}
-        totalRooms={bookingStatus.totalRooms}
-        message={bookingStatus.message}
-        canAddNewHotel={bookingStatus.canAddNewHotel}
-        incompleteHotels={bookingStatus.incompleteHotels}
-      />
+      {/* Only show status and configuration sections when user has started hotel selection */}
+      {bookingStatus.showStatusSection && (
+        <>
+          {/* Status Overview */}
+          <StatusIndicator 
+            status={bookingStatus.status}
+            progress={bookingStatus.progress}
+            completedRooms={bookingStatus.completedRooms}
+            totalRooms={bookingStatus.totalRooms}
+            message={bookingStatus.message}
+            canAddNewHotel={bookingStatus.canAddNewHotel}
+            incompleteHotels={bookingStatus.incompleteHotels}
+          />
 
-      {/* Quick Actions */}
-      <QuickActions 
-        canAddNewHotel={bookingStatus.canAddNewHotel}
-        incompleteHotels={bookingStatus.incompleteHotels}
-      />
+          {/* Quick Actions */}
+          <QuickActions 
+            canAddNewHotel={bookingStatus.canAddNewHotel}
+            incompleteHotels={bookingStatus.incompleteHotels}
+          />
 
-             {/* Hotel Configurations */}
-       <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-         <HotelIcon sx={{ mr: 0.8, color: 'primary.main', fontSize: '1.2rem' }} />
-         Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
-       </Typography>
+          {/* Hotel Configurations Header */}
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <HotelIcon sx={{ mr: 0.8, color: 'primary.main', fontSize: '1.2rem' }} />
+            Your Hotel Bookings ({Object.keys(groupedConfigurations).length})
+          </Typography>
+        </>
+      )}
       
       {Object.entries(groupedConfigurations).map(([hotelId, hotelGroup]) => {
         const hotel = hotelGroup.hotelDetails;
@@ -704,7 +743,7 @@ const HotelConfigSummary = ({
               </Alert>
             )}
             
-                         <AccordionSummary
+             <AccordionSummary
               expandIcon={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                   {isUnconfigured && <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 14 }} />}
@@ -1162,6 +1201,15 @@ const HotelConfigSummary = ({
           </Accordion>
         );
       })}
+      
+      {/* Show hotel configurations only when there are any */}
+      {!bookingStatus.showStatusSection && Object.keys(groupedConfigurations).length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem' }}>
+            🏨 No hotels selected yet. Hotels are optional - you can add them anytime during your tour planning.
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
