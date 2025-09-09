@@ -1523,7 +1523,7 @@
 
             <!-- Services Management for DMC -->
             @php
-                $allowedRoles = [1,2,3,4,19,20,11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138];
+                $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138, 35, 74, 77, 78, 84, 93, 120, 132, 133];
             @endphp
 
             @if(in_array(Auth::user()->role_id, $allowedRoles))
@@ -1573,7 +1573,7 @@
                         @endif
                         <!-- DMC Agencies Selection -->
                         @php
-                            $allowedRoles = [1,2,3,4,19,20,11, 35, 74, 77, 78, 84, 93, 120, 130, 132, 133, 135, 136, 137, 138];
+                            $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/agencies')) active @endif">
@@ -1670,7 +1670,11 @@
                 </li>
             @endif --}}
 
-            @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 11 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38)
+            @php
+                $allowedRoles = [1, 2, 3, 4, 11, 19, 20, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+            @endphp
+
+            @if(in_array(Auth::user()->role_id, $allowedRoles))
                 <!-- Agency Management -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Agency Management">Agency Management</span>
@@ -1766,13 +1770,13 @@
                         @endif
 
                         <!-- Registered Agents View -->
-                         @if(auth()->user()->role_id == 20 || auth()->user()->role_id == 19 || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4)
+                         {{-- @if(auth()->user()->role_id == 20 || auth()->user()->role_id == 19 || auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4)
                             <li class="menu-item @if(Request::is('registered-agents*')) active @endif">
                                 <a href="{{ route('registered-agents.index') }}" class="menu-link">
                                     <div data-i18n="Registered Agents">Registered Agents</div>
                                 </a>
                             </li>
-                        @endif
+                        @endif --}}
                         @if(hasPermission('view roles') && auth()->user()->user_type == 1)
                         <li class="menu-item @if(Request::is('roles')) active @endif">
                             <a href="{{ route('roles.index') }}" class="menu-link">
