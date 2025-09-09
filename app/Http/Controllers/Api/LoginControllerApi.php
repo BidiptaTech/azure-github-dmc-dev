@@ -666,7 +666,7 @@ class LoginControllerApi extends Controller
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
 
         $agency = Agency::where('agency_id', $user->agency_id)->first();
-        $agency_logo = $agency->logo;
+        $agency_logo = $agency->logo ?? '';
 
 
         $global_countries = Country::select([
