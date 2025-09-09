@@ -76,13 +76,29 @@
             @foreach ($agents as $key => $agent)
 
               @php
-              $agencyId = $agent->agency_id ?? [];
-              $agency = App\Models\Agency::where('agency_id', $agencyId)->first();
-                $dmcIds = is_array($agency->dmc_id) ? $agency->dmc_id : json_decode($agency->dmc_id, true);
+                $agencyId = $agent->agency_id ?? null;
+
+                $agency = $agencyId 
+                    ? App\Models\Agency::where('agency_id', $agencyId)->first()
+                    : null;
+
+                $dmcIds = [];
+
+                if ($agency && !empty($agency->dmc_id)) {
+                    // Handle JSON or array properly
+                    $dmcIds = is_array($agency->dmc_id) 
+                        ? $agency->dmc_id 
+                        : json_decode($agency->dmc_id, true);
+
+                    // Ensure decoding worked
+                    if (!is_array($dmcIds)) {
+                        $dmcIds = [];
+                    }
+                }
 
                 $agent->dmc_companies = [];
-            
-                if (is_array($dmcIds)) {
+
+                if (!empty($dmcIds)) {
                     $agent->dmc_companies = App\Models\User::whereIn('userId', $dmcIds)
                         ->pluck('company_name')
                         ->filter()
