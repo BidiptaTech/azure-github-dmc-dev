@@ -97,6 +97,7 @@ const TourGuide = React.memo(({ onCountChange}) => {
   const sgdTax = useSelector((state) => state.auth.sgdTax);
   const usdTax = useSelector((state) => state.auth.usdTax);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
 
   // Memoize the tour guide bookings count
   const tourGuideCount = useMemo(
@@ -690,6 +691,7 @@ const TourGuide = React.memo(({ onCountChange}) => {
                         >
                           View
                         </Button>
+                        {tourStatus === "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -708,6 +710,7 @@ const TourGuide = React.memo(({ onCountChange}) => {
                         >
                           Cancel
                         </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
