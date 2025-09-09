@@ -666,7 +666,7 @@ const DashboardLayout = () => {
                                       : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", // Default blue-purple gradient for Agent
                         borderRadius: "16px",
                         marginBottom: "30px",
-                        overflow: "hidden",
+                        overflow: "visible",
                         position: "relative",
                         transition: "all 0.3s ease-in-out",
                         "&::before": {
