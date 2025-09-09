@@ -35,6 +35,7 @@ import { fetchBookingid, setSearchLocation, setCheckIn, setCheckOut, setGuest } 
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { store } from "../../../store/store";
 import { selectSelectedDmcIds } from "../../../slice/dmc/dmcSlice";
+import { clearServiceDetails, clearSpecificService } from "../../../slice/common/EnquirySlice"; //EnquirySlice
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -168,7 +169,8 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
 
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
-
+    dispatch(clearServiceDetails());
+    dispatch(clearSpecificService());
     // Format Dates - Handle different date formats safely
     let formattedCheckIn, formattedCheckOut;
     
@@ -237,6 +239,8 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
 
     // Clear any existing attractions data
     dispatch(clearAttractions());
+    dispatch(clearServiceDetails());
+    dispatch(clearSpecificService());
     dispatch(resetguide());
     dispatch(resetVehicles());
     dispatch(resetVehicles1());

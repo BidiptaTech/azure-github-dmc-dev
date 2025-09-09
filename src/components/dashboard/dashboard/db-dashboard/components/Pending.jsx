@@ -115,6 +115,10 @@ const getBackgroundColor = (tour_status) => {
       return "rgba(76, 175, 80, 0.06)"; // Professional light green
     case "Actual":
       return "rgba(60, 140, 65, 0.06)"; // Professional light green
+    case "Refund - Pending":
+      return "rgba(255, 103, 2, 0.66)"; // Professional light deep orange
+    case "Refunded":
+      return "rgba(0, 136, 7, 0.66)"; // Professional light deep orange
     case "Pending":
       return "rgba(244, 67, 54, 0.06)"; // Professional light red
     case "Tentative":
@@ -147,6 +151,10 @@ const getTextColor = (tour_status) => {
       return "#4CAF50"; // Green
     case "Pending":
       return "#F44336"; // Red
+    case "Refund - Pending":
+      return "#FFFFFF"; // Deep Orange
+    case "Refunded":
+      return "#FFFFFF"; // Deep Orange
     case "Tentative":
       return "#7E57C2"; // Violet
     case "New Enquiry":
@@ -156,7 +164,7 @@ const getTextColor = (tour_status) => {
     case "Closed":
       return "#000000"; // Black
     case "On Hold":
-      return "#ffffff"; // Black
+      return "#FFFFFF"; // Black
     default:
       return "#ffffff"; // Default gray
   }
@@ -1664,9 +1672,9 @@ export default function Pending() {
 
         // If the status is 2 or 3, close the modal and don't show it
         if (hasStatusBookedOrCancel) {
-          toast.info(
-            "This enquiry has already been processed (Booked or Cancelled)"
-          );
+          setSnackbarMessage("This enquiry has already been processed (Booked or Cancelled)");
+          setSnackbarSeverity("info");
+          setOpenSnackbar(true);
           setLoadingEnquiryHistory(false);
           return;
         }
@@ -1703,6 +1711,9 @@ export default function Pending() {
     } catch (error) {
       console.error("Error fetching enquiry history:", error);
       setEnquiryHistory([]);
+      setSnackbarMessage("Error fetching enquiry history");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
       setIsEnquiryModalVisible(true);
     } finally {
       setLoadingEnquiryHistory(false);
@@ -1730,7 +1741,9 @@ export default function Pending() {
       // Comment is required only for 'enquiry' type
       if (type === "enquiry" && !enquiryComment.trim()) {
         setCommentError(true);
-        toast.error("Please enter a comment for the enquiry");
+        setSnackbarMessage("Please enter a comment for the enquiry");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1738,7 +1751,9 @@ export default function Pending() {
       const AgentId = Cookies.get("AgentId");
 
       if (!authToken || !AgentId) {
-        toast.error("Authorization failed. Please login again.");
+        setSnackbarMessage("Authorization failed. Please login again.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1808,7 +1823,9 @@ export default function Pending() {
       const tour_id = bookings.id || bookings.data?.id || tourId;
 
       if (!tour_id) {
-        toast.error("Tour ID is missing. Cannot submit enquiry.");
+        setSnackbarMessage("Tour ID is missing. Cannot submit enquiry.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
         return;
       }
 
@@ -1841,7 +1858,7 @@ export default function Pending() {
 
         switch (type) {
           case "accept":
-            successMessage = "Enquiry accepted successfully!";
+            successMessage = "Enquiry accepted successfully with amount: " + response.data.actual_amount;
             // Store the tour ID that has a processed enquiry
             setTourWithProcessedEnquiry(tour_id);
             break;
@@ -1854,7 +1871,9 @@ export default function Pending() {
             successMessage = "Enquiry submitted successfully!";
         }
 
-        toast.success(successMessage);
+        setSnackbarMessage(successMessage);
+        setSnackbarSeverity("success");
+        setOpenSnackbar(true);
 
         // Close the modal for all types using the handleCloseEnquiryModal
         handleCloseEnquiryModal();
@@ -1862,13 +1881,15 @@ export default function Pending() {
         // Refresh the list
         dispatch(fetchLists({ reset: true }));
       } else {
-        toast.error(
-          response.data?.message || "Operation failed. Please try again."
-        );
+        setSnackbarMessage(response.data?.message || "Operation failed. Please try again.");
+        setSnackbarSeverity("error");
+        setOpenSnackbar(true);
       }
     } catch (error) {
       console.error(`Error during ${type} operation:`, error);
-      toast.error("Something went wrong. Please try again later.");
+      setSnackbarMessage("Something went wrong. Please try again later.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     }
   };
 
@@ -2012,9 +2033,9 @@ export default function Pending() {
           );
 
           if (hasProcessedStatus) {
-            toast.info(
-              "This enquiry has already been processed (Booked or Cancelled)"
-            );
+            setSnackbarMessage("This enquiry has already been processed (Booked or Cancelled)");
+            setSnackbarSeverity("info");
+            setOpenSnackbar(true);
             return;
           }
 
@@ -2043,7 +2064,9 @@ export default function Pending() {
       setIsEnquiryModalVisible(true);
     } catch (error) {
       console.error("Error preparing enquiry:", error);
-      toast.error("Could not prepare the enquiry. Please try again.");
+      setSnackbarMessage("Could not prepare the enquiry. Please try again.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     }
   };
 
@@ -2701,7 +2724,7 @@ export default function Pending() {
                               alignItems: "center",
                             }}
                           >
-                            {/* First 3 buttons always visible */}
+                            {/* View button - always visible */}
                             <Tooltip title="View Details" arrow>
                               <IconButton
                                 size="small"
@@ -2720,88 +2743,89 @@ export default function Pending() {
                               </IconButton>
                             </Tooltip>
 
-                            {/* Only render Edit button if editOff is not 1 and status doesn't start with "Cancel" */}
-                            {list.editOff !== 1 && !list.tour_status?.toLowerCase().startsWith("cancel") && (
-                              <Tooltip title="Add More Services" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleEdit(list)}
-                                  sx={{
-                                    color: "#2e7d32",
-                                    width: "28px",
-                                    height: "28px",
-                                    padding: "4px",
-                                    "&:hover": {
-                                      color: "#1b5e20",
-                                    },
-                                  }}
-                                >
-                                  <Edit sx={{ fontSize: "14px" }} />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-
-                            {/* Third button - Negotiate for enquiry type, Update for others - Hide if status starts with "Cancel" */}
+                            {/* Show other buttons only if status doesn't start with "Cancel" */}
                             {!list.tour_status?.toLowerCase().startsWith("cancel") && (
-                              list.booking_type === "enquiry" && userRole === "Agent" ? (
-                                <Tooltip title="Negotiate" arrow>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleDirectEnquiry(list)}
-                                    sx={{
-                                      color: "#7b1fa2",
-                                      width: "28px",
-                                      height: "28px",
-                                      padding: "4px",
-                                      "&:hover": {
-                                        color: "#4a148c",
-                                      },
-                                    }}
-                                  >
-                                    <AttachMoney sx={{ fontSize: "14px" }} />
-                                  </IconButton>
-                                </Tooltip>
-                              ) : (
-                                <Tooltip title="Update Tour Plan" arrow>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleUpdate(list)}
-                                    sx={{
-                                      color: "#f57c00",
-                                      width: "28px",
-                                      height: "28px",
-                                      padding: "4px",
-                                      "&:hover": {
-                                        color: "#e65100",
-                                      },
-                                    }}
-                                  >
-                                    <Update sx={{ fontSize: "14px" }} />
-                                  </IconButton>
-                                </Tooltip>
-                              )
-                            )}
+                              <>
+                                {/* Only render Edit button if editOff is not 1 */}
+                                
+                                  <Tooltip title="Add More Services" arrow>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleEdit(list)}
+                                      sx={{
+                                        color: "#2e7d32",
+                                        width: "28px",
+                                        height: "28px",
+                                        padding: "4px",
+                                        "&:hover": {
+                                          color: "#1b5e20",
+                                        },
+                                      }}
+                                    >
+                                      <Edit sx={{ fontSize: "14px" }} />
+                                    </IconButton>
+                                  </Tooltip>
+                              
 
-                            {/* 3 dots menu for additional actions - Hide if status starts with "Cancel" */}
-                            {/* {!list.tour_status?.toLowerCase().startsWith("cancel") && ( */}
-                              <Tooltip title="More Actions" arrow>
-                                <IconButton
-                                  size="small"
-                                  onClick={(event) => handleActionMenuOpen(event, list)}
-                                  sx={{
-                                    color: "#666",
-                                    width: "28px",
-                                    height: "28px",
-                                    padding: "4px",
-                                    "&:hover": {
-                                      color: "#333",
-                                    },
-                                  }}
-                                >
-                                  <MoreVert sx={{ fontSize: "14px" }} />
-                                </IconButton>
-                              </Tooltip>
-                            {/* )} */}
+                                {/* Third button - Negotiate for enquiry type, Update for others */}
+                                {list.booking_type === "enquiry" && userRole === "Agent" ? (
+                                  <Tooltip title="Negotiate" arrow>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDirectEnquiry(list)}
+                                      sx={{
+                                        color: "#7b1fa2",
+                                        width: "28px",
+                                        height: "28px",
+                                        padding: "4px",
+                                        "&:hover": {
+                                          color: "#4a148c",
+                                        },
+                                      }}
+                                    >
+                                      <AttachMoney sx={{ fontSize: "14px" }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip title="Update Tour Plan" arrow>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleUpdate(list)}
+                                      sx={{
+                                        color: "#f57c00",
+                                        width: "28px",
+                                        height: "28px",
+                                        padding: "4px",
+                                        "&:hover": {
+                                          color: "#e65100",
+                                        },
+                                      }}
+                                    >
+                                      <Update sx={{ fontSize: "14px" }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+
+                                {/* 3 dots menu for additional actions */}
+                                <Tooltip title="More Actions" arrow>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(event) => handleActionMenuOpen(event, list)}
+                                    sx={{
+                                      color: "#666",
+                                      width: "28px",
+                                      height: "28px",
+                                      padding: "4px",
+                                      "&:hover": {
+                                        color: "#333",
+                                      },
+                                    }}
+                                  >
+                                    <MoreVert sx={{ fontSize: "14px" }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )}
                           </div>
                           {list.dmc_company_name && (
                             <Tooltip
@@ -3059,6 +3083,7 @@ export default function Pending() {
                             style={{
                               display: "flex",
                               alignItems: "center",
+                              justifyContent: "center",
                               gap: "6px",
                               backgroundColor: getBackgroundColor(
                                 list.tour_status
@@ -3094,6 +3119,8 @@ export default function Pending() {
                             <span
                               style={{
                                 fontWeight: "600",
+                                alignItems: "center",
+                                justifyContent: "center",
                                 color: getTextColor(list.tour_status),
                                 fontSize: "10px",
                                 whiteSpace: "nowrap",
@@ -3364,15 +3391,20 @@ export default function Pending() {
       </Box>
 
       <Snackbar
-        open={openSnackbar}
-        autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+  open={openSnackbar}
+  autoHideDuration={3000}
+  onClose={handleCloseSnackbar}
+  anchorOrigin={{ vertical: "top", horizontal: "center" }}
+  sx={{ 
+    '& .MuiSnackbar-root': {
+      top: '20px !important' // Adjust this value to move it higher
+    }
+  }}
+>
+  <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
+    {snackbarMessage}
+  </Alert>
+</Snackbar>
 
       <TourDetailsModal
         isModalVisible={isModalVisible}

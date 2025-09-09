@@ -63,29 +63,58 @@ const HotelSelectionForm = ({
   return (
     <Box>
       {/* Main Selection Row */}
-      <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
+      <Grid container spacing={1.5} sx={{ mb: 1.5, alignItems: 'flex-start' }}>
         {/* Hotel Selection */}
-        <Grid item xs={12} md={2.5} mt={0.5}>
-          <HotelListing 
-            onSelect={(hotel) => setSelectedHotel(hotel)}
-            searchParams={searchCriteria}
-            selectedHotelId={selectedHotel}
-          />
-          {renderRoomDataLoadingIndicator && renderRoomDataLoadingIndicator()}
+        <Grid item xs={12} md={2.5}>
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={500} 
+            sx={{ 
+              mb: 1, 
+              fontSize: '0.875rem',
+              color: 'text.primary',
+              minHeight: '21px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            Select Hotel
+          </Typography>
+          <Box sx={{ height: '56px' }}>
+            <HotelListing 
+              onSelect={(hotel) => setSelectedHotel(hotel)}
+              searchParams={searchCriteria}
+              selectedHotelId={selectedHotel}
+            />
+            {renderRoomDataLoadingIndicator && renderRoomDataLoadingIndicator()}
+          </Box>
         </Grid>
         
         {/* Room Type Selection */}
         <Grid item xs={12} md={2}>
-          <Typography variant="subtitle2" fontWeight={500} sx={{ fontSize: '0.8rem' }}>Select Room Type</Typography>
-          <FormControl fullWidth sx={{ mt: 1 }} disabled={!selectedHotel || roomDataStatus === 'loading'}>
-            <InputLabel id="room-type-select-label" sx={{ fontSize: '0.8rem' }}>Room Type</InputLabel>
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={500} 
+            sx={{ 
+              mb: 1, 
+              fontSize: '0.875rem',
+              color: 'text.primary',
+              minHeight: '21px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            Select Room Type
+          </Typography>
+          <FormControl fullWidth sx={{ height: '56px' }} disabled={!selectedHotel || roomDataStatus === 'loading'}>
+            <InputLabel id="room-type-select-label">Room Type</InputLabel>
             <Select
               labelId="room-type-select-label"
               id="room-type-select"
               value={roomType}
               label="Room Type"
               onChange={handleRoomTypeChange}
-              sx={{ fontSize: '0.8rem' }}
+              sx={{ height: '56px' }}
               endAdornment={
                 roomType && (
                   <Box sx={{ mr: 0.8 }}>
@@ -124,8 +153,21 @@ const HotelSelectionForm = ({
         
         {/* Bed Type Selection */}
         <Grid item xs={12} md={2}>
-          <Typography variant="subtitle1" fontWeight={500}>Select Bed Type</Typography>
-          <FormControl fullWidth sx={{ mt: 1.5 }} disabled={!roomType}>
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={500} 
+            sx={{ 
+              mb: 1, 
+              fontSize: '0.875rem',
+              color: 'text.primary',
+              minHeight: '21px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            Select Bed Type
+          </Typography>
+          <FormControl fullWidth sx={{ height: '56px' }} disabled={!roomType}>
             <InputLabel id="bed-type-select-label">Bed Type</InputLabel>
             <Select
               labelId="bed-type-select-label"
@@ -133,6 +175,7 @@ const HotelSelectionForm = ({
               value={bedType}
               label="Bed Type"
               onChange={handleBedTypeChange}
+              sx={{ height: '56px' }}
               endAdornment={
                 bedType && (
                   <Box sx={{ mr: 1 }}>
@@ -172,42 +215,75 @@ const HotelSelectionForm = ({
         
         {/* Meal Plan Selection */}
         <Grid item xs={12} md={2}>
-          <Typography variant="subtitle1" fontWeight={500}>Select Meal Plan</Typography>
-          {renderMealPlanSection && renderMealPlanSection()}
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={500} 
+            sx={{ 
+              mb: 1, 
+              fontSize: '0.875rem',
+              color: 'text.primary',
+              minHeight: '21px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            Select Meal Plan
+          </Typography>
+          <Box sx={{ height: '56px' }}>
+            {renderMealPlanSection && renderMealPlanSection()}
+          </Box>
         </Grid>
 
         {/* Night Selection Summary */}
         <Grid item xs={12} md={3.5}>
-          <Typography variant="subtitle1" fontWeight={500}>Hotel Night Selection</Typography>
+          <Typography 
+            variant="subtitle1" 
+            fontWeight={500} 
+            sx={{ 
+              mb: 1, 
+              fontSize: '0.875rem',
+              color: 'text.primary',
+              minHeight: '21px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            Hotel Night Selection
+          </Typography>
           <Paper 
             elevation={0} 
             sx={{ 
-              mt: 1.5, 
               p: 1.5, 
               bgcolor: selectedNights > 0 ? 'rgba(76, 175, 80, 0.06)' : 'rgba(255, 152, 0, 0.06)',
               border: '1px solid',
               borderColor: selectedNights > 0 ? 'rgba(76, 175, 80, 0.2)' : 'rgba(255, 152, 0, 0.2)',
               borderRadius: 2,
-              minHeight: 48
+              height: '56px',
+              display: 'flex',
+              alignItems: 'center'
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <CalendarTodayIcon sx={{ 
                   mr: 1, 
-                  fontSize: 18,
+                  fontSize: 16,
                   color: selectedNights > 0 ? 'success.main' : 'warning.main'
                 }} />
                 <Box>
                   <Typography variant="body2" sx={{ 
                     fontWeight: 600,
-                    color: selectedNights > 0 ? 'success.main' : 'warning.main'
+                    fontSize: '0.875rem',
+                    color: selectedNights > 0 ? 'success.main' : 'warning.main',
+                    lineHeight: 1.2
                   }}>
-                    {selectedNights > 0 ? `Hotel: ${selectedNights} Night${selectedNights !== 1 ? 's' : ''} Selected` : 'No Hotel Nights Selected'}
+                    {selectedNights > 0 ? `${selectedNights} Night${selectedNights !== 1 ? 's' : ''} Selected` : 'No Nights Selected'}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                    {selectedNights > 0 ? 'Applies to all rooms' : 'Select hotel nights below'}
-                  </Typography>
+                  {selectedNights === 0 && (
+                    <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.7rem' }}>
+                      Select nights below
+                    </Typography>
+                  )}
                 </Box>
               </Box>
               
@@ -217,19 +293,10 @@ const HotelSelectionForm = ({
                   size="small"
                   color="success"
                   variant="filled"
-                  sx={{ minWidth: 28, height: 24 }}
+                  sx={{ minWidth: 28, height: 20, fontSize: '0.75rem' }}
                 />
               )}
             </Box>
-            
-            {selectedNights === 0 && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                <InfoIcon sx={{ fontSize: 14, color: 'warning.main', mr: 0.5 }} />
-                <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.7rem' }}>
-                  Please select hotel nights in the section below
-                </Typography>
-              </Box>
-            )}
           </Paper>
         </Grid>
       </Grid>

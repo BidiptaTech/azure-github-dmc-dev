@@ -60,7 +60,7 @@ const SearchLocation = ({ Location, portType, portType1 }) => {
   const activePortsCount = (portType === "Entry Port" ? 1 : 0) + (portType1 === "Exit Port" ? 1 : 0);
 
   return (
-    <Container maxWidth="xl" sx={{ py: 0.5, position: 'relative' }}>
+    <Container  maxWidth="xl" sx={{ py: 0.1, position: 'relative' }}>
       {/* Header Card with Gradient Background */}
       <Card 
         elevation={3}
@@ -128,7 +128,7 @@ const SearchLocation = ({ Location, portType, portType1 }) => {
               }}>
                 <FlightLandIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
                 <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#3b82f6', fontSize: '0.9rem' }}>
-                  Entry Port Services
+                  Arrival Port Services
                 </Typography>
                 <Chip 
                   label="Arrival"
@@ -196,7 +196,7 @@ const SearchLocation = ({ Location, portType, portType1 }) => {
               }}>
                 <FlightTakeoffIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
                 <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#3b82f6', fontSize: '0.9rem' }}>
-                  Exit Port Services
+                  Departure Port Services
                 </Typography>
                 <Chip 
                   label="Departure"

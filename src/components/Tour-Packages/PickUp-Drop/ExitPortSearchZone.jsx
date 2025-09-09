@@ -45,7 +45,7 @@ import PortCity from "./PortCity";
 import SearchBar from "./PortLocation2";
 import LocationSearch from "./PortLocation";
 import DateSearch2 from "@/components/activity-list/common/DateSearch2";
-import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
+import Pickuptime1 from "./Pickuptime1";
 
 const ExitPortSearchZone = ({ Location, portType}) => {
   const dispatch = useDispatch();
@@ -266,9 +266,9 @@ const ExitPortSearchZone = ({ Location, portType}) => {
             backdropFilter: 'blur(10px)'
           }}
         >
-          <Grid container spacing={1.5} alignItems="flex-end">
+          <Grid container spacing={3.5} alignItems="flex-end">
             {/* City Selection */}
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <Business sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
@@ -293,7 +293,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Pick Up Location */}
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <LocationOn sx={{ mr: 0.8, color: '#2e7d32', fontSize: 18 }} />
@@ -326,7 +326,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Drop Off Location */}
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <FlightTakeoff sx={{ mr: 0.8, color: '#d32f2f', fontSize: 18 }} />
@@ -358,7 +358,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
             </Grid>
 
             {/* Time Selection */}
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <Schedule sx={{ mr: 0.8, color: '#ff9800', fontSize: 18 }} />
@@ -371,7 +371,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
                     Exit Time
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15300 }}>
+                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 5 }}>
                   <Pickuptime1
                     entryytime={entryytime1}
                     setentryytime={setentryytime1}
@@ -381,9 +381,12 @@ const ExitPortSearchZone = ({ Location, portType}) => {
                 </Box>
               </Box>
             </Grid>
+          </Grid>
 
+          {/* Second Row - Only Date field */}
+          <Grid container spacing={1.5} alignItems="flex-end" sx={{ mt: 1.5 }}>
             {/* Date Selection */}
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={6} lg={3}>
               <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                   <CalendarToday sx={{ mr: 0.8, color: '#9c27b0', fontSize: 18 }} />
@@ -396,7 +399,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
                     Exit Date
                   </Typography>
                 </Box>
-                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 15200 }}>
+                <Box sx={{ minHeight: '42px', height: '42px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 5 }}>
                   <DateSearch2
                     selectedDate1={selectedDate1}
                     setSelectedDate1={setSelectedDate1}
@@ -405,38 +408,38 @@ const ExitPortSearchZone = ({ Location, portType}) => {
                 </Box>
               </Box>
             </Grid>
+          </Grid>
 
-            {/* Search Button - Separate Row */}
-            <Grid item xs={12} sx={{ mt: 1.5 }}>
-              <Box display="flex" justifyContent="center">
-                <Button
-                  variant="contained"
-                  size="medium"
-                  onClick={buttonsearch}
-                  disabled={!isSearchButtonEnabled}
-                  startIcon={<Search />}
-                  sx={{
-                    minWidth: 180,
-                    px: 3,
-                    py: 1.2,
-                    borderRadius: 1.5,
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-                      boxShadow: '0 5px 14px rgba(59, 130, 246, 0.4)',
-                      transform: 'translateY(-1px)',
-                    },
-                    transition: 'all 0.3s ease',
-                  }}
-                >
-                  Search Vehicles
-                </Button>
-              </Box>
-            </Grid>
+          {/* Search Button - Separate Row */}
+          <Grid item xs={12} sx={{ mt: 1.5 }}>
+            <Box display="flex" justifyContent="center">
+              <Button
+                variant="contained"
+                size="medium"
+                onClick={buttonsearch}
+                disabled={!isSearchButtonEnabled}
+                startIcon={<Search />}
+                sx={{
+                  minWidth: 180,
+                  px: 3,
+                  py: 1.2,
+                  borderRadius: 1.5,
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: '0 3px 10px rgba(59, 130, 246, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+                    boxShadow: '0 5px 14px rgba(59, 130, 246, 0.4)',
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                Search Vehicles
+              </Button>
+            </Box>
           </Grid>
         </Paper>
      

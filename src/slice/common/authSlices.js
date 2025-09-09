@@ -49,6 +49,17 @@ const getInitialState = () => {
     console.error("Error parsing user_country:", error);
   }
   
+  // Parse global_countries from cookies or localStorage
+  let global_countries = null;
+  try {
+    const storedGlobalCountries = Cookies.get("global_countries") || localStorage.getItem("global_countries");
+    if (storedGlobalCountries) {
+      global_countries = JSON.parse(storedGlobalCountries);
+    }
+  } catch (error) {
+    console.error("Error parsing global_countries:", error);
+  }
+  
   const zone_on = Cookies.get("zone_on") || null;
 
   return {
@@ -84,6 +95,7 @@ const getInitialState = () => {
     PriceHide,
     userRole,
     user_country,
+    global_countries,
     zone_on,
   };
 };
@@ -134,13 +146,13 @@ export const loginUser = createAsyncThunk(
           price_hide: PriceHide,
           user_role: userRole, // Add user_role from API response
           user_country: user_country,
+          global_countries: global_countries, // Add global_countries from API response
           zone_on: zone_on,
           dmc_id: dmcId, // Add dmc_id from API response
           dmc_logo: dmcLogo, // Add dmc_logo from API response
           dmc_company_name: dmcCompanyName, // Add dmc_company_name from API response
         } = response.data.user;
 
-        // console.log("DMC Logo from response:", zone_on); // Log the logo URL
         const countryCode = country_code;
         // Convert currency symbol from Unicode to string without the semicolon
         const convertedCurrencySymbol = currencySymbol
@@ -296,6 +308,11 @@ export const loginUser = createAsyncThunk(
           secure: true,
           sameSite: "Strict",
         });
+        Cookies.set("global_countries", JSON.stringify(global_countries), {
+          expires: expiryDate,
+          secure: true,
+          sameSite: "Strict",
+        });
         Cookies.set("zone_on", String(zone_on), {
           expires: expiryDate,
           secure: true,
@@ -315,6 +332,9 @@ export const loginUser = createAsyncThunk(
         // Also store in localStorage as a fallback
         if (user_country) {
           localStorage.setItem("user_country", JSON.stringify(user_country));
+        }
+        if (global_countries) {
+          localStorage.setItem("global_countries", JSON.stringify(global_countries));
         }
 
         // Store DMC Logo in cookies
@@ -386,6 +406,7 @@ export const loginUser = createAsyncThunk(
           dmcCompanyName,
           userRole: userRole || "Agent",
           user_country,
+          global_countries,
           zone_on,
           dmcId, // Add dmcId to return object
         };
@@ -511,6 +532,7 @@ const authSlice = createSlice({
       state.dmcCompanyName = null; // Reset dmcCompanyName in auth state
       state.userRole = null; // Reset user role
       state.dmcId = null; // Reset dmcId in auth state
+      state.global_countries = null; // Reset global_countries in auth state
       Cookies.remove("authToken");
       Cookies.remove("AgentId");
       Cookies.remove("Username");
@@ -531,10 +553,12 @@ const authSlice = createSlice({
       Cookies.remove("PriceHide");
       Cookies.remove("userRole"); // Remove user role cookie
       Cookies.remove("user_country");
+      Cookies.remove("global_countries"); // Remove global_countries cookie on logout
       Cookies.remove("zone_on");
       Cookies.remove("dmcId"); // Remove dmcId cookie on logout
       localStorage.removeItem("isAuthenticated");
       localStorage.removeItem("user_country");
+      localStorage.removeItem("global_countries"); // Remove global_countries from localStorage
       localStorage.removeItem("selectedDmcId"); // Remove DMC ID from localStorage
       localStorage.removeItem("selectedDmcData"); // Remove DMC data from localStorage
     },
@@ -643,6 +667,7 @@ const authSlice = createSlice({
         state.PriceHide = String(action.payload.PriceHide);
         state.userRole = action.payload.userRole;
         state.user_country = action.payload.user_country;
+        state.global_countries = action.payload.global_countries; // Store global_countries in auth state
         state.zone_on = action.payload.zone_on;
         state.DmcLogo = action.payload.DmcLogo;
         state.dmcLogo = action.payload.dmcLogo; // Store dmcLogo in auth state
@@ -665,6 +690,17 @@ const authSlice = createSlice({
             sameSite: "Strict",
           });
           localStorage.setItem("user_country", userCountryStr);
+        }
+        
+        // Store global_countries as JSON string
+        if (action.payload.global_countries) {
+          const globalCountriesStr = JSON.stringify(action.payload.global_countries);
+          Cookies.set("global_countries", globalCountriesStr, {
+            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            secure: true,
+            sameSite: "Strict",
+          });
+          localStorage.setItem("global_countries", globalCountriesStr);
         }
         
         state.loginStatus = "succeeded";

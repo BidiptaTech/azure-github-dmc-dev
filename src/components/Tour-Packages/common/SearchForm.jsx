@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Box, 
   Paper, 
@@ -17,7 +17,11 @@ import {
   DialogActions,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Stack,
+  Avatar,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import { 
@@ -26,7 +30,8 @@ import {
   CalendarToday as CalendarIcon,
   People as PeopleIcon,
   Person as PersonIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Clear
 } from '@mui/icons-material';
 import LocationSearch from './LocationSearch';
 import DateRangePicker from './DateRangePicker';
@@ -54,6 +59,7 @@ import { fetchAttractions } from "../../../slice/attractions/attractionSlice";
 import {
   fetchRestaurants,
   clearRestaurants,
+  setSearchParams as setRestaurantSearchParams,
 } from "../../../slice/restaurant/RestaurantsSlice";
 import { resetguide } from "../../../slice/tourguide/guideslice";
 import { resetVehicles } from "../../../slice/port/pickupDropSlice";
@@ -87,6 +93,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   
   // State to track if button should be hidden after click
   const [isButtonHidden, setIsButtonHidden] = useState(false);
+  const [isupdated, setIsupdated] = useState(false);
   
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
@@ -180,7 +187,21 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
               if (Array.isArray(tour.child_ages)) {
                 return tour.child_ages;
               } else if (typeof tour.child_ages === 'string') {
-                return JSON.parse(tour.child_ages || '[]');
+                // Handle comma-separated string format like "16, 14, 14"
+                if (tour.child_ages.includes(',')) {
+                  return tour.child_ages.split(',').map(age => age.trim()).filter(age => age !== '');
+                }
+                // Handle single child age like "5" - convert to array
+                if (tour.child_ages.trim() !== '') {
+                  return [tour.child_ages.trim()];
+                }
+                // Try to parse as JSON first (for backward compatibility)
+                try {
+                  return JSON.parse(tour.child_ages);
+                } catch {
+                  // If JSON parsing fails, return empty array
+                  return [];
+                }
               } else if (tour.child_ages) {
                 return [tour.child_ages];
               }
@@ -209,7 +230,21 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
               if (Array.isArray(enquirydetail.child_ages)) {
                 return enquirydetail.child_ages;
               } else if (typeof enquirydetail.child_ages === 'string') {
-                return JSON.parse(enquirydetail.child_ages || '[]');
+                // Handle comma-separated string format like "16, 14, 14"
+                if (enquirydetail.child_ages.includes(',')) {
+                  return enquirydetail.child_ages.split(',').map(age => age.trim()).filter(age => age !== '');
+                }
+                // Handle single child age like "5" - convert to array
+                if (enquirydetail.child_ages.trim() !== '') {
+                  return [enquirydetail.child_ages.trim()];
+                }
+                // Try to parse as JSON first (for backward compatibility)
+                try {
+                  return JSON.parse(enquirydetail.child_ages);
+                } catch {
+                  // If JSON parsing fails, return empty array
+                  return [];
+                }
               } else if (enquirydetail.child_ages) {
                 return [enquirydetail.child_ages];
               }
@@ -263,7 +298,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   };
 
   // Check if data is coming from enquirydetail (to disable date and guest selection)
-  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour);
+  const isDataFromEnquiryDetail = Boolean(enquirydetail && !packageData?.tour) || isupdated; 
 
   // Helper function to safely get ages array
   const getSafeAges = () => {
@@ -307,12 +342,44 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const [selectedAgent, setSelectedAgent] = useState('');
   const [selectedAgentName, setSelectedAgentName] = useState('');
   const [isAgentFromPackageData, setIsAgentFromPackageData] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef(null);
   const { agents } = useSelector((state) => state.agentList);
   
   // Fetch agents on component mount
   React.useEffect(() => {
     dispatch(fetchAgentList());
   }, [dispatch]);
+
+  // Filter agents based on search term
+  const filteredAgents = agents.filter(agent => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      agent.name.toLowerCase().includes(searchLower) ||
+      (agent.company_name && agent.company_name.toLowerCase().includes(searchLower))
+    );
+  });
+
+  // Handle search input change
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchTerm('');
+  };
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (searchInputRef.current) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   console.log("guestCounts",guestCounts);
   console.log("guestCounts.ages type:", typeof guestCounts.ages, "value:", guestCounts.ages);
   if (guestCounts.ages && Array.isArray(guestCounts.ages)) {
@@ -894,6 +961,19 @@ dispatch(fetchHotels());
       children: guestCounts.Children,
       tour_id: tourId // Use tour_id from packageData
     }));
+    dispatch(setRestaurantSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
 
     // Update the guide search params and fetch guides
     dispatch(setGuideSearchParams({
@@ -1088,7 +1168,7 @@ dispatch(fetchHotels());
     }
 
     try {
-
+      setIsupdated(true);
     // Clear previous customer info when starting update
     dispatch(clearUserInfo());
     // dispatch(clearAllServices());
@@ -1164,6 +1244,19 @@ dispatch(fetchHotels());
     const formattedAttractionDate = moment(startDate).format("YYYY-MM-DD"); // Format date for attraction API
     
     dispatch(setAttractionSearchParams({
+      location: {
+        country: country,
+        city: `${city}, (${country})`,
+        address: `${city}, (${country})`,
+        countryCode: countryCode,
+        cityCode: cityCode
+      },
+      date: moment(startDate),
+      adults: guestCounts.Adults,
+      children: guestCounts.Children,
+      tour_id: tourId // Use tour_id from packageData
+    }));
+    dispatch(setRestaurantSearchParams({
       location: {
         country: country,
         city: `${city}, (${country})`,
@@ -1619,40 +1712,201 @@ dispatch(fetchHotels());
                       onChange={handleAgentChange}
                       label="Select Agent *"
                       required
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "#f8fafc",
+                          borderColor: "#e2e8f0",
+                          "&:hover": {
+                            borderColor: "#94a3b8",
+                          },
+                          "&.Mui-focused": {
+                            borderColor: "#3b82f6",
+                            boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.1)",
+                          },
+                        },
+                        "& .MuiSelect-icon": {
+                          color: "#64748b",
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "#475569",
+                          "&.Mui-focused": {
+                            color: "#3b82f6",
+                          },
+                        },
+                      }}
                       MenuProps={{
                         PaperProps: {
                           sx: {
-                            maxHeight: 200,
-                            mt: 1,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            borderRadius: 2
-                          }
-                        }
+                            maxHeight: 400,
+                            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "8px",
+                            "& .MuiMenuItem-root": {
+                              fontSize: "0.9rem",
+                              padding: "12px 16px",
+                              "&:hover": {
+                                backgroundColor: "#f1f5f9",
+                              },
+                              "&.Mui-selected": {
+                                backgroundColor: "#dbeafe",
+                                color: "#1e40af",
+                                "&:hover": {
+                                  backgroundColor: "#bfdbfe",
+                                },
+                              },
+                            },
+                          },
+                        },
+                        MenuListProps: {
+                          sx: {
+                            padding: 0,
+                          },
+                          onKeyDown: (e) => {
+                            // Allow typing in search input
+                            if (e.target.tagName === 'INPUT') {
+                              e.stopPropagation();
+                            }
+                          },
+                        },
+                        disableAutoFocus: true,
+                        disableEnforceFocus: true,
+                        disableRestoreFocus: true,
                       }}
                     >
+                      {/* Search Input in Dropdown */}
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderBottom: "1px solid #e2e8f0", 
+                          backgroundColor: "#f8fafc",
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <TextField
+                          ref={searchInputRef}
+                          fullWidth
+                          size="small"
+                          placeholder="Search agents or companies..."
+                          value={searchTerm}
+                          onChange={handleSearchChange}
+                          autoFocus={false}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: searchTerm && (
+                              <InputAdornment position="end">
+                                <Clear 
+                                  sx={{ 
+                                    fontSize: 18, 
+                                    color: "#64748b", 
+                                    cursor: "pointer",
+                                    "&:hover": { color: "#374151" }
+                                  }} 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleClearSearch();
+                                  }}
+                                />
+                              </InputAdornment>
+                            ),
+                            sx: {
+                              "& fieldset": { border: "1px solid #e2e8f0" },
+                              "&:hover fieldset": { border: "1px solid #94a3b8" },
+                              "&.Mui-focused fieldset": { border: "1px solid #3b82f6" },
+                              "& input": {
+                                padding: "8px 12px",
+                                fontSize: "0.9rem",
+                                color: "#1e293b",
+                                "&::placeholder": {
+                                  color: "#64748b",
+                                  opacity: 1,
+                                },
+                              },
+                            },
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          onKeyUp={(e) => e.stopPropagation()}
+                          onKeyPress={(e) => e.stopPropagation()}
+                        />
+                      </Box>
+                      
                       <MenuItem value="" sx={{ fontStyle: 'italic', color: '#6b7280', fontSize: '0.8rem' }}>
-                        Choose an agent
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PersonIcon sx={{ fontSize: 16, color: "#3b82f6" }} />
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500, color: "#6b7280", fontStyle: 'italic' }}>
+                              Choose an agent
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "#9ca3af", fontSize: "0.7rem" }}>
+                              Select from available agents
+                            </Typography>
+                          </Box>
+                        </Stack>
                       </MenuItem>
-                      {agents && agents.map((agent) => (
+                      {filteredAgents.length > 0 ? (
+                        filteredAgents.map((agent) => (
                         <MenuItem 
                           key={agent.id} 
                           value={agent.agent_id}
                           sx={{
                             '&:hover': {
-                              bgcolor: '#f3f4f6'
+                              bgcolor: '#f1f5f9'
                             }
                           }}
                         >
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                              {agent.name}
-                            </Typography>
-                            {/* <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.7rem' }}>
-                              ID: {agent.agent_id}
-                            </Typography> */}
-                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Avatar 
+                              sx={{ 
+                                width: 24, 
+                                height: 24, 
+                                fontSize: "0.8rem",
+                                backgroundColor: "#3b82f6",
+                                color: "white",
+                                fontWeight: 600
+                              }}
+                            >
+                              {agent.name.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500, color: "#1e293b", lineHeight: 1.2, fontSize: '0.8rem' }}>
+                                {agent.name}
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: "#059669", 
+                                  fontSize: "0.7rem",
+                                  lineHeight: 1.2,
+                                  display: "block",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontWeight: 500
+                                }}
+                              >
+                                {agent.company_name}
+                              </Typography>
+                            </Box>
+                          </Stack>
                         </MenuItem>
-                      ))}
+                        ))
+                      ) : searchTerm ? (
+                        <MenuItem disabled>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <SearchIcon sx={{ fontSize: 18, color: "#64748b" }} />
+                            <Typography variant="body2" sx={{ color: "#64748b", fontStyle: "italic" }}>
+                              No agents found matching "{searchTerm}"
+                            </Typography>
+                          </Stack>
+                        </MenuItem>
+                      ) : null}
                     </Select>
                   )}
                 </FormControl>

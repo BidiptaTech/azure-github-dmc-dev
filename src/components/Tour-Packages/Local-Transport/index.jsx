@@ -90,7 +90,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const dropoffLocation = useSelector(state => state.localtour.entrydropoff || '');
   const exitPickupLocation = useSelector(state => state.localtour.exitpickup || '');
   const pickupTime = useSelector(state => state.localtour.entrytime || '');
-  const pickupTime1 = useSelector(state => state.localtour.entrytime1 || '');
+  const pickupTime1 = useSelector(state => state.localtour.entrytime || '');
   const pickupTimeZone = useSelector(state => state.localtour.entrytime || '');
   const pickupDate = useSelector(state => state.localtour.pickdate || '');
   const exitPickupDate = useSelector(state => state.localtour.exitpickupdate || '');

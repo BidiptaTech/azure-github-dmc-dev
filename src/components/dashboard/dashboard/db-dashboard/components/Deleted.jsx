@@ -2025,7 +2025,7 @@ export default function Pending() {
                           </div>
                         </td>
                         <td style={{ padding: "16px 20px" }}>
-                        <div                            style={{                              display: "flex",                              alignItems: "center",                              gap: "6px",                              backgroundColor: getBackgroundColor(list.tour_status),
+                        <div                            style={{                              display: "flex",                              alignItems: "center",  justifyContent: "center",                            gap: "6px",                              backgroundColor: getBackgroundColor(list.tour_status),
                               padding: "4px 8px",
                               borderRadius: "16px",
                             }}

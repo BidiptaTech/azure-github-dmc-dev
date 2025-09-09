@@ -26,11 +26,27 @@ const SearchContainer = styled(Box)(({ theme }) => ({
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 250,
+  maxHeight: 210,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),
   boxShadow: theme.shadows[3],
+  borderRadius: theme.spacing(1),
+  // Fix scrolling issues
+  scrollbarWidth: "thin",
+  "&::-webkit-scrollbar": {
+    width: "6px",
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: theme.palette.grey[400],
+    borderRadius: "3px",
+    "&:hover": {
+      backgroundColor: theme.palette.grey[600],
+    },
+  },
 }));
 
 const CarOption = styled(ListItem)(({ theme }) => ({
@@ -42,11 +58,16 @@ const CarOption = styled(ListItem)(({ theme }) => ({
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: theme.spacing(1),
+  minHeight: "auto",
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
   },
   "&:last-child": {
     borderBottom: "none",
+    paddingBottom: theme.spacing(2), // Extra padding for last item
+  },
+  "&:first-child": {
+    paddingTop: theme.spacing(1.5),
   },
 }));
 
@@ -222,7 +243,17 @@ const PreferredCarsSearch = ({ onSelect, value = [] }) => {
 
         {isDropdownOpen && (
           <DropdownContainer ref={dropdownRef}>
-            <List disablePadding>
+            <List 
+              disablePadding 
+              sx={{ 
+                maxHeight: "100%", 
+                overflow: "visible",
+                paddingBottom: 0,
+                "& .MuiListItem-root:last-child": {
+                  marginBottom: 0,
+                }
+              }}
+            >
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
                   <CircularProgress size={20} sx={{ mr: 1 }} />

@@ -9,8 +9,8 @@ const SearchBar = ({ onLocationSelect }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const listRef = useRef(null);
   const inputRef = useRef(null);
-  const user_country = useSelector((state) => state.auth.user_country);
-  console.log('user_country123',user_country);
+  // Get selected DMC data from Redux store
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
   
   const defaultCountries = [
     { name: "India", code: "in" },
@@ -18,19 +18,34 @@ const SearchBar = ({ onLocationSelect }) => {
     // You can add more locations here
   ];
 
-  const locationSearchContent = user_country && Array.isArray(user_country)
-    ? user_country.map((country, index) => ({
-        name: country.name,
-        code: country.code,
-        key: `country-${index}`
-      }))
+  // Get country from selected DMC data
+  const locationSearchContent = selectedDmcData && selectedDmcData.location
+    ? [{ 
+        name: selectedDmcData.location, // Full country name
+        code: selectedDmcData.location, // Use full name as code too for database
+        key: 'selected-dmc-country' 
+      }]
     : defaultCountries;
   
-  // Add more detailed logging
+  // Update location content when selected DMC changes
   useEffect(() => {
-    console.log('User country from Redux:', user_country);
-    console.log('Location content:', locationSearchContent);
-  }, [user_country, locationSearchContent]);
+    // Auto-select the DMC's country if available
+    if (selectedDmcData && selectedDmcData.location) {
+      const dmcCountry = {
+        name: selectedDmcData.location, // Full country name
+        code: selectedDmcData.location, // Use full name as code for database
+        key: 'selected-dmc-country'
+      };
+      setSearchValue(dmcCountry.name);
+      setSelectedItem(dmcCountry);
+      setIsDropdownOpen(false);
+      
+      // Call the onLocationSelect callback
+      if (onLocationSelect) {
+        onLocationSelect(dmcCountry);
+      }
+    }
+  }, [selectedDmcData, onLocationSelect]);
 
   // Filter and suggest results based on search input
   useEffect(() => {
@@ -168,7 +183,7 @@ const SearchBar = ({ onLocationSelect }) => {
             type="search"
             placeholder="Select a country"
             className="js-search js-dd-focus pr-30 text-xs"
-            style={{ fontSize: "13.5px" }}
+            style={{ fontSize: "11.5px" }}
             value={searchValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}

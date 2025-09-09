@@ -143,7 +143,7 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
   };
   
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ position: 'relative', zIndex: 1 }}>
       {/* Only show header if it's not already handled by parent */}
       {!showEntryPort && !showExitPort && (
         <Typography variant="h6" gutterBottom sx={{ mb: 0.5, fontSize: '1.1rem' }}>

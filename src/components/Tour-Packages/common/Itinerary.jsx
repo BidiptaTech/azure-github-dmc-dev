@@ -78,13 +78,52 @@ export default function Itinerary({ onBookingSuccess }) {
   // Get all services from Redux store for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
   console.log("All Services for validation:", allServices);
-  
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [portType,setPortType] = useState("Entry Port");
   const [portType1,setPortType1] = useState("Exit Port");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const dispatch = useDispatch();
   const packageData = useSelector((state) => state.tourPackages.packageData);
+  const errorMessage = useSelector((state) => {
+    try {
+      return state.pickupDrop?.error || state.localtour?.error;
+    } catch (error) {
+      console.warn('Error accessing pickupDrop or localtour state:', error);
+      return null;
+    }
+  });
   console.log("packageData", packageData);
+  console.log("errorMessage", errorMessage);
+
+  // Effect to show snackbar when errorMessage has a string value
+  useEffect(() => {
+    console.log('useEffect triggered with errorMessage:', errorMessage);
+    
+    
+    try {
+      if (errorMessage && 
+          typeof errorMessage === 'string' && 
+          errorMessage.trim() !== '') {
+        console.log('Setting snackbar with message:', errorMessage);
+        setSnackbarMessage(errorMessage);
+        setSnackbarSeverity('error');
+        setOpenSnackbar(true);
+        console.log('Snackbar state should be set to open');
+      } else {
+        console.log('errorMessage conditions not met:', {
+          hasErrorMessage: !!errorMessage,
+          isString: typeof errorMessage === 'string',
+          notEmpty: errorMessage?.trim() !== ''
+        });
+      }
+    } catch (error) {
+      console.error('Error in errorMessage useEffect:', error);
+      console.error('errorMessage value:', errorMessage);
+      console.error('errorMessage type:', typeof errorMessage);
+    }
+  }, [errorMessage]);
 
   // Function to automatically update service dates when tour dates change
   const updateServiceDatesForNewTourDates = useMemo(() => {
@@ -441,9 +480,7 @@ export default function Itinerary({ onBookingSuccess }) {
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   
   // State for snackbar
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+ 
   const { loading, error, packageEnquiryId, customerInfoValid } = useSelector((state) => state.tourPackages);
   
   // Debug logging for button state
@@ -1038,6 +1075,9 @@ export default function Itinerary({ onBookingSuccess }) {
             </Alert>
           </Snackbar>
           
+          
+          
+          
           {/* Services Summary Modal */}
           <ServicesSummaryModal 
             open={summaryModalOpen} 
@@ -1089,7 +1129,7 @@ export default function Itinerary({ onBookingSuccess }) {
           <Grid item xs={12} md={5} lg={4} sx={{ 
             position: 'fixed', 
             right: 0,
-            top: 80, // Start where itinerary content begins instead of top
+            top: 90, // Start where itinerary content begins instead of top
             height: 'calc(100vh - 100px)', // Adjust height accordingly
             width: '70%',
             overflowY: 'auto',

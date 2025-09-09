@@ -3,6 +3,8 @@ import "./login.css";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setName, setEmail1, setAuthenticated, setAgentId } from "./loginSlice";
+
+
 import { loginUser } from "../../slice/common/authSlices";
 import { setUserRole } from "@/slice/common/authSlices";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
@@ -51,6 +53,7 @@ import {
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
 import { ClearLists } from "@/slice/common/TourlistSlice";
+import { resetAgentList } from "@/slice/common/agentListSlice";
 
 // Custom animations
 const float = keyframes`
@@ -169,6 +172,8 @@ function Login() {
     e.preventDefault();
     setIsLoading(true);
     dispatch(resetPackages());
+    dispatch(resetAgentList());
+   
     dispatch(ClearLists());
     const result = await dispatch(loginUser({ email, password }));
 
@@ -201,23 +206,23 @@ function Login() {
         }));
         
         // Also dispatch the existing action for backward compatibility
-        dispatch(setSelectedDmcId({
-          dmcId: dmcId,
-          dmcData: {
-            id: `dmc-auth-${dmcId}`,
-            dmcId: dmcId,
-            name: dmcCompanyName || `DMC ${dmcId}`,
-            location: 'Auth-selected',
-            logo: dmcLogo || '',
-            rating: 4.5,
-            description: 'DMC from authentication',
-            originalData: { 
-              dmcId: dmcId,
-              logo: dmcLogo,
-              company_name: dmcCompanyName
-            }
-          }
-        }));
+        // dispatch(setSelectedDmcId({
+        //   dmcId: dmcId,
+        //   dmcData: {
+        //     id: `dmc-auth-${dmcId}`,
+        //     dmcId: dmcId,
+        //     name: dmcCompanyName || `DMC ${dmcId}`,
+        //     location: 'Auth-selected',
+        //     logo: dmcLogo || '',
+        //     rating: 4.5,
+        //     description: 'DMC from authentication',
+        //     originalData: { 
+        //       dmcId: dmcId,
+        //       logo: dmcLogo,
+        //       company_name: dmcCompanyName
+        //     }
+        //   }
+        // }));
       }
 
       // Trigger door animation

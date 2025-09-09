@@ -1,10 +1,16 @@
-import { useState } from "react";
-import { FormControl, Select, MenuItem, Box, Typography } from "@mui/material";
+import React, { useEffect, useRef } from "react";
+import { 
+  FormControl, 
+  Select, 
+  MenuItem, 
+  Box, 
+  Typography
+} from "@mui/material";
 import { styled } from "@mui/material/styles";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import NightsStayIcon from "@mui/icons-material/NightsStay";
 
-// Styled Menu Item for consistent styling
+// Styled Menu Item for consistent styling (matching Pickuptime)
 const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
   display: "flex",
   alignItems: "center",
@@ -30,11 +36,17 @@ const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
   },
 }));
 
-// Custom Select component with styling
+// Custom Select component with styling (matching Pickuptime)
 const StyledSelect = styled(Select)(({ theme, disabled }) => ({
   height: "48px",
   borderRadius: "8px",
   fontSize: "16px",
+  overflow: "hidden",
+  position: "relative",
+  maxHeight: "240px",
+  width: "100%", // Full width to fill parent container
+  minWidth: "120px", // Minimum width for very small containers
+  fontFamily: "inherit",
   padding: "0 10px",
   backgroundColor: disabled ? "#f0f0f0" : "#f5f7fb",
   opacity: disabled ? 0.8 : 1,
@@ -53,15 +65,61 @@ const StyledSelect = styled(Select)(({ theme, disabled }) => ({
     gap: "8px",
     color: disabled ? "#999" : "inherit",
   },
+  
+  // Media queries for responsive design
+  [theme.breakpoints.down('xl')]: {
+    height: "46px",
+    fontSize: "15px",
+    padding: "0 8px",
+  },
+  
+  [theme.breakpoints.down('lg')]: {
+    height: "44px",
+    fontSize: "14px",
+    padding: "0 8px",
+  },
+  
+  [theme.breakpoints.down('md')]: {
+    height: "42px",
+    fontSize: "14px",
+    padding: "0 6px",
+    borderRadius: "6px",
+  },
+  
+  [theme.breakpoints.down('sm')]: {
+    height: "40px",
+    fontSize: "13px",
+    padding: "0 6px",
+    borderRadius: "6px",
+  },
+  
+  [theme.breakpoints.down('xs')]: {
+    height: "38px",
+    fontSize: "12px",
+    padding: "0 5px",
+    borderRadius: "5px",
+  },
 }));
 
-const Pickuptime = ({
+const Pickuptime1 = ({
   entryytime,
   setentryytime,
   isStatic = false,
-  setTime,
   disabled = false,
+  setTime,
 }) => {
+  const prevTimeRef = useRef(entryytime);
+
+  useEffect(() => {
+    if (setTime) {
+      // Always update the time state when entryytime changes
+      const hasTime = !!entryytime;
+      console.log("Pickuptime1 - Setting time state:", hasTime, "Current time value:", entryytime);
+      setTime(hasTime);
+      prevTimeRef.current = entryytime;
+    }
+  }, [entryytime, setTime]);
+
   // Updated function to correctly determine night hours (6 PM to 11 PM only)
   const isSelectedTimeNight = () => {
     if (!entryytime) return false;
@@ -84,27 +142,21 @@ const Pickuptime = ({
   // Handle time selection
   const handleTimeChange = (e) => {
     if (!isStatic && !disabled) {
-      setentryytime(e.target.value);
-      // Set time state to true when a value is selected
-      if (e.target.value) {
+      const selectedTime = e.target.value;
+      setentryytime(selectedTime);
+      
+      // Explicitly set time1 state to true when a time is selected
+      if (setTime && selectedTime) {
+        console.log("Pickuptime1 - Explicitly setting time state to true for:", selectedTime);
         setTime(true);
-      } else {
-        setTime(false);
       }
     }
   };
 
   return (
-    <FormControl>
-      {/* <label
-        htmlFor="pickup-time-select"
-        className={`text-15 fw-500 ls-2 lh-16 mt-5 mb-10 ${disabled ? "text-gray-400" : ""}`}
-      >
-        Select the Pick Up Time
-      </label> */}
+    <FormControl fullWidth>
       <StyledSelect
-        id="pickup-time-select"
-        value={entryytime}
+        value={entryytime || ''}
         onChange={handleTimeChange}
         displayEmpty
         disabled={isStatic || disabled}
@@ -139,7 +191,7 @@ const Pickuptime = ({
           PaperProps: {
             style: {
               maxHeight: 280,
-              borderRadius: "5px",
+              borderRadius: "10px",
               backgroundColor: "rgba(255, 255, 255, 0.98)",
               boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
             },
@@ -203,4 +255,4 @@ const Pickuptime = ({
   );
 };
 
-export default Pickuptime;
+export default Pickuptime1;

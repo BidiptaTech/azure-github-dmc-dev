@@ -25,11 +25,27 @@ const SearchContainer = styled(Box)(({ theme }) => ({
 const DropdownContainer = styled(Paper)(({ theme }) => ({
   position: "absolute",
   width: "100%",
-  maxHeight: 250,
+  maxHeight: 210,
   overflowY: "auto",
   zIndex: 20,
   marginTop: theme.spacing(0.5),
   boxShadow: theme.shadows[3],
+  borderRadius: theme.spacing(1),
+  // Fix scrolling issues
+  scrollbarWidth: "thin",
+  "&::-webkit-scrollbar": {
+    width: "6px",
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: theme.palette.grey[400],
+    borderRadius: "3px",
+    "&:hover": {
+      backgroundColor: theme.palette.grey[600],
+    },
+  },
 }));
 
 const GuideOption = styled(ListItem)(({ theme }) => ({
@@ -41,11 +57,16 @@ const GuideOption = styled(ListItem)(({ theme }) => ({
   justifyContent: "space-between",
   alignItems: "flex-start",
   gap: theme.spacing(1),
+  minHeight: "auto",
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
   },
   "&:last-child": {
     borderBottom: "none",
+    paddingBottom: theme.spacing(2), // Extra padding for last item
+  },
+  "&:first-child": {
+    paddingTop: theme.spacing(1.5),
   },
 }));
 
@@ -99,6 +120,7 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
 
   // Update internal state when value prop changes
   useEffect(() => {
+    
     setSelectedGuides(value);
   }, [value]);
 
@@ -150,9 +172,13 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
     if (guide === "others") {
       setShowOthersInput(true);
     } else {
-      // Check if guide is already selected
+      // Check if guide is already selected - handle both guide_id and id fields
+      const currentGuideId = guide.guide_id || guide.id;
       if (
-        !selectedGuides.some((selectedGuide) => selectedGuide.guide_id === guide.guide_id)
+        !selectedGuides.some((selectedGuide) => {
+          const selectedId = selectedGuide.guide_id || selectedGuide.id;
+          return selectedId === currentGuideId;
+        })
       ) {
         // Create a clean guide object to avoid React rendering issues
         let cleanGuide = {
@@ -172,7 +198,10 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
         }
         
         const updatedGuides = [...selectedGuides, cleanGuide];
+        console.log("PreferredGuidesSearch: Adding guide:", cleanGuide);
+        console.log("PreferredGuidesSearch: Updated guides after adding:", updatedGuides);
         setSelectedGuides(updatedGuides);
+        console.log("PreferredGuidesSearch: Calling onSelect after adding guide with:", updatedGuides);
         if (onSelect) onSelect(updatedGuides);
       }
     }
@@ -195,10 +224,23 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
 
   // Remove a guide from selection
   const handleRemoveGuide = (guideId) => {
+  
     const updatedGuides = selectedGuides.filter(
-      (guide) => guide.guide_id !== guideId
+      (guide) => {
+        // Handle both guide_id and id fields
+        const currentGuideId = guide.guide_id || guide.id;
+        // Convert both to strings for comparison to handle any type mismatches
+        const guideIdStr = String(currentGuideId);
+        const targetIdStr = String(guideId);
+        const shouldKeep = guideIdStr !== targetIdStr;
+     
+        return shouldKeep;
+      }
     );
+    
+   
     setSelectedGuides(updatedGuides);
+   
     if (onSelect) onSelect(updatedGuides);
   };
 
@@ -226,7 +268,17 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
 
         {isDropdownOpen && (
           <DropdownContainer ref={dropdownRef}>
-            <List disablePadding>
+            <List 
+              disablePadding 
+              sx={{ 
+                maxHeight: "100%", 
+                overflow: "visible",
+                paddingBottom: 0,
+                "& .MuiListItem-root:last-child": {
+                  marginBottom: 0,
+                }
+              }}
+            >
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
                   <CircularProgress size={20} sx={{ mr: 1 }} />
@@ -290,14 +342,20 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
 
         {selectedGuides.length > 0 && (
           <SelectedGuidesContainer>
-            {selectedGuides.map((guide) => (
-              <GuideChip
-                key={guide.guide_id}
-                label={guide.name}
-                onDelete={() => handleRemoveGuide(guide.guide_id)}
-                deleteIcon={<CloseIcon fontSize="small" />}
-              />
-            ))}
+            {selectedGuides.map((guide, index) => {
+              const guideId = guide.guide_id || guide.id;
+              return (
+                <GuideChip
+                  key={`${guideId}-${index}`}
+                  label={guide.name}
+                  onDelete={() => {
+                  
+                    handleRemoveGuide(guideId);
+                  }}
+                  deleteIcon={<CloseIcon fontSize="small" />}
+                />
+              );
+            })}
           </SelectedGuidesContainer>
         )}
       </Box>
