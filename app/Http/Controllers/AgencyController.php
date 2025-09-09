@@ -18,6 +18,7 @@ class AgencyController extends Controller
     public function index()
     {
         try {
+            
             $dmc_id = $this->getDmcIdByUserRole();
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -82,7 +83,14 @@ class AgencyController extends Controller
 
         // Check if agency email is soft deleted
         $deletedAgency = Agency::withTrashed()->where('email', $request->input('email'))->first();
-        $dmc_id = $this->getDmcIdByUserRole();
+        $isAdmin = false;
+        $authUser = Auth::user();
+        if($authUser->role_id == 1 || $authUser->role_id == 2 || $authUser->role_id == 3 || $authUser->role_id == 4 || $authUser->role_id == 19 || $authUser->role_id == 20){
+            $isAdmin = true;
+        }else{
+            $dmc_id = $this->getDmcIdByUserRole();
+            $isAdmin = false;
+        }
 
         if ($deletedAgency && $deletedAgency->trashed()) {
             // Handle logo upload for restored agency
@@ -159,7 +167,6 @@ class AgencyController extends Controller
         if ($agency->save()) {
             return redirect()->route('agencies.index')->with('success', 'Agency created successfully!');
         }
-
         return redirect()->back()->with('error', 'Failed to create agency. Please try again.');
     }
 
