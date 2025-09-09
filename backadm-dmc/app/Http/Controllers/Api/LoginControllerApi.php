@@ -682,6 +682,7 @@ class LoginControllerApi extends Controller
             'is_active',
             'tax_percentage'
         ])->where('is_active', 1)->get();
+        
         return response()->json([
             'success' => true,
             'message' => 'Login successful',

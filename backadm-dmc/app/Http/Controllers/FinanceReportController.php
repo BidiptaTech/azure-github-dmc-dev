@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Models\Agency;
 
 class FinanceReportController extends Controller
 {
@@ -330,29 +331,34 @@ class FinanceReportController extends Controller
                               ->filter();
                 
                 // Step 5: Get agents created by anyone in the hierarchy OR associated with this DMC
-                return Agent::where('status', 1)
-                           ->where(function($query) use ($user, $all_user_ids) {
-                               $query->whereIn('sales_manager_dmc', $all_user_ids)
-                                     ->orWhere(function($subQuery) use ($user) {
-                                         $subQuery->whereRaw("CASE 
-                                             WHEN dmc_id IS NOT NULL 
-                                             THEN (
-                                                 CASE 
-                                                     WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                                     THEN dmc_id::jsonb @> ?::jsonb
-                                                     WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                                     THEN dmc_id::jsonb @> ?::jsonb
-                                                     ELSE dmc_id::text LIKE ?
-                                                 END
-                                             )
-                                             ELSE false
-                                         END", [
-                                             json_encode([$user->userId]),
-                                             json_encode([$user->userId]),
-                                             "%{$user->userId}%"
-                                         ]);
-                                     });
-                           })->pluck('agent_id')->toArray();
+                $agencyIds = Agency::where(function($query) use ($user) {
+                    $query->whereRaw("CASE 
+                        WHEN dmc_id IS NOT NULL 
+                        THEN (
+                            CASE 
+                                WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                THEN dmc_id::jsonb @> ?::jsonb
+                                WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                THEN dmc_id::jsonb @> ?::jsonb
+                                ELSE dmc_id::text LIKE ?
+                            END
+                        )
+                        ELSE false
+                    END", [
+                        json_encode([$user->userId]),
+                        json_encode([$user->userId]),
+                        "%{$user->userId}%"
+                    ]);
+                })
+                ->pluck('agency_id')
+                ->toArray();
+
+                $agents = Agent::where('status', 1)
+                    ->whereIn('agency_id', $agencyIds)
+                    ->select('agent_id', 'name', 'agency_id')
+                    ->get();
+
+                return $agents->pluck('agent_id')->toArray();
 
             case 33: // Sales Head
             case 128: // Sales Head
@@ -386,27 +392,33 @@ class FinanceReportController extends Controller
                 
                 // Step 5: Get agents created by anyone in the hierarchy under this DMC
                 if ($dmc_id) {
-                    return Agent::where('status', 1)
-                               ->whereIn('sales_manager_dmc', $all_user_ids)
-                               ->where(function($query) use ($dmc_id) {
-                                   $query->whereRaw("CASE 
-                                       WHEN dmc_id IS NOT NULL 
-                                       THEN (
-                                           CASE 
-                                               WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               ELSE dmc_id::text LIKE ?
-                                           END
-                                       )
-                                       ELSE false
-                                   END", [
-                                       json_encode([$dmc_id]),
-                                       json_encode([$dmc_id]),
-                                       "%{$dmc_id}%"
-                                   ]);
-                               })->pluck('agent_id')->toArray();
+                    $agencyIds = Agency::where(function($query) use ($user) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
+                        ]);
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
+                    $agents = Agent::where('status', 1)
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
                 }
                 return [];
 
@@ -437,27 +449,33 @@ class FinanceReportController extends Controller
                 
                 // Step 5: Fetch Agents created by Sales Manager or Assistant Managers under DMC
                 if ($dmc_id) {
-                    return Agent::where('status', 1)
-                               ->whereIn('sales_manager_dmc', $all_user_ids)
-                               ->where(function($query) use ($dmc_id) {
-                                   $query->whereRaw("CASE 
-                                       WHEN dmc_id IS NOT NULL 
-                                       THEN (
-                                           CASE 
-                                               WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               ELSE dmc_id::text LIKE ?
-                                           END
-                                       )
-                                       ELSE false
-                                   END", [
-                                       json_encode([$dmc_id]),
-                                       json_encode([$dmc_id]),
-                                       "%{$dmc_id}%"
-                                   ]);
-                               })->pluck('agent_id')->toArray();
+                    $agencyIds = Agency::where(function($query) use ($user) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
+                        ]);
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
+                    $agents = Agent::where('status', 1)
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
                 }
                 return [];
 
@@ -484,40 +502,7 @@ class FinanceReportController extends Controller
             
                 // Step 4: Fetch only Agents created by this Assistant Sales Manager under DMC
                 if ($dmc_id) {
-                    return Agent::where('status', 1)
-                               ->where('sales_manager_dmc', $user->userId) // Only agents created by this Assistant Manager
-                               ->where(function($query) use ($dmc_id) {
-                                   $query->whereRaw("CASE 
-                                       WHEN dmc_id IS NOT NULL 
-                                       THEN (
-                                           CASE 
-                                               WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               ELSE dmc_id::text LIKE ?
-                                           END
-                                       )
-                                       ELSE false
-                                   END", [
-                                       json_encode([$dmc_id]),
-                                       json_encode([$dmc_id]),
-                                       "%{$dmc_id}%"
-                                   ]);
-                               })->pluck('agent_id')->toArray();
-                }
-                return [];
-
-            default:
-                // For all other roles, get the parent DMC's agents
-                $parentUser = User::where('userId', $user->created_by)->first();
-                while ($parentUser && !in_array($parentUser->role_id, [11])) {
-                    $parentUser = User::where('userId', $parentUser->created_by)->first();
-                }
-
-                if ($parentUser && $parentUser->role_id == 11) {
-                    $dmc_id = $parentUser->userId;
-                    return Agent::where('status', 1)->where(function($query) use ($dmc_id) {
+                    $agencyIds = Agency::where(function($query) use ($user) {
                         $query->whereRaw("CASE 
                             WHEN dmc_id IS NOT NULL 
                             THEN (
@@ -531,11 +516,58 @@ class FinanceReportController extends Controller
                             )
                             ELSE false
                         END", [
-                            json_encode([$dmc_id]),
-                            json_encode([$dmc_id]),
-                            "%{$dmc_id}%"
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
                         ]);
-                    })->pluck('agent_id')->toArray();
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
+                    $agents = Agent::where('status', 1)
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
+                }
+                return [];
+
+            default:
+                // For all other roles, get the parent DMC's agents
+                $parentUser = User::where('userId', $user->created_by)->first();
+                while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                    $parentUser = User::where('userId', $parentUser->created_by)->first();
+                }
+
+                if ($parentUser && $parentUser->role_id == 11) {
+                    $dmc_id = $parentUser->userId;
+                    $agencyIds = Agency::where(function($query) use ($user) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
+                        ]);
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
+                    $agents = Agent::where('status', 1)
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
                 }
                 return []; // No access 
         }
@@ -612,31 +644,32 @@ class FinanceReportController extends Controller
                               ->filter();
                 
                 // Step 5: Get agents created by anyone in the hierarchy OR associated with this DMC
+                $agencyIds = Agency::where(function($query) use ($user) {
+                    $query->whereRaw("CASE 
+                        WHEN dmc_id IS NOT NULL 
+                        THEN (
+                            CASE 
+                                WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                THEN dmc_id::jsonb @> ?::jsonb
+                                WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                THEN dmc_id::jsonb @> ?::jsonb
+                                ELSE dmc_id::text LIKE ?
+                            END
+                        )
+                        ELSE false
+                    END", [
+                        json_encode([$user->userId]),
+                        json_encode([$user->userId]),
+                        "%{$user->userId}%"
+                    ]);
+                })
+                ->pluck('agency_id')
+                ->toArray();
+
                 $agents = Agent::where('status', 1)
-                             ->where(function($query) use ($user, $all_user_ids) {
-                                 $query->whereIn('sales_manager_dmc', $all_user_ids)
-                                       ->orWhere(function($subQuery) use ($user) {
-                                           $subQuery->whereRaw("CASE 
-                                               WHEN dmc_id IS NOT NULL 
-                                               THEN (
-                                                   CASE 
-                                                       WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                                       THEN dmc_id::jsonb @> ?::jsonb
-                                                       WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                                       THEN dmc_id::jsonb @> ?::jsonb
-                                                       ELSE dmc_id::text LIKE ?
-                                                   END
-                                               )
-                                               ELSE false
-                                           END", [
-                                               json_encode([$user->userId]),
-                                               json_encode([$user->userId]),
-                                               "%{$user->userId}%"
-                                           ]);
-                                       });
-                             })
-                             ->select('agent_id', 'name', 'sales_manager_dmc')
-                             ->get();
+                    ->whereIn('agency_id', $agencyIds)
+                    ->select('agent_id', 'name', 'agency_id')
+                    ->get();
                 
                 // Add root DMC ID for each agent
                 return $agents->map(function ($agent) use ($user) {
@@ -676,30 +709,33 @@ class FinanceReportController extends Controller
                 
                 // Step 5: Get agents created by anyone in the hierarchy under this DMC
                 if ($dmc_id) {
+                    $agencyIds = Agency::where(function($query) use ($user) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
+                        ]);
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
                     $agents = Agent::where('status', 1)
-                                 ->whereIn('sales_manager_dmc', $all_user_ids)
-                                 ->where(function($query) use ($dmc_id) {
-                                     $query->whereRaw("CASE 
-                                         WHEN dmc_id IS NOT NULL 
-                                         THEN (
-                                             CASE 
-                                                 WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                                 THEN dmc_id::jsonb @> ?::jsonb
-                                                 WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                                 THEN dmc_id::jsonb @> ?::jsonb
-                                                 ELSE dmc_id::text LIKE ?
-                                             END
-                                         )
-                                         ELSE false
-                                     END", [
-                                         json_encode([$dmc_id]),
-                                         json_encode([$dmc_id]),
-                                         "%{$dmc_id}%"
-                                     ]);
-                                 })
-                                 ->select('agent_id', 'name', 'sales_manager_dmc')
-                                 ->get();
-                    
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
                     // Add root DMC ID for each agent
                     return $agents->map(function ($agent) {
                         $agent->root_dmc_id = $this->findRootDmcForAgent($agent->sales_manager_dmc);
@@ -735,29 +771,33 @@ class FinanceReportController extends Controller
                 
                 // Step 5: Fetch Agents created by Sales Manager or Assistant Managers under DMC
                 if ($dmc_id) {
+                    $agencyIds = Agency::where(function($query) use ($user) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
+                        ]);
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
                     $agents = Agent::where('status', 1)
-                               ->whereIn('sales_manager_dmc', $all_user_ids)
-                               ->where(function($query) use ($dmc_id) {
-                                   $query->whereRaw("CASE 
-                                       WHEN dmc_id IS NOT NULL 
-                                       THEN (
-                                           CASE 
-                                               WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               ELSE dmc_id::text LIKE ?
-                                           END
-                                       )
-                                       ELSE false
-                                   END", [
-                                       json_encode([$dmc_id]),
-                                       json_encode([$dmc_id]),
-                                       "%{$dmc_id}%"
-                                   ]);
-                               })
-                               ->select('agent_id', 'name', 'sales_manager_dmc')
-                               ->get();
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
                     
                     // Add root DMC ID for each agent
                     return $agents->map(function ($agent) {
@@ -790,30 +830,33 @@ class FinanceReportController extends Controller
             
                 // Step 4: Fetch only Agents created by this Assistant Sales Manager under DMC
                 if ($dmc_id) {
+                    $agencyIds = Agency::where(function($query) use ($user) {
+                        $query->whereRaw("CASE 
+                            WHEN dmc_id IS NOT NULL 
+                            THEN (
+                                CASE 
+                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
+                                    THEN dmc_id::jsonb @> ?::jsonb
+                                    ELSE dmc_id::text LIKE ?
+                                END
+                            )
+                            ELSE false
+                        END", [
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
+                        ]);
+                    })
+                    ->pluck('agency_id')
+                    ->toArray();
+    
                     $agents = Agent::where('status', 1)
-                               ->where('sales_manager_dmc', $user->userId) // Only agents created by this Assistant Manager
-                               ->where(function($query) use ($dmc_id) {
-                                   $query->whereRaw("CASE 
-                                       WHEN dmc_id IS NOT NULL 
-                                       THEN (
-                                           CASE 
-                                               WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                               THEN dmc_id::jsonb @> ?::jsonb
-                                               ELSE dmc_id::text LIKE ?
-                                           END
-                                       )
-                                       ELSE false
-                                   END", [
-                                       json_encode([$dmc_id]),
-                                       json_encode([$dmc_id]),
-                                       "%{$dmc_id}%"
-                                   ]);
-                               })
-                               ->select('agent_id', 'name', 'sales_manager_dmc')
-                               ->get();
-                    
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'agency_id')
+                        ->get();
+                    return $agents->pluck('agent_id')->toArray();
                     // Add root DMC ID for each agent
                     return $agents->map(function ($agent) {
                         $agent->root_dmc_id = $this->findRootDmcForAgent($agent->sales_manager_dmc);
@@ -831,7 +874,7 @@ class FinanceReportController extends Controller
 
                 if ($parentUser && $parentUser->role_id == 11) {
                     $dmc_id = $parentUser->userId;
-                    $agents = Agent::where('status', 1)->where(function($query) use ($dmc_id) {
+                    $agencyIds = Agency::where(function($query) use ($user) {
                         $query->whereRaw("CASE 
                             WHEN dmc_id IS NOT NULL 
                             THEN (
@@ -845,13 +888,18 @@ class FinanceReportController extends Controller
                             )
                             ELSE false
                         END", [
-                            json_encode([$dmc_id]),
-                            json_encode([$dmc_id]),
-                            "%{$dmc_id}%"
+                            json_encode([$user->userId]),
+                            json_encode([$user->userId]),
+                            "%{$user->userId}%"
                         ]);
                     })
-                    ->select('agent_id', 'name', 'sales_manager_dmc')
-                    ->get();
+                    ->pluck('agency_id')
+                    ->toArray();
+    
+                    $agents = Agent::where('status', 1)
+                        ->whereIn('agency_id', $agencyIds)
+                        ->select('agent_id', 'name', 'sales_manager_dmc')
+                        ->get();
                     
                     // Add root DMC ID for each agent
                     return $agents->map(function ($agent) {
