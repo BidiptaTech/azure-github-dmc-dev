@@ -904,6 +904,12 @@
                                         <i class="ri-settings-3-line"></i> Edit Tour
                                     </a>
                                     
+                                    <button type="button" 
+                                            class="btn btn-outline-danger btn-sm rounded-pill" 
+                                            onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')">
+                                        <i class="ri-close-line"></i> Cancel
+                                    </button>
+                                    
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment History
@@ -3410,83 +3416,113 @@
     @endphp
 
     <!-- Payment History Modal -->
+    <style>
+        @media (max-width: 768px) {
+            #showPaymentModal{{ $tour->tour_id }} .modal-dialog {
+                max-width: 98% !important;
+                margin: 0.5rem auto !important;
+            }
+            #showPaymentModal{{ $tour->tour_id }} .modal-content {
+                height: 90vh !important;
+            }
+            #showPaymentModal{{ $tour->tour_id }} .table-responsive {
+                max-height: 300px !important;
+            }
+        }
+        
+        #showPaymentModal{{ $tour->tour_id }} .table th,
+        #showPaymentModal{{ $tour->tour_id }} .table td {
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            max-width: 150px;
+        }
+        
+        #showPaymentModal{{ $tour->tour_id }} .table td[title] {
+            cursor: help;
+        }
+    </style>
     <div class="modal fade" id="showPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="showPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content shadow-lg rounded">
-                <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
-                    <h5 class="modal-title d-flex align-items-center" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white;">
-                        <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1.4rem;"></i> 
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable" style="max-width: 95%; max-height: 90vh;">
+            <div class="modal-content shadow-lg rounded" style="height: 85vh; min-height: 600px;">
+                <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 12px 20px; border-radius: 8px 8px 0 0; flex-shrink: 0;">
+                    <h5 class="modal-title d-flex align-items-center" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white; font-size: 1.1rem;">
+                        <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1.2rem;"></i> 
                         <span style="color: white;">Payment History for Tour #{{ $tour->tour_id }}</span>
                     </h5>
                     <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body p-3" style="overflow-y: auto; flex: 1;">
                     @if(!empty($paymentData))
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="text-center">Payment Date</th>
-                                        <th class="text-center">Record Date</th>
-                                        <th class="text-center">Amount (SGD)</th>
-                                        <th class="text-center">Original Amount</th>
-                                        <th class="text-center">Currency</th>
-                                        <th class="text-center">Exchange Rate</th>
-                                        <th class="text-center">Payment Mode</th>
-                                        <th class="text-center">Transaction ID</th>
-                                        <th class="text-center">Remarks</th>
-                                        <th class="text-center">Status</th>
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-bordered table-hover table-sm">
+                                <thead class="table-light sticky-top">
+                                    <tr style="font-size: 0.85rem;">
+                                        <th class="text-center" style="width: 10%; min-width: 90px;">Payment Date</th>
+                                        <th class="text-center" style="width: 10%; min-width: 90px;">Record Date</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Amount (SGD)</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Original Amount</th>
+                                        <th class="text-center" style="width: 7%; min-width: 60px;">Currency</th>
+                                        <th class="text-center" style="width: 9%; min-width: 75px;">Exchange Rate</th>
+                                        <th class="text-center" style="width: 10%; min-width: 80px;">Payment Mode</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Transaction ID</th>
+                                        <th class="text-center" style="width: 10%; min-width: 80px;">Remarks</th>
+                                        <th class="text-center" style="width: 8%; min-width: 70px;">Status</th>
                                         @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
-                                            <th class="text-center">Actions</th>
+                                            <th class="text-center" style="width: 8%; min-width: 80px;">Actions</th>
                                         @endif
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($paymentData as $index => $payment)
-                                        <tr>
-                                            <td class="text-center">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}</td>
-                                            <td class="text-center">{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
-                                            <td class="text-center fw-bold text-success">{{ isset($payment['amount']) ? number_format($payment['amount'], 2) : '0.00' }}</td>
-                                            <td class="text-center">{{ isset($payment['original_amount']) ? number_format($payment['original_amount'], 2) : number_format($payment['amount'] ?? 0, 2) }}</td>
-                                            <td class="text-center">{{ $payment['currency'] ?? 'SGD' }}</td>
-                                            <td class="text-center">{{ isset($payment['exchange_rate']) ? number_format($payment['exchange_rate'], 4) : '1.0000' }}</td>
-                                            <td class="text-center">
-                                                <span class="badge bg-light text-dark">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span>
+                                        <tr style="font-size: 0.8rem;">
+                                            <td class="text-center py-2">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
+                                            <td class="text-center py-2 fw-bold text-success">{{ isset($payment['amount']) ? number_format($payment['amount'], 2) : '0.00' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['original_amount']) ? number_format($payment['original_amount'], 2) : number_format($payment['amount'] ?? 0, 2) }}</td>
+                                            <td class="text-center py-2">{{ $payment['currency'] ?? 'SGD' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['exchange_rate']) ? number_format($payment['exchange_rate'], 4) : '1.0000' }}</td>
+                                            <td class="text-center py-2">
+                                                <span class="badge bg-light text-dark" style="font-size: 0.7rem;">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span>
                                             </td>
-                                            <td class="text-center">{{ $payment['transaction_id'] ?? 'N/A' }}</td>
-                                            <td class="text-center">{{ $payment['remarks'] ?? 'N/A' }}</td>
-                                            <td class="text-center">
+                                            <td class="text-center py-2" style="font-size: 0.75rem;" title="{{ $payment['transaction_id'] ?? 'N/A' }}">
+                                                {{ Str::limit($payment['transaction_id'] ?? 'N/A', 15, '...') }}
+                                            </td>
+                                            <td class="text-center py-2" style="font-size: 0.75rem;" title="{{ $payment['remarks'] ?? 'N/A' }}">
+                                                {{ Str::limit($payment['remarks'] ?? 'N/A', 12, '...') }}
+                                            </td>
+                                            <td class="text-center py-2">
                                                 @if(isset($payment['status']))
                                                     @if($payment['status'] == 1)
-                                                        <span class="badge bg-success text-white">
+                                                        <span class="badge bg-success text-white" style="font-size: 0.7rem;">
                                                             <i class="fas fa-check-circle me-1"></i>Verified
                                                         </span>
                                                     @elseif($payment['status'] == 2)
-                                                        <span class="badge bg-danger text-white">
+                                                        <span class="badge bg-danger text-white" style="font-size: 0.7rem;">
                                                             <i class="fas fa-times-circle me-1"></i>Declined
                                                         </span>
                                                     @else
-                                                        <span class="badge bg-warning text-dark">
+                                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
                                                             <i class="fas fa-clock me-1"></i>Pending
                                                         </span>
                                                     @endif
                                                 @else
-                                                    <span class="badge bg-secondary text-white">Unknown</span>
+                                                    <span class="badge bg-secondary text-white" style="font-size: 0.7rem;">Unknown</span>
                                                 @endif
                                             </td>
                                             @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
-                                                <td class="text-center">
+                                                <td class="text-center py-2">
                                                     @if(!isset($payment['status']) || $payment['status'] == 0)
-                                                        <div class="d-flex justify-content-center gap-2">
-                                                            <button type="button" class="btn btn-sm btn-success" onclick="verifyPayment({{ $tour->tour_id }}, {{ $index }})">
-                                                                <i class="fas fa-check-circle me-1"></i> Verify
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            <button type="button" class="btn btn-xs btn-success" style="font-size: 0.7rem; padding: 2px 6px;" onclick="verifyPayment({{ $tour->tour_id }}, {{ $index }})">
+                                                                <i class="fas fa-check"></i>
                                                             </button>
-                                                            <button type="button" class="btn btn-sm btn-danger" onclick="declinePayment({{ $tour->tour_id }}, {{ $index }})">
-                                                                <i class="fas fa-times-circle me-1"></i> Decline
+                                                            <button type="button" class="btn btn-xs btn-danger" style="font-size: 0.7rem; padding: 2px 6px;" onclick="declinePayment({{ $tour->tour_id }}, {{ $index }})">
+                                                                <i class="fas fa-times"></i>
                                                             </button>
                                                         </div>
                                                     @else
-                                                        <span class="text-muted">No action needed</span>
+                                                        <span class="text-muted" style="font-size: 0.7rem;">-</span>
                                                     @endif
                                                 </td>
                                             @endif
@@ -3497,28 +3533,28 @@
                         </div>
                         
                         <!-- Payment Summary -->
-                        <div class="row mt-4">
+                        <div class="row mt-3 g-2">
                             <div class="col-md-4">
-                                <div class="card bg-primary text-white">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Total Amount</h6>
-                                        <h4>{{ number_format($finalAmount, 2) }}</h4>
+                                <div class="card bg-primary text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Total Amount</h6>
+                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($finalAmount, 2) }}</h4>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="card bg-success text-white">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Paid Amount</h6>
-                                        <h4>{{ number_format($totalPaid, 2) }}</h4>
+                                <div class="card bg-success text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Paid Amount</h6>
+                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($totalPaid, 2) }}</h4>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="card bg-warning text-white">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title">Remaining Amount</h6>
-                                        <h4>{{ number_format($remainingAmount, 2) }}</h4>
+                                <div class="card bg-warning text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Remaining Amount</h6>
+                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($remainingAmount, 2) }}</h4>
                                     </div>
                                 </div>
                             </div>
@@ -3531,9 +3567,9 @@
                         </div>
                     @endif
                 </div>
-                <div class="modal-footer bg-light d-flex justify-content-end" style="padding: 15px; border-radius: 8px;">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Close
+                <div class="modal-footer bg-light d-flex justify-content-end" style="padding: 10px 20px; border-radius: 0 0 8px 8px; flex-shrink: 0;">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.85rem;">
+                        <i class="fas fa-times me-1"></i>Close
                     </button>
                 </div>
             </div>
@@ -21426,6 +21462,95 @@ function cancelConfirmed(tourId) {
     }
 }
 
+function cancelDefinite(encryptedTourId, displayId) {
+    // Show SweetAlert confirmation dialog
+    Swal.fire({
+        title: 'Cancel Tour?',
+        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Extract tour ID from the encrypted string to match the button ID
+            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
+            const button = tourIdMatch || event.target.closest('button');
+            const originalContent = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
+            button.disabled = true;
+            
+            // Send AJAX request to cancel tour
+            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Update button to show cancelled state
+                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
+                    button.classList.remove('btn-outline-danger');
+                    button.classList.add('btn-success');
+                    button.disabled = true;
+                    
+                    // Refresh the page after a short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                    
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message || 'Failed to cancel tour',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Restore button state
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling tour:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the tour. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Restore button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            });
+        }
+    });
+}
+
+// Alias function to match naming convention used in other blade files
+window.cancelTour = function(encryptedTourId, displayId) {
+    return cancelDefinite(encryptedTourId, displayId);
+};
+
 function bulkMakeDefinite() {
     const selectedTours = document.querySelectorAll('.row-checkbox:checked');
     if (selectedTours.length === 0) {
@@ -21624,11 +21749,7 @@ function updateFilterResults(visibleCount, totalCount) {
     // Update the table header to show filter results
     const tableHeader = document.querySelector('#toursTable').closest('.card').querySelector('.card-header h5');
     if (tableHeader) {
-        if (visibleCount === totalCount) {
-            tableHeader.textContent = 'Definite Bookings List';
-        } else {
-            tableHeader.innerHTML = `Definite Bookings List <span class="badge bg-primary ms-2">${visibleCount} of ${totalCount} shown</span>`;
-        }
+        tableHeader.textContent = 'Definite Bookings List';
     }
 }
 

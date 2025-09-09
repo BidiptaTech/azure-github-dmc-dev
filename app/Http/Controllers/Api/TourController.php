@@ -2523,6 +2523,7 @@ class TourController extends Controller
             'destination' => $tour->destination,
             'adult' => $tour->adult,
             'child' => $tour->child,
+            'status' => $tour->tour_status,
             'infant' => $tour->infant,
             'male' => $tour->male_count,
             'female' => $tour->female_count,

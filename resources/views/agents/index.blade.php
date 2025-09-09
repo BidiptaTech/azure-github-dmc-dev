@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'Agents')
+@section('title', 'Travel Agents')
 @extends('layouts.datatablecss')
 
 @section('content')
@@ -26,14 +26,14 @@
       <div class="card-datatable table-responsive pt-0">
             <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                 <div class="d-flex align-items-center">
-                    <h5 class="card-title mb-0">Agents</h5>
+                    <h5 class="card-title mb-0">Travel Agents</h5>
                 </div>
 
                 <div class="d-flex justify-content-between gap-3">
                     <!-- Add New User Button -->
                     @if(!in_array(auth()->user()->role_id, [1, 2, 3, 4]))
                       <a href="{{ route('agents.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-                          <i class="fas fa-plus"></i> Add New Agent
+                          <i class="fas fa-plus"></i> Add New Travel Agent
                       </a>
                     @endif
                     <!-- Export Dropdown Button -->
@@ -63,7 +63,8 @@
               <th>Name</th>
               <th>Email</th>
               <th>Phone</th>
-              <th>Country & City</th>
+              {{-- <th>Designation</th> --}}
+              {{-- <th>Country & City</th> --}}
               <th>Service Country</th>
               {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                   <th>Action</th>
@@ -147,7 +148,8 @@
                 <td>{{ $agent->name }}</td>
                 <td>{{ $agent->email }}</td>
                 <td>{{ $agent->phone }}</td>
-                <td>
+                {{-- <td>{{ $agent->designation }}</td> --}}
+                {{-- <td>
                     <div class="d-flex align-items-center">
                         <i class="fas fa-map-marker-alt text-primary me-2"></i>
                         <div>
@@ -156,7 +158,7 @@
                             <small class="text-muted">{{ $agent->city ?? 'N/A' }}</small>
                         </div>
                     </div>
-                </td>
+                </td> --}}
                 <td>
                   @if($agent->country)
                     <div class="d-flex align-items-center">

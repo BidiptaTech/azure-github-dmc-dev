@@ -76,7 +76,7 @@ class AgentController extends Controller
             ->whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmc_id])])
             ->orderBy('created_at', 'desc')
             ->get();
-            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->get();
+            $agents = Agent::whereIn('agency_id', $agencies->pluck('agency_id'))->orderBy('created_at', 'desc')->get();
         }
 
         // For debugging
@@ -160,9 +160,28 @@ class AgentController extends Controller
             $authUserCountries = explode(',', $masterDmc->country);
         }
 
+        if($user->role_id == 11){
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
+        }
+        elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $parentDmc = User::where('userId', $user->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+        elseif($user->role_id == 12 || $user->role_id == 37){
+            $parentSalesHead = User::where('userId', $user->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();       
+        }
+        elseif($user->role_id == 38){
+            $parentSalesManager = User::where('userId', $user->created_by)->whereIn('role_id', [12, 37])->first();
+            $parentSalesHead = User::where('userId', $parentSalesManager->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
         $sales_mg = User::where('role_id', 38)->get();
-        $agency = Agency::get();
+        //$agency = Agency::get();
         $cityCountry = Country::get();
         $country = Country::get();
         $countryCodes = Agent::countryCodes();
@@ -182,15 +201,16 @@ class AgentController extends Controller
             'name' => 'required|string|max:255',
             'agency_id' => 'required|integer',
             'phone' => 'required|numeric',
+            'designation' => 'required|string|max:255',
             'email' => 'required|email',
-            'user_country' => 'required|string|max:255',
-            'city' => 'required|string|max:255',
-            'agent_address' => 'required|string',
-            'code' => 'required|string|max:255',
+            'user_country' => 'string|max:255',
+            'city' => 'string|max:255',
+            'agent_address' => 'string',
+            'code' => 'string|max:255',
             // 'id_card' => 'required|string|max:255',
             // 'card_number' => 'required|string|max:255',
-            'image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
-            'agent_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
+            'image' => 'mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
+            'agent_image' => 'mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif|max:2048',
             'password' => 'required|min:8',
         ]);
 
@@ -278,6 +298,7 @@ class AgentController extends Controller
                 'company_name' => $agency->agency_name,
                 'agency_id' => $request->input('agency_id'),
                 'phone' => $request->input('phone'),
+                'designation' => $request->input('designation'),
                 'sales_manager_dmc' => Auth::user()->userId,
                 'role_id' => Auth::user()->role_id,
                 'created_by' => Auth::user()->userId,
@@ -315,6 +336,7 @@ class AgentController extends Controller
         $agent->company_name = $agency->agency_name;
         $agent->agency_id = $request->input('agency_id');
         $agent->phone = $request->input('phone');
+        $agent->designation = $request->input('designation');
         $agent->email = $request->input('email');
         $agent->sales_manager_dmc = Auth::user()->userId;
         $agent->role_id = Auth::user()->role_id;
@@ -455,7 +477,25 @@ class AgentController extends Controller
         }
 
         $card = Country::whereIn('name', $authUserCountries)->get(['card_type']);
-        $agency = Agency::get();
+        //$agency = Agency::get();
+        if($user->role_id == 11){
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$user->userId])])->get();
+        }
+        elseif($user->role_id == 33 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $parentDmc = User::where('userId', $user->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
+        elseif($user->role_id == 12 || $user->role_id == 37){
+            $parentSalesHead = User::where('userId', $user->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();       
+        }
+        elseif($user->role_id == 38){
+            $parentSalesManager = User::where('userId', $user->created_by)->whereIn('role_id', [12, 37])->first();
+            $parentSalesHead = User::where('userId', $parentSalesManager->created_by)->where('role_id', 33)->first();
+            $parentDmc = User::where('userId', $parentSalesHead->created_by)->where('role_id', 11)->first();
+            $agency = Agency::where('status', 1)->whereRaw('dmc_id::jsonb @> ?', [json_encode([$parentDmc->userId])])->get();
+        }
         $country = Country::all();
         $cityCountry = Country::get();
         $countryCodes = Agent::countryCodes();
@@ -526,21 +566,22 @@ class AgentController extends Controller
             $validated = $request->validate([
                 'salutation' => 'required|in:Mr,Mrs,Miss,Dear',
                 'name' => 'required|string|max:255',
-                'company_name' => 'required|string|max:255',
+                'agency_id' => 'required|string|max:255',
                 'phone' => 'required|numeric',
+                'designation' => 'required|string|max:255',
                 'email' => 'required|email|unique:agents,email,' . $agent->id,
                 // NEW FIELDS
-                'user_country' => 'required|string|max:255',
-                'city' => 'required|string|max:255',
-                'agent_address' => 'required|string',
-                'code' => 'required|string|max:255',
+                // 'user_country' => 'required|string|max:255',
+                // 'city' => 'required|string|max:255',
+                // 'agent_address' => 'required|string',
+                // 'code' => 'required|string|max:255',
                 // EXISTING FIELDS
                 'country' => 'required|array',
                 'country.*' => 'string', // each country must be a string
                 // 'id_card' => 'required|string|max:255',
                 // 'card_number' => 'required|string|max:255',
-                'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
-                'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                // 'image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
+                // 'agent_image' => 'nullable|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'password' => 'nullable|min:8',
             ]);
         
@@ -551,26 +592,30 @@ class AgentController extends Controller
         }
         
 
-        if ($request->hasFile('image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
-            $agent->image = $pathData['master_value'] ?? $agent->image;
-        }
+        // if ($request->hasFile('image')) {
+        //     $pathData = CommonHelper::image_path('file_storage', $request->file('image'));
+        //     $agent->image = $pathData['master_value'] ?? $agent->image;
+        // }
 
-        if ($request->hasFile('agent_image')) {
-            $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
-            $agent->agent_image = $pathData['master_value'] ?? $agent->agent_image;
-        }
+        // if ($request->hasFile('agent_image')) {
+        //     $pathData = CommonHelper::image_path('file_storage', $request->file('agent_image'));
+        //     $agent->agent_image = $pathData['master_value'] ?? $agent->agent_image;
+        // }
+
+        $agency = Agency::where('agency_id', $request->input('agency_id'))->first();
 
         $agent->salutation = $validated['salutation'];
         $agent->name = $validated['name'];
-        $agent->company_name = $validated['company_name'];
+        $agent->agency_id = $validated['agency_id'];
+        $agent->company_name = $agency->agency_name;
         $agent->phone = $validated['phone'];
+        $agent->designation = $validated['designation'];
         $agent->email = $validated['email'];
         // NEW FIELDS
-        $agent->user_country = $validated['user_country'];
-        $agent->city = $validated['city'];
-        $agent->agent_address = $validated['agent_address'];
-        $agent->code = $validated['code'];
+        // $agent->user_country = $validated['user_country'];
+        // $agent->city = $validated['city'];
+        // $agent->agent_address = $validated['agent_address'];
+        // $agent->code = $validated['code'];
         // EXISTING FIELDS
         $agent->country = implode(',', $validated['country']);
         // $agent->id_cards = $validated['id_card'];
@@ -590,7 +635,7 @@ class AgentController extends Controller
                     'name' => $agent->name,
                     'email' => $agent->email,
                     'phone' => $agent->phone,
-                    'company_name' => $agent->company_name,
+                    'company_name' => $agency->agency_name,
                     'country' => $agent->user_country,
                     'city' => $agent->city,
                     'password' => $request->input('password'),
