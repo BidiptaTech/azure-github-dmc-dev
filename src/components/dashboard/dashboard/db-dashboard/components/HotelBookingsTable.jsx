@@ -561,7 +561,7 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
-                      {tourStatus === "Actual" && (
+                      {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
