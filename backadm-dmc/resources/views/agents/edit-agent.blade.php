@@ -218,7 +218,7 @@
 
                     {{-- <pre>{{ var_dump($agent->country) }}</pre> --}}
 
-                    @php
+                    {{-- @php
                         $agentCountries = array_map('trim', explode(',', $agent->country ?? ''));
                     @endphp
                     
@@ -243,7 +243,7 @@
                         @error('country')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>
+                    </div> --}}
 
                     {{-- <div class="col-md-3 mb-3">
                         <label class="form-label"><strong>ID Card</strong><span class="text-danger">*</span></label>

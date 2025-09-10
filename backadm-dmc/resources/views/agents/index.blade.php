@@ -65,7 +65,7 @@
               <th>Phone</th>
               {{-- <th>Designation</th> --}}
               {{-- <th>Country & City</th> --}}
-              <th>Service Country</th>
+              {{-- <th>Service Country</th> --}}
               {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                   <th>Action</th>
               {{-- @endif --}}
@@ -175,7 +175,7 @@
                         </div>
                     </div>
                 </td> --}}
-                <td>
+                {{-- <td>
                   @if($agent->country)
                     <div class="d-flex align-items-center">
                         <i class="fas fa-globe text-primary me-2"></i>
@@ -189,7 +189,7 @@
                         <span class="text-muted">-</span>
                     </div>
                   @endif
-                </td>
+                </td> --}}
                 {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
                 <td>
                   <div class="d-flex gap-2">

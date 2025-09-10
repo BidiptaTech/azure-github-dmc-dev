@@ -412,11 +412,13 @@
                         </span>
                     </div>
                 </div>
-                <div class="col-md-3 text-center text-md-end">
-                    <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-light btn-modern me-2">
-                        <i class="ri-pencil-line me-1"></i> Edit Agency
-                    </a>
-                </div>
+                @if (auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
+                    <div class="col-md-3 text-center text-md-end">
+                        <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-light btn-modern me-2">
+                            <i class="ri-pencil-line me-1"></i> Edit Agency
+                        </a>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -623,14 +625,16 @@
                 </div>
             </div>
         @else
-            <div class="modern-card fade-in-up" style="animation-delay: 0.3s;">
+            <div class="modern-card mb-4 fade-in-up" style="animation-delay: 0.3s;">
                 <div class="empty-state">
                     <i class="ri-building-2-line"></i>
                     <h6>No Branch Offices</h6>
                     <p>This agency currently operates only from the head office.</p>
-                    <a href="{{ route('agencies.edit', $agency->agency_id) }}" class="btn btn-primary btn-modern">
-                        <i class="ri-add-line me-1"></i> Add Branch Office
-                    </a>
+                    @if (auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
+                        <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-primary btn-modern">
+                            <i class="ri-add-line me-1"></i> Add Branch Office
+                        </a>
+                    @endif
                 </div>
             </div>
         @endif
@@ -739,9 +743,11 @@
                         <small class="text-muted">Edit agency details or manage branch offices</small>
                     </div>
                     <div class="col-md-4 text-md-end">
-                        <a href="{{ route('agencies.edit', $agency->agency_id) }}" class="btn btn-primary btn-modern me-2">
+                        @if (auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
+                        <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-primary btn-modern me-2">
                             <i class="ri-pencil-line me-1"></i> Edit Agency
                         </a>
+                        @endif
                         <a href="{{ route('agencies.index') }}" class="btn btn-secondary btn-modern">
                             <i class="ri-arrow-left-line me-1"></i> Back to List
                         </a>
