@@ -966,7 +966,7 @@ class UserController extends Controller
         }
         elseif($this->auth_user->role_id == 36){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [69,70,71,72,73])
+            ->whereIn('role_id', [69,70,71,72,73,126])
             ->orderBy('role_id', 'asc')
             ->get();
         }
@@ -1243,6 +1243,12 @@ class UserController extends Controller
         elseif($this->auth_user->role_id == 124){
             $roles = Role::where('is_active', 1)
             ->whereIn('role_id', [125])
+            ->orderBy('role_id', 'asc')
+            ->get();
+        }
+        elseif($this->auth_user->role_id == 126){
+            $roles = Role::where('is_active', 1)
+            ->whereIn('role_id', [127])
             ->orderBy('role_id', 'asc')
             ->get();
         }
