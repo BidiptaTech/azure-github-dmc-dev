@@ -1893,9 +1893,7 @@
                                                 </optgroup>
                                             </select>
                                             <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                            <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearDropoffZone()">
-                                                <i class="ri-close-line text-muted"></i>
-                                            </button>
+                                            
                                         </div>
                                     </div>
                                 </div>
@@ -2170,9 +2168,7 @@
                                                         </optgroup>
                                                     </select>
                                                     <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                                    <button type="button" class="btn btn-sm position-absolute" style="right: 8px; top: 50%; transform: translateY(-50%); z-index: 5; border: none; background: none;" onclick="clearLocalTransferDropoffZone()">
-                                                        <i class="ri-close-line text-muted"></i>
-                                                    </button>
+                                                    
                                                 </div>
                                             </div>
                                         </div>

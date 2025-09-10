@@ -54,7 +54,7 @@
                             <select class="form-select" id="inputRoleselect" name="role" required>
                                 <option selected disabled value>Choose...</option>
                                 @foreach($roles as $role)
-                                <option value="{{ $role->role_id }}">{{ $role->name }}</option>
+                                    <option value="{{ $role->role_id }}">{{ $role->name }}</option>
                                 @endforeach
                             </select>
                             @error('role')
@@ -123,7 +123,7 @@
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <select class="form-select select2" id="country_names" name="country_names[]" multiple>
-                                        <option id="default-option" disabled selected>Choose a country...</option>
+                                        <option id="default-option">Choose a country...</option>
                                         @foreach($country as $c)
                                             <option value="{{ $c->name }}">{{ $c->name }}</option>
                                         @endforeach
@@ -199,7 +199,7 @@
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <select class="form-select" id="user_country" name="user_country">
-                                        <option selected disabled value>Choose a country...</option>
+                                        <option disabled value>Choose a country...</option>
                                         @foreach($country as $c)
                                             <option value="{{ $c->name }}">{{ $c->name }}</option>
                                         @endforeach
