@@ -609,24 +609,7 @@ class LoginControllerApi extends Controller
 
         $userCountry = $user->country;
         $userCountryData = [];
-        if ($userCountry) {
-            $countries = array_map('trim', explode(',', $userCountry));
-            foreach ($countries as $countryName) {
-                $countryCode = CountryHelper::getCountryCode($countryName);
-                if ($countryCode) {
-                    $countryInfos = Country::where('name', $countryName)->first();
-                    $agent_country_max_length = $countryInfos->max_length ?? 10;
-                    $agent_country_min_length = $countryInfos->min_length ?? 10;
-                    $userCountryData[] = [
-                        'name' => $countryName,
-                        'code' => $countryCode,
-                        'country_code' => $countryInfos->country_code,
-                        'contact_max_length' => $agent_country_max_length,
-                        'contact_min_length' => $agent_country_min_length,
-                    ];
-                }
-            }
-        }
+        
 
         $countryInfo = Country::where('name', $country)->first();
 
@@ -682,6 +665,24 @@ class LoginControllerApi extends Controller
             'is_active',
             'tax_percentage'
         ])->where('is_active', 1)->get();
+
+        $activeCountries = [];
+        if ($global_countries) {
+            foreach ($global_countries as $countryName) {
+                $countryCode = CountryHelper::getCountryCode($countryName->name);
+                if ($countryCode) {
+                    $agent_country_max_length = $countryName->max_length ?? 10;
+                    $agent_country_min_length = $countryName->min_length ?? 10;
+                    $activeCountries[] = [
+                        'name' => $countryName->name,
+                        'code' => $countryCode,
+                        'country_code' => $countryName->country_code,
+                        'contact_max_length' => $agent_country_max_length,
+                        'contact_min_length' => $agent_country_min_length,
+                    ];
+                }
+            }
+        }
         
         return response()->json([
             'success' => true,
@@ -692,13 +693,13 @@ class LoginControllerApi extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'agent_address' => $user->agent_address,
-                'profile_picture' => $user->image ?? '',
+                'profile_picture' => $agency_logo ?? '',
                 'logo' => $master_dmc->logo ?? '',
                 'dmc_logo' => $dmc_logo ?? '',
                 'agency_logo' => $agency_logo ?? '',
                 'dmc_name' => $dmc->company_name ?? '',
                 'country' => $country ?? '',
-                'user_country' => !empty($userCountryData) ? $userCountryData : [['name' => '', 'code' => '']],
+                'user_country' => $activeCountries,
                 'token' => $token,
                 'current_exchange_rate' => round($exchangeRate, 2),
                 'current_currency_code' => $currencyCode,
@@ -720,7 +721,7 @@ class LoginControllerApi extends Controller
                 'dmc_ids' => $dmc_ids,
                 'dmc_companies' => $dmc_company_names,
                 'zone_on' => $dmc_users->zone_on ?? 0,
-                'global_countries' => $global_countries,
+                'global_countries' => $activeCountries,
             ],
         ]);
     }

@@ -1734,11 +1734,13 @@
                             </a>
                         </li>
                     </ul>
-                </li>                 -->
+                </li>-->
+
+
                 
                 <!-- User Role Management -->
                 @if(!(auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123 ))
-                @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent'))
+                @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent') || $auth_user->role_id == 124)
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="User Management">User Management</span>
                 </li>
@@ -1749,7 +1751,7 @@
                     </a>
                     <ul class="menu-sub">
                         @php
-                            $excludedRoles = [81, 38, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127];
+                            $excludedRoles = [81, 38, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 125, 127];
                         @endphp
 
                         @if(hasPermission('view users') && !in_array(auth()->user()->role_id, $excludedRoles))
