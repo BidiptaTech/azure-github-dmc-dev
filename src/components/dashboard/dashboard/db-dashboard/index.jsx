@@ -1141,7 +1141,7 @@ const DashboardLayout = () => {
                             >
                               {!adjustedImage && !previewImage && !profilePicture && Username?.charAt(0)?.toUpperCase() || "A"}
                             </Avatar>
-                            <IconButton
+                            {/* <IconButton
                               onClick={handleCameraIconClick}
                               sx={{
                                 position: "absolute",
@@ -1170,7 +1170,7 @@ const DashboardLayout = () => {
                               }}
                             >
                               <CameraAlt sx={{ fontSize: 20, color: "#667eea" }} />
-                            </IconButton>
+                            </IconButton> */}
 
                             {/* Hidden file input */}
                             <input

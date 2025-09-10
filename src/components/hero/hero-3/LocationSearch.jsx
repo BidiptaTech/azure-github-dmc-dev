@@ -51,6 +51,30 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
     }
   }, [selectedDmcData]); // Only recalculate when selectedDmcData changes
 
+  // Auto-select DMC country when selectedDmcData changes
+  useEffect(() => {
+    if (selectedDmcData && selectedDmcData.location) {
+      const dmcCountry = {
+        name: selectedDmcData.location, // Full country name
+        code: selectedDmcData.location, // Use full name as code for database
+        key: 'selected-dmc-country'
+      };
+      
+      // Check if the country has actually changed to avoid unnecessary updates
+      const currentCountry = selectedItem?.name;
+      if (currentCountry !== dmcCountry.name) {
+        setSearchValue(dmcCountry.name);
+        setSelectedItem(dmcCountry);
+        setIsDropdownVisible(false);
+        
+        // Call the onLocationSelect callback
+        if (onLocationSelect) {
+          onLocationSelect(dmcCountry);
+        }
+      }
+    }
+  }, [selectedDmcData, onLocationSelect, selectedItem]);
+
   // Set initial value if provided
   useEffect(() => {
     if (initialValue && !selectedItem) {
@@ -67,36 +91,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
         setSearchValue(initialValue);
       }
     }
-  }, [initialValue, locationSearchContent]);
-
-  // Auto-select DMC country when DMC is selected
-  useEffect(() => {
-    if (selectedDmcData && selectedDmcData.location) {
-      const dmcCountry = {
-        name: selectedDmcData.location, // Full country name
-        code: selectedDmcData.location, // Use full name as code for database
-        key: 'selected-dmc-country'
-      };
-      setSearchValue(dmcCountry.name);
-      setSelectedItem(dmcCountry);
-      setIsDropdownVisible(false);
-      
-      // Call the onLocationSelect callback
-      if (onLocationSelect) {
-        onLocationSelect(dmcCountry);
-      }
-    } else if (!selectedDmcData) {
-      // Clear selection when no DMC is selected
-      setSelectedItem(null);
-      setSearchValue("");
-      setIsDropdownVisible(false);
-      
-      // Inform parent component about cleared selection
-      if (onLocationSelect) {
-        onLocationSelect(null);
-      }
-    }
-  }, [selectedDmcData, onLocationSelect]);
+  }, [initialValue, locationSearchContent, selectedItem]);
 
   // Filter suggestions based on search input
   useEffect(() => {
