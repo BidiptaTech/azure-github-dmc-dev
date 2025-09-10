@@ -666,7 +666,7 @@ class LoginControllerApi extends Controller
         $usd_tax = Country::where('name', 'United States')->first()->tax_percentage ?? 0;
 
         $agency = Agency::where('agency_id', $user->agency_id)->first();
-        $agency_logo = $agency->logo;
+        $agency_logo = $agency->logo ?? '';
 
 
         $global_countries = Country::select([
@@ -682,6 +682,7 @@ class LoginControllerApi extends Controller
             'is_active',
             'tax_percentage'
         ])->where('is_active', 1)->get();
+        
         return response()->json([
             'success' => true,
             'message' => 'Login successful',

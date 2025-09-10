@@ -161,6 +161,11 @@ class Agent extends Authenticatable
             '84' => 'Vietnam (84)',
         ];
     }
+
+    public function agency()
+    {
+        return $this->belongsTo(Agency::class, 'agency_id', 'agency_id');
+    }
 }
 
 

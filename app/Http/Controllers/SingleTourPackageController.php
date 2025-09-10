@@ -81,7 +81,12 @@ class SingleTourPackageController extends Controller
         }
         $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
-        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
+
+        $agencyIds = Agency::where(function($query) use ($dmc_id) {
+            $query->whereRaw("dmc_id::jsonb @> ?::jsonb", [ json_encode([$dmc_id]) ]);
+        })->pluck('agency_id')->toArray();
+
+        $agents = Agent::whereIn('agency_id', $agencyIds)
             ->orderBy('name')
             ->get();
         $selectedCountry = $request->country;
