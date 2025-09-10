@@ -52,13 +52,21 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" 
-                                                 style="width: 40px; height: 40px;">
-                                                <i class="ri-building-line text-muted"></i>
+                                                 style="width: 40px; height: 40px; overflow: hidden;">
+                                                @if($agency->logo && !empty($agency->logo))
+                                                    <img src="{{ $agency->logo }}" 
+                                                         alt="{{ $agency->agency_name }} Logo" 
+                                                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;"
+                                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                    <i class="ri-building-line text-muted" style="display: none;"></i>
+                                                @else
+                                                    <i class="ri-building-line text-muted"></i>
+                                                @endif
                                             </div>
                                             <div>
                                                 <strong>{{ $agency->agency_name }}</strong>
                                                 <br>
-                                                <small class="text-muted">ID: {{ $agency->agency_id }}</small>
+                                                {{-- <small class="text-muted">ID: {{ $agency->agency_id }}</small> --}}
                                             </div>
                                         </div>
                                     </td>
@@ -143,15 +151,20 @@
                                                 <small>{{ $agency->email }}</small><br>
                                                 <small>{{ $agency->total_branches }} {{ $agency->total_branches == 1 ? 'Location' : 'Locations' }}</small>
                                              </div>">
+                                    {{-- Top banner image like hotel cards --}}
+                                    @if($agency->logo && !empty($agency->logo))
+                                        <div style="height: 150px; overflow: hidden; border-top-left-radius: .375rem; border-top-right-radius: .375rem;">
+                                            <img src="{{ $agency->logo }}" alt="{{ $agency->agency_name }} Logo" style="width: 100%; height: 100%; object-fit: cover;">
+                                        </div>
+                                    @else
+                                        <div class="bg-light d-flex align-items-center justify-content-center" style="height: 150px; overflow: hidden; border-top-left-radius: .375rem; border-top-right-radius: .375rem;">
+                                            <i class="ri-building-line text-muted" style="font-size: 3rem;"></i>
+                                        </div>
+                                    @endif
                                     <div class="card-body p-3">
                                         <div class="mb-2">
                                             <h6 class="agency-name mb-1">{{ Str::limit($agency->agency_name, 25) }}</h6>
-                                            <small class="text-muted">ID: {{ $agency->agency_id }}</small>
-                                        </div>
-                                        
-                                        <div class="bg-light d-flex align-items-center justify-content-center mb-2" 
-                                             style="height: 80px; border-radius: 6px;">
-                                            <i class="ri-building-line text-muted" style="font-size: 2rem;"></i>
+                                            {{-- <small class="text-muted">ID: {{ $agency->agency_id }}</small> --}}
                                         </div>
                                         
                                         <div class="agency-info">

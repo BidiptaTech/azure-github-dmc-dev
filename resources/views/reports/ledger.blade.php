@@ -1283,7 +1283,7 @@ use Illuminate\Support\Facades\Auth;
         `;
         
         // Fetch transaction details
-        fetch(`/reports/transaction-details/${transactionId}`)
+        fetch(`{{ url('/reports/transaction-details') }}/${transactionId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -1316,10 +1316,10 @@ use Illuminate\Support\Facades\Auth;
         `;
         
         // Fetch balance history
-        fetch(`/reports/balance-history/${agentId}`)
+        fetch(`{{ url('/reports/balance-history') }}/${agentId}`)
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
+                if (data.success) { 
                     displayBalanceHistory(data.history, data.agent);
                 } else {
                     showError('balanceHistoryContent', 'Failed to load balance history.');
@@ -1340,7 +1340,7 @@ use Illuminate\Support\Facades\Auth;
         
         // Create download link
         const link = document.createElement('a');
-        link.href = `/reports/export-transaction/${transactionId}`;
+        link.href = `{{ url('/reports/export-transaction') }}/${transactionId}`;
         link.download = `transaction_${transactionId}.pdf`;
         document.body.appendChild(link);
         link.click();
@@ -1735,7 +1735,7 @@ use Illuminate\Support\Facades\Auth;
         const agentId = document.getElementById('balanceHistoryModal').getAttribute('data-agent-id');
         if (agentId) {
             const link = document.createElement('a');
-            link.href = `/reports/export-balance-history/${agentId}`;
+            link.href = `{{ url('/reports/export-balance-history') }}/${agentId}`;
             link.download = `balance_history_${agentId}.csv`;
             document.body.appendChild(link);
             link.click();
