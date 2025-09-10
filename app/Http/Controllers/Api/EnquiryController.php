@@ -1032,38 +1032,16 @@ class EnquiryController extends Controller
         // Convert agency_id to integer for proper matching
         $agency_id = (int) $agency_id;
         
-        // Get the agency to fetch its countries
-        $agency = \App\Models\Agency::where('agency_id', $agency_id)->first();
-        if (!$agency) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Agency not found',
-            ], 404);
-        }
-        
-        // Get agency countries as array
-        $agency_countries = explode(',', $agency->country);
-        $agency_countries = array_map('trim', $agency_countries);
-        
-        // Get agents for the specific agency and filter by country matching
+        // Get all agents for the specific agency (no country filtering)
         $agents = \App\Models\Agent::where('agency_id', $agency_id)
+            ->orderBy('created_at', 'desc')
             ->get()
-            ->filter(function ($agent) use ($agency_countries) {
-                // Get agent countries as array
-                $agent_countries = explode(',', $agent->country);
-                $agent_countries = array_map('trim', $agent_countries);
-                
-                // Check if any agency country matches any agent country
-                return !empty(array_intersect($agency_countries, $agent_countries));
-            })
-            ->sortByDesc('created_at')
             ->map(function ($agent) {
                 return [
                     'agent_id' => $agent->agent_id,
                     'agent_name' => $agent->name,
                 ];
-            })
-            ->values(); // Reset array keys
+            });
 
         return response()->json([
             'success' => true,
