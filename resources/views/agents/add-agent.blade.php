@@ -221,7 +221,7 @@
                         @enderror
                     </div> --}}
 
-                    <div class="col-md-3 mb-4">
+                    {{-- <div class="col-md-3 mb-4">
                         <label for="country" class="form-label"><strong>Service Country</strong><span class="text-danger">*</span></label>
                         <select class="form-control select2" id="country" name="country[]" multiple required>
                             @foreach($authUserCountries as $countryName)
@@ -233,7 +233,7 @@
                         @error('country')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
-                    </div>                  
+                    </div>                   --}}
 
                     {{-- <div class="col-md-2 mb-3">
                         <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
