@@ -307,9 +307,9 @@ class AgentController extends Controller
                 'city' => $request->input('city'),
                 'agent_address' => $request->input('agent_address'),
                 'code' => $request->input('code'),
-                'country' => is_array($request->input('country')) 
-                    ? implode(',', $request->input('country')) 
-                    : $request->input('country'),
+                // 'country' => is_array($request->input('country')) 
+                //     ? implode(',', $request->input('country')) 
+                //     : $request->input('country'),
                 'id_cards' => $request->input('id_card'),
                 'id_number' => $request->input('card_number'),
                 'image' => $idProofImage,
@@ -344,7 +344,7 @@ class AgentController extends Controller
         $agent->city = $request->input('city');
         $agent->agent_address = $request->input('agent_address');
         $agent->code = $request->input('code');
-        $agent->country = implode(',', $request->input('country', []));
+        // $agent->country = implode(',', $request->input('country', []));
         $agent->id_cards = $request->input('id_card');
         $agent->id_number = $request->input('card_number');
         $agent->image = $idProofImage;
@@ -576,7 +576,7 @@ class AgentController extends Controller
                 // 'agent_address' => 'required|string',
                 // 'code' => 'required|string|max:255',
                 // EXISTING FIELDS
-                'country' => 'required|array',
+                // 'country' => 'required|array',
                 'country.*' => 'string', // each country must be a string
                 // 'id_card' => 'required|string|max:255',
                 // 'card_number' => 'required|string|max:255',
@@ -617,7 +617,7 @@ class AgentController extends Controller
         // $agent->agent_address = $validated['agent_address'];
         // $agent->code = $validated['code'];
         // EXISTING FIELDS
-        $agent->country = implode(',', $validated['country']);
+        // $agent->country = implode(',', $validated['country']);
         // $agent->id_cards = $validated['id_card'];
         // $agent->id_number = $validated['card_number'];
 
