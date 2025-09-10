@@ -10,7 +10,9 @@ const SearchBar = ({ onLocationSelect }) => {
   const listRef = useRef(null);
   const inputRef = useRef(null);
   // Get selected DMC data from Redux store
-  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
+  const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
+  const selectedDmcData = selectedCountries && selectedCountries.length > 0 ? selectedCountries[0] : null;
+  console.log('selectedDmcData',selectedDmcData);
   
   const defaultCountries = [
     { name: "India", code: "in" },
@@ -19,10 +21,10 @@ const SearchBar = ({ onLocationSelect }) => {
   ];
 
   // Get country from selected DMC data
-  const locationSearchContent = selectedDmcData && selectedDmcData.location
+  const locationSearchContent = selectedDmcData && selectedDmcData.name
     ? [{ 
-        name: selectedDmcData.location, // Full country name
-        code: selectedDmcData.location, // Use full name as code too for database
+        name: selectedDmcData.name, // Full country name
+        code: selectedDmcData.code, // Use full name as code too for database
         key: 'selected-dmc-country' 
       }]
     : defaultCountries;
@@ -30,10 +32,10 @@ const SearchBar = ({ onLocationSelect }) => {
   // Update location content when selected DMC changes
   useEffect(() => {
     // Auto-select the DMC's country if available
-    if (selectedDmcData && selectedDmcData.location) {
+    if (selectedDmcData && selectedDmcData.name) {
       const dmcCountry = {
-        name: selectedDmcData.location, // Full country name
-        code: selectedDmcData.location, // Use full name as code for database
+        name: selectedDmcData.name, // Full country name
+        code: selectedDmcData.code, // Use full name as code for database
         key: 'selected-dmc-country'
       };
       setSearchValue(dmcCountry.name);
