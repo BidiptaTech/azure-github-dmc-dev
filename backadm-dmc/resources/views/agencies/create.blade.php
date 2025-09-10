@@ -666,6 +666,7 @@
             <div class="row">
                 <!-- Email -->
                 <div class="col-lg-6 col-md-6 mb-3">
+                    <input type="hidden" name="branches[INDEX][branch_uid]" class="branch-uid-field" value="">
                     <label class="form-label">
                         <i class="ri-mail-line text-primary"></i>
                         Email Address <span class="text-danger">*</span>
@@ -918,6 +919,9 @@ $(document).ready(function() {
             }
         });
 
+        // Generate and set unique branch UID
+        $(template).find('.branch-uid-field').val(generateBranchUid());
+
         // Add to container
         $('#branchesContainer').append(template);
         
@@ -1092,6 +1096,13 @@ function previewLogo(input) {
     } else {
         $('#logoPreview').hide();
     }
+}
+
+// Generate unique branch UID with timestamp
+function generateBranchUid() {
+    const now = Date.now().toString(36); // Base36 for shorter timestamp
+    const rand = Math.random().toString(36).substr(2, 4); // 4 random chars
+    return `BR${now}${rand}`.toUpperCase();
 }
 </script>
 @endsection 
