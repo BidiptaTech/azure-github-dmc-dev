@@ -239,7 +239,7 @@ const TooltipContent = ({ attraction }) => {
   );
 };
 
-const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange }) => {
+const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange, disabled = false }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const bookingMode = useSelector((state) => state.common.bookingMode);
@@ -253,7 +253,7 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
   });
 
   const handleAttractionClick = (attraction) => {
-    if (!attraction) return;
+    if (!attraction || disabled) return;
     
     // Determine which pricing mode to use based on availability
     const hasDmcPrice = attraction.dmc_adult_price > 0;
@@ -296,6 +296,7 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
         options={filteredAttractions}
         getOptionLabel={(option) => option.attraction_name || ''}
         noOptionsText="No attractions with valid pricing available"
+        disabled={disabled}
         sx={{
           '& .MuiInputBase-input': {
             fontSize: '0.75rem',

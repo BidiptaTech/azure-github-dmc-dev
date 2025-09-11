@@ -35,6 +35,8 @@ import PackageSelection from './PackageSelection';
 import PassengerSelection from './PassengerSelection';
 import GuideBookingSummaryModal from './GuideBookingSummaryModal';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
+import PortCity from './PortCity';
+import { fetchGuides } from '@/slice/tourguide/guideslice';
 
 const initialFormState = {
   guide: '',
@@ -116,7 +118,14 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const [expandedSections, setExpandedSections] = useState([0]);
   // Track which sections have already been saved to Redux
   const [savedSectionIds, setSavedSectionIds] = useState([]);
-
+  
+  // City selection state
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isGuideListingEnabled, setIsGuideListingEnabled] = useState(false);
+  console.log("selectedCity", selectedCity);
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
   // Refs to prevent infinite loops (following attraction component pattern)
   const hasInitializedRef = useRef(false);
   const lastDispatchRef = useRef(null);
@@ -362,6 +371,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     hasDispatchedAllGuidesRef.current = false;
     currentServicesRef.current = [];
   }, [dayIndex]);
+
+  // Reset guide listing state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsGuideListingEnabled(false);
+    }
+  }, [selectedCity]);
 
   // Cleanup effect
   useEffect(() => {
@@ -1186,29 +1202,61 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     setSelectedSectionIndex(null);
   };
 
-  if (!guides || guides.length === 0) {
-    return (
-      <Container maxWidth="xl">
-        <Card 
-          elevation={3}
-          sx={{
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-            color: 'white',
-            mb: 2,
-            mx: 'auto',
-          }}
-        >
-          <CardContent sx={{ py: 2, textAlign: 'center' }}>
-            <PersonIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
-            <Typography variant="h6" color="white">
-              Please search for guides first
-            </Typography>
-          </CardContent>
-        </Card>
-      </Container>
-    );
-  }
+  // Handle city selection
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable guide listing until API call is successful
+      setIsGuideListingEnabled(false);
+      
+      // Dispatch fetchGuides API call
+      dispatch(fetchGuides({ city: `${city.name}, (${country})`, date: bookingDate }))
+        .then((result) => {
+          console.log("fetchGuides API result:", result);
+          if (result.error) {
+            console.error("fetchGuides API Error:", result.error);
+            setIsGuideListingEnabled(false);
+          } else {
+            console.log("fetchGuides API Success - enabling guide listing");
+            setIsGuideListingEnabled(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error dispatching fetchGuides:", error);
+          setIsGuideListingEnabled(false);
+        });
+    } else {
+      // If no city selected, disable guide listing
+      setIsGuideListingEnabled(false);
+    }
+  };
+
+  // if (!guides || guides.length === 0) {
+  //   return (
+  //     <Container maxWidth="xl">
+  //       <Card 
+  //         elevation={3}
+  //         sx={{
+  //           borderRadius: 3,
+  //           background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+  //           color: 'white',
+  //           mb: 2,
+  //           mx: 'auto',
+  //         }}
+  //       >
+  //         <CardContent sx={{ py: 2, textAlign: 'center' }}>
+  //           <PersonIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
+  //           <Typography variant="h6" color="white">
+  //             Please search for guides first
+  //           </Typography>
+  //         </CardContent>
+  //       </Card>
+  //     </Container>
+  //   );
+  // }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
@@ -1510,21 +1558,50 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                       }}
                     >
                       <Grid container spacing={1.5} alignItems="flex-end">
+                        {/* City Selection */}
+                        <Grid item xs={12} md={3}>
+                          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <LocationOnIcon sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600"
+                                color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
+                              >
+                                City
+                              </Typography>
+                            </Box>
+                            <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                              <PortCity
+                                onLocationSelect={handleCitySelect}
+                                hasError={cityError}
+                                setError={setCityError}
+                                disabled={!isCityEnabled}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+
                         {/* Guide Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                             <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                               <PersonIcon sx={{ mr: 0.8, color: '#2196f3', fontSize: 18 }} />
-                              <Typography variant="body2" fontWeight="600" color="text.primary" sx={{ fontSize: '0.8rem' }}>
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600" 
+                                color={!isGuideListingEnabled ? "text.disabled" : "text.primary"} 
+                                sx={{ fontSize: '0.8rem' }}
+                              >
                                 Select Guide
                               </Typography>
                             </Box>
                             <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <GuideListing 
-                                
                                 value={section.guide}
                                 onChange={(field, value) => handleInputChange(sectionIndex, field, value)}
-                                disabled={status === 'loading'}
+                                disabled={status === 'loading' || !isGuideListingEnabled}
                               />
                             </Box>
                           </Box>
