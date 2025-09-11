@@ -85,7 +85,7 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handleSearchSubmit = (searchData) => {
-    setSearchCriteria(searchData);
+    setSearchCriteria({ country: searchData });
     setIsSearchModalOpen(false);
     setIsDMCModalOpen(true);
   };
@@ -130,7 +130,7 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handleEnquirySearchSubmit = (searchData) => {
-    setEnquirySearchCriteria(searchData);
+    setEnquirySearchCriteria({ country: searchData });
     setIsEnquirySearchModalOpen(false);
     setIsEnquiryDMCModalOpen(true);
   };
@@ -192,7 +192,7 @@ const MainMenu = ({ style = "" }) => {
   };
 
   const handlePackagesSearchSubmit = (searchData) => {
-    setPackagesSearchCriteria(searchData);
+    setPackagesSearchCriteria({ country: searchData });
     setIsPackagesSearchModalOpen(false);
     setIsPackagesDMCModalOpen(true);
   };

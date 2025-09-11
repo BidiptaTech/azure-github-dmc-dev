@@ -320,7 +320,11 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
 
   const getLocationText = () => {
     if (!searchCriteria) return '';
-    return searchCriteria.country || '';
+    // Handle both string and object formats for backward compatibility
+    if (typeof searchCriteria.country === 'string') {
+      return searchCriteria.country;
+    }
+    return searchCriteria.country?.name || '';
   };
 
   // Check if a DMC is selected (for styling)
