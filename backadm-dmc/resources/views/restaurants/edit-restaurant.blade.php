@@ -137,7 +137,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 <select name="city" id="citySelect" class="form-control" required 
-                                        @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) disabled @endif>
+                                        @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
                                     <option value="{{ $restaurant->city }}">{{ $restaurant->city }}</option>
                                     @foreach($city as $c)
                                         @if($c->name != $restaurant->city)
@@ -145,7 +145,7 @@
                                         @endif
                                     @endforeach
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                                @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                                     <input type="hidden" name="city" value="{{ $restaurant->city }}">
                                 @endif
                                 @error('city')
@@ -157,7 +157,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="name" class="form-label"><strong>Restaurant Name</strong><span class="text-danger">*</span></label>
                                 <input value="{{$restaurant->name}}" type="text" class="form-control" name="name" placeholder="Enter Restaurant Name" required 
-                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                 @error('name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -170,7 +170,7 @@
                                 </label>
                                 <input name="latitude" type="text" id="latitude" value="{{$restaurant->latitude}}" class="form-control"
                                     placeholder="Enter Latitude" required
-                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @else oninput="validateLatitude(this)" @endif>
+                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @else oninput="validateLatitude(this)" @endif>
                                 <small class="validation-message text-danger" id="latitude-validation-message"></small>
                                 @error('latitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -184,7 +184,7 @@
                                 </label>
                                 <input name="longitude" type="text" id="longitude" value="{{$restaurant->longitude}}" class="form-control"
                                     placeholder="Enter Longitude" required
-                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @else oninput="validateLongitude(this)" @endif>
+                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @else oninput="validateLongitude(this)" @endif>
                                 <small class="validation-message text-danger" id="longitude-validation-message"></small>
                                 @error('longitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -195,7 +195,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="cuisine" class="form-label"><strong>Cuisine</strong><span class="text-danger">*</span></label>
                                 <input value="{{$restaurant->cuisine}}" type="text" class="form-control" name="cuisine" placeholder="Enter Cuisine Type" required 
-                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                 @error('cuisine')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -205,7 +205,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="owned_by" class="form-label"><strong>Ownership</strong><span class="text-danger">*</span></label>
                                 <select name="owned_by" class="form-select" required 
-                                        @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) disabled @endif>
+                                        @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
                                     <option value="" {{ is_null($restaurant->owned_by) ? 'selected' : '' }}>Select</option>
                                     <option value="0" {{ $restaurant->owned_by === "0" ? 'selected' : '' }}>Third Party</option>
                                     @foreach($hotels as $hotel)
@@ -214,7 +214,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                                @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                                     <input type="hidden" name="owned_by" value="{{ $restaurant->owned_by }}">
                                 @endif
                                 @error('owned_by')
@@ -225,12 +225,12 @@
                             <div class="col-md-3 mb-3">
                                 <label for="property" class="form-label"><strong>Property</strong><span class="text-danger">*</span></label>
                                 <select name="property" class="form-select" 
-                                        @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) disabled @endif>
+                                        @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
                                     <option value="">Select</option>
                                     <option value="third_party" {{ old('property', $restaurant->property) == 'third_party' ? 'selected' : '' }}>Third Party</option>
                                     <option value="owner" {{ old('property', $restaurant->property) == 'owner' ? 'selected' : '' }}>Ownership</option>
                                 </select>
-                                @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                                @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                                     <input type="hidden" name="property" value="{{ $restaurant->property }}">
                                 @endif
                                 @error('property')
@@ -339,13 +339,13 @@
                                 <div class="row mt-2 d-none" id="breakfastFields">
                                     <div class="col-md-3">
                                         <label for="opening_time_bf" class="form-label"><strong>Opening Time</strong></label>
-                                        <input value="{{$restaurant->opening_time_bf}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120])) time-picker @endif" id="opening_time_bf" name="opening_time_bf" placeholder="Select opening time" 
-                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                        <input value="{{$restaurant->opening_time_bf}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) time-picker @endif" id="opening_time_bf" name="opening_time_bf" placeholder="Select opening time" 
+                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="closing_time_bf" class="form-label"><strong>Closing Time</strong></label>
-                                        <input value="{{$restaurant->closing_time_bf}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120])) time-picker @endif" id="closing_time_bf" name="closing_time_bf" placeholder="Select closing time" 
-                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                        <input value="{{$restaurant->closing_time_bf}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) time-picker @endif" id="closing_time_bf" name="closing_time_bf" placeholder="Select closing time" 
+                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                     </div>
                                     <!-- Breakfast Price -->
                                     {{-- <div class="col-md-3 mb-3">
@@ -370,13 +370,13 @@
                                 <div class="row mt-2 d-none" id="lunchFields">
                                     <div class="col-md-3">
                                         <label for="opening_time_lunch" class="form-label"><strong>Opening Time</strong></label>
-                                        <input value="{{$restaurant->opening_time_lunch}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120])) time-picker @endif" id="opening_time_lunch" name="opening_time_lunch" placeholder="Select opening time" 
-                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                        <input value="{{$restaurant->opening_time_lunch}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) time-picker @endif" id="opening_time_lunch" name="opening_time_lunch" placeholder="Select opening time" 
+                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="closing_time_lunch" class="form-label"><strong>Closing Time</strong></label>
-                                        <input value="{{$restaurant->closing_time_lunch}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120])) time-picker @endif" id="closing_time_lunch" name="closing_time_lunch" placeholder="Select closing time" 
-                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                        <input value="{{$restaurant->closing_time_lunch}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) time-picker @endif" id="closing_time_lunch" name="closing_time_lunch" placeholder="Select closing time" 
+                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                     </div>
                                     <!-- Lunch Price -->
                                     {{-- <div class="col-md-3 mb-3">
@@ -401,13 +401,13 @@
                                 <div class="row mt-2 d-none" id="dinnerFields">
                                     <div class="col-md-3">
                                         <label for="opening_time_dinner" class="form-label"><strong>Opening Time</strong></label>
-                                        <input value="{{$restaurant->opening_time_dinner}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120])) time-picker @endif" id="opening_time_dinner" name="opening_time_dinner" placeholder="Select opening time" 
-                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                        <input value="{{$restaurant->opening_time_dinner}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) time-picker @endif" id="opening_time_dinner" name="opening_time_dinner" placeholder="Select opening time" 
+                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="closing_time_dinner" class="form-label"><strong>Closing Time</strong></label>
-                                        <input value="{{$restaurant->closing_time_dinner}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120])) time-picker @endif" id="closing_time_dinner" name="closing_time_dinner" placeholder="Select closing time" 
-                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>
+                                        <input value="{{$restaurant->closing_time_dinner}}" type="text" class="form-control @if(!in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) time-picker @endif" id="closing_time_dinner" name="closing_time_dinner" placeholder="Select closing time" 
+                                               @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
                                     </div>
                                     {{-- <div class="col-md-3 mb-3">
                                         <label for="dinner_price" class="form-label"><strong>Dinner Price</strong><span class="text-danger">*</span></label>
@@ -428,7 +428,7 @@
                                 <div>
                                     <label for="master_image" class="form-label"><strong>Master
                                             Image</strong></label>
-                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                                         <div class="form-control" style="padding: 20px; border: 2px dashed #6c757d; text-align: center; height: 80px; background-color: #f8f9fa; color: #6c757d;">
                                             <i class="fas fa-lock"></i> File upload disabled (Read Only)
                                         </div>
@@ -465,7 +465,7 @@
                                 <div>
                                     <label for="images" class="form-label"><strong>Additional
                                             Images</strong></label>
-                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                                         <div class="form-control" style="padding: 20px; border: 2px dashed #6c757d; text-align: center; height: 80px; background-color: #f8f9fa; color: #6c757d;">
                                             <i class="fas fa-lock"></i> File upload disabled (Read Only)
                                         </div>
@@ -523,7 +523,7 @@
                     <label for="description" class="form-label"><strong>Description</strong><span
                             style="color: red;">*</span></label>
                     <textarea id="summernote" name="description" class="form-control" rows="10" 
-                              @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>{{ old('description', $restaurant->description) }}</textarea required>
+                              @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>{{ old('description', $restaurant->description) }}</textarea required>
                     @error('description')
                         <div class="text-danger mt-1">{{ $message }}</div>
                     @enderror
@@ -533,7 +533,7 @@
                 <div class="col-md-12 mb-3">
                     <label for="remarks" class="form-label"><strong>Remarks</strong></label>
                     <textarea id="remarks" name="remarks" class="form-control" rows="4" placeholder="Enter any remarks or notes (optional)" 
-                              @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>{{ old('remarks', $restaurant->remarks) }}</textarea>
+                              @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>{{ old('remarks', $restaurant->remarks) }}</textarea>
                     @error('remarks')
                     <div class="text-danger mt-1">{{ $message }}</div>
                     @enderror
@@ -543,7 +543,7 @@
                 <div class="col-md-12 mb-3">
                     <label for="terms_conditions" class="form-label"><strong>Terms & Conditions</strong><span class="text-danger">*</span></label>
                     <textarea id="terms_conditions" name="terms_conditions" class="form-control" rows="6" placeholder="Enter terms and conditions..." required 
-                              @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) readonly @endif>{{ old('terms_conditions', $restaurant->terms_conditions) }}</textarea>
+                              @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>{{ old('terms_conditions', $restaurant->terms_conditions) }}</textarea>
                     @error('terms_conditions')
                     <div class="text-danger mt-1">{{ $message }}</div>
                     @enderror
@@ -554,8 +554,8 @@
                     <label for="restaurant_status" class="form-label"><strong>Status</strong></label>
                     <span style="color: red; font-weight: bold;">*</span>
                     <input {{$restaurant->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="restaurant_status" type="checkbox" id="restaurant_status"
-                        value="1" @if(in_array(auth()->user()->role_id, [11, 35, 78, 120])) disabled @endif>
-                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                        value="1" @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
+                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                         <input type="hidden" name="restaurant_status" value="{{ $restaurant->is_active }}">
                     @endif
                     <label class="form-check-label"></label>
@@ -566,7 +566,7 @@
 
                 <!-- Submit Buttons -->
                 <div class="d-flex gap-3 mt-4">
-                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120]))
+                    @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                         <button type="button" class="btn btn-secondary px-4" disabled>Update (Read Only)</button>
                     @else
                         <button type="submit" class="btn btn-primary px-4">Update</button>
@@ -585,7 +585,7 @@
 <script>
     $(document).ready(function() {
         var userRoleId = {{ auth()->user()->role_id }};
-        var readOnlyRoles = [11, 35, 78, 120];
+        var readOnlyRoles = [11, 35, 78, 120, 139, 140];
         var isReadOnly = readOnlyRoles.includes(userRoleId);
         
         // Initialize Summernote editors
@@ -630,7 +630,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         var userRoleId = {{ auth()->user()->role_id }};
-        var readOnlyRoles = [11, 35, 78, 120];
+        var readOnlyRoles = [11, 35, 78, 120, 139, 140];
         var isReadOnly = readOnlyRoles.includes(userRoleId);
         
         // Function to initialize flatpickr for time inputs

@@ -765,9 +765,9 @@ class HotelController extends Controller
     */
     public function destroy($id)
     {
-        if (!hasPermission('delete hotel')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('delete hotel')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         
         // Get hotel and delete images from Azure
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
@@ -3175,7 +3175,7 @@ class HotelController extends Controller
     {
         // Check if user is DMC (role_id = 11)
         $user = auth()->user();
-        $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
 
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
@@ -3185,10 +3185,10 @@ class HotelController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 77){
+        }else if($user->role_id == 77 || $user->role_id == 139){
             $product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $product_head->created_by;
-        }else if($user->role_id == 84){
+        }else if($user->role_id == 84 || $user->role_id == 140){
             $product_manager = User::where('userId', $user->created_by)->first();
             $product_head = User::where('userId', $product_manager->created_by)->first();
             $dmc_id = $product_head->created_by;
@@ -3223,7 +3223,7 @@ class HotelController extends Controller
     public function updateDmcHotels(Request $request)
     {
         $user = auth()->user();
-        $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
 
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
@@ -3233,10 +3233,10 @@ class HotelController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 77){
+        }else if($user->role_id == 77 || $user->role_id == 139){
             $product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $product_head->created_by;
-        }else if($user->role_id == 84){
+        }else if($user->role_id == 84 || $user->role_id == 140){
             $product_manager = User::where('userId', $user->created_by)->first();
             $product_head = User::where('userId', $product_manager->created_by)->first();
             $dmc_id = $product_head->created_by;
@@ -3274,7 +3274,7 @@ class HotelController extends Controller
             $hotelId = $request->input('hotel_id');
             $user = Auth::user();
 
-            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
 
             if (!in_array($user->role_id, $allowedRoles)) {
                 abort(403, 'You do not have permission to access this page.');
@@ -3284,10 +3284,10 @@ class HotelController extends Controller
                 $dmc_id = $user->userId;
             }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
                 $dmc_id = $user->created_by;
-            }else if($user->role_id == 77){
+            }else if($user->role_id == 77 || $user->role_id == 139){
                 $product_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $product_head->created_by;
-            }else if($user->role_id == 84){
+            }else if($user->role_id == 84 || $user->role_id == 140){
                 $product_manager = User::where('userId', $user->created_by)->first();
                 $product_head = User::where('userId', $product_manager->created_by)->first();
                 $dmc_id = $product_head->created_by;
@@ -3332,7 +3332,7 @@ class HotelController extends Controller
             $hotelId = $request->input('hotel_id');
             $user = Auth::user();
 
-            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
 
             if (!in_array($user->role_id, $allowedRoles)) {
                 abort(403, 'You do not have permission to access this page.');
@@ -3342,10 +3342,10 @@ class HotelController extends Controller
                 $dmc_id = $user->userId;
             }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
                 $dmc_id = $user->created_by;
-            }else if($user->role_id == 77){
+            }else if($user->role_id == 77 || $user->role_id == 139){
                 $product_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $product_head->created_by;
-            }else if($user->role_id == 84){
+            }else if($user->role_id == 84 || $user->role_id == 140){
                 $product_manager = User::where('userId', $user->created_by)->first();
                 $product_head = User::where('userId', $product_manager->created_by)->first();
                 $dmc_id = $product_head->created_by;

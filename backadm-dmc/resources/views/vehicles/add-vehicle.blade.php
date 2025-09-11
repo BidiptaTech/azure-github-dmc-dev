@@ -167,7 +167,7 @@
                                 <select name="city_name" id="city_name" class="form-control" required>
                                     <option value="">{{ $placeholder }}</option>
 
-                                    @if(in_array($roleId, [11, 35, 76, 111]))
+                                    @if(in_array($roleId, [11, 35, 76, 111, 139, 140]))
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}">{{ $city->name }}</option>
                                         @endforeach
@@ -954,11 +954,11 @@ function updateMoreBadge() {
         $resolvedDmcId = $currentUser->userId;
     } elseif ($userRoleId == 35) {
         $resolvedDmcId = \App\Models\User::where('userId', $currentUser->userId)->value('created_by');
-    } elseif ($userRoleId == 76) {
+    } elseif ($userRoleId == 76 || $userRoleId == 139) {
         $pm = \App\Models\User::where('userId', $currentUser->userId)->first();
         $ph = \App\Models\User::where('userId', $pm?->created_by)->first();
         $resolvedDmcId = $ph?->created_by;
-    } elseif ($userRoleId == 111) {
+    } elseif ($userRoleId == 111 || $userRoleId == 140) {
         $apm = \App\Models\User::where('userId', $currentUser->userId)->first();
         $pm = \App\Models\User::where('userId', $apm?->created_by)->first();
         $ph = \App\Models\User::where('userId', $pm?->created_by)->first();

@@ -923,7 +923,7 @@
 
             <!-- End Enquiry -->
 
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,44,45,46,47,48,25,59,60,61,62,63,83,101,110,119, 35,74,75,76,77,78,84,93,102,111,120,130, 132, 133, 135, 136, 137, 138]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,44,45,46,47,48,25,59,60,61,62,63,83,101,110,119, 35,74,75,76,77,78,84,93,102,111,120,130, 132, 133, 135, 136, 137, 138,139,140]))
 
                 <!-- Products Section -->
                 <li class="menu-header mt-5">
@@ -1187,7 +1187,7 @@
 
                 <!-- Product Configuration -->
             
-                @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111)
+                @if(hasPermission('view facility') || hasPermission('view category') || Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140)
                 <li class="menu-item @if(Request::is('category*') || Request::is('facility*') || Request::is('zones*') || Request::is('ports*')) open @endif">
                     <a href="#" class="menu-link menu-toggle" title="Product Configuration">
                         {{-- <i class="menu-icon tf-icons ri-function-line"></i> --}}
@@ -1230,7 +1230,7 @@
                         @endif
 
                     <!-- Zones (hard-coded link under Product Configuration) -->
-                    @if(Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111)
+                    @if(Auth::user()->role_id == 11 || Auth::user()->role_id == 35 || Auth::user()->role_id == 76 || Auth::user()->role_id == 111 || Auth::user()->role_id == 139 || Auth::user()->role_id == 140)
                     <li class="menu-item @if(Request::is('zones')) active @endif">
                         <a href="{{ route('zones.index') }}" class="menu-link" title="Zones">
                                 <div data-i18n="Zones" class="menu-tooltip">
@@ -1523,7 +1523,7 @@
 
             <!-- Services Management for DMC -->
             @php
-                $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138, 35, 74, 77, 78, 84, 93, 120, 132, 133];
+                $allowedRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138, 35, 74, 77, 78, 84, 93, 120, 132, 133, 139, 140];
             @endphp
 
             @if(in_array(Auth::user()->role_id, $allowedRoles))
@@ -1539,7 +1539,7 @@
                     <ul class="menu-sub">
                         <!-- DMC Hotels Selection -->
                         @php
-                            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138];
+                            $allowedRoles = [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                             <li class="menu-item @if(Request::is('services/hotels')) active @endif">
@@ -1550,7 +1550,7 @@
                         @endif 
                         <!-- DMC Attractions Selection -->
                         @php
-                            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+                            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/attractions')) active @endif">
@@ -1562,7 +1562,7 @@
                         
                         <!-- DMC Restaurants Selection -->
                         @php
-                            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+                            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
                         @endphp
                         @if(in_array(Auth::user()->role_id, $allowedRoles))
                         <li class="menu-item @if(Request::is('services/restaurants')) active @endif">
@@ -1739,7 +1739,7 @@
 
                 
                 <!-- User Role Management -->
-                @if(!(auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123 ))
+                @if( !( (auth()->user()->role_id >= 79 && auth()->user()->role_id <= 123) || in_array(auth()->user()->role_id, [125, 127, 140]) ) )
                 @if(hasPermission('view users') || hasPermission('view roles') || hasPermission('view features') || hasPermission('view agent') || $auth_user->role_id == 124)
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="User Management">User Management</span>

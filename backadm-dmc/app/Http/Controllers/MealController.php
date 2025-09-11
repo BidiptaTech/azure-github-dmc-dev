@@ -80,10 +80,10 @@ class MealController extends Controller
             $dmc_id = $auth_user->userId;
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $auth_user->created_by;
-        }else if($auth_user->role_id == 78){
+        }else if($auth_user->role_id == 78 || $auth_user->role_id == 139){
             $sales_head = User::where('userId', $auth_user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($auth_user->role_id == 120){
+        }else if($auth_user->role_id == 120 || $auth_user->role_id == 140){
             $sales_manager = User::where('userId', $auth_user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;

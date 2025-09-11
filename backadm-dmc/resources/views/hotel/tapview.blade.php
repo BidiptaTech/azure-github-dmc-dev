@@ -25,7 +25,7 @@
         role="tab" 
         aria-selected="{{ empty($hotel->hotel_owner_company_name) ? 'false' : 'true' }}" 
         tabindex="{{ empty($hotel->hotel_owner_company_name) ? '-1' : '0' }}">
-            Ports & NearBy
+            Ports & Nearby
         </a>
     </li>
 
@@ -45,7 +45,7 @@
         id="rooms-type-tab" 
         href="{{ empty($hotel->facilities) ? 'javascript:void(0);' : route('hotels.createroom', ['id' => $hotel->hotel_unique_id]) }}"
         style="cursor: {{ empty($hotel->facilities) ? 'not-allowed' : 'pointer' }}">
-            Rooms Price
+            Room Pricing
         </a>
     </li> 
      @php
@@ -59,7 +59,7 @@
             href="{{ $roomCount > 0 ? route('beds.create', $hotel->hotel_unique_id) : 'javascript:void(0);' }}" 
             role="tab"
             aria-disabled="{{ $roomCount > 0 ? 'false' : 'true' }}">
-            Bed Configuration
+            Bed Types
         </a>
     </li> 
     @endif
@@ -73,7 +73,7 @@
             href="{{ $bedCount > 0 ? route('hotels.beds', $hotel->hotel_unique_id) : 'javascript:void(0);' }}" 
             role="tab"
             aria-disabled="{{ $bedCount > 0 ? 'false' : 'true' }}">
-            Rooms
+            Bed Configuration
         </a>
     </li>
     @php
