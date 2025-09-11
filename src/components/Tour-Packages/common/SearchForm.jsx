@@ -90,7 +90,7 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  
+  console.log("selectedLocationxx",selectedLocation);
   // State to track if button should be hidden after click
   const [isButtonHidden, setIsButtonHidden] = useState(false);
   const [isupdated, setIsupdated] = useState(false);
@@ -395,12 +395,13 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
       console.log('Auto-selecting agent from data:', { agentId, agentName });
       
       // Set agent directly from data
+    
       setSelectedAgent(agentId);
       setSelectedAgentName(agentName);
       setIsAgentFromPackageData(true);
       dispatch(setAgentId(agentId));
     }
-  }, [packageData?.tour?.agent_id, packageData?.tour?.agent_name, enquirydetail?.agent_id, enquirydetail?.agent_name, selectedAgent, dispatch]);
+  }, [packageData?.tour?.agent_id, packageData?.tour?.destination, packageData?.tour?.agent_name, enquirydetail?.agent_id, enquirydetail?.agent_name, selectedAgent, dispatch]);
   
   // Create mapping for country codes to names
   const countryCodeToName = useMemo(() => {
@@ -648,10 +649,10 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     }));
 
     // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
+    // dispatch(fetchGuides({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate
+    // }));
 
     // Fetch attractions based on search criteria
     dispatch(fetchAttractions({
@@ -774,12 +775,12 @@ dispatch(fetchHotels());
       return false;
     }
 
-    if (!selectedLocation.city) {
-      setSnackbarMessage("Please select a city.");
-      setSnackbarSeverity("error");
-      setOpenSnackbar(true);
-      return false;
-    }
+    // if (!selectedLocation.city) {
+    //   setSnackbarMessage("Please select a city.");
+    //   setSnackbarSeverity("error");
+    //   setOpenSnackbar(true);
+    //   return false;
+    // }
 
     if (!startDate || !endDate) {
       setSnackbarMessage("Please select check-in and check-out dates.");
@@ -878,6 +879,7 @@ dispatch(fetchHotels());
     dispatch(clearUserInfo());
     dispatch(clearAllServices());
     // Clear previous data
+    dispatch(resetHotels());
     dispatch(clearAttractions());
     dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
@@ -991,22 +993,22 @@ dispatch(fetchHotels());
     }));
 
     // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
+    // dispatch(fetchGuides({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate
+    // }));
 
     // Fetch attractions based on search criteria
-    dispatch(fetchAttractions({
-      city: `${city}, (${country})`, // Format city with country
-      date: formattedAttractionDate, // Use YYYY-MM-DD format
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      selectedDate: moment(startDate),
-      fromMainSearch: false,
+    // dispatch(fetchAttractions({
+    //   city: `${city}, (${country})`, // Format city with country
+    //   date: formattedAttractionDate, // Use YYYY-MM-DD format
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   selectedDate: moment(startDate),
+    //   fromMainSearch: false,
      
-    }));
+    // }));
 
     // Fetch restaurants based on search criteria
     console.log('Dispatching fetchRestaurants with params:', {
@@ -1018,20 +1020,20 @@ dispatch(fetchHotels());
       fromMainSearch: false
     });
 
-    dispatch(fetchRestaurants({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate,
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      fromMainSearch: false
-    }))
-    .then((response) => {
-      console.log('fetchRestaurants response:', response);
-    })
-    .catch((error) => {
-      console.error('fetchRestaurants error:', error);
-    });
+    // dispatch(fetchRestaurants({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate,
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   fromMainSearch: false
+    // }))
+    // .then((response) => {
+    //   console.log('fetchRestaurants response:', response);
+    // })
+    // .catch((error) => {
+    //   console.error('fetchRestaurants error:', error);
+    // });
 
    dispatch(updateSearchState({
   location: [city], // or just city if location is a single string
@@ -1041,7 +1043,7 @@ dispatch(fetchHotels());
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels());
+// dispatch(fetchHotels());
 
     // Also update the enquiry slice data for compatibility with other parts of the app
     // Set location data in the right format for EnquirySlice
@@ -1173,6 +1175,7 @@ dispatch(fetchHotels());
     dispatch(clearUserInfo());
     // dispatch(clearAllServices());
     // Clear previous data
+    dispatch(resetHotels());
     dispatch(clearAttractions());
     dispatch(resetIsFromMainSearch());
     dispatch(clearRestaurants());
@@ -1286,22 +1289,22 @@ dispatch(fetchHotels());
     }));
 
     // Fetch guides with the required parameters
-    dispatch(fetchGuides({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate
-    }));
+    // dispatch(fetchGuides({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate
+    // }));
 
     // Fetch attractions based on search criteria
-    dispatch(fetchAttractions({
-      city: `${city}, (${country})`, // Format city with country
-      date: formattedAttractionDate, // Use YYYY-MM-DD format
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      selectedDate: moment(startDate),
-      fromMainSearch: false,
+    // dispatch(fetchAttractions({
+    //   city: `${city}, (${country})`, // Format city with country
+    //   date: formattedAttractionDate, // Use YYYY-MM-DD format
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   selectedDate: moment(startDate),
+    //   fromMainSearch: false,
      
-    }));
+    // }));
 
     // Fetch restaurants based on search criteria
     console.log('Dispatching fetchRestaurants with params:', {
@@ -1313,20 +1316,20 @@ dispatch(fetchHotels());
       fromMainSearch: false
     });
 
-    dispatch(fetchRestaurants({
-      city: `${city}, (${country})`,
-      date: formattedAttractionDate,
-      adults: guestCounts.Adults,
-      children: guestCounts.Children,
-      tour_id: tourId, // Use tour_id from packageData
-      fromMainSearch: false
-    }))
-    .then((response) => {
-      console.log('fetchRestaurants response:', response);
-    })
-    .catch((error) => {
-      console.error('fetchRestaurants error:', error);
-    });
+    // dispatch(fetchRestaurants({
+    //   city: `${city}, (${country})`,
+    //   date: formattedAttractionDate,
+    //   adults: guestCounts.Adults,
+    //   children: guestCounts.Children,
+    //   tour_id: tourId, // Use tour_id from packageData
+    //   fromMainSearch: false
+    // }))
+    // .then((response) => {
+    //   console.log('fetchRestaurants response:', response);
+    // })
+    // .catch((error) => {
+    //   console.error('fetchRestaurants error:', error);
+    // });
 
    dispatch(updateSearchState({
   location: [city], // or just city if location is a single string
@@ -1336,7 +1339,7 @@ dispatch(fetchHotels());
 }));
 
 // Step 2: Fetch hotels using pagination args
-dispatch(fetchHotels());
+// dispatch(fetchHotels());
 
 
     // Also update the enquiry slice data for compatibility with other parts of the app

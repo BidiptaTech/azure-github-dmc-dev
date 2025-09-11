@@ -760,7 +760,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
             {/* Form Fields Row */}
             <Grid container spacing={1.5} alignItems="flex-end" sx={{ mb: 2 }}>
               {/* Location Search */}
-              <Grid item xs={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 6 : 4}>
+              <Grid item xs={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 8 : 4}>
                 <Box>
                   {selectedPort === "Point To Point" ? (
                     <LocationSearch
@@ -832,7 +832,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               </Grid>
 
               {/* Time Selection */}
-              <Grid item xs={12} md={3} sx={{mt: 0.5}}>
+              <Grid item xs={12} md={2} sx={{mt: 0.5}}>
                 <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -11 : 0 }}>
                   {selectedPort === "Point To Point" ? (
                     <Pickuptime
@@ -866,7 +866,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               </Grid>
 
               {/* Date Selection */}
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={2}>
                 <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? -10 : 0 }}>
                   <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.8, color: 'text.primary', fontSize: '0.9rem' }}>
                     Pick Up Date

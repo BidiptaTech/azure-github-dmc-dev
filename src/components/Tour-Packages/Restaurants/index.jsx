@@ -41,6 +41,8 @@ import TimeSlotSelect from './TimeSlotSelect';
 import PaxSelector from './PaxSelector';
 import RestaurantBookingSummaryModal from './RestaurantBookingSummaryModal';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
+import { fetchRestaurants } from '../../../slice/restaurant/RestaurantsSlice';
+import PortCity from './PortCity';
 
 const initialFormState = {
   restaurant: '',
@@ -65,7 +67,10 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
+  const tour = useSelector((state) => state.hotels.tourdetails);
   console.log('Restaurant update', restaurantspack);
+  console.log("tour", tour);
   
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
@@ -103,6 +108,13 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [expandedSections, setExpandedSections] = useState([0]);
   
+  // City selection state
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isRestaurantListingEnabled, setIsRestaurantListingEnabled] = useState(false);
+  console.log("selectedCity", selectedCity);
+  
   // Use a ref to track restaurant bookings to prevent them from being lost during re-renders
   const restaurantBookingsRef = useRef([]);
   // State to trigger re-renders when bookings change
@@ -134,6 +146,18 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   useEffect(() => {
     currentServicesRef.current = existingServices;
   }, [existingServices]);
+
+  // Reset restaurant listing state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsRestaurantListingEnabled(false);
+    }
+  }, [selectedCity]);
+
+  // Debug effect to track isRestaurantListingEnabled changes
+  useEffect(() => {
+    console.log("isRestaurantListingEnabled changed to:", isRestaurantListingEnabled);
+  }, [isRestaurantListingEnabled]);
 
   // Function to initialize form sections from restaurantspack data (following attraction pattern)
   const initializeFormSectionsFromRestaurantPack = useCallback(() => {
@@ -556,6 +580,60 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     setSelectedSectionIndex(null);
   }, []);
 
+  // Handle city selection
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    console.log("Current isRestaurantListingEnabled:", isRestaurantListingEnabled);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable restaurant listing until API call is successful
+      console.log("Disabling restaurant listing - waiting for API response");
+      setIsRestaurantListingEnabled(false);
+      
+      // Dispatch fetchRestaurants API call
+      console.log("Dispatching fetchRestaurants with params:", {
+        city: `${city.name}, (${country})`,
+        date: bookingDate,
+        adults: tour.adult,
+        children: tour.child,
+        tour_id: tour.tour_id,
+        fromMainSearch: false
+      });
+      
+      dispatch(fetchRestaurants({ 
+        city: `${city.name}, (${country})`, 
+        date: bookingDate, 
+        adults: tour.adult,
+        children: tour.child,
+        tour_id: tour.tour_id,
+        fromMainSearch: false
+      }))
+        .then((result) => {
+          console.log("fetchRestaurants API result:", result);
+          if (result.error) {
+            console.error("fetchRestaurants API Error:", result.error);
+            console.log("API failed - keeping restaurant listing disabled");
+            setIsRestaurantListingEnabled(false);
+          } else {
+            console.log("fetchRestaurants API Success - enabling restaurant listing");
+            console.log("API succeeded - enabling restaurant listing");
+            setIsRestaurantListingEnabled(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error dispatching fetchRestaurants:", error);
+          console.log("API dispatch failed - keeping restaurant listing disabled");
+          setIsRestaurantListingEnabled(false);
+        });
+    } else {
+      // If no city selected, disable restaurant listing
+      console.log("No city selected - disabling restaurant listing");
+      setIsRestaurantListingEnabled(false);
+    }
+  };
+
   // Calculate completion status for each section
   const getSectionCompletion = (section) => {
     let completed = 0;
@@ -944,25 +1022,25 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     return restaurants.find(r => r.id === restaurantId) || null;
   };
 
-  if (status === 'failed') {
-    return (
-      <Container>
-        <Typography variant="h6" sx={{ textAlign: 'center', my: 4, color: 'error.main' }}>
-          Failed to load restaurants. Please try again.
-        </Typography>
-      </Container>
-    );
-  }
+  // if (status === 'failed') {
+  //   return (
+  //     <Container>
+  //       <Typography variant="h6" sx={{ textAlign: 'center', my: 4, color: 'error.main' }}>
+  //         Failed to load restaurants. Please try again.
+  //       </Typography>
+  //     </Container>
+  //   );
+  // }
 
-  if (!restaurants || restaurants.length === 0) {
-    return (
-      <Container>
-        <Typography variant="h6" sx={{ textAlign: 'center', my: 4 }}>
-          Please search for restaurants first
-        </Typography>
-      </Container>
-    );
-  }
+  // if (!restaurants || restaurants.length === 0) {
+  //   return (
+  //     <Container>
+  //       <Typography variant="h6" sx={{ textAlign: 'center', my: 4 }}>
+  //         Please search for restaurants first
+  //       </Typography>
+  //     </Container>
+  //   );
+  // }
 
   const totalBookings = formSections.length;
 
@@ -1235,13 +1313,43 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                       }}
                     >
                       <Grid container spacing={1.5} alignItems="flex-end">
+                        {/* City Selection */}
+                        <Grid item xs={12} md={3}>
+                          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <LocationOnIcon sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600"
+                                color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
+                              >
+                                City
+                              </Typography>
+                            </Box>
+                            <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                              <PortCity
+                                onLocationSelect={handleCitySelect}
+                                hasError={cityError}
+                                setError={setCityError}
+                                disabled={!isCityEnabled}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+                        
                         {/* Restaurant Selection */}
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                             <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                               <RestaurantIcon sx={{ mr: 0.8, color: '#4caf50', fontSize: 18 }} />
-                              <Typography variant="body2" fontWeight="600" color="text.primary" sx={{ fontSize: '0.8rem' }}>
-                                Select Restaurant
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600" 
+                                color={!isRestaurantListingEnabled ? "text.disabled" : "text.primary"} 
+                                sx={{ fontSize: '0.8rem' }}
+                              >
+                                Select Restaurant 
                               </Typography>
                             </Box>
                             <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
@@ -1249,6 +1357,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                                 restaurants={restaurants} 
                                 selectedRestaurant={section.restaurant}
                                 onRestaurantChange={(restaurantId) => handleFieldChange(sectionIndex, 'restaurant', restaurantId)}
+                                disabled={!isRestaurantListingEnabled}
                               />
                             </Box>
                           </Box>

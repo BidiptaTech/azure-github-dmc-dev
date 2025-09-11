@@ -12,6 +12,7 @@ import MealPlanSelection from './components/MealPlanSelection';
 import NightSelection from './components/NightSelection';
 import { setAllServices } from '@/slice/tour-packages/tourPackageSlice';
 import { calculateNightIndicesInTourRange } from './utils/hotelUtils';
+import { fetchHotels } from '@/slice/hotel/hotelSlice';
 
 export default function HotelComponent({ searchParams }) {
   // Get search state from Redux (populated by SearchForm)
@@ -23,6 +24,30 @@ export default function HotelComponent({ searchParams }) {
   
   // Ref to track if migration has been completed
   const migrationCompleted = useRef(false);
+  
+  // City selection state
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isHotelListingEnabled, setIsHotelListingEnabled] = useState(false);
+  
+  // Get additional selectors
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
+  const tour = useSelector((state) => state.hotels.tourdetails);
+  console.log("selectedCity", selectedCity);
+  console.log("tour", tour);
+  
+  // Reset hotel listing state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsHotelListingEnabled(false);
+    }
+  }, [selectedCity]);
+
+  // Debug effect to track isHotelListingEnabled changes
+  useEffect(() => {
+    console.log("isHotelListingEnabled changed to:", isHotelListingEnabled);
+  }, [isHotelListingEnabled]);
   
   // Get search criteria from Redux searchState (populated by SearchForm) - MOVED TO TOP
   const searchCriteria = useMemo(() => {
@@ -371,6 +396,61 @@ export default function HotelComponent({ searchParams }) {
       updatedConfigurations[activeHotelIndex] = updatedConfig;
       return updatedConfigurations;
     });
+  };
+
+  // Handle city selection
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    console.log("Current isHotelListingEnabled:", isHotelListingEnabled);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable hotel listing until API call is successful
+      console.log("Disabling hotel listing - waiting for API response");
+      setIsHotelListingEnabled(false);
+      
+      // Dispatch fetchHotels API call
+      console.log("Dispatching fetchHotels with params:", {
+        city: `${city.name}, (${country})`,
+        date: searchCriteria,
+        adults: searchCriteria?.guests?.adults || 1,
+        children: searchCriteria?.guests?.children || 0,
+        infant: searchCriteria?.guests?.infant || 0
+      });
+      
+      dispatch(fetchHotels({ 
+        location: `${city.name}, (${country})`, 
+        ucheckIn: searchCriteria?.checkIn ? moment(searchCriteria.checkIn, 'DD/MM/YYYY').format('YYYY-MM-DD') : null,
+        ucheckOut: searchCriteria?.checkOut ? moment(searchCriteria.checkOut, 'DD/MM/YYYY').format('YYYY-MM-DD') : null,
+        guests: {
+          adults: searchCriteria?.guests?.adults || 1,
+          children: searchCriteria?.guests?.children || 0,
+          infant: searchCriteria?.guests?.infant || 0
+        }
+      }))
+        .then((result) => {
+          console.log("fetchHotels API result:", result);
+          if (result.error) {
+            console.error("fetchHotels API Error:", result.error);
+            console.log("API failed - keeping hotel listing disabled");
+            setIsHotelListingEnabled(false);
+          } else {
+            console.log("fetchHotels API Success - enabling hotel listing");
+            console.log("API succeeded - enabling hotel listing");
+            setIsHotelListingEnabled(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error dispatching fetchHotels:", error);
+          console.log("API dispatch failed - keeping hotel listing disabled");
+          setIsHotelListingEnabled(false);
+        });
+    } else {
+      // If no city selected, disable hotel listing
+      console.log("No city selected - disabling hotel listing");
+      setIsHotelListingEnabled(false);
+    }
   };
 
   // Handler for room type
@@ -965,6 +1045,13 @@ export default function HotelComponent({ searchParams }) {
         roomDataStatus={roomDataStatus}
         hotelConfigurations={hotelConfigurations}
         activeHotelIndex={activeHotelIndex}
+        isHotelListingEnabled={isHotelListingEnabled}
+        // City selection props
+        selectedCity={selectedCity}
+        cityError={cityError}
+        isCityEnabled={isCityEnabled}
+        handleCitySelect={handleCitySelect}
+        setCityError={setCityError}
         renderMealPlanSection={() => (
           <MealPlanSelection
             selectedGuests={selectedGuests}
