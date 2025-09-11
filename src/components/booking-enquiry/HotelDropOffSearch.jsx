@@ -273,7 +273,7 @@ const HotelDropOffSearch = ({ onSelect, value = null }) => {
                           {getDescriptionSnippet(hotel.description)}
                         </Typography>
                       )}
-                         {PriceHide === "0" ? (
+                         {/* {PriceHide === "0" ? (
                           hotel.single_base_price && (
                             <PriceChip 
                               label={`${formatPrice(hotel.single_base_price)}/night`}
@@ -283,7 +283,7 @@ const HotelDropOffSearch = ({ onSelect, value = null }) => {
                             <div className="text-12 text-dark-1 fw-500">
                               Price available on request
                             </div>
-                            )}
+                            )} */}
 
                     </HotelInfo>
                     {hotel.main_image && (

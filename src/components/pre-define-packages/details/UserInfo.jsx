@@ -45,7 +45,7 @@ import { bookPackage, resetBookingStatus } from '../../../slice/tour-packages/pr
 const UserInfo = ({ open, onClose, onSubmit, bookingData }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { bookingLoading, bookingSuccess, bookingError } = useSelector(state => state.prePackages);
+  const { bookingLoading, bookingSuccess, bookingError, bookingData: bookingResponse } = useSelector(state => state.prePackages);
   
   // Get search params to access the selected date
   const searchParams = useSelector(state => state.prePackages.searchParams);
@@ -145,21 +145,23 @@ const selectedDate = searchParams?.date ?
   // Handle booking success
   useEffect(() => {
     if (bookingSuccess) {
+      const successMessage = bookingResponse?.message || 'Booking successful!';
+      
       setSnackbar({
         open: true,
-        message: 'Booking successful!',
+        message: successMessage,
         severity: 'success'
       });
       
-      // Close the modal after successful booking with a slight delay
+      // Close the modal after successful booking with a delay to match the alert duration
       setTimeout(() => {
-        onSubmit({ ...bookingData, user_info: formData });
+        onSubmit({ ...bookingData, user_info: formData, bookingResponse });
         onClose();
         // Navigate to dashboard pre-define-packages after successful booking
         navigate('/dashboard/pre-define-packages');
-      }, 1500);
+      }, 5000);
     }
-  }, [bookingSuccess, bookingData, formData, onSubmit, onClose, navigate]);
+  }, [bookingSuccess, bookingResponse, bookingData, formData, onSubmit, onClose, navigate]);
   
   // Handle booking error
   useEffect(() => {

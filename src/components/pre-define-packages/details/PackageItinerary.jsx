@@ -7,7 +7,7 @@ import {
   Chip
 } from '@mui/material';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+
 
 // Import shared date utility functions from parent component
 // Note: In a real application, these would be in a separate utils file
