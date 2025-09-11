@@ -405,7 +405,7 @@ class UserController extends Controller
         }
         elseif($this->auth_user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [64,65,66,67,68])
+            ->whereIn('role_id', [64,65,66,67,68,124])
             ->orderBy('role_id', 'asc')
             ->get();
         }
@@ -417,7 +417,7 @@ class UserController extends Controller
         }
         elseif($this->auth_user->role_id == 36 || $user->role_id == 129 || $user->role_id == 131 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $roles = Role::where('is_active', 1)
-            ->whereIn('role_id', [69,70,71,72,73])
+            ->whereIn('role_id', [69,70,71,72,73,126])
             ->orderBy('role_id', 'asc')
             ->get();
         }

@@ -49,7 +49,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
                             @php
-                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 74, 93];
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 74, 93, 90, 139, 140];
                             @endphp
 
                             @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
@@ -80,7 +80,7 @@
                                     $roleId = auth()->user()->role_id;
                                 @endphp
                                 @php
-                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 74, 93];
+                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 74, 93, 139, 140];
                                 @endphp
 
                                 @if(in_array($roleId, [10, 19])) {{-- Master DMC or Virtual Master DMC --}}
@@ -166,7 +166,7 @@
                                         <span class="badge bg-danger">Inactive</span>
                                     @endif  
                                 </td>
-                                @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 93 || hasPermission('edit attraction') || hasPermission('delete attraction'))
+                                @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 44 || auth()->user()->role_id == 74 || auth()->user()->role_id ==91 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 93 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit attraction') || hasPermission('delete attraction'))
                                 @if($attraction->status == 1)
                                 <td style="display: inline-block; white-space: nowrap;">
                                     <!-- Edit Button -->
@@ -181,7 +181,7 @@
                                     @endif
 
                                     <!-- Delete Button -->
-                                    @if(hasPermission('delete attraction'))
+                                    @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
                                     <button type="button" 
                                         class="btn btn-danger btn-sm rounded-circle waves-effect waves-light" 
                                         style="min-width: 28px; min-height: 28px; padding: 0;" 

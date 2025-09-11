@@ -60,7 +60,9 @@
                             <th>Location</th>
                             <th class="text-center">Pax Info</th>
                             <th>Travel Dates</th>
-                            <th>Create Tour</th>
+                            @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                                <th>Create Tour</th>
+                            @endif
                             <th>Created At</th>
                         </tr>
                     </thead>
@@ -169,7 +171,6 @@
                                         <span class="fw-medium">
                                             {{ \Carbon\Carbon::parse($enquiry->check_in_time)->format('D, M d, Y') }}
                                         </span>
-                                        
                                     </div>
                                     @endif
                                     
@@ -199,14 +200,14 @@
                                     @endif
                                 </div>
                             </td>
+                            @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
                             <td>
-                                @if(in_array(auth()->user()->role_id, [11, 25, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
                                 @if($enquiry->unique_tour_id == null)
-                                <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Create Tour
-                                </a>
+                                    <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-plus me-1"></i>Create Tour
+                                    </a>
                                 @else
-                                <span class="badge bg-success bg-opacity-10 text-success">Tour Created</span>
+                                    <span class="badge bg-success bg-opacity-10 text-success">Tour Created</span>
                                 @endif
                             
                                 <!-- <button class="btn btn-primary btn-sm create-tour-btn"
@@ -230,10 +231,8 @@
                                     data-guide-ids="{{ $enquiry->guide_ids }}">
                                     <i class="fas fa-plus me-1"></i>Create
                                 </button> -->
-                                @else
-                                <span>Not Authorized</span>
-                                @endif
                             </td>
+                            @endif
                             <td>
                                 <div class="d-flex flex-column">
                                     <span>{{ $enquiry->created_at->format('D,  M d, Y') }}</span>
@@ -940,33 +939,45 @@
                     table.destroy();
                     table = $('.datatables-basic').DataTable({
                         responsive: true,
-                        columnDefs: [
-                            { targets: 0, className: 'dtr-control' },
-                            { responsivePriority: 1, targets: 0 }, // # - Always visible
-                            { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
-                            { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
-                            { responsivePriority: 4, targets: 3 }, // Location - Medium priority
-                            { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
-                            { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
-                            { responsivePriority: 6, targets: 6 }  // Create Tour - Medium priority
-                        ]
+                        columnDefs: getColumnDefs()
                     });
                 }
             } else {
                 console.log('Initializing new DataTable...');
                 var table = $('.datatables-basic').DataTable({
                     responsive: true,
-                                            columnDefs: [
-                            { targets: 0, className: 'dtr-control' },
-                            { responsivePriority: 1, targets: 0 }, // # - Always visible
-                            { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
-                            { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
-                            { responsivePriority: 4, targets: 3 }, // Location - Medium priority
-                            { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
-                            { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
-                            { responsivePriority: 6, targets: 6 }  // Create Tour - Medium priority
-                        ]
+                    columnDefs: getColumnDefs()
                 });
+            }
+            
+            // Function to get column definitions based on user role
+            function getColumnDefs() {
+                @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
+                    // User has Create Tour permission - 7 columns
+                    return [
+                        { targets: 0, className: 'dtr-control' },
+                        { responsivePriority: 1, targets: 0 }, // # - Always visible
+                        { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
+                        { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
+                        { responsivePriority: 4, targets: 3 }, // Location - Medium priority
+                        { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
+                        { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
+                        { responsivePriority: 6, targets: 6 }, // Create Tour - Medium priority
+                        { responsivePriority: 8, targets: 7 }  // Created At - Low priority
+                    ];
+                @else
+                    // User doesn't have Create Tour permission - 6 columns
+                    return [
+                        { targets: 0, className: 'dtr-control' },
+                        { responsivePriority: 1, targets: 0 }, // # - Always visible
+                        { responsivePriority: 2, targets: 1 }, // Display ID - Always visible  
+                        { responsivePriority: 3, targets: 2 }, // Agent Details - High priority
+                        { responsivePriority: 4, targets: 3 }, // Location - Medium priority
+                        { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
+                        { responsivePriority: 6, targets: 5 }, // Travel Dates - Medium priority
+                        { responsivePriority: 7, targets: 6 }  // Created At - Low priority
+                    ];
+                @endif
             }
 
             // Custom export button functionality

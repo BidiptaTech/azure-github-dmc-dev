@@ -75,16 +75,15 @@ class VehicleController extends Controller
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
-        elseif($user->role_id == 76){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
-            }
+        elseif($user->role_id == 76 || $user->role_id == 139){
+            $product_head = User::where('userId', $user->created_by)->first();
+            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
+
         }
-        elseif($user->role_id == 111){
-            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
+        elseif($user->role_id == 111 || $user->role_id == 140){
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $vehicles = Vehicle::with(['dmc'])->orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
         }
 
         return view('vehicles.vehicle', compact('vehicles'));
@@ -130,7 +129,7 @@ class VehicleController extends Controller
         else{
             $dmcs = User::where('role_id', 11)->get();
         }
-        if($authuser->role_id == 11 || $authuser->role_id == 35 || $authuser->role_id == 76 || $authuser->role_id == 111){
+        if($authuser->role_id == 11 || $authuser->role_id == 35 || $authuser->role_id == 76 || $authuser->role_id == 111 || $authuser->role_id == 139 || $authuser->role_id == 140){
             
         }
 
@@ -174,7 +173,7 @@ class VehicleController extends Controller
                 ->orderByDesc('updated_at')
                 ->get();
 
-        } elseif ($user->role_id == 76) {
+        } elseif ($user->role_id == 76 || $user->role_id == 139) {
             // Product Manager sees APMs they created and self
             $apmIds = User::where('created_by', $user->userId)->pluck('userId')->toArray();
             $createdByIds = array_merge($apmIds, [$user->userId]);
@@ -185,7 +184,7 @@ class VehicleController extends Controller
                 ->orderByDesc('updated_at')
                 ->get();
 
-        } elseif ($user->role_id == 111) {
+        } elseif ($user->role_id == 111 || $user->role_id == 140) {
             // APM sees only own drivers
             $drivers = Driver::where('status', 1)
                 ->where('dmc_id', $dmc_id)
@@ -248,10 +247,10 @@ class VehicleController extends Controller
         $auth_user = Auth::user();
         if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $dmc_id = $auth_user->userId;
-            $status = 5;
+                $status = 1;
         }elseif($auth_user->role_id == 4){
             $dmc_id = $request->dmc;
-            $status = 5;
+            $status = 1;
         }elseif($auth_user->role_id == 23){
             $dmc_id = $request->dmc;
             $status = 1;
@@ -261,24 +260,24 @@ class VehicleController extends Controller
         } elseif(auth()->user()->role_id ==35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138){
             $userdmc = User::where('userId', auth()->user()->created_by)->first();
             $dmc_id = $userdmc->userId;
-            $status = 5;
+            $status = 1;
         }
-        elseif(auth()->user()->role_id == 76){
+        elseif(auth()->user()->role_id == 76 || auth()->user()->role_id == 139){
             $user_product_head = User::where('userId', auth()->user()->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $dmc_id = $user_product_head_dmc->userId;
-            $status = 5;
+            $status = 1;
         }
-        elseif(auth()->user()->role_id == 111){
+        elseif(auth()->user()->role_id == 111 || auth()->user()->role_id == 140){
             $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $dmc_id = $user_product_head_dmc->userId;
-            $status = 5;
+            $status = 1;
         }
         elseif($auth_user->role_id == 11 || $auth_user->role_id == 20) {
             $dmc_id = $auth_user->userId;
-            $status = 5;
+            $status = 1;
         }
         else{
             $dmc_id = $request->dmc;
@@ -927,9 +926,9 @@ class VehicleController extends Controller
     */
     public function destroy($id)
     {
-        if (!hasPermission('delete vehicle')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('delete vehicle')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         $id = Crypt::decrypt($id);
         // Get vehicle and delete images from Azure
         $vehicle = Vehicle::where('vehicle_id', $id)->first();

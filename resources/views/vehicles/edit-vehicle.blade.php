@@ -1687,11 +1687,11 @@ document.addEventListener('DOMContentLoaded', function() {
         $resolvedDmcId = $currentUser->userId;
     } elseif ($userRoleId == 35) {
         $resolvedDmcId = \App\Models\User::where('userId', $currentUser->userId)->value('created_by');
-    } elseif ($userRoleId == 76) {
+    } elseif ($userRoleId == 76 || $userRoleId == 139) {
         $pm = \App\Models\User::where('userId', $currentUser->userId)->first();
         $ph = \App\Models\User::where('userId', $pm?->created_by)->first();
         $resolvedDmcId = $ph?->created_by;
-    } elseif ($userRoleId == 111) {
+    } elseif ($userRoleId == 111 || $userRoleId == 140) {
         $apm = \App\Models\User::where('userId', $currentUser->userId)->first();
         $pm = \App\Models\User::where('userId', $apm?->created_by)->first();
         $ph = \App\Models\User::where('userId', $pm?->created_by)->first();

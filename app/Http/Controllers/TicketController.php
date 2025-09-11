@@ -31,7 +31,7 @@ class TicketController extends Controller
         }else if($auth_user->role_id == 11){
             // Regular DMC sees only their tickets
             $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
-        }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
+        }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138, 139, 140])){
             // Sub-users see tickets of their parent DMC
             $dmc_id = $auth_user->created_by;
             $tickets = Ticket::where('dmc_id', $dmc_id)->get();
@@ -94,10 +94,10 @@ class TicketController extends Controller
             $dmc_id = $auth_user->userId;
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $auth_user->created_by;
-        }else if($auth_user->role_id == 78){
+        }else if($auth_user->role_id == 78 || $auth_user->role_id == 139){
             $sales_head = User::where('userId', $auth_user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($auth_user->role_id == 120){
+        }else if($auth_user->role_id == 120 || $auth_user->role_id == 140){
             $sales_manager = User::where('userId', $auth_user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -214,14 +214,14 @@ class TicketController extends Controller
             ->where('attraction_id', $attraction_id)
             ->where('dmc_id', $userdmc->userId)
             ->get();
-        }else if($auth_user->role_id == 74){
+        }else if($auth_user->role_id == 74 || $auth_user->role_id == 139){
             $user_product_head = User::where('userId', $auth_user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $tickets = Ticket::where('status', 1)
             ->where('attraction_id', $attraction_id)
             ->where('dmc_id', $user_product_head_dmc->userId)
             ->get();
-        }else if($auth_user->role_id == 93){
+        }else if($auth_user->role_id == 93 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();

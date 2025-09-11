@@ -1243,12 +1243,12 @@ class CommonHelper
                 $sales_head = User::where('userId', $user->userId)->first();
                 return $sales_head->created_by;
             }
-            elseif($user->role_id == 37 || in_array($user->role_id, [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78])){
+            elseif($user->role_id == 37 || in_array($user->role_id, [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 139])){
                 $sales_manager = User::where('userId', $user->userId)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
                 return $sales_head->created_by;
             }
-            elseif(in_array($user->role_id, [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127])){
+            elseif(in_array($user->role_id, [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127, 140])){
                 $assistant_sales_manager = User::where('userId', $user->userId)->first();
                 $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();

@@ -85,6 +85,8 @@ class AgencyController extends Controller
         $deletedAgency = Agency::withTrashed()->where('email', $request->input('email'))->first();
         $isAdmin = false;
         $authUser = Auth::user();
+        // Default DMC id to empty array for admin/virtual roles
+        $dmc_id = [];
         if($authUser->role_id == 1 || $authUser->role_id == 2 || $authUser->role_id == 3 || $authUser->role_id == 4 || $authUser->role_id == 19 || $authUser->role_id == 20){
             $isAdmin = true;
         }else{
@@ -117,7 +119,7 @@ class AgencyController extends Controller
                 'postal_code' => $request->input('postal_code'),
                 'id_card_type' => $request->input('id_card_type'),
                 'card_number' => $request->input('card_number'),
-                'branches' => $request->input('branches', []),
+                'branches' => $this->normalizeBranches($request->input('branches', [])),
                 'logo' => $logoPath,
                 'updated_by' => Auth::user()->userId,
             ]);
@@ -159,7 +161,7 @@ class AgencyController extends Controller
         $agency->postal_code = $request->input('postal_code');
         $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
-        $agency->branches = $request->input('branches', []);
+        $agency->branches = $this->normalizeBranches($request->input('branches', []));
         $agency->logo = $logoPath;
         $agency->created_by = Auth::user()->userId;
         $agency->dmc_id = is_array($dmc_id) ? $dmc_id : [$dmc_id];
@@ -246,7 +248,7 @@ class AgencyController extends Controller
         $agency->postal_code = $request->input('postal_code');
         $agency->id_card_type = $request->input('id_card_type');
         $agency->card_number = $request->input('card_number');
-        $agency->branches = $request->input('branches', []);
+        $agency->branches = $this->normalizeBranches($request->input('branches', []));
         $agency->updated_by = Auth::user()->userId;
 
         if ($agency->save()) {
@@ -254,6 +256,35 @@ class AgencyController extends Controller
         }
 
         return redirect()->back()->with('error', 'Failed to update agency. Please try again.');
+    }
+
+    /**
+     * Ensure every branch has a unique, immutable branch_uid
+     */
+    private function normalizeBranches($branches)
+    {
+        if (!is_array($branches)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($branches as $branch) {
+            if (!is_array($branch)) {
+                continue;
+            }
+            if (empty($branch['branch_uid'])) {
+                $branch['branch_uid'] = $this->generateBranchUid();
+            }
+            $normalized[] = $branch;
+        }
+        return $normalized;
+    }
+
+    private function generateBranchUid(): string
+    {
+        $timestamp = base_convert(now()->timestamp, 10, 36); // Base36 for shorter timestamp
+        $random = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4); // 4 random chars
+        return 'BR' . strtoupper($timestamp . $random);
     }
 
     /**

@@ -176,7 +176,7 @@
                                 <select name="city" id="citySelect" class="form-control" required>
                                     <option value="">{{ $placeholder }}</option>
 
-                                    @if(in_array($roleId, [11, 20, 35, 78, 120]))
+                                    @if(in_array($roleId, [11, 20, 35, 78, 120, 139, 140]))
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}">{{ $city->name }}</option>
                                         @endforeach
@@ -1114,8 +1114,8 @@ $(document).ready(function() {
         // Get the user's role ID
         var userRoleId = {{ auth()->user()->role_id }};
         // Get the current user's country if they are a DMC
-        var userCountry = "{{ in_array(auth()->user()->role_id, [11,20,35,78,120,130,132,133,135,136,137,138]) ? auth()->user()->country : '' }}";
-        var dmcId = "{{ in_array(auth()->user()->role_id, [11,20,35,78,120,130,132,133,135,136,137,138]) ? auth()->user()->userId : '' }}";
+        var userCountry = "{{ in_array(auth()->user()->role_id, [11,20,35,78,120,130,132,133,135,136,137,138,139,140]) ? auth()->user()->country : '' }}";
+        var dmcId = "{{ in_array(auth()->user()->role_id, [11,20,35,78,120,130,132,133,135,136,137,138,139,140]) ? auth()->user()->userId : '' }}";
         
         // Initialize Select2 for country & city
         $('#country').select2({
@@ -1133,7 +1133,7 @@ $(document).ready(function() {
         });
         
         // Check if the user role corresponds to DMC-like roles
-        if ([11,20,35,78,120].includes(userRoleId)) {
+        if ([11,20,35,78,120,139,140].includes(userRoleId)) {
             // Hide the DMC select box
             $('#dmc-container').hide();
             $('#dmc').prop('required', false);

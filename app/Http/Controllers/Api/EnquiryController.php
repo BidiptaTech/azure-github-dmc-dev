@@ -198,13 +198,22 @@ class EnquiryController extends Controller
                 ];
             }
         }
-        
-        $attractions = Attraction::where(function($query) use ($request_dmc_ids) {
+        if(!empty($hotel_list)){
+            $hotel_list = collect($hotel_list)
+            ->groupBy('hotel_unique_id')
+            ->map(function ($hotels) {
+                // pick the one with least single_base_price
+                return $hotels->sortBy('single_base_price')->first();
+            })
+            ->values()
+            ->toArray();
+        }
+        $attractions = Attraction::with('tickets')->where(function($query) use ($request_dmc_ids) {
             foreach ($request_dmc_ids as $dmc_id) {
                 $query->orWhereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id]);
             }
         })->where('location', $city)->where('country', $country)->get();
-        
+     
         // Fetch packaged attractions for all DMCs
         $packagedAttractions = PackagedAttraction::orderBy('package_attraction_id', 'desc')->whereIn('dmc_id', $request_dmc_ids)
             ->where('status', 1)
@@ -223,10 +232,11 @@ class EnquiryController extends Controller
                 return $matchingAttractions > 0;
             });
         
-        $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->where(function($query) use ($request_dmc_ids) {
-            foreach ($request_dmc_ids as $dmc_id) {
-                $query->orWhereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id]);
-            }
+        
+        $restaurants = Restaurant::with('meals')->orderBy('restaurant_id', 'desc')->where(function($query) use ($request_dmc_ids) {
+        foreach ($request_dmc_ids as $dmc_id) {
+            $query->orWhereRaw("dmc_id::text LIKE '%'||?||'%'", [$dmc_id]);
+        }
         })->where('city', $city)->where('country', $country)->get();
         
         // For tables with integer dmc_id field
@@ -245,6 +255,8 @@ class EnquiryController extends Controller
         
         // Create list for regular attractions
         $attraction_list = $attractions->map(function($attraction) {
+            $base_price = $attraction->tickets->min('adult_price');
+            $child_price = $attraction->tickets->min('child_price');
             return [
                 'id' => $attraction->id,
                 'attraction_id' => $attraction->attraction_id,
@@ -252,9 +264,9 @@ class EnquiryController extends Controller
                 'location' => $attraction->location,
                 'country' => $attraction->country,
                 'master_image' => $attraction->master_image,
-                'base_price' => $attraction->adult_price,
+                'base_price' => $base_price ? $base_price : 0,
                 'type' => 'attraction',
-                'child_price' => $attraction->child_price,
+                'child_price' => $child_price ? $child_price : 0,
                 'description' => $attraction->description,
                 'created_at' => $attraction->created_at,
             ];
@@ -296,13 +308,14 @@ class EnquiryController extends Controller
         });
         
         $restaurant_list = $restaurants->map(function($restaurant) {
+            $base_price = $restaurant->meals->min('price');
             return [
                 'restaurant_id' => $restaurant->restaurant_id,
                 'name' => $restaurant->name,
                 'master_image' => $restaurant->master_image,
                 'city' => $restaurant->city,
                 'country' => $restaurant->country,
-                'base-price' => $restaurant->bf_price,
+                'base-price' => $base_price ? $base_price : 0,
                 'created_at' => $restaurant->created_at,
             ];
         });
@@ -1019,38 +1032,16 @@ class EnquiryController extends Controller
         // Convert agency_id to integer for proper matching
         $agency_id = (int) $agency_id;
         
-        // Get the agency to fetch its countries
-        $agency = \App\Models\Agency::where('agency_id', $agency_id)->first();
-        if (!$agency) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Agency not found',
-            ], 404);
-        }
-        
-        // Get agency countries as array
-        $agency_countries = explode(',', $agency->country);
-        $agency_countries = array_map('trim', $agency_countries);
-        
-        // Get agents for the specific agency and filter by country matching
+        // Get all agents for the specific agency (no country filtering)
         $agents = \App\Models\Agent::where('agency_id', $agency_id)
+            ->orderBy('created_at', 'desc')
             ->get()
-            ->filter(function ($agent) use ($agency_countries) {
-                // Get agent countries as array
-                $agent_countries = explode(',', $agent->country);
-                $agent_countries = array_map('trim', $agent_countries);
-                
-                // Check if any agency country matches any agent country
-                return !empty(array_intersect($agency_countries, $agent_countries));
-            })
-            ->sortByDesc('created_at')
             ->map(function ($agent) {
                 return [
                     'agent_id' => $agent->agent_id,
                     'agent_name' => $agent->name,
                 ];
-            })
-            ->values(); // Reset array keys
+            });
 
         return response()->json([
             'success' => true,
