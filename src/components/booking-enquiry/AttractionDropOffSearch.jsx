@@ -289,7 +289,7 @@ const AttractionDropOffSearch = ({ onSelect, value = null }) => {
                         {getDescriptionSnippet(attraction.description)}
                       </Typography>
                     )}
-                    {PriceHide === "0" ? (
+                    {/* {PriceHide === "0" ? (
                       attraction.base_price && (
                         <PriceChip 
                           label={`${formatPrice(attraction.base_price)}/person`}
@@ -299,7 +299,7 @@ const AttractionDropOffSearch = ({ onSelect, value = null }) => {
                         <div className="text-12 text-dark-1 fw-500">
                           Price available on request
                         </div>
-                      )}
+                      )} */}
                   </AttractionInfo>
                   {attraction.master_image && (
                     <AttractionImage>
@@ -325,7 +325,7 @@ const AttractionDropOffSearch = ({ onSelect, value = null }) => {
         </DropdownContainer>
       )}
 
-      {showOthersInput && (
+      {/* {showOthersInput && (
         <OthersInputContainer>
           <TextField
             fullWidth
@@ -342,7 +342,7 @@ const AttractionDropOffSearch = ({ onSelect, value = null }) => {
             Add Attraction
           </Button>
         </OthersInputContainer>
-      )}
+      )} */}
 
       {selectedAttraction && (
         <SelectedContainer>
