@@ -89,7 +89,8 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const PriceHide = useSelector((state) => state.auth.PriceHide);
-  
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
+  console.log("tourStatus", tourStatus);
 
   // Memoize the hotel bookings count
   const hotelBookingsCount = useMemo(() => bookings?.hotel?.length || 0, [bookings?.hotel?.length]);
@@ -560,6 +561,7 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
+                      {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -578,6 +580,7 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           Cancel
                         </Button>
+                      )}
                       </Box>
                     </TableCell>
                   </TableRow>

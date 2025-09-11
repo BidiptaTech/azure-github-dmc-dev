@@ -129,6 +129,7 @@ const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [bookingToCancel, setBookingToCancel] = useState(null);
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
   
   // Get tax percentage from auth slice instead of restaurants
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
@@ -748,6 +749,7 @@ const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
+                        {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -774,6 +776,7 @@ const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           Cancel
                         </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>

@@ -101,6 +101,7 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
   const sgdTax = useSelector((state) => state.auth.sgdTax);
   const usdTax = useSelector((state) => state.auth.usdTax);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
 
   // Memoize the local transfer bookings count
   const localTransferCount = useMemo(
@@ -702,6 +703,7 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
                         >
                           View
                         </Button>
+                        {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -720,6 +722,7 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
                         >
                           Cancel
                         </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>

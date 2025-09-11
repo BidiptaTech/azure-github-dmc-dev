@@ -96,11 +96,11 @@ const PreviewCard = styled(Paper)(({ theme }) => ({
 }));
 
 const SearchLocationModal = ({ open, onClose, onSearch }) => {
-  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(null);
   const [countries, setCountries] = useState([]);
-  
+  //console.log('countries',selectedCountry);
   const dispatch = useDispatch();
-  const user_country = useSelector((state) => state.auth.user_country);
+  const global_countries = useSelector((state) => state.auth.global_countries);
   const { loading: dmcLoading, error: dmcError } = useSelector((state) => state.dmc);
   
   const defaultCountries = [
@@ -117,25 +117,21 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   ];
 
   useEffect(() => {
-    console.log('User country from Redux:', user_country);
-    
-    const locationContent = user_country && Array.isArray(user_country)
-      ? user_country.map((country, index) => ({
+    const locationContent = global_countries && Array.isArray(global_countries)
+      ? global_countries.map((country, index) => ({
           name: country.name,
-          code: country.code,
+          country_code: country.country_code,
+          code:country.code,    
           key: `country-${index}`
         }))
       : defaultCountries;
     
-    // Extract just the country names for the autocomplete
-    const countryNames = locationContent.map(country => country.name);
-    setCountries(countryNames);
-    
-    console.log('Location content:', locationContent);
-  }, [user_country]);
+    setCountries(locationContent);
+  }, [global_countries]);
 
   const handleCountryChange = (event, newValue) => {
-    setSelectedCountry(newValue || '');
+    console.log('handleCountryChange - newValue:', newValue);
+    setSelectedCountry(newValue || null);
     // Clear any previous errors
     if (dmcError) {
       dispatch(clearError());
@@ -149,20 +145,18 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         dispatch(clearSelectedDmc());
         dispatch(clearSelectedDmcs());
         
-        // Set selected countries in the store
+        // Set selected countries in the store (store complete country object)
         dispatch(setSelectedCountries([selectedCountry]));
         
-        // Fetch DMCs for the selected country
-        const result = await dispatch(fetchDMCsByCountry([selectedCountry]));
+        // Fetch DMCs for the selected country (pass country name to API)
+        const result = await dispatch(fetchDMCsByCountry([selectedCountry.name]));
         
         if (fetchDMCsByCountry.fulfilled.match(result)) {
           // API call was successful, proceed to DMC selection
-          onSearch({
-            country: selectedCountry,
-          });
+          onSearch(selectedCountry);
           onClose();
           // Reset form
-          setSelectedCountry('');
+          setSelectedCountry(null);
         } else {
           // API call failed, error will be shown in UI
           console.error('Failed to fetch DMCs:', result.payload);
@@ -176,7 +170,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   const handleClose = () => {
     onClose();
     // Reset form and clear errors
-    setSelectedCountry('');
+    setSelectedCountry(null);
     if (dmcError) {
       dispatch(clearError());
     }
@@ -186,6 +180,9 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   };
 
   const isSearchDisabled = !selectedCountry || dmcLoading;
+  
+  console.log('selectedCountry:', selectedCountry);
+  console.log('countries:', countries);
 
   return (
     <StyledDialog 
@@ -236,9 +233,26 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
               <Grid item xs={12} md={8}>
                 <Autocomplete
                   options={countries}
-                  value={selectedCountry}
+                  value={selectedCountry || null}
                   onChange={handleCountryChange}
                   disabled={dmcLoading}
+                  getOptionLabel={(option) => {
+                    if (!option) return '';
+                    if (typeof option === 'string') return option;
+                    return option?.name || '';
+                  }}
+                  isOptionEqualToValue={(option, value) => {
+                    if (!option || !value) return false;
+                    if (typeof option === 'string' && typeof value === 'string') {
+                      return option === value;
+                    }
+                    return option.key === value.key;
+                  }}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.key}>
+                      {option.name}
+                    </li>
+                  )}
                   renderInput={(params) => (
                     <StyledTextField
                       {...params}
@@ -262,7 +276,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
                 <PreviewCard elevation={0}>
                   <TravelIcon sx={{ color: '#2196f3', fontSize: 24, mr: 2 }} />
                   <Typography variant="h6" color="#1976d2" fontWeight="600">
-                    Destination: {selectedCountry}
+                    Destination: {selectedCountry.name}
                   </Typography>
                 </PreviewCard>
               </Box>

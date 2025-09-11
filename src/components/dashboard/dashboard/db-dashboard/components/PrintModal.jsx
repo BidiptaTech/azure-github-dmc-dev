@@ -173,9 +173,6 @@ const generateMainPdfBlob = async (element) => {
         );
       }
 
-      // Debug log to check element dimensions
-      console.log("Element dimensions:", element.getBoundingClientRect());
-
       // Add CSS class to improve PDF rendering - this forces sections to avoid page breaks
       const sections = element.querySelectorAll('.StyledCard');
       sections.forEach(section => {
@@ -214,9 +211,6 @@ const generateMainPdfBlob = async (element) => {
         letterRendering: true,
       });
 
-      // Debug log to check canvas dimensions
-      console.log("Canvas dimensions:", canvas.width, canvas.height);
-
       // Create PDF with A4 dimensions
       const pdf = new jsPDF({
         orientation: "portrait",
@@ -231,14 +225,6 @@ const generateMainPdfBlob = async (element) => {
       // Calculate image dimensions to fit the page width
       const imgWidth = pageWidth - 10; // Add small margin
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      // Debug log for calculated dimensions
-      console.log("PDF dimensions:", pageWidth, pageHeight);
-      console.log("Image dimensions:", imgWidth, imgHeight);
-
-      // Calculate the number of pages needed
-      const pagesCount = Math.ceil(imgHeight / pageHeight);
-      console.log("Pages count:", pagesCount);
 
       // If it's a single page document
       if (pagesCount <= 1) {
@@ -292,17 +278,13 @@ const blobToArrayBuffer = async (blob) => {
 // Enhanced utility function to merge PDFs with improved error handling
 const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
   try {
-    console.log("Starting PDF merge process...");
-    
     // Create a new PDF document
     const mergedPdf = await PDFDocument.create();
     
     // Load content PDF first (this is required)
     let contentPdf;
     try {
-      console.log("Loading content PDF...");
       contentPdf = await PDFDocument.load(contentPdfBytes);
-      console.log("Content PDF loaded successfully with", contentPdf.getPageCount(), "pages");
     } catch (contentError) {
       console.error("Error loading content PDF:", contentError);
       throw new Error("Failed to load content PDF. This is a required component.");
@@ -312,12 +294,10 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
     let headerPdf = null;
     if (headerPdfBytes) {
       try {
-        console.log("Loading header PDF...");
         headerPdf = await PDFDocument.load(headerPdfBytes);
-        console.log("Header PDF loaded successfully with", headerPdf.getPageCount(), "pages");
       } catch (headerError) {
         console.warn("Error loading header PDF:", headerError.message);
-        console.log("Will proceed without header PDF");
+        // Removed: console.log("Will proceed without header PDF");
       }
     }
 
@@ -325,25 +305,21 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
     let footerPdf = null;
     if (footerPdfBytes) {
       try {
-        console.log("Loading footer PDF...");
         footerPdf = await PDFDocument.load(footerPdfBytes);
-        console.log("Footer PDF loaded successfully with", footerPdf.getPageCount(), "pages");
       } catch (footerError) {
         console.warn("Error loading footer PDF:", footerError.message);
-        console.log("Will proceed without footer PDF");
+        // Removed: console.log("Will proceed without footer PDF");
       }
     }
 
     // Copy pages from header PDF
     if (headerPdf) {
       try {
-        console.log("Copying header pages...");
         const headerPages = await mergedPdf.copyPages(
           headerPdf,
           headerPdf.getPageIndices()
         );
         headerPages.forEach((page) => mergedPdf.addPage(page));
-        console.log("Added", headerPages.length, "header pages");
       } catch (headerCopyError) {
         console.warn("Error copying header pages:", headerCopyError.message);
       }
@@ -351,13 +327,11 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
 
     // Copy pages from content PDF (required)
     try {
-      console.log("Copying content pages...");
       const contentPages = await mergedPdf.copyPages(
         contentPdf,
         contentPdf.getPageIndices()
       );
       contentPages.forEach((page) => mergedPdf.addPage(page));
-      console.log("Added", contentPages.length, "content pages");
     } catch (contentCopyError) {
       console.error("Error copying content pages:", contentCopyError);
       throw new Error("Failed to copy content pages to merged PDF");
@@ -366,30 +340,25 @@ const mergePdfs = async (headerPdfBytes, contentPdfBytes, footerPdfBytes) => {
     // Copy pages from footer PDF
     if (footerPdf) {
       try {
-        console.log("Copying footer pages...");
         const footerPages = await mergedPdf.copyPages(
           footerPdf,
           footerPdf.getPageIndices()
         );
         footerPages.forEach((page) => mergedPdf.addPage(page));
-        console.log("Added", footerPages.length, "footer pages");
       } catch (footerCopyError) {
         console.warn("Error copying footer pages:", footerCopyError.message);
       }
     }
 
     // Serialize the merged PDF with compression options
-    console.log("Saving merged PDF...");
     const mergedPdfBytes = await mergedPdf.save({
       useObjectStreams: true,
       addDefaultPage: false,
     });
-    console.log("PDF merge completed successfully");
     return mergedPdfBytes;
   } catch (error) {
     console.error("Fatal error in PDF merge process:", error);
     // Return just the content PDF as a fallback
-    console.log("Returning only content PDF as fallback due to merge failure");
     return contentPdfBytes;
   }
 };
@@ -498,11 +467,6 @@ const PrintModal = ({
   totalPrice,
   tourId,
 }) => {
-  console.log("PrintModal received bookings:", bookings);
-  console.log("PrintModal received modifiedPriceData:", modifiedPriceData);
-  console.log("MA", markupAmount);
-  console.log("DA", discountAmount);
-
   // Store the data in local state to ensure it persists through re-renders
   const [localBookings, setLocalBookings] = useState(bookings || {});
   const [localModifiedPriceData, setLocalModifiedPriceData] =
@@ -942,7 +906,6 @@ const PrintModal = ({
 
   // Extract the data we'll be displaying
   const displayData = getDataSafely();
-  console.log("displayData", displayData);
 
   return (
     <Modal
@@ -5277,15 +5240,14 @@ const PrintModal = ({
                   }}
                 >
                   <Typography variant="body2" color="textSecondary">
-                    Thank you for booking with us! For any assistance, please
-                    contact our customer support.
+                    Thank you for booking with us!
                   </Typography>
-                  <Typography
+                  {/* <Typography
                     variant="body2"
                     sx={{ mt: 1, fontWeight: "medium", color: "#1976d2" }}
                   >
                     support@yourtravelagency.com | +1 (123) 456-7890
-                  </Typography>
+                  </Typography> */}
                 </Box>
               </CardContent>
             </StyledCard>

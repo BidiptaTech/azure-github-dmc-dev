@@ -147,6 +147,8 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [bookingToCancel, setBookingToCancel] = useState(null);
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
+  console.log("tourStatus", tourStatus);
   
   // Get tax percentage from auth slice instead of attractions
   const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
@@ -786,6 +788,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
+                        {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -810,6 +813,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           Cancel
                         </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>

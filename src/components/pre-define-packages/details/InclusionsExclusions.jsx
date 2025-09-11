@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Grid, List, ListItem, ListItemIcon, ListItemText, Card, CardContent } from '@mui/material';
+import {  Typography, Grid, List, ListItem, ListItemIcon, ListItemText, Card, CardContent } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 

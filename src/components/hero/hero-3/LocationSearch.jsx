@@ -11,8 +11,8 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   
-  // Get user_country from Redux state
-  const user_country = useSelector((state) => state.auth.user_country);
+  // Get selected DMC data from Redux store
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
   
   // Default countries if user_country isn't available
   const defaultCountries = [
@@ -38,24 +38,42 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
     },
   ];
 
-  // Process available countries from user_country - memoize to prevent recreating on every render
+  // Get country from selected DMC data - memoize to prevent recreating on every render
   const locationSearchContent = useMemo(() => {
-    if (user_country && Array.isArray(user_country)) {
-      return user_country.map((country, index) => ({
-        name: country.name,
-        code: country.code,
-        key: `country-${index}`
-      }));
-    } else if (user_country && typeof user_country === 'string') {
-      return user_country.split(',').map((country, index) => ({ 
-          name: country.trim(),
-          code: country.trim().substring(0, 2).toUpperCase(), 
-          key: `country-${index}`
-        }));
+    if (selectedDmcData && selectedDmcData.location) {
+      return [{ 
+        name: selectedDmcData.location, // Full country name
+        code: selectedDmcData.location, // Use full name as code for database
+        key: 'selected-dmc-country' 
+      }];
     } else {
       return defaultCountries;
     }
-  }, [user_country]); // Only recalculate when user_country changes
+  }, [selectedDmcData]); // Only recalculate when selectedDmcData changes
+
+  // Auto-select DMC country when selectedDmcData changes
+  useEffect(() => {
+    if (selectedDmcData && selectedDmcData.location) {
+      const dmcCountry = {
+        name: selectedDmcData.location, // Full country name
+        code: selectedDmcData.location, // Use full name as code for database
+        key: 'selected-dmc-country'
+      };
+      
+      // Check if the country has actually changed to avoid unnecessary updates
+      const currentCountry = selectedItem?.name;
+      if (currentCountry !== dmcCountry.name) {
+        setSearchValue(dmcCountry.name);
+        setSelectedItem(dmcCountry);
+        setIsDropdownVisible(false);
+        
+        // Call the onLocationSelect callback
+        if (onLocationSelect) {
+          onLocationSelect(dmcCountry);
+        }
+      }
+    }
+  }, [selectedDmcData, onLocationSelect, selectedItem]);
 
   // Set initial value if provided
   useEffect(() => {
@@ -73,7 +91,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
         setSearchValue(initialValue);
       }
     }
-  }, [initialValue, locationSearchContent]);
+  }, [initialValue, locationSearchContent, selectedItem]);
 
   // Filter suggestions based on search input
   useEffect(() => {

@@ -119,6 +119,8 @@ const PickUpDrop = React.memo(({ onCountChange}) => {
   const sgdTax = useSelector((state) => state.auth.sgdTax);
   const usdTax = useSelector((state) => state.auth.usdTax);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
+  console.log("tourStatus", tourStatus);
   // Memoize the pickup/drop bookings count
   const pickupDropCount = useMemo(
     () => (entryPortData.length || 0) + (exitPortData.length || 0),
@@ -747,6 +749,7 @@ const PickUpDrop = React.memo(({ onCountChange}) => {
                         >
                           View
                         </Button>
+                        {tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
@@ -763,8 +766,9 @@ const PickUpDrop = React.memo(({ onCountChange}) => {
                             boxShadow: `0 2px 4px ${alpha("#f44336", 0.2)}`,
                           }}
                         >
-                          Cancel
-                        </Button>
+                            Cancel
+                          </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
