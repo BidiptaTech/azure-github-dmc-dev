@@ -57,16 +57,14 @@ class ZoneController extends Controller
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
-        elseif($user->role_id == 76){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $zones = Zone::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $zones = Zone::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
-            }
+        elseif($user->role_id == 76 || $user->role_id == 139){
+            $product_head = User::where('userId', $user->created_by)->first();
+            $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
         }
-        elseif($user->role_id == 111){
-            $zones = Zone::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+        elseif($user->role_id == 111 || $user->role_id == 140){
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $zones = Zone::orderBy('updated_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
         }
 
         $hotels = Hotel::all();

@@ -76,14 +76,14 @@ class GuideController extends Controller
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
-        elseif($user->role_id == 75){
+        elseif($user->role_id == 75 || $user->role_id == 139){
             $product_head = User::where('userId', $user->created_by)->first();
             $this_dmc_id = $product_head->created_by;
             if($this_dmc_id){
                 $guides = Guide::orderBy('created_at', 'desc')->where('dmc_id', $this_dmc_id)->get();
             }
         }
-        elseif($user->role_id == 102){
+        elseif($user->role_id == 102 || $user->role_id == 140){
             $product_manager = User::where('userId', $user->created_by)->first();
             $product_head = User::where('userId', $product_manager->created_by)->first();
             $this_dmc_id = $product_head->created_by;
@@ -333,7 +333,7 @@ class GuideController extends Controller
             $dmcs = User::whereIn('role_id', [11,20])->get();
         }
 
-        if(in_array($authuser->role_id, [11, 20, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138])){
+        if(in_array($authuser->role_id, [11, 20, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -421,16 +421,16 @@ class GuideController extends Controller
         } elseif($auth_user->role_id == 1 || $auth_user->role_id == 2){
             $dmc_id = $request->dmc;
             $status = 1;
-        } elseif(auth()->user()->role_id ==35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
+        } elseif(auth()->user()->role_id ==35 || auth()->user()->role_id == 130 || auth()->user()->role_id == 132 || auth()->user()->role_id == 133 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138){
             $userdmc = User::where('userId', auth()->user()->created_by)->first();
             $dmc_id = $userdmc->userId;
             $status = 1;
-        } elseif(auth()->user()->role_id == 75){
+        } elseif(auth()->user()->role_id == 75 || auth()->user()->role_id == 139){
             $user_product_head = User::where('userId', auth()->user()->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $dmc_id = $user_product_head_dmc->userId;
             $status = 1;
-        } elseif(auth()->user()->role_id == 102){
+        } elseif(auth()->user()->role_id == 102 || auth()->user()->role_id == 140){
             $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
@@ -795,9 +795,9 @@ class GuideController extends Controller
     */
     public function destroy($id)
     {
-        if (!hasPermission('delete guide')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('delete guide')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         $id = Crypt::decrypt($id);
         // Get guide and delete images from Azure
         $guide = Guide::where('guide_id', $id)->first();

@@ -54,7 +54,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
                             @php
-                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111];
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140];
                             @endphp
 
                             @if($roleId == 10)
@@ -69,7 +69,7 @@
                             <th>License No</th>
                             <th>Calendar</th>
                             <th>Status</th>
-                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 46  || auth()->user()->role_id == 23 || auth()->user()->role_id == 76 || auth()->user()->role_id ==109 || auth()->user()->role_id == 111 || hasPermission('edit driver') || hasPermission('delete driver'))
+                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 46  || auth()->user()->role_id == 23 || auth()->user()->role_id == 76 || auth()->user()->role_id ==109 || auth()->user()->role_id == 111 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit driver') || hasPermission('delete driver'))
                                 <th>Action</th>
                             @endif
                             <th>Created At</th>
@@ -84,7 +84,7 @@
                                     $roleId = auth()->user()->role_id;
                                 @endphp
                                 @php
-                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111];
+                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 76, 111, 139, 140];
                                 @endphp
 
                                 @if($roleId == 10)
@@ -129,7 +129,7 @@
                                             @endif
 
                                             <!-- Delete Button -->
-                                            @if(hasPermission('delete driver'))
+                                         @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
                                             <button type="button" 
                                                 class="btn btn-danger btn-sm rounded-circle waves-effect waves-light" 
                                                 style="min-width: 28px; min-height: 28px; padding: 0;" 
