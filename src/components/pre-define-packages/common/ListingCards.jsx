@@ -665,25 +665,11 @@ const ListingCards = ({ hasSearched = false }) => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loaderRef = useRef(null);
 
-  // Debug logging
-  console.log('🎯 ListingCards - Redux state:', { packages, loading, error, searchParams });
-  console.log('🎯 ListingCards - packages type:', typeof packages);
-  console.log('🎯 ListingCards - packages length:', packages?.length);
-  console.log('🎯 ListingCards - packages data:', packages);
-  console.log('🎯 ListingCards - currentPage:', currentPage);
-  console.log('🎯 ListingCards - hasMore:', hasMore);
-  console.log('🎯 ListingCards - isLoadingMore:', isLoadingMore);
-  console.log('🎯 ListingCards - Should show "No more data":', !hasMore && packages.length > 0);
 
-  // Log when hasMore changes
-  useEffect(() => {
-    console.log(`🔄 hasMore changed to: ${hasMore}`);
-  }, [hasMore]);
 
   // Reset pagination when packages array becomes empty (new search)
   useEffect(() => {
     if (packages.length === 0) {
-      console.log(`🔄 Resetting pagination - packages array is empty`);
       setCurrentPage(1);
       setHasMore(true);
       setIsLoadingMore(false);
@@ -693,7 +679,6 @@ const ListingCards = ({ hasSearched = false }) => {
   // Reset pagination when searchParams change (new search)
   useEffect(() => {
     if (searchParams) {
-      console.log(`🔄 Resetting pagination - searchParams changed`);
       setCurrentPage(1);
       setHasMore(true);
       setIsLoadingMore(false);
@@ -707,11 +692,6 @@ const ListingCards = ({ hasSearched = false }) => {
       const documentHeight = document.documentElement.offsetHeight;
       const threshold = documentHeight - 500;
       
-      console.log(`🔄 Scroll check: ${scrollPosition} >= ${threshold}`, {
-        hasMore,
-        isLoadingMore,
-        searchParams: !!searchParams
-      });
       
       if (
         scrollPosition >= threshold &&
@@ -719,11 +699,8 @@ const ListingCards = ({ hasSearched = false }) => {
         !isLoadingMore &&
         searchParams
       ) {
-        console.log('🎯 Triggering load more packages');
         setIsLoadingMore(true);
         setCurrentPage(prev => prev + 1);
-      } else if (scrollPosition >= threshold && !hasMore) {
-        console.log('🛑 Scroll detected but hasMore is false - no API call will be made');
       }
     };
 
@@ -736,16 +713,9 @@ const ListingCards = ({ hasSearched = false }) => {
     if (currentPage > 1 && searchParams) {
       const start = (currentPage - 1) * 5;
       
-      console.log(`🔄 Loading more packages: page ${currentPage}, start: ${start}`);
-      console.log(`🎯 Current packages count: ${packages.length}`);
-      
       dispatch(fetchPackages({ searchParams, start, limit: 5 }))
         .then((response) => {
           setIsLoadingMore(false);
-          
-          console.log(`📊 Received response for page ${currentPage}:`, response.payload);
-          console.log(`📊 Response type:`, typeof response.payload);
-          console.log(`📊 Response length:`, response.payload?.length || 0);
           
           // Check for empty response in different formats
           const isEmptyResponse = 
@@ -755,21 +725,15 @@ const ListingCards = ({ hasSearched = false }) => {
             (response.payload.data && response.payload.data.length === 0) ||
             (typeof response.payload === 'object' && Object.keys(response.payload).length === 0);
           
-          console.log(`🔍 Is empty response:`, isEmptyResponse);
-          
           if (isEmptyResponse) {
             setHasMore(false);
-            console.log(`🏁 No more data available. Total packages: ${packages.length}`);
-            console.log(`🛑 Stopping further API calls on scroll`);
             return; // Stop here, don't make confirmation call
           } else if (response.payload.length < 5) {
             setHasMore(false);
-            console.log(`🏁 Reached end of packages. Total: ${packages.length + response.payload.length}`);
           }
         })
         .catch((error) => {
           setIsLoadingMore(false);
-          console.error('Error loading more packages:', error);
         });
     }
   }, [currentPage, searchParams, dispatch, packages.length]);
@@ -998,34 +962,12 @@ const ListingCards = ({ hasSearched = false }) => {
           {/* Debug button for testing */}
           {packages.length > 0 && (
             <div className="text-center py-4">
-              <Button 
-                variant="outlined" 
-                size="small"
-                onClick={() => {
-                  console.log('🎯 Manual test: Setting hasMore to false');
-                  setHasMore(false);
-                }}
-                sx={{ mr: 2 }}
-              >
-                Test "No More Data"
-              </Button>
-              <Button 
-                variant="outlined" 
-                size="small"
-                onClick={() => {
-                  console.log('🎯 Manual test: Setting hasMore to true');
-                  setHasMore(true);
-                }}
-              >
-                Test "Has More"
-              </Button>
             </div>
           )}
           
           {/* No more data indicator */}
           {!hasMore && packages.length > 0 && (
             <div className="text-center py-20">
-              {console.log('🎯 Rendering "No more data" indicator')}
               <Typography
                 variant="body2"
                 sx={{

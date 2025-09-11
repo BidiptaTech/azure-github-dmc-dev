@@ -15,8 +15,6 @@ import LocationSearch from '../hero/hero-3/LocationSearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
 import CitySearch from '../hero/hero-3/CitySearch';
 import SelectAgent from '../hero/hero-3/SelectAgent';
-
-
 import DateSelect from './common/DateSelect';
 import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
@@ -73,15 +71,8 @@ const PreDefinePackages = () => {
   const { searchParams } = useSelector(state => state.prePackages);
   const { isAuthenticated, userRole } = useSelector(state => state.auth);
   const showAgentSelector = isAuthenticated && userRole !== 'Agent';
-
- 
-
- 
-
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState(null);
- 
- 
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
   const [guestCounts, setGuestCounts] = useState({
@@ -141,10 +132,6 @@ const PreDefinePackages = () => {
   const handleCitySelect = (city) => {
     setSelectedCity(city);
   };
-
-
-
-
 
   const handleAgentSelect = (agent) => {
     setSelectedAgent(agent);
