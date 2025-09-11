@@ -1,7 +1,28 @@
 @extends('layouts.layout')
 @section('title', 'Features')
 @extends('layouts.datatablecss')
-
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
+<style>
+#toast-container { z-index: 999999 !important; }
+#toast-container.toast-top-right { top: 70px; right: 12px; }
+/* Override Bootstrap .toast styles that conflict with Toastr, without breaking auto-hide */
+#toast-container .toast { 
+    /* Do NOT force display/opacity; let Toastr control them */
+    padding: 12px 15px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    color: #fff !important;
+    background-image: none !important; /* remove default toastr icon */
+    padding-left: 15px !important; /* remove left space reserved for icon */
+}
+#toast-container .toast-success { background-color: #28a745 !important; background-image: none !important; }
+#toast-container .toast-error { background-color: #dc3545 !important; background-image: none !important; }
+#toast-container .toast-info { background-color: #17a2b8 !important; background-image: none !important; }
+#toast-container .toast-warning { background-color: #ffc107 !important; color: #212529 !important; background-image: none !important; }
+#toast-container .toast-title, 
+#toast-container .toast-message { color: inherit !important; }
+</style>
 @section('content')
     <div class="content-wrapper">
         <div class="container-xxl flex-grow-1 container-p-y">
@@ -81,10 +102,10 @@
                         @csrf
                         <div class="modal-body">
                             <!-- Search Box -->
-                            <div class="mb-3">
+                            {{-- <div class="mb-3">
                                 <input type="text" class="form-control" id="roleSearch{{ $f->id }}" 
                                     placeholder="Search roles..." data-feature-id="{{ $f->id }}">
-                            </div>
+                            </div> --}}
 
                             <!-- Hidden input to send empty array if no checkboxes are checked -->
                             <input type="hidden" name="roles[]" value="">
@@ -202,7 +223,7 @@
                             rolesContainer.html(html);
                         },
                         error: function(xhr, status, error) {
-                            toastr.error('Error searching roles: ' + error);
+                            notify.error('Error searching roles: ' + error);
                             rolesContainer.html('<div class="text-center text-danger">Error loading roles</div>');
                         }
                     });
@@ -242,13 +263,49 @@
 <script src="{{ URL::asset('build/plugins/datatable/js/jquery.dataTables.min.js') }}"></script>
 <script src="{{ URL::asset('build/plugins/datatable/js/dataTables.bootstrap5.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<!-- Toastr JS (optional, used if available) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script>
+    // Ensure toastr has sane defaults and appears above footer
+    if (window.toastr) {
+        toastr.options = Object.assign({
+            positionClass: 'toast-top-right',
+            timeOut: 1000,
+            extendedTimeOut: 100,
+            hideMethod: 'fadeOut',
+            hideDuration: 300,
+            closeButton: true,
+            newestOnTop: false,
+            progressBar: true,
+            preventDuplicates: true,
+            tapToDismiss: true
+        }, toastr.options || {});
+    }
+
+    const notify = {
+        success: function(message) {
+            if (window.toastr && typeof toastr.success === 'function') {
+                toastr.success(message || 'Success');
+            } else {
+                alert(message || 'Success');
+            }
+        },
+        error: function(message) {
+            if (window.toastr && typeof toastr.error === 'function') {
+                toastr.error(message || 'Something went wrong');
+            } else {
+                alert(message || 'Something went wrong');
+            }
+        }
+    };
+</script>
 
 <script>
     function checkStatus(checkbox, id) {
         const newStatus = checkbox.checked ? 1 : 0;
         checkbox.disabled = true; // Disable the checkbox while the request is in progress
 
-        fetch('/update-status', { 
+        fetch('{{ url('/update-status') }}', { 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -269,12 +326,12 @@
         })
         .then(data => {
             // If the response is successful, enable the checkbox
-            toastr.success(data.message || 'Status updated successfully');
+            notify.success((data && data.message) ? data.message : 'Status updated successfully');
             checkbox.disabled = false;
         })
         .catch(error => {
             console.error('Error:', error);
-            toastr.error(error.message || 'An error occurred while updating the status.');
+            notify.error(error && error.message ? error.message : 'An error occurred while updating the status.');
 
             // Revert the checkbox state if there is an error
             checkbox.checked = !checkbox.checked;

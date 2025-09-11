@@ -77,16 +77,14 @@ class DriverController extends Controller
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $drivers = Driver::orderBy('created_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
-        elseif($user->role_id == 76){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $drivers = Driver::orderBy('created_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $drivers = Driver::orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
-            }
+        elseif($user->role_id == 76 || $user->role_id == 139){
+            $product_head = User::where('userId', $user->created_by)->first();
+            $drivers = Driver::orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
         }
-        elseif($user->role_id == 111){
-            $drivers = Driver::orderBy('created_at', 'desc')->where('created_by', $user->userId)->get();
+        elseif($user->role_id == 111 || $user->role_id == 140){
+            $product_manager = User::where('userId', $user->created_by)->first();
+            $product_head = User::where('userId', $product_manager->created_by)->first();
+            $drivers = Driver::orderBy('created_at', 'desc')->where('dmc_id', $product_head->created_by)->get();
         }
         return view('drivers.index', compact('drivers', 'user'));
     }
@@ -309,7 +307,7 @@ class DriverController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if(in_array($authuser->role_id, [11, 35, 76, 111])){
+        if(in_array($authuser->role_id, [11, 35, 76, 111, 139, 140])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -402,13 +400,13 @@ class DriverController extends Controller
                 $dmc_id = $userdmc->userId;
                 $status = 1;
             }
-            elseif(auth()->user()->role_id == 76){
+            elseif(auth()->user()->role_id == 76 || auth()->user()->role_id == 139){
                 $user_product_head = User::where('userId', auth()->user()->created_by)->first();
                 $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-                $status = 1;
                 $dmc_id = $user_product_head_dmc->userId;
+                $status = 1;
             }
-            elseif(auth()->user()->role_id == 111){
+            elseif(auth()->user()->role_id == 111 || auth()->user()->role_id == 140){
                 $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
                 $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
                 $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
@@ -650,9 +648,9 @@ class DriverController extends Controller
     */
     public function destroy($id)
     {
-        if (!hasPermission('delete driver')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('delete driver')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         $driverId = Crypt::decrypt($id);
         // Get driver and delete images from Azure
         $driver = Driver::where('driver_id', $driverId)->first();

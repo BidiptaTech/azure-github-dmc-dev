@@ -60,7 +60,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
                             @php
-                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 75, 102];
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 75, 102, 139, 140];
                             @endphp
 
                             @if($roleId == 10)
@@ -75,7 +75,7 @@
                             {{-- <th>Description</th> --}}
                             <th>Calendar</th>
                             <th>Status</th>
-                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 75 || auth()->user()->role_id == 45 || auth()->user()->role_id ==100 || auth()->user()->role_id == 102 || hasPermission('edit guide') || hasPermission('delete guide'))
+                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 75 || auth()->user()->role_id == 45 || auth()->user()->role_id ==100 || auth()->user()->role_id == 102 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit guide') || hasPermission('delete guide'))
                             <th>Action</th>
                             @endif
                             <th>Created At</th>
@@ -90,7 +90,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
                             @php
-                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 75, 102];
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 75, 102, 139, 140];
                             @endphp
 
                             @if($roleId == 10)
@@ -161,7 +161,7 @@
                                         @endif
                                     
                                         <!-- Delete Button -->
-                                        @if(hasPermission('delete guide'))
+                                        @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
                                         <button type="button"
                                             class="btn btn-danger btn-sm rounded-circle waves-effect waves-light"
                                             style="min-width: 28px; min-height: 28px; padding: 0;" data-toggle="modal"

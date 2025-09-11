@@ -83,7 +83,7 @@ class RestaurantController extends Controller
                 return $restaurant->hasSelectedByDmc($user->created_by);
             });
         }
-        elseif($user->role_id == 78){
+        elseif($user->role_id == 78 || $user->role_id == 139){
             $user_product_head = User::select('created_by')->where('userId', $user->created_by)->first();
             $this_dmc_id = $user_product_head->created_by;
 
@@ -93,7 +93,7 @@ class RestaurantController extends Controller
                 });
             }
         }
-        elseif($user->role_id == 120){
+        elseif($user->role_id == 120 || $user->role_id == 140){
             $user_product_manager = User::select('created_by')->where('userId', $user->created_by)->first();
             $user_product_head = User::select('created_by')->where('userId', $user_product_manager->created_by)->first();
             $this_dmc_id = $user_product_head->created_by;
@@ -346,11 +346,11 @@ class RestaurantController extends Controller
             $userdmc = User::where('userId', $auth_user->created_by)->first();
             $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $userdmc->userId)->get();
         }
-        else if($auth_user->role_id == 78){
+        else if($auth_user->role_id == 78 || $auth_user->role_id == 139){
             $user_product_head = User::where('userId', $auth_user->created_by)->first();    
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $meals = Meal::where('restaurant_id', $restaurant_id)->where('dmc_id', $user_product_head_dmc->userId)->get();
-        }else if($auth_user->role_id == 120){
+        }else if($auth_user->role_id == 120 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
@@ -417,7 +417,7 @@ class RestaurantController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        if(in_array($authuser->role_id, [11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138])){
+        if(in_array($authuser->role_id, [11, 20, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -749,9 +749,9 @@ class RestaurantController extends Controller
     */
     public function destroy($id)
     {
-        if (!hasPermission('delete restaurant')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('delete restaurant')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         $id = Crypt::decrypt($id);
         $isUsedInRooms = Room::where('breakfast_restaurant', $id)
         ->orWhere('lunch_restaurant', $id)
@@ -818,7 +818,7 @@ class RestaurantController extends Controller
     {
         // Check if user is DMC (role_id = 11)
         $user = auth()->user();
-        $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
         }
@@ -826,10 +826,10 @@ class RestaurantController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 78){
+        }else if($user->role_id == 78 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 120){
+        }else if($user->role_id == 120 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $dmc_id = $user_product_head->created_by;
@@ -863,7 +863,7 @@ class RestaurantController extends Controller
     public function updateDmcRestaurants(Request $request)
     {
         $user = auth()->user();
-        $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to perform this action.');
         }
@@ -872,10 +872,10 @@ class RestaurantController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 78){
+        }else if($user->role_id == 78 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 120){
+        }else if($user->role_id == 120 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $dmc_id = $user_product_head->created_by;
@@ -911,7 +911,7 @@ class RestaurantController extends Controller
             $restaurantId = Crypt::decrypt($request->input('restaurant_id'));
             $user = Auth::user();
 
-            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
             if (!in_array($user->role_id, $allowedRoles)) {
                 abort(403, 'You do not have permission to perform this action.');
             }
@@ -920,10 +920,10 @@ class RestaurantController extends Controller
                 $dmc_id = $user->userId;
             }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
                 $dmc_id = $user->created_by;
-            }else if($user->role_id == 78){
+            }else if($user->role_id == 78 || $user->role_id == 139){
                 $user_product_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $user_product_head->created_by;
-            }else if($user->role_id == 120){
+            }else if($user->role_id == 120 || $user->role_id == 140){
                 $user_product_manager = User::where('userId', $user->created_by)->first();
                 $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
                 $dmc_id = $user_product_head->created_by;
@@ -968,7 +968,7 @@ class RestaurantController extends Controller
             $restaurantId = $request->input('restaurant_id');
             $user = Auth::user();
 
-            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11, 35, 78, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
             if (!in_array($user->role_id, $allowedRoles)) {
                 abort(403, 'You do not have permission to perform this action.');
             }
@@ -977,10 +977,10 @@ class RestaurantController extends Controller
                 $dmc_id = $user->userId;
             }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
                 $dmc_id = $user->created_by;
-            }else if($user->role_id == 78){
+            }else if($user->role_id == 78 || $user->role_id == 139){
                 $user_product_head = User::where('userId', $user->created_by)->first();
                 $dmc_id = $user_product_head->created_by;
-            }else if($user->role_id == 120){
+            }else if($user->role_id == 120 || $user->role_id == 140){
                 $user_product_manager = User::where('userId', $user->created_by)->first();
                 $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
                 $dmc_id = $user_product_head->created_by;

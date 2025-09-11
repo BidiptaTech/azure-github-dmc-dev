@@ -70,7 +70,7 @@ class HotelRestaurantController extends Controller
         elseif($user->role_id == 35 || $user->role_id == 130 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
             $restaurants = Restaurant::orderBy('updated_at', 'desc')->where('dmc_id', $user->created_by)->get();
         }
-        elseif($user->role_id == 78){
+        elseif($user->role_id == 78 || $user->role_id == 139){
             $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
             if($assistant_product_manager_ids){
                 $restaurants = Restaurant::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
@@ -78,7 +78,7 @@ class HotelRestaurantController extends Controller
                 $restaurants = Restaurant::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
             }
         }
-        elseif($user->role_id == 120){
+        elseif($user->role_id == 120 || $user->role_id == 140){
             $restaurants = Restaurant::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
         }
         // $restaurants = Restaurant::with('hotel')->get();

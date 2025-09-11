@@ -49,7 +49,7 @@
                                     $roleId = auth()->user()->role_id;
                                 @endphp
                                 @php
-                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 78, 120];
+                                    $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 78, 120, 139, 140];
                                 @endphp
 
                                 @if($roleId == 10 || $roleId == 19)
@@ -80,7 +80,7 @@
                                         $roleId = auth()->user()->role_id;
                                     @endphp
                                     @php
-                                        $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 78, 120];
+                                        $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 78, 120, 139, 140];
                                     @endphp
 
                                     @if($roleId == 10 || $roleId == 19)
@@ -180,7 +180,7 @@
                                                     @endif
 
                                                     <!-- Delete Button -->
-                                                    @if(hasPermission('delete restaurant'))
+                                                    @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
                                                     <button type="button" 
                                                             class="btn btn-danger btn-sm rounded-circle waves-effect waves-light" 
                                                             style="min-width: 28px; min-height: 28px; padding: 0;" 

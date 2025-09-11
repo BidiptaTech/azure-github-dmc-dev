@@ -348,7 +348,7 @@
                             <div class="col-md-4 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 <select name="location" id="citySelect" class="form-control" required>
-                                    <option value="">{{ in_array(auth()->user()->role_id, [11, 35, 77, 84]) ? 'Select City' : 'Select DMC First' }}</option>
+                                    <option value="">{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 139, 140]) ? 'Select City' : 'Select DMC First' }}</option>
                                 </select>
                                 @error('location')
                                     <div class="text-danger mt-1">{{ $message }}</div>
@@ -810,8 +810,8 @@
         var userRoleId = {{ auth()->user()->role_id }};
         
         // Get the current user's country if they are a DMC or specific roles
-        var userCountry = "{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138]) ? auth()->user()->country : '' }}";
-        var dmcId = "{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138]) ? auth()->user()->userId : '' }}";
+        var userCountry = "{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? auth()->user()->country : '' }}";
+        var dmcId = "{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? auth()->user()->userId : '' }}";
         
         // // Initialize Select2 for city
         $('#citySelect').select2({
@@ -822,7 +822,7 @@
         });
         
         // Check if the user role is DMC (role_id = 11) or similar roles
-        if ([11, 35, 77, 84].includes(userRoleId)) {
+        if ([11, 35, 77, 84, 139, 140].includes(userRoleId)) {
             // Hide the DMC select box
             $('#dmc-container').hide();
             $('#dmc').prop('required', false);
@@ -1081,7 +1081,7 @@
         });
 
         // For DMC and similar role users, update country code when page loads
-        if ([11, 35, 77, 84].includes({{ auth()->user()->role_id }})) {
+        if ([11, 35, 77, 84, 139, 140].includes({{ auth()->user()->role_id }})) {
             const initDmcCountryName = $('#country option:selected').text().trim();
             updateCountryCode(initDmcCountryName);
             loadCitiesByCountry(initDmcCountryName);
