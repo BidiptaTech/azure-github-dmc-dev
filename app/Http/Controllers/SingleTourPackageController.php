@@ -81,6 +81,7 @@ class SingleTourPackageController extends Controller
         }
         $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
+        $agency = Agency::whereJsonContains('dmc_id', (int) $dmc_id)->orderBy('created_at', 'desc')->get();
         $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
             ->orderBy('name')
             ->get();
@@ -134,7 +135,7 @@ class SingleTourPackageController extends Controller
             }
         }
         
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency'));
     }
     
     /**
@@ -505,7 +506,6 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'user_country' => 'required|string', // Country name
-            'city' => 'required|string', // City name  
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after:start_date',
             'adults' => 'required|integer|min:1',
@@ -1173,7 +1173,7 @@ class SingleTourPackageController extends Controller
                 ->where('status', 1)
                 ->where('created_by', $dmcId) // Filter by DMC ID
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
-                        'breakfast', 'breakfast_type', 'lunch', 'lunch_type', 'dinner', 'dinner_type',
+                        'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
                         'breakfast_included', 'dimension', 'features', 'master_image', 'created_by')
                 ->orderBy('room_type')
                 ->get();
@@ -1192,7 +1192,7 @@ class SingleTourPackageController extends Controller
                               ->orWhere('user_id', $dmcId);
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
-                            'breakfast', 'breakfast_type', 'lunch', 'lunch_type', 'dinner', 'dinner_type',
+                            'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
                             'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'company_id', 'user_id')
                     ->orderBy('room_type')
                     ->get();
@@ -1808,6 +1808,53 @@ class SingleTourPackageController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching vehicles: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Fetch agents by agency ID
+     */
+    public function fetchAgentsByAgency(Request $request)
+    {
+        try {
+            $agencyId = $request->input('agency_id');
+            
+            if (!$agencyId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Agency ID is required'
+                ], 400);
+            }
+            $agents = Agent::where('agency_id', $agencyId)
+                ->select('agent_id', 'name', 'email', 'phone')
+                ->orderBy('name')
+                ->get();
+
+            $agentsData = $agents->map(function ($agent) {
+                return [
+                    'agent_id' => $agent->agent_id,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'agents' => $agentsData,
+                'total_agents' => count($agentsData),
+                'agency_id' => $agencyId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching agents: ' . $e->getMessage(),
                 'debug' => [
                     'error_line' => $e->getLine(),
                     'error_file' => $e->getFile()

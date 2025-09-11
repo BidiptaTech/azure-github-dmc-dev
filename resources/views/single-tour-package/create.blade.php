@@ -126,6 +126,105 @@
             color: #666;
             margin-top: 2px;
         }
+        
+        /* Person Selector Styles */
+        .person-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+        }
+        
+        .person-symbol {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #dee2e6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            font-size: 18px;
+            background: #fff;
+            position: relative;
+        }
+        
+        .person-symbol::after {
+            content: attr(data-persons);
+            position: absolute;
+            bottom: -8px;
+            right: -8px;
+            background: #0d6efd;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .person-symbol:hover {
+            border-color: #0d6efd;
+            background: #f8f9fa;
+        }
+        
+        .person-symbol.selected {
+            background: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+        
+        .person-symbol.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f8f9fa;
+        }
+        
+        /* Guest Count Info Styles */
+        #guestCountInfo {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px;
+            margin-top: 8px;
+        }
+        
+        #guestCountInfo .badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+        }
+        
+        #guestCountInfo small {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        /* Cost Summary Styles */
+        .cost-summary {
+            min-height: 60px;
+            font-size: 0.875rem;
+        }
+        
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        
+        .cost-total {
+            border-top: 1px solid #dee2e6;
+            padding-top: 5px;
+            margin-top: 5px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
     </style>
     
     {{-- 
@@ -268,6 +367,21 @@
                                     <input type="hidden" name="child_ages" id="child_ages" value="{{ $enquiry && $enquiry->child_ages ? $enquiry->child_ages : '[]' }}">
                                 </div>
 
+                                <div class="col-md-2">
+                                    <label for="agency_id" class="form-label fw-semibold">
+                                        <i class="ri-building-line me-1"></i>Agency Company
+                                    </label>
+                                    <select name="agency_id" id="agency_id" class="form-select" {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
+                                        <option value="">Choose agency...</option>
+                                        @foreach($agency as $agnc)
+                                            <option value="{{ $agnc->agency_id }}" {{ ($enquiry && $enquiry->agent && $enquiry->agent->agency_id == $agnc->agency_id) ? 'selected' : '' }}>{{ $agnc->agency_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @if($enquiry && $enquiry->agent_id)
+                                        <input type="hidden" name="agency_id" value="{{ $enquiry->agent->agency_id ?? '' }}">
+                                    @endif
+                                </div>
+
                                 <!-- Agent Selection -->
                                 <div class="col-md-2">
                                     <label for="agent_id" class="form-label fw-semibold">
@@ -285,8 +399,8 @@
                                 </div>
 
                                 <!-- Create Button -->
-                                <div class="col-md-2 d-flex align-items-end">
-                                    <button type="button" class="btn btn-primary w-100" onclick="createTourPackage()">
+                                <div class="col-md-12 d-flex justify-content-center">
+                                    <button type="button" class="btn btn-primary" onclick="createTourPackage()">
                                         <i class="ri-rocket-line me-1"></i>Create Tour
                                     </button>
                                 </div>
@@ -340,11 +454,19 @@
                                     </div>
                                 </div>
                                 <div class="col-md-2">
+                                    <label class="form-label fw-semibold">Number of Persons</label>
+                                    <div id="personSelector" class="person-selector">
+                                        <div class="text-muted small">Select bed type first</div>
+                                    </div>
+                                    <input type="hidden" id="selectedPersons" value="1">
+                                </div>
+                                <div class="col-md-2">
                                     <label class="form-label fw-semibold">Meal Plan</label>
                                     <select class="form-select" id="mealPlanSelect">
                                         <option value="">Select Meal Plans</option>
                                     </select>
                                 </div>
+                                
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold" hidden>Number of Rooms</label>
                                     <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" hidden> 
@@ -439,25 +561,7 @@
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Price Breakdown -->
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="card">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0">
-                                                <i class="ri-list-check-2 me-2"></i>Price Breakdown
-                                            </h6>
-                                            <small class="text-muted">Detailed breakdown of all service costs</small>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="priceBreakdown">
-                                                <p class="text-muted">No services added yet</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>
@@ -816,8 +920,6 @@
                 }
 
                 function showToast(message) {
-                    // You can implement a nice toast notification here
-                    alert(message);
                 }
 
                 // Function to show notifications
@@ -877,61 +979,15 @@
                             }
                         }
                     } else {
-                        // Fallback to default prices if no meal prices available
-                        const defaultMealPrices = {
-                            breakfast: 30.00,  // Default breakfast price
-                            lunch: 60.00,      // Default lunch price
-                            dinner: 80.00      // Default dinner price
-                        };
-                        
-                        if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
-                            totalMealCost += defaultMealPrices.breakfast * totalGuests * numNights;
-                        }
-                        
-                        if (mealPlan.includes('lunch')) {
-                            totalMealCost += defaultMealPrices.lunch * totalGuests * numNights;
-                        }
-                        
-                        if (mealPlan.includes('dinner')) {
-                            totalMealCost += defaultMealPrices.dinner * totalGuests * numNights;
-                        }
+                        // No meal prices available from database - return 0 (no fallback defaults)
+                        console.log('No meal prices available from database for meal plan:', mealPlan);
+                        return 0;
                     }
                     
                     console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: $${totalMealCost}`);
                     return totalMealCost;
                 }
 
-                // Test function to verify meal pricing calculation
-                function testMealPricing() {
-                    console.log('=== TESTING MEAL PRICING ===');
-                    
-                    // Test with sample data
-                    const testMealPrices = {
-                        breakfast_price: 30.00,
-                        lunch_price: 60.00,
-                        dinner_price: 80.00
-                    };
-                    
-                    const testCases = [
-                        { mealPlan: '1 room with breakfast', guests: 2, nights: 3, rooms: 1, expected: 30 * 2 * 3 * 1 },
-                        { mealPlan: '2 rooms with breakfast + lunch', guests: 2, nights: 3, rooms: 2, expected: (30 + 60) * 2 * 3 * 2 },
-                        { mealPlan: '1 room with all meals (breakfast + lunch + dinner)', guests: 2, nights: 3, rooms: 1, expected: (30 + 60 + 80) * 2 * 3 * 1 },
-                        { mealPlan: '3 rooms with breakfast', guests: 2, nights: 3, rooms: 3, expected: 30 * 2 * 3 * 3 },
-                        { mealPlan: '1 room only', guests: 2, nights: 3, rooms: 1, expected: 0 }
-                    ];
-                    
-                    testCases.forEach((testCase, index) => {
-                        const result = calculateMealCosts(testCase.mealPlan, testCase.nights, testCase.guests, 0, testMealPrices, testCase.rooms);
-                        const passed = Math.abs(result - testCase.expected) < 0.01;
-                        console.log(`Test ${index + 1}: ${passed ? 'PASS' : 'FAIL'}`);
-                        console.log(`  Plan: ${testCase.mealPlan}, Guests: ${testCase.guests}, Nights: ${testCase.nights}, Rooms: ${testCase.rooms}`);
-                        console.log(`  Expected: $${testCase.expected}, Got: $${result}`);
-                    });
-                    
-                    showNotification('Meal pricing test completed. Check console for results.', 'info');
-                }
-
-                // Function to debug room data and meal prices
                 function debugRoomData() {
                     console.log('=== DEBUGGING ROOM DATA ===');
                     
@@ -1007,6 +1063,122 @@
                     
                     showNotification('Meal price fetching test completed. Check console for details.', 'info');
                 }
+
+                // Function to force update cost calculation
+                window.forceUpdateCost = function() {
+                    console.log('=== FORCING COST CALCULATION UPDATE ===');
+                    
+                    const mealPlanSelect = document.getElementById('mealPlanSelect');
+                    const selectedPersonsInput = document.getElementById('selectedPersons');
+                    
+                    console.log('Current meal plan:', mealPlanSelect ? mealPlanSelect.value : 'N/A');
+                    console.log('Current persons:', selectedPersonsInput ? selectedPersonsInput.value : 'N/A');
+                    console.log('Selected bed info:', window.selectedBedInfo);
+                    
+                    // Force update the cost calculation
+                    updateRoomCostCalculation();
+                    
+                    showNotification('Cost calculation updated. Check console for details.', 'info');
+                };
+
+                // Function to test room data structure
+                window.testRoomData = function() {
+                    console.log('=== TESTING ROOM DATA STRUCTURE ===');
+                    
+                    if (window.roomData && Array.isArray(window.roomData)) {
+                        console.log('Global room data available:', window.roomData.length, 'rooms');
+                        console.log('First room structure:', window.roomData[0]);
+                        
+                        if (window.roomData.length > 0) {
+                            const firstRoom = window.roomData[0];
+                            console.log('Available fields in first room:', Object.keys(firstRoom));
+                            console.log('Meal price fields:');
+                            console.log('  breakfast_price:', firstRoom.breakfast_price);
+                            console.log('  lunch_price:', firstRoom.lunch_price);
+                            console.log('  dinner_price:', firstRoom.dinner_price);
+                            console.log('  breakfast:', firstRoom.breakfast);
+                            console.log('  lunch:', firstRoom.lunch);
+                            console.log('  dinner:', firstRoom.dinner);
+                        }
+                        
+                        showNotification(`Room data available: ${window.roomData.length} rooms. Check console for details.`, 'info');
+                    } else {
+                        console.log('❌ No global room data available');
+                        showNotification('No global room data available.', 'error');
+                    }
+                };
+
+                // Function to test meal price retrieval
+                window.testMealPrices = function() {
+                    console.log('=== TESTING MEAL PRICE RETRIEVAL ===');
+                    
+                    const roomTypeSelect = document.getElementById('roomTypeSelect');
+                    if (!roomTypeSelect || !roomTypeSelect.value) {
+                        console.log('❌ No room type selected. Please select a room type first.');
+                        showNotification('Please select a room type first to test meal prices.', 'warning');
+                        return;
+                    }
+                    
+                    const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                    if (!selectedOption || !selectedOption.dataset) {
+                        console.log('❌ No dataset available for selected room type.');
+                        showNotification('No dataset available for selected room type.', 'error');
+                        return;
+                    }
+                    
+                    const mealPrices = {
+                        breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
+                        lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
+                        dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
+                    };
+                    
+                    console.log('Selected room type:', roomTypeSelect.value);
+                    console.log('Retrieved meal prices:', mealPrices);
+                    console.log('Raw dataset values:', {
+                        breakfastPrice: selectedOption.dataset.breakfastPrice,
+                        lunchPrice: selectedOption.dataset.lunchPrice,
+                        dinnerPrice: selectedOption.dataset.dinnerPrice
+                    });
+                    
+                    if (mealPrices.breakfast_price === 0 && mealPrices.lunch_price === 0 && mealPrices.dinner_price === 0) {
+                        console.log('❌ All meal prices are 0. This means:');
+                        console.log('1. The database values for breakfast_price, lunch_price, dinner_price are 0 or NULL');
+                        console.log('2. Or the room type dataset is not being populated correctly');
+                        console.log('');
+                        console.log('Check your database: SELECT room_id, room_type, breakfast_price, lunch_price, dinner_price FROM rooms WHERE hotel_id = [your_hotel_id]');
+                        
+                        // Try fallback from global room data
+                        console.log('Trying fallback from global room data...');
+                        if (window.roomData && Array.isArray(window.roomData)) {
+                            const selectedRoomType = roomTypeSelect.value;
+                            const matchingRoom = window.roomData.find(room => room.room_type === selectedRoomType);
+                            if (matchingRoom) {
+                                const fallbackMealPrices = {
+                                    breakfast_price: parseFloat(matchingRoom.breakfast_price) || 0,
+                                    lunch_price: parseFloat(matchingRoom.lunch_price) || 0,
+                                    dinner_price: parseFloat(matchingRoom.dinner_price) || 0
+                                };
+                                console.log('✅ Fallback meal prices from room data:', fallbackMealPrices);
+                                showNotification(`Fallback meal prices found: Breakfast: $${fallbackMealPrices.breakfast_price}, Lunch: $${fallbackMealPrices.lunch_price}, Dinner: $${fallbackMealPrices.dinner_price}`, 'success');
+                                return fallbackMealPrices;
+                            } else {
+                                console.log('❌ No matching room found in global room data for:', selectedRoomType);
+                                showNotification('No matching room found in global room data.', 'error');
+                            }
+                        } else {
+                            console.log('❌ Global room data not available:', window.roomData);
+                            showNotification('Global room data not available.', 'error');
+                        }
+                    } else {
+                        console.log('✅ Meal prices are available!');
+                        console.log('Breakfast: $' + mealPrices.breakfast_price);
+                        console.log('Lunch: $' + mealPrices.lunch_price);
+                        console.log('Dinner: $' + mealPrices.dinner_price);
+                        showNotification(`Meal prices found: Breakfast: $${mealPrices.breakfast_price}, Lunch: $${mealPrices.lunch_price}, Dinner: $${mealPrices.dinner_price}`, 'success');
+                    }
+                    
+                    return mealPrices;
+                };
 
                 // Function to manually calculate correct meal costs (override current logic)
                 function calculateCorrectMealCosts(mealPlan, numNights, adults, children, mealPrices, numRooms) {
@@ -1165,8 +1337,8 @@
                                         const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
                                         if (selectedOption && selectedOption.dataset) {
                                             // Get guest count to determine single vs double occupancy
-                                            const adults = parseInt(document.getElementById('adults').value) || 0;
-                                            const children = parseInt(document.getElementById('children').value) || 0;
+                                            const adults = parseInt(document.getElementById('selectedPersons').value) || 1;
+                                            const children = 0; // Use selected persons as total occupancy
                                             const totalGuests = adults + children;
                                             
                                             // Determine if single or double occupancy
@@ -1208,10 +1380,19 @@
                                 // Calculate meal costs based on meal plan, guest count, and number of rooms
                                 // Use stored meal prices from when hotel was added
                                 // Use the corrected function that properly multiplies by number of rooms
-                                const mealCost = calculateCorrectMealCosts(hotel.mealPlan, numNights, adults, children, hotel.mealPrices, numRooms);
+                                // Use the hotel's specific selectedPersons instead of global adults/children
+                                const mealCost = calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms);
                                 
-                                const total = roomCost + mealCost;
-                                console.log(`Hotel pricing for ${hotel.name}: Room price: $${roomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Total: $${total}`);
+                                // Calculate extra bed cost
+                                let extraBedCost = 0;
+                                if (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) {
+                                    const extraPersons = hotel.selectedPersons - hotel.maxOccupancy;
+                                    extraBedCost = extraPersons * parseFloat(hotel.extraBedPrice) * numRooms * numNights;
+                                    console.log(`Extra bed cost: ${extraPersons} extra persons × $${hotel.extraBedPrice} × ${numRooms} rooms × ${numNights} nights = $${extraBedCost}`);
+                                }
+                                
+                                const total = roomCost + mealCost + extraBedCost;
+                                console.log(`Hotel pricing for ${hotel.name}: Room price: $${roomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Total: $${total}`);
                                 return total;
                             })(),
                             
@@ -4301,6 +4482,20 @@ document.addEventListener('DOMContentLoaded', function() {
             let summaryText = `${totalAdults} adults (${male} male, ${female} female) - ${children} children - ${infants} infants`;
                 guestSummary.textContent = summaryText;
             }
+            
+            // Update guest count display in person selector
+            updateGuestCountDisplay();
+        };
+        
+        // Function to update guest count display in person selector
+        const updateGuestCountDisplay = () => {
+            const currentGuestCount = document.getElementById('currentGuestCount');
+            if (currentGuestCount) {
+                const adults = parseInt(document.getElementById('adults').value) || 0;
+                const children = parseInt(document.getElementById('children').value) || 0;
+                const totalGuests = adults + children;
+                currentGuestCount.textContent = totalGuests;
+            }
         };
 
     // Prevent dropdown from closing when clicking inside
@@ -4669,6 +4864,15 @@ document.addEventListener('DOMContentLoaded', function() {
             travelDates.style.opacity = '0.7';
         }
         
+        // Disable agency selection
+        const agencySelect = document.getElementById('agency_id');
+        if (agencySelect) {
+            agencySelect.disabled = true;
+            agencySelect.style.backgroundColor = '#f8f9fa';
+            agencySelect.style.cursor = 'not-allowed';
+            agencySelect.style.opacity = '0.7';
+        }
+        
         // Disable agent selection
         const agentSelect = document.getElementById('agent_id');
         if (agentSelect) {
@@ -4793,6 +4997,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Add change event listener to hotel select
                     hotelSelect.onchange = function() {
+                        clearRoomSelectionForm();
                         updateHotelDependentDropdowns(this.value);
                     };
                 } 
@@ -4956,51 +5161,40 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     
-                    // Check what meals are available across all room types
-                    const hasBreakfast = roomsToUse.some(room => room.breakfast);
-                    const hasLunch = roomsToUse.some(room => room.lunch);
-                    const hasDinner = roomsToUse.some(room => room.dinner);
+                    // Check what meals are available across all room types (using database boolean fields)
+                    const hasBreakfast = roomsToUse.some(room => room.breakfast == 1 || room.breakfast === true);
+                    const hasLunch = roomsToUse.some(room => room.lunch == 1 || room.lunch === true);
+                    const hasDinner = roomsToUse.some(room => room.dinner == 1 || room.dinner === true);
                     
-                    // Generate room quantity options based on guest count
-                    // For 3 guests: show 1, 2, 3 rooms options
-                    const maxRooms = Math.min(totalGuests, 3); // Max 3 rooms shown, or guest count if less
-                    const minRooms = 1;
+                    // Generate meal plan options - only show "1 room" options based on database values
+                    const roomText = "1 * room";
                     
-                    for (let roomCount = minRooms; roomCount <= maxRooms; roomCount++) {
-                        const roomText = roomCount === 1 ? `${roomCount} room` : `${roomCount} rooms`;
-                        
-                        // Add "Room Only" option first
-                        mealPlans.add(`${roomText} only`);
-                        
-                        // Add specific meal options
-                        if (hasBreakfast) {
-                            mealPlans.add(`${roomText} with breakfast`);
-                        }
-                        if (hasLunch) {
-                            mealPlans.add(`${roomText} with lunch`);
-                        }
-                        if (hasDinner) {
-                            mealPlans.add(`${roomText} with dinner`);
-                        }
-                        
-                        // Add combination meal options
-                        if (hasBreakfast && hasLunch) {
-                            mealPlans.add(`${roomText} with breakfast + lunch`);
-                        }
-                        if (hasBreakfast && hasDinner) {
-                            mealPlans.add(`${roomText} with breakfast + dinner`);
-                        }
-                        if (hasLunch && hasDinner) {
-                            mealPlans.add(`${roomText} with lunch + dinner`);
-                        }
-                        if (hasBreakfast && hasLunch && hasDinner) {
-                            mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
-                        }
-                        
-                        // Add abbreviated versions for common combinations
-                        if (hasBreakfast) {
-                            mealPlans.add(`${roomText} with bf`);
-                        }
+                    // Add "Room Only" option first
+                    mealPlans.add(`${roomText} only`);
+                    
+                    // Add specific meal options based on database values (breakfast/lunch/dinner = 1)
+                    if (hasBreakfast) {
+                        mealPlans.add(`${roomText} with breakfast`);
+                    }
+                    if (hasLunch) {
+                        mealPlans.add(`${roomText} with lunch`);
+                    }
+                    if (hasDinner) {
+                        mealPlans.add(`${roomText} with dinner`);
+                    }
+                    
+                    // Add combination meal options based on database values
+                    if (hasBreakfast && hasLunch) {
+                        mealPlans.add(`${roomText} with breakfast + lunch`);
+                    }
+                    if (hasBreakfast && hasDinner) {
+                        mealPlans.add(`${roomText} with breakfast + dinner`);
+                    }
+                    if (hasLunch && hasDinner) {
+                        mealPlans.add(`${roomText} with lunch + dinner`);
+                    }
+                    if (hasBreakfast && hasLunch && hasDinner) {
+                        mealPlans.add(`${roomText} with all meals (breakfast + lunch + dinner)`);
                     }
                     
                     // Populate room types with pricing information
@@ -5047,7 +5241,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 option.value = roomType;
                                 option.textContent = `${roomType}${priceText}`;
                                 
-                                // Store pricing data in dataset
                                 option.dataset.roomType = roomType;
                                 option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
                                 option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
@@ -5062,7 +5255,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 option.dataset.breakfast = sampleRoom.breakfast || 0;
                                 option.dataset.lunch = sampleRoom.lunch || 0;
                                 option.dataset.dinner = sampleRoom.dinner || 0;
-                                
                                 roomTypeSelect.appendChild(option);
                                 
                                 console.log(`Added room type option: ${roomType} with price $${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
@@ -5083,6 +5275,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Add event listener for room type selection
                     if (roomTypeSelect) {
                         roomTypeSelect.onchange = function() {
+                            clearRoomTypeDependentFields();
                             updateBedTypesForRoom(this.value);
                         };
                     }
@@ -5107,12 +5300,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
                     }
                     
-                    // Populate meal plans
-                    [...mealPlans].forEach(mealPlan => {
+                    // Populate meal plans (cleaned up)
+                    const cleanedMealPlans = cleanMealPlanOptions([...mealPlans]);
+                    cleanedMealPlans.forEach(mealPlan => {
                         if (mealPlanSelect) {
                             mealPlanSelect.innerHTML += `<option value="${mealPlan}">${mealPlan}</option>`;
                         }
                     });
+                    
+                    // Add event listener for meal plan selection
+                    if (mealPlanSelect) {
+                        mealPlanSelect.onchange = function() {
+                            updateRoomCostCalculation();
+                        };
+                    }
                     
                     console.log(`Loaded ${roomsToUse.length} rooms for hotel ${hotelId} (filtered by DMC ${currentDmcId})`);
                     
@@ -5232,11 +5433,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Create descriptive bed type text based on beds table structure
                             let bedTypeText = bed.room_type || 'Standard Bed';
                             
-                            // Add room count if available
-                            if (bed.no_of_rooms) {
-                                bedTypeText += ` (${bed.no_of_rooms} available)`;
-                            }
-                            
                             // Add occupancy info if available
                             if (bed.max_occupancy) {
                                 bedTypeText += ` - Max ${bed.max_occupancy} guests`;
@@ -5273,6 +5469,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             option.dataset.noOfRooms = bed.no_of_rooms || '';
                             option.dataset.extraBedPrice = bed.extra_bed_price || '';
                             option.dataset.babyCotPrice = bed.baby_cot_price || '';
+                            option.dataset.extraBedAvailable = bed.extra_bed ? 'true' : 'false';
                             
                             bedTypeSelect.appendChild(option);
                         }
@@ -5320,9 +5517,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update pricing when bed type is selected
     function updatePricingForBed(bedTypeValue) {
+        console.log('updatePricingForBed called with:', bedTypeValue);
         const bedTypeSelect = document.getElementById('bedTypeSelect');
         const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
         const priceDisplay = document.getElementById('bedPriceDisplay');
+        
+        console.log('Selected option:', selectedOption);
+        console.log('Selected option dataset:', selectedOption ? selectedOption.dataset : 'No option');
         
         if (selectedOption && selectedOption.dataset.bedId) {
             console.log('Selected bed option:', selectedOption);
@@ -5335,6 +5536,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const noOfRooms = selectedOption.dataset.noOfRooms;
             const extraBedPrice = parseFloat(selectedOption.dataset.extraBedPrice) || 0;
             const babyCotPrice = parseFloat(selectedOption.dataset.babyCotPrice) || 0;
+            const extraBedAvailable = selectedOption.dataset.extraBedAvailable === 'true';
             
             // Create detailed price display
             let priceText = '';
@@ -5356,23 +5558,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             console.log(`Selected bed type: ${selectedOption.textContent}`);
-            console.log(`Bed ID: ${bedId}, Room ID: ${roomId}`);
-            console.log(`Max Occupancy: ${maxOccupancy}, Available Rooms: ${noOfRooms}`);
-            console.log(`Total additional price: $${totalPrice.toFixed(2)}`);
+            console.log(`Max Occupancy: ${maxOccupancy}`);
             
             // Update price display
             if (priceDisplay) {
                 priceDisplay.style.display = 'block';
                 priceDisplay.innerHTML = `
                     <div class="small">
-                        <div><strong>Bed ID:</strong> ${bedId}</div>
-                        <div><strong>Room ID:</strong> ${roomId}</div>
                         <div><strong>Max Occupancy:</strong> ${maxOccupancy || 'N/A'}</div>
-                        <div><strong>Available:</strong> ${noOfRooms || 'N/A'} rooms</div>
-                        <div class="text-success"><strong>Additional Charges:</strong> ${priceText}</div>
                     </div>
                 `;
             }
+            
+            // Update person selector based on max occupancy and extra bed availability
+            updatePersonSelector(parseInt(maxOccupancy) || 1, extraBedAvailable);
             
             // Store the selected bed information for later use
             window.selectedBedInfo = {
@@ -5382,15 +5581,513 @@ document.addEventListener('DOMContentLoaded', function() {
                 noOfRooms: noOfRooms,
                 extraBedPrice: extraBedPrice,
                 babyCotPrice: babyCotPrice,
+                extraBedAvailable: extraBedAvailable,
                 totalPrice: totalPrice
             };
+            
+            console.log('Stored selectedBedInfo:', window.selectedBedInfo);
         } else {
             // Hide price display if no bed selected
             if (priceDisplay) {
                 priceDisplay.style.display = 'none';
             }
             window.selectedBedInfo = null;
+            
+            // Reset person selector
+            const personSelector = document.getElementById('personSelector');
+            if (personSelector) {
+                personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+            }
+            
+            // Hide guest count information
+            const guestCountInfo = document.getElementById('guestCountInfo');
+            if (guestCountInfo) {
+                guestCountInfo.style.display = 'none';
+            }
+            
+            // Reset cost summary
+            const costSummary = document.getElementById('roomCostSummary');
+            if (costSummary) {
+                costSummary.innerHTML = '<div class="text-muted small">Select room details first</div>';
+            }
+            
+            // Reset selected persons input
+            const selectedPersonsInput = document.getElementById('selectedPersons');
+            if (selectedPersonsInput) {
+                selectedPersonsInput.value = '1';
+            }
         }
+    }
+
+    // Update room cost calculation
+    function updateRoomCostCalculation() {
+        const costSummary = document.getElementById('roomCostSummary');
+        const selectedPersonsInput = document.getElementById('selectedPersons');
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+        
+        if (!costSummary || !window.selectedBedInfo) {
+            if (costSummary) {
+                costSummary.innerHTML = '<div class="text-muted small">Select room details first</div>';
+            }
+            return;
+        }
+        
+        const numPersons = parseInt(selectedPersonsInput?.value) || 1;
+        const selectedMealPlan = mealPlanSelect?.value || '';
+        
+        // Get base room price from selected room type
+        let baseRoomPrice = 0;
+        let mealPrices = {
+            breakfast_price: 0,
+            lunch_price: 0,
+            dinner_price: 0
+        };
+        
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        if (roomTypeSelect && roomTypeSelect.value) {
+            const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+            if (selectedOption && selectedOption.dataset) {
+                // Get guest count to determine single vs double occupancy
+                const adults = parseInt(document.getElementById('adults').value) || 0;
+                const children = parseInt(document.getElementById('children').value) || 0;
+                const totalGuests = adults + children;
+                
+                // Determine if single or double occupancy
+                const isSingleOccupancy = totalGuests <= 1;
+                
+                // Determine if it's weekend (simplified - you might want to use actual dates)
+                const isWeekend = false; // You can implement weekend detection here if needed
+                
+                // Get base room price
+                if (isSingleOccupancy) {
+                    if (isWeekend) {
+                        baseRoomPrice = parseFloat(selectedOption.dataset.weekendPrice) || 0;
+                    } else {
+                        baseRoomPrice = parseFloat(selectedOption.dataset.weekdayPrice) || 0;
+                    }
+                } else {
+                    if (isWeekend) {
+                        baseRoomPrice = parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
+                    } else {
+                        baseRoomPrice = parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
+                    }
+                }
+                
+                // Get meal prices
+                mealPrices = {
+                    breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
+                    lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
+                    dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
+                };
+                
+                console.log('=== ROOM AND MEAL PRICE RETRIEVAL ===');
+                console.log('Selected room type:', roomTypeSelect.value);
+                console.log('Base room price:', baseRoomPrice);
+                console.log('Retrieved meal prices:', mealPrices);
+            }
+            
+            // Fallback: If dataset values are 0, try to get from global room data
+            if (mealPrices.breakfast_price === 0 && mealPrices.lunch_price === 0 && mealPrices.dinner_price === 0) {
+                console.log('Dataset values are 0, trying fallback from global room data...');
+                if (window.roomData && Array.isArray(window.roomData)) {
+                    const selectedRoomType = roomTypeSelect.value;
+                    const matchingRoom = window.roomData.find(room => room.room_type === selectedRoomType);
+                    if (matchingRoom) {
+                        mealPrices = {
+                            breakfast_price: parseFloat(matchingRoom.breakfast_price) || 0,
+                            lunch_price: parseFloat(matchingRoom.lunch_price) || 0,
+                            dinner_price: parseFloat(matchingRoom.dinner_price) || 0
+                        };
+                        console.log('Fallback meal prices from room data:', mealPrices);
+                    } else {
+                        console.log('No matching room found in global room data for:', selectedRoomType);
+                    }
+                } else {
+                    console.log('Global room data not available:', window.roomData);
+                }
+            }
+        }
+        
+        // Calculate meal cost (per selected guest)
+        const mealCostPerPerson = calculateMealCostPerPerson(selectedMealPlan, mealPrices);
+        const totalMealCost = mealCostPerPerson * numPersons;
+        
+        // Calculate extra bed cost
+        let extraBedCost = 0;
+        const bedInfo = window.selectedBedInfo;
+        if (bedInfo && bedInfo.extraBedAvailable && bedInfo.extraBedPrice > 0) {
+            const maxOccupancy = parseInt(bedInfo.maxOccupancy) || 0;
+            // If selected persons exceed max occupancy, calculate extra bed cost
+            if (numPersons > maxOccupancy) {
+                const extraPersons = numPersons - maxOccupancy;
+                extraBedCost = extraPersons * parseFloat(bedInfo.extraBedPrice);
+                console.log(`Extra bed calculation: ${extraPersons} extra persons × $${bedInfo.extraBedPrice} = $${extraBedCost}`);
+            }
+        }
+        
+        console.log('Meal cost calculation:', {
+            selectedMealPlan: selectedMealPlan,
+            mealCostPerPerson: mealCostPerPerson,
+            numPersons: numPersons,
+            totalMealCost: totalMealCost
+        });
+        
+        console.log('Extra bed calculation:', {
+            bedInfo: bedInfo,
+            maxOccupancy: bedInfo ? bedInfo.maxOccupancy : 'N/A',
+            numPersons: numPersons,
+            extraBedCost: extraBedCost
+        });
+        
+        // Calculate total: Base room price + meal costs + extra bed costs
+        const totalCost = baseRoomPrice + totalMealCost + extraBedCost;
+        
+        // Update display
+        costSummary.innerHTML = `
+            <div class="cost-item">
+                <span>Base Room Price:</span>
+                <span>$${baseRoomPrice.toFixed(2)}</span>
+            </div>
+            <div class="cost-item">
+                <span>Meal Plan (${numPersons} guest${numPersons > 1 ? 's' : ''}):</span>
+                <span>$${totalMealCost.toFixed(2)}</span>
+            </div>
+            ${extraBedCost > 0 ? `
+                <div class="cost-item">
+                    <span>Extra Bed Cost:</span>
+                    <span>$${extraBedCost.toFixed(2)}</span>
+                </div>
+            ` : ''}
+            <hr class="my-1">
+            <div class="cost-item fw-bold">
+                <span>Total per Room:</span>
+                <span>$${totalCost.toFixed(2)}</span>
+            </div>
+        `;
+        
+        console.log(`Room cost calculation: Base Room: $${baseRoomPrice}, Meal (${numPersons} guests): $${totalMealCost}, Total per Room: $${totalCost}`);
+    }
+
+    // Calculate meal cost per person
+    function calculateMealCostPerPerson(mealPlan, mealPrices = null) {
+        if (!mealPlan || mealPlan.toLowerCase().includes('only') || mealPlan === 'Not specified') {
+            return 0;
+        }
+        
+        // Use database meal prices if available, otherwise return 0 (no fallback defaults)
+        if (!mealPrices || typeof mealPrices !== 'object') {
+            return 0;
+        }
+        
+        let totalCost = 0;
+        const planLower = mealPlan.toLowerCase();
+        console.log(mealPrices)
+        // Parse dynamic meal plan to determine which meals are included
+        if (planLower.includes('breakfast') || planLower.includes('bf')) {
+            const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
+            totalCost += breakfastPrice;
+        }
+        if (planLower.includes('lunch')) {
+            const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
+            totalCost += lunchPrice;
+        }
+        if (planLower.includes('dinner')) {
+            const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
+            totalCost += dinnerPrice;
+        }
+        
+        return totalCost;
+    }
+
+    // Calculate meal cost for selected number of persons (legacy function for compatibility)
+    function calculateMealCostForPersons(mealPlan, numPersons, mealPrices = null) {
+        const costPerPerson = calculateMealCostPerPerson(mealPlan, mealPrices);
+        return costPerPerson * numPersons;
+    }
+
+    // Clean meal plan options to remove duplicates while preserving dynamic format
+    function cleanMealPlanOptions(mealPlans) {
+        const cleanedPlans = new Set();
+        
+        mealPlans.forEach(plan => {
+            if (!plan || plan.trim() === '') return;
+            
+            let cleanedPlan = plan.trim();
+            
+            // Keep the original dynamic format - don't convert to static values
+            // Just ensure consistent formatting
+            cleanedPlan = cleanedPlan.replace(/\s+/g, ' '); // Normalize whitespace
+            
+            // Only add if it's a meaningful meal plan
+            if (cleanedPlan) {
+                cleanedPlans.add(cleanedPlan);
+            }
+        });
+        
+        // Convert to array and sort
+        const sortedPlans = Array.from(cleanedPlans).sort((a, b) => {
+            // Put "room only" options first, then others alphabetically
+            if (a.toLowerCase().includes('only')) return -1;
+            if (b.toLowerCase().includes('only')) return 1;
+            return a.localeCompare(b);
+        });
+        
+        console.log('Dynamic meal plans:', sortedPlans);
+        return sortedPlans;
+    }
+
+    // Update person selector based on max occupancy
+    function updatePersonSelector(maxOccupancy, extraBedAvailable = false) {
+        console.log('updatePersonSelector called with:', maxOccupancy, extraBedAvailable);
+        const personSelector = document.getElementById('personSelector');
+        const selectedPersonsInput = document.getElementById('selectedPersons');
+        const guestCountInfo = document.getElementById('guestCountInfo');
+        const currentGuestCount = document.getElementById('currentGuestCount');
+        const maxOccupancyDisplay = document.getElementById('maxOccupancyDisplay');
+        
+        if (!personSelector || maxOccupancy < 1) {
+            console.log('Person selector not found or invalid max occupancy:', personSelector, maxOccupancy);
+            return;
+        }
+        
+        // Clear existing content
+        personSelector.innerHTML = '';
+        
+        // Get current guest count from the form
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const totalGuests = adults + children;
+        
+        // Use the passed extraBedAvailable parameter, fallback to selectedBedInfo if not provided
+        const isExtraBedAvailable = extraBedAvailable !== undefined ? extraBedAvailable : (window.selectedBedInfo && window.selectedBedInfo.extraBedAvailable);
+        
+        // Show guest count information
+        if (guestCountInfo) {
+            guestCountInfo.style.display = 'block';
+        }
+        if (currentGuestCount) {
+            currentGuestCount.textContent = totalGuests;
+        }
+        if (maxOccupancyDisplay) {
+            // Update display to show max occupancy including extra bed
+            const maxWithExtraBed = isExtraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
+            maxOccupancyDisplay.textContent = `${maxOccupancy}${isExtraBedAvailable ? ' (+1 extra bed)' : ''}`;
+        }
+        
+        // Determine the range for person selection
+        // If extra bed is available, allow maxOccupancy + 1 persons
+        // Otherwise, limit to maxOccupancy
+        const maxWithExtraBed = isExtraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
+        // Always show up to maxWithExtraBed options, regardless of totalGuests
+        // This allows users to select extra bed even if they have fewer total guests
+        const maxSelectable = maxWithExtraBed;
+        
+        // Create person symbols with icons
+        for (let i = 1; i <= maxSelectable; i++) {
+            const personSymbol = document.createElement('div');
+            personSymbol.className = 'person-symbol';
+            
+            // Use person icons: single person for 1, multiple people for 2+
+            // Add extra bed indicator for persons exceeding max occupancy
+            if (i > maxOccupancy && isExtraBedAvailable) {
+                personSymbol.textContent = '🛏️'; // Extra bed icon
+                personSymbol.title = `Extra bed (${i} persons)`;
+            } else {
+                personSymbol.textContent = i === 1 ? '👤' : '👥';
+                personSymbol.title = `${i} person${i > 1 ? 's' : ''}`;
+            }
+            
+            personSymbol.dataset.persons = i;
+            personSymbol.setAttribute('data-persons', i);
+            
+            // Set default selection to current guest count (or 1 if no guests)
+            // If total guests exceed max occupancy, default to max occupancy
+            const defaultSelection = totalGuests > 0 ? Math.min(totalGuests, maxOccupancy) : 1;
+            if (i === defaultSelection) {
+                personSymbol.classList.add('selected');
+                if (selectedPersonsInput) {
+                    selectedPersonsInput.value = defaultSelection;
+                }
+            }
+            
+            // Add click event
+            personSymbol.addEventListener('click', function() {
+                selectPersons(i);
+            });
+            
+            personSelector.appendChild(personSymbol);
+        }
+        
+        // Update cost calculation
+        updateRoomCostCalculation();
+    }
+
+    // Select number of persons
+    function selectPersons(numPersons) {
+        const personSelector = document.getElementById('personSelector');
+        const selectedPersonsInput = document.getElementById('selectedPersons');
+        
+        if (!personSelector) {
+            console.error('Person selector element not found');
+            return;
+        }
+        
+        // Get bed information for validation
+        const bedInfo = window.selectedBedInfo;
+        console.log('selectPersons - bedInfo:', bedInfo);
+        if (!bedInfo) {
+            console.error('No bed information available for validation');
+            return;
+        }
+        
+        const maxOccupancy = parseInt(bedInfo.maxOccupancy) || 0;
+        const extraBedAvailable = bedInfo.extraBedAvailable || false;
+        
+        // Validate person count against max occupancy and extra bed rules
+        if (numPersons > maxOccupancy) {
+            if (extraBedAvailable && numPersons === maxOccupancy + 1) {
+                // Allow 1 extra person if extra bed is available
+                console.log(`Extra bed allocated for ${numPersons} persons (max occupancy: ${maxOccupancy})`);
+            } else if (extraBedAvailable && numPersons > maxOccupancy + 1) {
+                // Show error if exceeding max occupancy + extra bed limit
+                showNotification('Maximum occupancy reached including extra bed.', 'error');
+                return;
+            } else if (!extraBedAvailable) {
+                // Show error if no extra bed available and exceeding max occupancy
+                showNotification(`Maximum occupancy is ${maxOccupancy} persons. No extra bed available.`, 'error');
+                return;
+            }
+        }
+        
+        // Additional validation: Check if selected persons exceed total guest count
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const totalGuests = adults + children;
+        
+        if (numPersons > totalGuests) {
+            // Allow extra bed allocation even if it exceeds current guest count
+            // This handles cases where users want to allocate extra bed for future guests
+            console.log(`Allocating ${numPersons} persons (${totalGuests} current guests + ${numPersons - totalGuests} extra bed)`);
+        }
+        
+        // Update visual selection
+        const symbols = personSelector.querySelectorAll('.person-symbol');
+        symbols.forEach(symbol => {
+            symbol.classList.remove('selected');
+            if (parseInt(symbol.dataset.persons) === numPersons) {
+                symbol.classList.add('selected');
+            }
+        });
+        
+        // Update hidden input
+        if (selectedPersonsInput) {
+            selectedPersonsInput.value = numPersons;
+        }
+        
+        // Update cost calculation
+        updateRoomCostCalculation();
+        
+        console.log(`Selected ${numPersons} persons for room occupancy`);
+    }
+
+    // Clear room selection form
+    function clearRoomSelectionForm() {
+        // Clear room type selection
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        if (roomTypeSelect) {
+            roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+        }
+        
+        // Clear bed type selection
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        if (bedTypeSelect) {
+            bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+        }
+        
+        // Clear meal plan selection
+        const mealPlanSelect = document.getElementById('mealPlanSelect');
+        if (mealPlanSelect) {
+            mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+        }
+        
+        // Reset person selector
+        const personSelector = document.getElementById('personSelector');
+        if (personSelector) {
+            personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+        }
+        
+        // Hide guest count information
+        const guestCountInfo = document.getElementById('guestCountInfo');
+        if (guestCountInfo) {
+            guestCountInfo.style.display = 'none';
+        }
+        
+        // Reset cost summary
+        const costSummary = document.getElementById('roomCostSummary');
+        if (costSummary) {
+            costSummary.innerHTML = '<div class="text-muted small">Select room details first</div>';
+        }
+        
+        // Reset selected persons input
+        const selectedPersonsInput = document.getElementById('selectedPersons');
+        if (selectedPersonsInput) {
+            selectedPersonsInput.value = '1';
+        }
+        
+        // Hide bed price display
+        const bedPriceDisplay = document.getElementById('bedPriceDisplay');
+        if (bedPriceDisplay) {
+            bedPriceDisplay.style.display = 'none';
+        }
+        
+        // Clear selected bed info
+        window.selectedBedInfo = null;
+        
+        console.log('Room selection form cleared');
+    }
+
+    // Clear room type dependent fields
+    function clearRoomTypeDependentFields() {
+        // Clear bed type selection
+        const bedTypeSelect = document.getElementById('bedTypeSelect');
+        if (bedTypeSelect) {
+            bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+        }
+        
+        // Reset person selector
+        const personSelector = document.getElementById('personSelector');
+        if (personSelector) {
+            personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+        }
+        
+        // Hide guest count information
+        const guestCountInfo = document.getElementById('guestCountInfo');
+        if (guestCountInfo) {
+            guestCountInfo.style.display = 'none';
+        }
+        
+        // Reset cost summary
+        const costSummary = document.getElementById('roomCostSummary');
+        if (costSummary) {
+            costSummary.innerHTML = '<div class="text-muted small">Select room details first</div>';
+        }
+        
+        // Reset selected persons input
+        const selectedPersonsInput = document.getElementById('selectedPersons');
+        if (selectedPersonsInput) {
+            selectedPersonsInput.value = '1';
+        }
+        
+        // Hide bed price display
+        const bedPriceDisplay = document.getElementById('bedPriceDisplay');
+        if (bedPriceDisplay) {
+            bedPriceDisplay.style.display = 'none';
+        }
+        
+        // Clear selected bed info
+        window.selectedBedInfo = null;
+        
+        console.log('Room type dependent fields cleared');
     }
 
          // Add Hotel Function
@@ -5399,6 +6096,7 @@ document.addEventListener('DOMContentLoaded', function() {
          const roomType = document.getElementById('roomTypeSelect').value;
          const bedType = document.getElementById('bedTypeSelect').value;
          const mealPlan = document.getElementById('mealPlanSelect').value;
+         const selectedPersons = document.getElementById('selectedPersons').value || '1';
          // Extract room count from meal plan selection
          let numberOfRooms = 1; // default
          if (mealPlan) {
@@ -5500,11 +6198,11 @@ document.addEventListener('DOMContentLoaded', function() {
              
              if (selectedOption && selectedOption.dataset) {
                                  // Get meal prices directly from the room type option dataset
-                // If API doesn't return meal prices, use default values for testing
+                // Get meal prices from database (no fallback defaults)
                 mealPrices = {
-                    breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 100, // Default $100
-                    lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 200, // Default $200
-                    dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 300 // Default $300
+                    breakfast_price: parseFloat(selectedOption.dataset.breakfastPrice) || 0,
+                    lunch_price: parseFloat(selectedOption.dataset.lunchPrice) || 0,
+                    dinner_price: parseFloat(selectedOption.dataset.dinnerPrice) || 0
                 };
                  
                  console.log('Meal prices from room type option:', mealPrices);
@@ -5533,6 +6231,7 @@ document.addEventListener('DOMContentLoaded', function() {
              roomType: roomType || 'Standard',
              bedType: bedType || 'Standard',
              bedId: bedInfo.bedId || null,
+             selectedPersons: parseInt(selectedPersons) || 1,
              maxOccupancy: bedInfo.maxOccupancy || null,
              availableRooms: bedInfo.noOfRooms || null,
              extraBedPrice: bedInfo.extraBedPrice || 0,
@@ -5669,19 +6368,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                                      ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
                                                          <div class="d-flex justify-content-between">
                                                              <span>Breakfast:</span>
-                                                             <span>$${hotel.mealPrices.breakfast_price || 0} × ${hotel.totalNights} nights</span>
+                                                             <span>$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
                                                          </div>
                                                      ` : ''}
                                                      ${hotel.mealPlan.includes('lunch') ? `
                                                          <div class="d-flex justify-content-between">
                                                              <span>Lunch:</span>
-                                                             <span>$${hotel.mealPrices.lunch_price || 0} × ${hotel.totalNights} nights</span>
+                                                             <span>$${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
                                                          </div>
                                                      ` : ''}
                                                      ${hotel.mealPlan.includes('dinner') ? `
                                                          <div class="d-flex justify-content-between">
                                                              <span>Dinner:</span>
-                                                             <span>$${hotel.mealPrices.dinner_price || 0} × ${hotel.totalNights} nights</span>
+                                                             <span>$${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}</span>
                                                          </div>
                                                      ` : ''}
                                                  </div>
@@ -5702,13 +6401,25 @@ document.addEventListener('DOMContentLoaded', function() {
                                              ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
                                                  <div class="d-flex justify-content-between">
                                                      <span>Meal Cost:</span>
-                                                     <span>$${calculateMealCosts(hotel.mealPlan, hotel.totalNights, parseInt(document.getElementById('adults').value) || 0, parseInt(document.getElementById('children').value) || 0, hotel.mealPrices)}</span>
+                                                     <span>$${calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms)}</span>
+                                                 </div>
+                                             ` : ''}
+                                             ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
+                                                 <div class="d-flex justify-content-between">
+                                                     <span>Extra Bed Cost:</span>
+                                                     <span>$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
                                                  </div>
                                              ` : ''}
                                              <hr class="my-1">
                                              <div class="d-flex justify-content-between fw-bold">
                                                  <span>Total:</span>
-                                                 <span>$${hotel.price * hotel.numberOfRooms * hotel.totalNights + calculateMealCosts(hotel.mealPlan, hotel.totalNights, parseInt(document.getElementById('adults').value) || 0, parseInt(document.getElementById('children').value) || 0, hotel.mealPrices)}</span>
+                                                 <span>$${(() => {
+                                                     const roomCost = (hotel.price || 0) * hotel.numberOfRooms * hotel.totalNights;
+                                                     const mealCost = calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
+                                                     const extraBedCost = (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) ? 
+                                                         hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights : 0;
+                                                     return roomCost + mealCost + extraBedCost;
+                                                 })()}</span>
                                              </div>
                                          </div>
                                      </div>
@@ -13632,4 +14343,68 @@ window.saveService = function(day, type) {
                             searchBtn.disabled = false;
                         });
                 };
+
+                // Agency-Agent Dependent Dropdown Functionality
+                document.addEventListener('DOMContentLoaded', function() {
+                    const agencySelect = document.getElementById('agency_id');
+                    const agentSelect = document.getElementById('agent_id');
+                    
+                    if (agencySelect && agentSelect && !agencySelect.disabled) {
+                        agencySelect.addEventListener('change', function() {
+                            const agencyId = this.value;
+                            
+                            // Clear agent dropdown
+                            agentSelect.innerHTML = '<option value="">Choose agent...</option>';
+                            
+                            if (agencyId) {
+                                // Show loading state
+                                agentSelect.innerHTML = '<option value="">Loading agents...</option>';
+                                agentSelect.disabled = true;
+                                
+                                // Make AJAX request to get agents by agency
+                                fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${agencyId}`, {
+                                    method: 'GET',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                    }
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    // Clear loading state
+                                    agentSelect.innerHTML = '<option value="">Choose agent...</option>';
+                                    
+                                    if (data.success && data.agents && data.agents.length > 0) {
+                                        // Populate agent dropdown
+                                        data.agents.forEach(agent => {
+                                            const option = document.createElement('option');
+                                            option.value = agent.agent_id;
+                                            option.textContent = agent.name;
+                                            agentSelect.appendChild(option);
+                                        });
+                                        
+                                        console.log(`Loaded ${data.agents.length} agents for agency ${agencyId}`);
+                                    } else {
+                                        console.log('No agents found for selected agency');
+                                        agentSelect.innerHTML = '<option value="">No agents found</option>';
+                                    }
+                                    
+                                    agentSelect.disabled = false;
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching agents:', error);
+                                    agentSelect.innerHTML = '<option value="">Error loading agents</option>';
+                                    agentSelect.disabled = false;
+                                    
+                                    // Show user-friendly error message
+                                    alert('Error loading agents. Please try again.');
+                                });
+                            } else {
+                                // Reset to default state when no agency is selected
+                                agentSelect.disabled = false;
+                            }
+                        });
+                    }
+                });
 </script>

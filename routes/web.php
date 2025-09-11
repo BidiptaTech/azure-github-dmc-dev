@@ -182,6 +182,7 @@ Route::get('/clear', function () {
             Route::get('/fetch-zones-by-dmc', [SingleTourPackageController::class, 'fetchZones'])->name('fetch-zones-by-dmc');
             Route::post('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');
             Route::get('/fetch-vehicles-by-city-dmc', [SingleTourPackageController::class, 'fetchVehiclesByCityAndDmc'])->name('fetch-vehicles-by-city-dmc');
+            Route::get('/fetch-agents-by-agency', [SingleTourPackageController::class, 'fetchAgentsByAgency'])->name('fetch-agents-by-agency');
             Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService')->name('save-service');
             // authentication check for admin
             Route::group(['middleware' => ['admin']], function () {
