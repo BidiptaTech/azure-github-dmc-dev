@@ -1242,7 +1242,7 @@ class SingleTourPackageController extends Controller
             }
 
             // Fetch tickets for the attraction
-            $tickets = Ticket::where('attraction_id', $attractionId)
+            $tickets = Ticket::where('attraction_id', $attractionId)->where('dmc_id', $dmcId)
                 ->select('ticket_id', 'name', 'child_price', 'adult_price', 'senior_adult_price', 'description')
                 ->get();
 
@@ -1499,7 +1499,7 @@ class SingleTourPackageController extends Controller
             }
 
             // Fetch guides where dmc_id matches current DMC ID (bigint type)
-            $query = Guide::where('dmc_id', $dmcId)
+            $query = Guide::where('dmc_id', $dmcId)->where('dmc_id', $dmcId)
                 ->where('status', 1);
                 
             // Filter by city if provided
@@ -1831,7 +1831,7 @@ class SingleTourPackageController extends Controller
                 ], 400);
             }
 
-            $query = Meal::where('restaurant_id', $restaurantId);
+            $query = Meal::where('restaurant_id', $restaurantId)->where('dmc_id', $dmcId);
             
             // Filter by meal period if provided
             if ($mealPeriod) {
