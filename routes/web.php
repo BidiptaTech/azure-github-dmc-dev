@@ -171,13 +171,13 @@ Route::get('/clear', function () {
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
             Route::get('/fetch-ports-by-country-single-tour', [SingleTourPackageController::class, 'fetchPortsByCountry'])->name('fetch-ports-by-country-single-tour');
             Route::get('/fetch-zone-assigned-locations', [SingleTourPackageController::class, 'fetchZoneAssignedLocations'])->name('fetch-zone-assigned-locations');
-            Route::get('/fetch-attractions-by-dmc', [SingleTourPackageController::class, 'fetchAttractions'])->name('fetch-attractions-by-dmc');
+            Route::get('/fetch-attractions-by-dmc', [SingleTourPackageController::class, 'fetchAttractionsByDmc'])->name('fetch-attractions-by-dmc');
             Route::get('/fetch-tickets-by-attraction', [SingleTourPackageController::class, 'fetchTickets'])->name('fetch-tickets-by-attraction');
             Route::get('/fetch-hotels-by-dmc', [SingleTourPackageController::class, 'fetchHotels'])->name('fetch-hotels-by-dmc');
             Route::get('/fetch-rooms-by-hotel', [SingleTourPackageController::class, 'fetchRooms'])->name('fetch-rooms-by-hotel');
             Route::get('/fetch-beds-by-room', [SingleTourPackageController::class, 'fetchBeds'])->name('fetch-beds-by-room');
-            Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuides'])->name('fetch-guides-by-dmc');
-            Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurants'])->name('fetch-restaurants-by-dmc');
+            Route::get('/fetch-guides-by-dmc', [SingleTourPackageController::class, 'fetchGuidesByDmc'])->name('fetch-guides-by-dmc');
+            Route::get('/fetch-restaurants-by-dmc', [SingleTourPackageController::class, 'fetchRestaurantsByDmc'])->name('fetch-restaurants-by-dmc');
             Route::get('/fetch-meals-by-restaurant', [SingleTourPackageController::class, 'fetchMealsByRestaurant'])->name('fetch-meals-by-restaurant');
             Route::get('/fetch-zones-by-dmc', [SingleTourPackageController::class, 'fetchZones'])->name('fetch-zones-by-dmc');
             Route::post('/fetch-vehicles-by-zones', [SingleTourPackageController::class, 'fetchVehiclesByZones'])->name('fetch-vehicles-by-zones');

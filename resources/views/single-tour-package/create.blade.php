@@ -288,29 +288,9 @@
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
 
-                                <!-- City Selection -->
-                                <div class="col-md-2">
-                                    <label for="city" class="form-label fw-semibold">
-                                        <i class="ri-building-line me-1"></i>City
-                                    </label>
-                                    <select name="city" id="city" class="form-select" required {{ ($enquiry && $enquiry->city) ? 'disabled' : ($enquiry ? '' : 'disabled') }}>
-                                        @if($enquiry && $enquiry->city)
-                                            <option value="{{ $enquiry->city }}" selected>{{ $enquiry->city }}</option>
-                                        @else
-                                            <option value="">Select country first</option>
-                                        @endif
-                                    </select>
-                                    @if($enquiry && $enquiry->city)
-                                        <input type="hidden" name="city" value="{{ $enquiry->city }}">
-                                    @endif
-                                    <input type="hidden" name="city_id" id="city_id">
-                                    <div id="cityLoader" class="text-center mt-1" style="display: none;">
-                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                    </div>
-                                </div>
 
                                 <!-- Travel Dates -->
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label for="travel_dates" class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
@@ -323,7 +303,7 @@
                                 </div>
 
                                 <!-- Guests -->
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
@@ -429,22 +409,34 @@
                         <div class="card-body">
                             <!-- Hotel Selection Controls -->
                             <div class="row mb-3">
-                                <div class="col-md-3">
+                                <div class="col-md-2">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-building-line me-1"></i>City
+                                    </label>
+                                    <select class="form-select" id="hotelCitySelect" name="hotel_city">
+                                        <option value="">Select country first</option>
+                                    </select>
+                                    <div id="hotelCityLoader" class="text-center mt-1" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                    </div>
+                                    <small class="text-danger" id="hotelCityMessage" style="display: none;">Please select a city first.</small>
+                                </div>
+                                <div class="col-md-4">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-hotel-line me-1"></i>Select Hotel
                                     </label>
-                                    <select class="form-select" id="hotelSelect">
+                                    <select class="form-select" id="hotelSelect" disabled>
                                         <option value="">Select a city first to load hotels</option>
                                     </select>
                                     <small class="text-muted" id="hotelLoadingStatus"></small>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">Room Type</label>
                                     <select class="form-select" id="roomTypeSelect">
                                         <option value="">Room Type</option>
                                     </select>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">Bed Type</label>
                                     <select class="form-select" id="bedTypeSelect">
                                         <option value="">Bed Type</option>
@@ -453,7 +445,7 @@
                                         Price: <span class="fw-bold">$0.00</span>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">Number of Persons</label>
                                     <div id="personSelector" class="person-selector">
                                         <div class="text-muted small">Select bed type first</div>
@@ -2495,8 +2487,8 @@
                                                 distance: 0,
                                                 Night_Start_Time: "10:00:00",
                                                 Night_End_Time: "20:00:00",
-                                                city: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
-                                                country: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
+                                                city: "Singapore", // Default city - will be updated when city-specific logic is implemented
+                                                country: "Singapore", // Default country
                                                 bookingType: "enquiry"
                                             };
                                             
@@ -2581,8 +2573,8 @@
                                                 distance: 0,
                                                 Night_Start_Time: "10:00:00",
                                                 Night_End_Time: "20:00:00",
-                                                city: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
-                                                country: document.getElementById('city')?.selectedOptions[0]?.text || "Singapore",
+                                                city: "Singapore", // Default city - will be updated when city-specific logic is implemented
+                                                country: "Singapore", // Default country
                                                 bookingType: "enquiry"
                                             };
                                             
@@ -3189,7 +3181,13 @@
                 }
 
                 async function saveAllBookings() {
+                    // Validate customer information
                     if (!validateCustomerInfo()) {
+                        return false;
+                    }
+                    
+                    // Validate service selections (time slots, meal types)
+                    if (!validateServiceSelections()) {
                         return false;
                     }
 
@@ -4275,6 +4273,153 @@ function validateCustomerInfo() {
     return true;
 }
 
+// Function to validate service selections (time slots, meal types, etc.)
+function validateServiceSelections() {
+    let isValid = true;
+    let errorMessages = [];
+    
+    // Validate attractions (time slots)
+    const attractionSelects = document.querySelectorAll('.attraction-select');
+    attractionSelects.forEach(select => {
+        if (select.value) {
+            // Get day and index from ID
+            const idMatch = select.id.match(/day(\d+)_attraction_(\d+)/);
+            if (idMatch) {
+                const day = idMatch[1];
+                const index = idMatch[2];
+                
+                // Check if time slot is selected
+                const timeSelect = document.getElementById(`day${day}_attraction_${index}_time`);
+                if (timeSelect && !timeSelect.value) {
+                    const attractionName = select.options[select.selectedIndex].text;
+                    errorMessages.push(`Day ${day}: Please select a time slot for ${attractionName}`);
+                    isValid = false;
+                    
+                    // Highlight the missing field
+                    timeSelect.classList.add('is-invalid');
+                    timeSelect.addEventListener('change', function() {
+                        this.classList.remove('is-invalid');
+                    }, { once: true });
+                }
+            }
+        }
+    });
+    
+    // Validate guides (pickup time)
+    const guideSelects = document.querySelectorAll('.guide-select');
+    guideSelects.forEach(select => {
+        if (select.value) {
+            // Get day and index from ID
+            const idMatch = select.id.match(/day(\d+)_guide_(\d+)/);
+            if (idMatch) {
+                const day = idMatch[1];
+                const index = idMatch[2];
+                
+                // Check if pickup time is selected
+                const pickupTimeInput = document.getElementById(`day${day}_guide_${index}_pickup_time`);
+                if (pickupTimeInput && !pickupTimeInput.value) {
+                    const guideName = select.options[select.selectedIndex].text;
+                    errorMessages.push(`Day ${day}: Please select a pickup time for guide ${guideName}`);
+                    isValid = false;
+                    
+                    // Highlight the missing field
+                    const timeOptionsContainer = document.getElementById(`day${day}_guide_${index}_pickup_time_options`);
+                    if (timeOptionsContainer) {
+                        timeOptionsContainer.classList.add('border', 'border-danger');
+                        timeOptionsContainer.addEventListener('click', function() {
+                            this.classList.remove('border', 'border-danger');
+                        }, { once: true });
+                    }
+                }
+            }
+        }
+    });
+    
+    // Validate restaurants (meal type and dish)
+    const restaurantSelects = document.querySelectorAll('.restaurant-select');
+    restaurantSelects.forEach(select => {
+        if (select.value) {
+            // Get day and index from ID
+            const idMatch = select.id.match(/day(\d+)_restaurant_(\d+)/);
+            if (idMatch) {
+                const day = idMatch[1];
+                const index = idMatch[2];
+                
+                // Check if meal type is selected
+                const mealTypeSelect = document.getElementById(`day${day}_meal_type_${index}`);
+                if (mealTypeSelect && !mealTypeSelect.value) {
+                    const restaurantName = select.options[select.selectedIndex].text;
+                    errorMessages.push(`Day ${day}: Please select a meal type for ${restaurantName}`);
+                    isValid = false;
+                    
+                    // Highlight the missing field
+                    mealTypeSelect.classList.add('is-invalid');
+                    mealTypeSelect.addEventListener('change', function() {
+                        this.classList.remove('is-invalid');
+                    }, { once: true });
+                }
+                
+                // Check if dish is selected
+                const dishSelect = document.getElementById(`day${day}_dish_${index}`);
+                const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
+                const mealIdField = document.getElementById(`day${day}_restaurant_${index}_meal_id`);
+                
+                // Check if any dish is selected (either via dropdown or buttons)
+                if ((!dishSelect || !dishSelect.value) && (!mealIdField || !mealIdField.value)) {
+                    const restaurantName = select.options[select.selectedIndex].text;
+                    errorMessages.push(`Day ${day}: Please select a dish for ${restaurantName}`);
+                    isValid = false;
+                    
+                    // Highlight the missing field
+                    if (dishContainer && dishContainer.style.display !== 'none') {
+                        dishContainer.classList.add('border', 'border-danger');
+                        dishContainer.addEventListener('click', function() {
+                            this.classList.remove('border', 'border-danger');
+                        }, { once: true });
+                    } else if (dishSelect) {
+                        dishSelect.classList.add('is-invalid');
+                        dishSelect.addEventListener('change', function() {
+                            this.classList.remove('is-invalid');
+                        }, { once: true });
+                    }
+                }
+                
+                // Check if time slot is selected
+                const timeSlotSelect = document.getElementById(`day${day}_time_slot_${index}`);
+                if (timeSlotSelect && !timeSlotSelect.value) {
+                    const restaurantName = select.options[select.selectedIndex].text;
+                    errorMessages.push(`Day ${day}: Please select a time slot for ${restaurantName}`);
+                    isValid = false;
+                    
+                    // Highlight the missing field
+                    timeSlotSelect.classList.add('is-invalid');
+                    timeSlotSelect.addEventListener('change', function() {
+                        this.classList.remove('is-invalid');
+                    }, { once: true });
+                }
+            }
+        }
+    });
+    
+    // Show error messages if any
+    if (!isValid) {
+        // Create a nicely formatted alert
+        const errorHTML = `
+            <div class="alert alert-danger">
+                <h5><i class="ri-error-warning-line me-2"></i>Please correct the following errors:</h5>
+                <ul class="mb-0">
+                    ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+        
+        // Show notification with the errors
+        showNotification(errorHTML, 'error', 10000); // 10 second timeout for longer message
+    }
+    
+    return isValid;
+}
+
 // Global variables (move outside DOMContentLoaded)
 let tourStartDate = null;
 let tourEndDate = null;
@@ -4293,10 +4438,8 @@ function getTourDateForDay(day) {
 
 document.addEventListener('DOMContentLoaded', function() {
 
-    // Country and City Cascade (following agent controller pattern)
+    // Country and City Cascade (updated for section-specific city dropdowns)
     const userCountrySelect = document.getElementById('user_country');
-    const citySelect = document.getElementById('city');
-    const cityLoader = document.getElementById('cityLoader');
 
     // Auto-load cities if country is pre-selected
     if (userCountrySelect.value) {
@@ -4308,75 +4451,447 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Country changed to:', selectedCountry);
         
         if (selectedCountry) {
-            citySelect.disabled = true;
-            cityLoader.style.display = 'block';
-            citySelect.innerHTML = '<option value="">Loading cities...</option>';
+            // Show loading state for all city dropdowns
+            populateAllCityDropdowns(selectedCountry);
             
-                         // Use jQuery AJAX for country-city loading
-            setTimeout(function() {
-                $.ajax({
-                    url: "{{ route('fetch-cities-by-country-single-tour') }}",
-                    type: "GET",
-                    data: { country: selectedCountry },
-                    dataType: 'json',
-                    success: function(response) {
-                    citySelect.innerHTML = '<option value="">Select city...</option>';
-                        
-                    if (response.cities && response.cities.length > 0) {
-                        // Set country_id for the hidden field (we'll use country name for now)
-                        document.getElementById('country_id').value = selectedCountry;
-                        
-                        response.cities.forEach(function(city) {
-                            citySelect.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
-                        });
-                    } else {
-                        citySelect.innerHTML += '<option disabled>No cities found</option>';
-                    }
-                        
-                        citySelect.disabled = false;
-                        cityLoader.style.display = 'none';
-                        
-                        // Also fetch ports for the selected country
-                        fetchPortsByCountry(selectedCountry);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading cities:', error);
-                        citySelect.innerHTML = '<option disabled>Error loading cities</option>';
-                        citySelect.disabled = false;
-                        cityLoader.style.display = 'none';
+            // Also fetch ports for the selected country
+            fetchPortsByCountry(selectedCountry);
+            
+            // Ensure all attraction city dropdowns are populated
+            setTimeout(() => {
+                const attractionCityDropdowns = document.querySelectorAll('.attraction-city-select');
+                console.log(`Found ${attractionCityDropdowns.length} attraction city dropdowns to check`);
+                
+                attractionCityDropdowns.forEach(dropdown => {
+                    if (dropdown.options.length <= 1) {
+                        console.log(`Populating dropdown: ${dropdown.id}`);
+                        populateCityDropdown(dropdown);
                     }
                 });
-            }, 300); // Small delay to ensure smooth UX
+            }, 1000);
         } else {
-            citySelect.innerHTML = '<option value="">Select country first</option>';
-            citySelect.disabled = true;
+            // Clear all city dropdowns when no country is selected
+            clearAllCityDropdowns();
             
             // Clear ports when no country is selected
             clearAllPortDropdowns();
         }
     });
 
+    // Function to populate all city dropdowns based on selected country
+    function populateAllCityDropdowns(selectedCountry) {
+        console.log('Populating all city dropdowns for country:', selectedCountry);
+        
+        // Get all city dropdowns
+        const cityDropdowns = [
+            document.getElementById('hotelCitySelect'),
+            ...document.querySelectorAll('.attraction-city-select'),
+            ...document.querySelectorAll('.guide-city-select'), 
+            ...document.querySelectorAll('.restaurant-city-select'),
+            ...document.querySelectorAll('.transport-city-select')
+        ].filter(dropdown => dropdown !== null);
 
+        // Set loading state for all dropdowns
+        cityDropdowns.forEach(dropdown => {
+            dropdown.innerHTML = '<option value="">Loading cities...</option>';
+            dropdown.disabled = true;
+        });
 
-    // City selection handler
-    citySelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        if (selectedOption && selectedOption.dataset.id) {
-            document.getElementById('city_id').value = selectedOption.dataset.id;
+        // Fetch cities from server
+        setTimeout(function() {
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country-single-tour') }}",
+                type: "GET",
+                data: { country: selectedCountry },
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Cities loaded for country:', selectedCountry, response);
+                    
+                    // Set country_id for the hidden field
+                    const countryIdField = document.getElementById('country_id');
+                    if (countryIdField) {
+                        countryIdField.value = selectedCountry;
+                    }
+                    
+                    // Populate all city dropdowns
+                    cityDropdowns.forEach(dropdown => {
+                        dropdown.innerHTML = '<option value="">Select city...</option>';
+                        
+                        if (response.cities && response.cities.length > 0) {
+                            response.cities.forEach(function(city) {
+                                dropdown.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
+                            });
+                        } else {
+                            dropdown.innerHTML += '<option disabled>No cities found</option>';
+                        }
+                        
+                        dropdown.disabled = false;
+                    });
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading cities:', error);
+                    cityDropdowns.forEach(dropdown => {
+                        dropdown.innerHTML = '<option disabled>Error loading cities</option>';
+                        dropdown.disabled = false;
+                    });
+                }
+            });
+        }, 300);
+    }
+
+    // Function to clear all city dropdowns
+    function clearAllCityDropdowns() {
+        const cityDropdowns = [
+            document.getElementById('hotelCitySelect'),
+            ...document.querySelectorAll('.attraction-city-select'),
+            ...document.querySelectorAll('.guide-city-select'),
+            ...document.querySelectorAll('.restaurant-city-select'),
+            ...document.querySelectorAll('.transport-city-select')
+        ].filter(dropdown => dropdown !== null);
+
+        cityDropdowns.forEach(dropdown => {
+            dropdown.innerHTML = '<option value="">Select country first</option>';
+            dropdown.disabled = true;
+        });
+    }
+
+    // Function to populate a single city dropdown based on selected country
+    function populateCityDropdown(cityDropdown) {
+        const userCountrySelect = document.getElementById('user_country');
+        const selectedCountry = userCountrySelect ? userCountrySelect.value : '';
+        
+        if (!selectedCountry) {
+            cityDropdown.innerHTML = '<option value="">Select country first</option>';
+            cityDropdown.disabled = true;
+            return;
         }
         
-        // Load hotels for the selected city
-        const selectedCity = this.value;
-        if (selectedCity) {
-            loadHotelsForCity(selectedCity);
-        } else {
-            // Clear hotel selection if no city is selected
+        // Set loading state
+        cityDropdown.innerHTML = '<option value="">Loading cities...</option>';
+        cityDropdown.disabled = true;
+        
+        // Fetch cities from server
+        setTimeout(function() {
+            $.ajax({
+                url: "{{ route('fetch-cities-by-country-single-tour') }}",
+                type: "GET",
+                data: { country: selectedCountry },
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Cities loaded for dropdown:', response);
+                    
+                    cityDropdown.innerHTML = '<option value="">Select city...</option>';
+                    
+                    if (response.cities && response.cities.length > 0) {
+                        response.cities.forEach(function(city) {
+                            cityDropdown.innerHTML += `<option value="${city.name}" data-id="${city.id}">${city.name}</option>`;
+                        });
+                    } else {
+                        cityDropdown.innerHTML += '<option disabled>No cities found</option>';
+                    }
+                    
+                    cityDropdown.disabled = false;
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading cities for dropdown:', error);
+                    cityDropdown.innerHTML = '<option disabled>Error loading cities</option>';
+                    cityDropdown.disabled = false;
+                }
+            });
+        }, 300);
+    }
+
+
+
+    // Hotel city selection handler
+    document.addEventListener('change', function(e) {
+        if (e.target.id === 'hotelCitySelect') {
+            const selectedCity = e.target.value;
             const hotelSelect = document.getElementById('hotelSelect');
             const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
-            hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
-            hotelLoadingStatus.innerHTML = '';
+            const cityMessage = document.getElementById('hotelCityMessage');
+            
+            if (selectedCity) {
+                // Enable hotel selection and load hotels
+                hotelSelect.disabled = false;
+                cityMessage.style.display = 'none';
+                loadHotelsForCity(selectedCity);
+            } else {
+                // Disable hotel selection
+                hotelSelect.disabled = true;
+                hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
+                hotelLoadingStatus.innerHTML = '';
+                cityMessage.style.display = 'block';
+            }
         }
     });
+
+    // Service city selection handlers for dynamically generated sections
+    document.addEventListener('change', function(e) {
+        // Handle attraction city selection
+        if (e.target.classList.contains('attraction-city-select')) {
+            const selectedCity = e.target.value;
+            const selectId = e.target.id;
+            const match = selectId.match(/day(\d+)_attraction_city_(\d+)/);
+            if (match) {
+                const day = match[1];
+                const index = match[2];
+                loadAttractionsForCity(day, selectedCity, index);
+            }
+        }
+        
+        // Handle guide city selection
+        if (e.target.classList.contains('guide-city-select')) {
+            const selectedCity = e.target.value;
+            const selectId = e.target.id;
+            const match = selectId.match(/day(\d+)_guide_city_(\d+)/);
+            if (match) {
+                const day = match[1];
+                const index = match[2];
+                loadGuidesForCity(day, selectedCity, index);
+            }
+        }
+        
+        // Handle restaurant city selection
+        if (e.target.classList.contains('restaurant-city-select')) {
+            const selectedCity = e.target.value;
+            const selectId = e.target.id;
+            const match = selectId.match(/day(\d+)_restaurant_city_(\d+)/);
+            if (match) {
+                const day = match[1];
+                const index = match[2];
+                loadRestaurantsForCity(day, selectedCity, index);
+            }
+        }
+        
+        // Handle transport city selection
+        if (e.target.classList.contains('transport-city-select')) {
+            const selectedCity = e.target.value;
+            const selectId = e.target.id;
+            const match = selectId.match(/day(\d+)_transport_city_(\d+)/);
+            if (match) {
+                const day = match[1];
+                const index = match[2];
+                loadTransportZonesForCity(day, selectedCity, index);
+            }
+        }
+    });
+
+    // Functions to load services based on city selection
+    window.loadAttractionsForCity = function(day, cityName, index) {
+        const attractionSelect = document.getElementById(`day${day}_attraction_${index}`);
+        const cityMessage = document.getElementById(`day${day}_attraction_city_message_${index}`);
+        
+        if (cityName) {
+            attractionSelect.disabled = false;
+            attractionSelect.innerHTML = '<option value="">Loading attractions...</option>';
+            cityMessage.style.display = 'none';
+            
+            // Load attractions for the specific city
+            const currentDmcId = '{{ $finalDmcId }}';
+            
+            fetch(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+                .then(response => response.json())
+                .then(data => {
+                    attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
+                    
+                    if (data.success && data.attractions) {
+                        data.attractions.forEach(attraction => {
+                            const option = document.createElement('option');
+                            option.value = attraction.attraction_unique_id || attraction.id;
+                            option.textContent = attraction.name;
+                            option.dataset.city = attraction.city;
+                            
+                            // Set time slot data attributes for proper time slot generation
+                            option.dataset.timeSlots = JSON.stringify(attraction.time_slots || []);
+                            
+                            // Extract first open and close time for time slot generation
+                            let openTime = null;
+                            let closeTime = null;
+                            
+                            if (attraction.time_slots && attraction.time_slots.length > 0) {
+                                const firstSlot = attraction.time_slots[0];
+                                if (firstSlot.open && firstSlot.close) {
+                                    openTime = firstSlot.open;
+                                    closeTime = firstSlot.close;
+                                }
+                            }
+                            
+                            option.dataset.openTime = openTime || '';
+                            option.dataset.closeTime = closeTime || '';
+                            
+                            attractionSelect.appendChild(option);
+                        });
+                        console.log(`Loaded ${data.attractions.length} attractions for ${cityName}`);
+                    } else {
+                        attractionSelect.innerHTML += '<option disabled>No attractions found in this city</option>';
+                    }
+                    
+                    attractionSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error loading attractions for city:', error);
+                    attractionSelect.innerHTML = '<option disabled>Error loading attractions</option>';
+                    attractionSelect.disabled = false;
+                });
+        } else {
+            attractionSelect.disabled = true;
+            attractionSelect.innerHTML = '<option value="">Select city first</option>';
+            cityMessage.style.display = 'block';
+        }
+    }
+
+    function loadGuidesForCity(day, cityName, index) {
+        const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+        const cityMessage = document.getElementById(`day${day}_guide_city_message_${index}`);
+        
+        if (cityName) {
+            guideSelect.disabled = false;
+            guideSelect.innerHTML = '<option value="">Loading guides...</option>';
+            cityMessage.style.display = 'none';
+            
+            // Load guides for the specific city
+            const currentDmcId = '{{ $finalDmcId }}';
+            
+            fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+                .then(response => response.json())
+                .then(data => {
+                    guideSelect.innerHTML = '<option value="">Search Guide</option>';
+                    
+                    if (data.success && data.guides) {
+                        data.guides.forEach(guide => {
+                            const option = document.createElement('option');
+                            option.value = guide.guide_unique_id || guide.id;
+                            option.textContent = `${guide.name} - ${guide.languages?.join(', ') || 'Languages not specified'}`;
+                            option.dataset.city = guide.city;
+                            guideSelect.appendChild(option);
+                        });
+                        console.log(`Loaded ${data.guides.length} guides for ${cityName}`);
+                    } else {
+                        guideSelect.innerHTML += '<option disabled>No guides found in this city</option>';
+                    }
+                    
+                    guideSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error loading guides for city:', error);
+                    guideSelect.innerHTML = '<option disabled>Error loading guides</option>';
+                    guideSelect.disabled = false;
+                });
+        } else {
+            guideSelect.disabled = true;
+            guideSelect.innerHTML = '<option value="">Select city first</option>';
+            cityMessage.style.display = 'block';
+        }
+    }
+
+    window.loadRestaurantsForCity = function(day, cityName, index) {
+        const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+        const cityMessage = document.getElementById(`day${day}_restaurant_city_message_${index}`);
+        
+        if (cityName) {
+            restaurantSelect.disabled = false;
+            restaurantSelect.innerHTML = '<option value="">Loading restaurants...</option>';
+            cityMessage.style.display = 'none';
+            
+            // Load restaurants for the specific city
+            const currentDmcId = '{{ $finalDmcId }}';
+            
+            fetch(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+                .then(response => response.json())
+                .then(data => {
+                    restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
+                    
+                    if (data.success && data.restaurants) {
+                        console.log('Restaurant data received:', data.restaurants);
+                        data.restaurants.forEach(restaurant => {
+                            console.log('Processing restaurant:', restaurant);
+                            const option = document.createElement('option');
+                            option.value = restaurant.restaurant_id;
+                            option.textContent = `${restaurant.name}`;
+                            option.dataset.city = restaurant.city;
+                            option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
+                            restaurantSelect.appendChild(option);
+                        });
+                        console.log(`Loaded ${data.restaurants.length} restaurants for ${cityName}`);
+                    } else {
+                        restaurantSelect.innerHTML += '<option disabled>No restaurants found in this city</option>';
+                    }
+                    
+                    restaurantSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error loading restaurants for city:', error);
+                    restaurantSelect.innerHTML = '<option disabled>Error loading restaurants</option>';
+                    restaurantSelect.disabled = false;
+                });
+        } else {
+            restaurantSelect.disabled = true;
+            restaurantSelect.innerHTML = '<option value="">Select city first</option>';
+            cityMessage.style.display = 'block';
+        }
+    }
+
+    function loadTransportZonesForCity(day, cityName, index) {
+        const pickupSelect = document.querySelector(`[name="day${day}_transport_${index}_pickup_zone_id"]`) || 
+                           document.querySelector(`[name="day${day}_transport_pickup_zone_id"]`);
+        const dropoffSelect = document.querySelector(`[name="day${day}_transport_${index}_dropoff_zone_id"]`) || 
+                            document.querySelector(`[name="day${day}_transport_dropoff_zone_id"]`);
+        const cityMessage = document.getElementById(`day${day}_transport_city_message_${index}`);
+        
+        if (cityName) {
+            if (pickupSelect) {
+                pickupSelect.disabled = false;
+                pickupSelect.innerHTML = '<option value="">Loading pickup locations...</option>';
+            }
+            if (dropoffSelect) {
+                dropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
+            }
+            if (cityMessage) {
+                cityMessage.style.display = 'none';
+            }
+            
+            // Load zones for the specific city
+            const currentDmcId = '{{ $finalDmcId }}';
+            
+            fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (pickupSelect) {
+                        pickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
+                        
+                        if (data.success && data.zones) {
+                            data.zones.forEach(zone => {
+                                pickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
+                            });
+                            console.log(`Loaded ${data.zones.length} zones for ${cityName}`);
+                        } else {
+                            pickupSelect.innerHTML += '<option disabled>No zones found in this city</option>';
+                        }
+                        
+                        pickupSelect.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading zones for city:', error);
+                    if (pickupSelect) {
+                        pickupSelect.innerHTML = '<option disabled>Error loading zones</option>';
+                        pickupSelect.disabled = false;
+                    }
+                });
+        } else {
+            if (pickupSelect) {
+                pickupSelect.disabled = true;
+                pickupSelect.innerHTML = '<option value="">Select city first</option>';
+            }
+            if (dropoffSelect) {
+                dropoffSelect.innerHTML = '<option value="">Select city and pickup location first</option>';
+            }
+            if (cityMessage) {
+                cityMessage.style.display = 'block';
+            }
+        }
+    }
 
          // Wait for all dependencies to load
     $(document).ready(function() {
@@ -4679,14 +5194,13 @@ document.addEventListener('DOMContentLoaded', function() {
     window.createTourPackage = function() {
         // Validation
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         const agent = document.getElementById('agent_id').value;
         const enquiry = @json($enquiry);
 
-        if (!country || !city || !startDate || !endDate || !agent) {
-            alert('Please fill in all required fields (Country, City, Travel Dates, Agent, and Guests) before creating the tour package.');
+        if (!country || !startDate || !endDate || !agent) {
+            alert('Please fill in all required fields (Country, Travel Dates, Agent, and Guests) before creating the tour package.');
             return;
         }
         
@@ -4732,7 +5246,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('_token', document.querySelector('input[name="_token"]').value);
         formData.append('user_country', country);
-        formData.append('city', city);
         formData.append('start_date', startDate);
         formData.append('end_date', endDate);
         formData.append('adults', adults);
@@ -4786,12 +5299,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Generate daily services based on tour dates
         generateDailyServices();
         
-        // Load zones for the newly created transport sections
-        const selectedCity = document.getElementById('city').value;
-        if (selectedCity) {
-            fetchZonesForAllTransportSections(selectedCity);
-        }
-        
         // Populate ports for the newly created transport sections
         populatePortsDropdowns();
         
@@ -4800,8 +5307,7 @@ document.addEventListener('DOMContentLoaded', function() {
             behavior: 'smooth' 
         });
         
-        // Load hotels for the selected city
-        loadHotelsForCity(city);
+        // Note: Cities must now be selected individually in each service section
                 
                 // Disable the create button since tour is created
                 createButton.innerHTML = '<i class="ri-check-line me-1"></i>Tour Created (' + data.display_id + ')';
@@ -4846,14 +5352,7 @@ document.addEventListener('DOMContentLoaded', function() {
             countrySelect.style.opacity = '0.7';
         }
         
-        // Disable city selection
-        const citySelect = document.getElementById('city');
-        if (citySelect) {
-            citySelect.disabled = true;
-            citySelect.style.backgroundColor = '#f8f9fa';
-            citySelect.style.cursor = 'not-allowed';
-            citySelect.style.opacity = '0.7';
-        }
+        // City dropdowns are now in individual service sections and handle themselves
         
         // Disable travel dates
         const travelDates = document.getElementById('travel_dates');
@@ -5360,16 +5859,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
         
         if (hotelLoadingStatus) {
-            let infoHTML = `<div class="mt-2 p-2 bg-light rounded">
-                <strong>${hotel.name}</strong> - ${hotel.category || 'Standard'} Category<br>
-                <small class="text-muted">
-                    📍 ${hotel.address || hotel.city}<br>
-                    🏨 ${hotel.total_rooms || 0} rooms available<br>
-                    💰 From $${hotel.base_price || 0} per night<br>
-                    ⭐ ${hotel.hotel_star_rating || 3} star rating
-                </small>
-            </div>`;
-            
             hotelLoadingStatus.innerHTML = infoHTML;
         }
     }
@@ -6293,11 +6782,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('transportSection').style.display = 'block';
                 generateDailyServices();
                 
-                // Load zones for transport sections if city is selected
-                const selectedCity = document.getElementById('city').value;
-                if (selectedCity) {
-                    fetchZonesForAllTransportSections(selectedCity);
-                }
+                // Transport zones will be loaded when cities are selected in each transport section
                 
                 // Populate ports for the newly created transport sections
                 populatePortsDropdowns();
@@ -6447,6 +6932,8 @@ document.addEventListener('DOMContentLoaded', function() {
              console.log('Tour dates not set, cannot generate daily services');
              return;
          }
+         
+         console.log('Generating daily services for tour');
          
          const totalDays = moment(tourEndDate).diff(moment(tourStartDate), 'days') + 1;
          
@@ -6891,10 +7378,19 @@ document.addEventListener('DOMContentLoaded', function() {
                               <div class="card-body bg-white">
                                  
                                  <div class="row g-3">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select attraction-city-select" name="day${day}_attraction_city_1" id="day${day}_attraction_city_1" onchange="loadAttractionsForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_attraction_city_message_1">Please select a city first.</small>
+                                     </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Attraction</label>
-                                         <select class="form-select attraction-select" name="day${day}_attraction_1" id="day${day}_attraction_1" onchange="loadAttractionDetails(${day}, this.value, 1)">
-                                             <option value="">Search Attraction</option>
+                                         <select class="form-select attraction-select" name="day${day}_attraction_1" id="day${day}_attraction_1" onchange="loadAttractionDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
                                          </select>
                                      </div>
                                                                          <div class="col-md-3">
@@ -6993,10 +7489,19 @@ document.addEventListener('DOMContentLoaded', function() {
                               <div class="card-body bg-white">
                                  
                                  <div class="row g-3">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select guide-city-select" name="day${day}_guide_city_1" id="day${day}_guide_city_1" onchange="loadGuidesForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_1">Please select a city first.</small>
+                                     </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Guide</label>
-                                         <select class="form-select guide-select" name="day${day}_guide_1" id="day${day}_guide_1" onchange="loadGuideDetails(${day}, this.value, 1)">
-                                             <option value="">Search Guide</option>
+                                         <select class="form-select guide-select" name="day${day}_guide_1" id="day${day}_guide_1" onchange="loadGuideDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
                                          </select>
                                      </div>
                                      <div class="col-md-3">
@@ -7021,21 +7526,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3">
-                                         <label class="form-label fw-semibold">Pickup Time</label>
-                                         <div class="dropdown">
-                                             <button class="form-control dropdown-toggle text-start" type="button" id="day${day}_guide_1_pickup_time_btn" data-bs-toggle="dropdown" aria-expanded="false">
-                                                 Select Pick-up Time
-                                             </button>
-                                             <div class="dropdown-menu p-3 pickup-time-dropdown" id="day${day}_guide_1_pickup_time_dropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
-                                                 <h6 class="dropdown-header">Select Pick-up Time</h6>
-                                                 <div id="day${day}_guide_1_pickup_time_options">
-                                                     <p class="text-muted text-center p-3">Please select a guide first</p>
-                                                 </div>
-                                             </div>
-                                             <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
-                                         </div>
-                                     </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Pickup Time</label>
+                                        <div id="day${day}_guide_1_pickup_time_options">
+                                            <select class="form-select" disabled>
+                                                <option value="">Select guide first</option>
+                                            </select>
+                                        </div>
+                                        <input type="hidden" name="day${day}_guide_1_pickup_time" id="day${day}_guide_1_pickup_time">
+                                    </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Package</label>
                                          <select class="form-select" name="day${day}_guide_1_package" id="day${day}_guide_1_package">
@@ -7086,10 +7585,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <div class="card-body bg-white">
                                  
                                  <div class="row g-3">
+                                     <div class="col-md-2">
+                                         <label class="form-label fw-semibold">
+                                             <i class="ri-building-line me-1"></i>City
+                                         </label>
+                                         <select class="form-select restaurant-city-select" name="day${day}_restaurant_city_1" id="day${day}_restaurant_city_1" onchange="loadRestaurantsForCity(${day}, this.value, 1)">
+                                             <option value="">Select City</option>
+                                         </select>
+                                         <small class="text-danger" style="display: none;" id="day${day}_restaurant_city_message_1">Please select a city first.</small>
+                                     </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Restaurant</label>
-                                         <select class="form-select restaurant-select" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="loadRestaurantDetails(${day}, this.value, 1)">
-                                             <option value="">Search Restaurant</option>
+                                         <select class="form-select restaurant-select" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) loadRestaurantDetails(${day}, this.value, 1)" disabled>
+                                             <option value="">Select city first</option>
                                          </select>
                                      </div>
                                      <div class="col-md-3">
@@ -7126,7 +7634,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                          <small class="text-muted">Available meal types with timings</small>
                                      </div>
-                                     <div class="col-md-2">
+                                     <div class="col-md-2" id="day${day}_dish_container_1" style="display: none;">
                                          <label class="form-label fw-semibold">Select Dish</label>
                                          <select class="form-select" name="day${day}_dish_1" id="day${day}_dish_1">
                                              <option value="">Select Dish</option>
@@ -7168,6 +7676,18 @@ document.addEventListener('DOMContentLoaded', function() {
                          <div class="transports-container" id="day${day}_transports_container">
                             <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="1">
                             <div class="card-body">
+                                <!-- City Selection for Transport -->
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">
+                                            <i class="ri-building-line me-1"></i>City
+                                        </label>
+                                        <select class="form-select transport-city-select" name="day${day}_transport_city_1" id="day${day}_transport_city_1" onchange="loadTransportZonesForCity(${day}, this.value, 1)">
+                                            <option value="">Select City</option>
+                                        </select>
+                                        <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_1">Please select a city first.</small>
+                                    </div>
+                                </div>
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div class="d-flex gap-3">
                                         <div class="form-check">
@@ -7202,8 +7722,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')">
-                                                     <option value="">Select pickup location</option>
+                                                 <select class="form-select pickup-zone-select border-2" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
+                                                     <option value="">Select city first</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
@@ -7216,7 +7736,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </label>
                                              <div class="position-relative">
                                                  <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
-                                                     <option value="">Select pickup location first</option>
+                                                     <option value="">Select city and pickup location first</option>
                                                  </select>
                                                  <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                      
@@ -7523,6 +8043,32 @@ document.addEventListener('DOMContentLoaded', function() {
         // Load guides for all guide dropdowns
         loadGuidesForAllDays();
         
+        // Populate all city dropdowns after generating day content
+        setTimeout(() => {
+            const userCountrySelect = document.getElementById('user_country');
+            if (userCountrySelect && userCountrySelect.value) {
+                console.log('Populating all city dropdowns after generating day content');
+                
+                // Find all city dropdowns and populate them
+                const allCityDropdowns = [
+                    document.getElementById('hotelCitySelect'),
+                    ...document.querySelectorAll('.attraction-city-select'),
+                    ...document.querySelectorAll('.guide-city-select'),
+                    ...document.querySelectorAll('.restaurant-city-select'),
+                    ...document.querySelectorAll('.transport-city-select')
+                ].filter(dropdown => dropdown !== null);
+                
+                console.log('Found city dropdowns to populate:', allCityDropdowns.length);
+                
+                // Populate each dropdown
+                allCityDropdowns.forEach(dropdown => {
+                    if (dropdown.options.length <= 1) {
+                        populateCityDropdown(dropdown);
+                    }
+                });
+            }
+        }, 500);
+        
         // Load restaurants for all restaurant dropdowns
         loadRestaurantsForAllDays();
     }
@@ -7545,16 +8091,60 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectElement.innerHTML = '<option value="">Search Attraction</option>';
                 
                 if (data.success && data.attractions) {
+                    console.log('Loading attractions data:', data.attractions);
                     data.attractions.forEach(attraction => {
+                        console.log('Processing attraction:', attraction.name, 'Time slots:', attraction.time_slots);
                         const option = document.createElement('option');
                         option.value = attraction.attraction_id;
                         option.textContent = attraction.name + (attraction.location ? ' - ' + attraction.location : '');
-                        option.dataset.timeSlots = JSON.stringify(attraction.time_slots);
+                        
+                        // Get open_time and close_time from attraction data
+                        let openTime = null;
+                        let closeTime = null;
+                        
+                        // Check if open_time and close_time are provided in the JSON
+                        if (attraction.open_time) {
+                            try {
+                                // If it's a JSON string, parse it
+                                if (typeof attraction.open_time === 'string' && attraction.open_time.includes('{')) {
+                                    const openTimeData = JSON.parse(attraction.open_time);
+                                    openTime = openTimeData.time || null;
+                                } else {
+                                    openTime = attraction.open_time;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing open_time:', e);
+                                openTime = attraction.open_time; // Use as-is if parsing fails
+                            }
+                        }
+                        
+                        if (attraction.close_time) {
+                            try {
+                                // If it's a JSON string, parse it
+                                if (typeof attraction.close_time === 'string' && attraction.close_time.includes('{')) {
+                                    const closeTimeData = JSON.parse(attraction.close_time);
+                                    closeTime = closeTimeData.time || null;
+                                } else {
+                                    closeTime = attraction.close_time;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing close_time:', e);
+                                closeTime = attraction.close_time; // Use as-is if parsing fails
+                            }
+                        }
+                        
+                        // Set all data attributes
+                        option.dataset.timeSlots = JSON.stringify(attraction.time_slots || []);
+                        option.dataset.openTime = openTime || '';
+                        option.dataset.closeTime = closeTime || '';
+                        
                         // Set pricing data attributes
                         option.dataset.adultPrice = attraction.adult_price || 0;
                         option.dataset.childPrice = attraction.child_price || 0;
                         option.dataset.seniorPrice = attraction.senior_price || 0;
+                        
                         selectElement.appendChild(option);
+                        console.log('Added attraction:', attraction.name, 'Open:', openTime, 'Close:', closeTime);
                     });
                 } else {
                     const option = document.createElement('option');
@@ -7572,6 +8162,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load attraction details (time slots and tickets)
     window.loadAttractionDetails = function(day, attractionId, index = 1) {
+        console.log('Loading attraction details for day:', day, 'attraction:', attractionId, 'index:', index);
+        
         if (!attractionId) {
             // Clear time slots and tickets if no attraction selected
             document.getElementById('day' + day + '_attraction_' + index + '_time').innerHTML = '<option value="">Select Time Slot</option>';
@@ -7584,20 +8176,67 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Load time slots from selected option data
+        // Get attraction select element and selected option
         const attractionSelect = document.getElementById('day' + day + '_attraction_' + index);
         const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
-        const timeSlots = JSON.parse(selectedOption.dataset.timeSlots || '[]');
         
+        // Get open_time and close_time from the selected attraction option
+        const openTime = selectedOption.dataset.openTime;
+        const closeTime = selectedOption.dataset.closeTime;
+        
+        console.log('Attraction operating hours:', openTime, 'to', closeTime);
+        console.log('Selected option data attributes:', {
+            openTime: selectedOption.dataset.openTime,
+            closeTime: selectedOption.dataset.closeTime,
+            timeSlots: selectedOption.dataset.timeSlots
+        });
+        
+        // Get time slot select element
         const timeSlotSelect = document.getElementById('day' + day + '_attraction_' + index + '_time');
         timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
         
-        timeSlots.forEach(slot => {
-            const option = document.createElement('option');
-            option.value = slot.slot;
-            option.textContent = slot.slot;
-            timeSlotSelect.appendChild(option);
-        });
+        if (openTime && closeTime) {
+            // Generate time slots dynamically between open and close time
+            generateTimeSlots(openTime, closeTime, timeSlotSelect);
+        } else {
+            // Fallback to pre-defined time slots if available
+            const timeSlotsData = selectedOption.dataset.timeSlots || '[]';
+            
+            let timeSlots = [];
+            try {
+                timeSlots = JSON.parse(timeSlotsData);
+            } catch (e) {
+                console.error('Error parsing time slots:', e);
+                timeSlots = [];
+            }
+            
+            if (timeSlots && timeSlots.length > 0) {
+                timeSlots.forEach(slot => {
+                    const option = document.createElement('option');
+                    // If slot has open and close times, format them properly
+                    if (slot.open && slot.close) {
+                        const openTime = parseTime(slot.open);
+                        const closeTime = parseTime(slot.close);
+                        if (openTime && closeTime) {
+                            const openDisplay = formatTime12(openTime);
+                            const closeDisplay = formatTime12(closeTime);
+                            option.value = formatTime24(openTime) + ' - ' + formatTime24(closeTime);
+                            option.textContent = openDisplay + ' - ' + closeDisplay;
+                        } else {
+                            option.value = slot.slot;
+                            option.textContent = slot.slot;
+                        }
+                    } else {
+                        option.value = slot.slot;
+                        option.textContent = slot.slot;
+                    }
+                    timeSlotSelect.appendChild(option);
+                });
+            } else {
+                timeSlotSelect.innerHTML += '<option value="" disabled>No time slots available</option>';
+                console.log('No time slots found for attraction');
+            }
+        }
         
         // Load tickets for the selected attraction
         loadTicketsForAttraction(day, attractionId, index);
@@ -7605,6 +8244,42 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update attraction pricing display
         updateAttractionPricing(day, index);
     };
+    
+    // Generate time slots between open and close time at 30-minute intervals
+    function generateTimeSlots(openTime, closeTime, selectElement) {
+        console.log('Generating time slots for:', openTime, 'to', closeTime);
+        
+        if (!openTime || !closeTime) {
+            console.log('Missing open or close time');
+            selectElement.innerHTML += '<option value="" disabled>No time slots available</option>';
+            return;
+        }
+        
+        // Parse times (handling different formats)
+        const startTime = parseTime(openTime);
+        const endTime = parseTime(closeTime);
+        
+        console.log('Parsed times:', startTime, endTime);
+        
+        if (!startTime || !endTime) {
+            console.log('Failed to parse times');
+            selectElement.innerHTML += '<option value="" disabled>Invalid time range</option>';
+            return;
+        }
+        
+        // Show operating hours as a single time slot (open time - close time)
+        const openTimeDisplay = formatTime12(startTime);
+        const closeTimeDisplay = formatTime12(endTime);
+        const timeSlotValue = formatTime24(startTime) + ' - ' + formatTime24(endTime);
+        const timeSlotDisplay = openTimeDisplay + ' - ' + closeTimeDisplay;
+        
+        const option = document.createElement('option');
+        option.value = timeSlotValue;
+        option.textContent = timeSlotDisplay;
+        selectElement.appendChild(option);
+        
+        console.log(`Generated operating hours slot: ${timeSlotDisplay} (${timeSlotValue})`);
+    }
     
     // Update attraction pricing display
     window.updateAttractionPricing = function(day, index = 1) {
@@ -7745,7 +8420,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const ticketSelect = document.getElementById('day' + day + '_attraction_' + index + '_ticket');
         ticketSelect.innerHTML = '<option value="">Loading tickets...</option>';
         
-        fetch('{{ route('fetch-tickets-by-attraction') }}?attraction_id=' + attractionId)
+        // Get current DMC ID
+        const currentDmcId = '{{ $finalDmcId }}';
+        
+        fetch('{{ route('fetch-tickets-by-attraction') }}?attraction_id=' + attractionId + '&dmc_id=' + currentDmcId)
             .then(response => response.json())
             .then(data => {
                 ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
@@ -7880,10 +8558,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="card-body bg-white">
                     <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-building-line me-1"></i>City
+                            </label>
+                            <select class="form-select attraction-city-select" name="day${day}_attraction_city_${newIndex}" id="day${day}_attraction_city_${newIndex}" onchange="loadAttractionsForCity(${day}, this.value, ${newIndex})">
+                                <option value="">Select City</option>
+                            </select>
+                            <small class="text-danger" style="display: none;" id="day${day}_attraction_city_message_${newIndex}">Please select a city first.</small>
+                        </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Attraction</label>
-                            <select class="form-select attraction-select" name="day${day}_attraction_${newIndex}" id="day${day}_attraction_${newIndex}" onchange="loadAttractionDetails(${day}, this.value, ${newIndex})">
-                                <option value="">Search Attraction</option>
+                            <select class="form-select attraction-select" name="day${day}_attraction_${newIndex}" id="day${day}_attraction_${newIndex}" onchange="loadAttractionDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -7941,11 +8628,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.insertAdjacentHTML('beforeend', newAttractionHTML);
         
-        // Load attractions for the new dropdown
-        const newSelect = document.getElementById(`day${day}_attraction_${newIndex}`);
-        if (newSelect) {
-            loadAttractionsDropdown(newSelect);
+        // Populate the city dropdown for the new attraction section
+        const newCitySelect = document.getElementById(`day${day}_attraction_city_${newIndex}`);
+        if (newCitySelect) {
+            populateCityDropdown(newCitySelect);
+            console.log(`Populated city dropdown for day${day}_attraction_city_${newIndex}`);
         }
+        
+        // Note: Attraction dropdown will be loaded when city is selected
         
         // Update guest summary for the new attraction with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
@@ -7986,12 +8676,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectElement.innerHTML = '<option value="">Search Restaurant</option>';
                 
                 if (data.success && data.restaurants) {
+                    console.log('Loading restaurants data:', data.restaurants);
                     data.restaurants.forEach(restaurant => {
                         const option = document.createElement('option');
                         option.value = restaurant.restaurant_id;
-                        option.textContent = restaurant.name;
-                        option.dataset.mealTypes = JSON.stringify(restaurant.meal_types);
+                        option.textContent = restaurant.name + (restaurant.location ? ' - ' + restaurant.location : '');
+                        
+                        // Process meal types data
+                        let mealTypes = [];
+                        if (restaurant.meal_types) {
+                            try {
+                                // If it's a string, parse it
+                                if (typeof restaurant.meal_types === 'string') {
+                                    mealTypes = JSON.parse(restaurant.meal_types);
+                                } else {
+                                    mealTypes = restaurant.meal_types;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing meal types:', e);
+                                mealTypes = [];
+                            }
+                        }
+                        
+                        // Ensure each meal type has required properties
+                        mealTypes = mealTypes.map(mt => {
+                            return {
+                                type: mt.type || '',
+                                label: mt.label || mt.type || '',
+                                open_time: mt.open_time || '',
+                                close_time: mt.close_time || ''
+                            };
+                        });
+                        
+                        // If no meal types defined, add default ones
+                        if (mealTypes.length === 0) {
+                            mealTypes = [
+                                { type: 'breakfast', label: 'Breakfast', open_time: '07:00:00', close_time: '10:00:00' },
+                                { type: 'lunch', label: 'Lunch', open_time: '12:00:00', close_time: '15:00:00' },
+                                { type: 'dinner', label: 'Dinner', open_time: '18:00:00', close_time: '22:00:00' }
+                            ];
+                        }
+                        
+                        option.dataset.mealTypes = JSON.stringify(mealTypes);
                         selectElement.appendChild(option);
+                        
+                        console.log('Added restaurant:', restaurant.name, 'with meal types:', mealTypes);
                     });
                 } else {
                     const option = document.createElement('option');
@@ -8011,10 +8740,13 @@ document.addEventListener('DOMContentLoaded', function() {
     window.loadRestaurantDetails = function(day, restaurantId, index = 1) {
         console.log('loadRestaurantDetails called:', day, restaurantId, index);
         
-        if (!restaurantId) {
+        if (!restaurantId || restaurantId === '' || restaurantId === 'undefined') {
+            console.log('Invalid restaurant ID provided:', restaurantId);
             // Clear meal type and dish dropdowns if no restaurant selected
             const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
             const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+            const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+            const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
             
             if (mealTypeSelect) {
                 mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
@@ -8022,12 +8754,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (dishSelect) {
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
             }
+            if (timeSlotSelect) {
+                timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            }
+            
+            // Hide dish container when no restaurant is selected
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+            }
             return;
         }
         
         // Get meal types from selected restaurant
         const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
-        if (!restaurantSelect) {
+        if (!restaurantSelect) {image.png
             console.error('Restaurant select not found:', 'day' + day + '_restaurant_' + index);
             return;
         }
@@ -8086,16 +8826,69 @@ document.addEventListener('DOMContentLoaded', function() {
         function mealTypeChangeHandler() {
             const selectedOption = this.options[this.selectedIndex];
             const mealPeriod = selectedOption.dataset.mealPeriod;
+            const mealType = this.value;
+            const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+            
+            // Get the dish select element (this should always exist)
+            const dishSelectId = 'day' + day + '_dish_' + index;
+            const dishSelect = document.getElementById(dishSelectId);
+            
+            if (!dishSelect) {
+                console.error('Dish select element not found with ID:', dishSelectId);
+                return; // Exit early if dish select doesn't exist
+            }
+            
+            console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
+            
+            // Show/hide dish dropdown based on meal type selection
+            if (mealType && mealType !== '') {
+                if (dishContainer) {
+                    dishContainer.style.display = 'block';
+                }
+                // Also ensure the dish select element is visible
+                if (dishSelect) {
+                    dishSelect.style.display = 'block';
+                }
+            } else {
+                if (dishContainer) {
+                    dishContainer.style.display = 'none';
+                }
+                // Also hide the dish select element (reuse the dishSelect variable from above)
+                if (dishSelect) {
+                    dishSelect.style.display = 'none';
+                }
+                return; // Exit early if no meal type selected
+            }
             
             // Get restaurant ID from the restaurant dropdown
             const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
             const restaurantId = restaurantSelect ? restaurantSelect.value : null;
             
-            if (restaurantId && mealPeriod) {
-                loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
-                populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
-            } else if (restaurantId) {
-                loadDishesForRestaurant(day, restaurantId, index);
+            // Validate restaurant ID before proceeding
+            if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
+                if (mealPeriod) {
+                    loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
+                    populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
+                } else {
+                    loadDishesForRestaurant(day, restaurantId, index);
+                }
+            } else {
+                console.log('Invalid restaurant ID in meal type change handler:', restaurantId);
+                // Clear dish and time slot dropdowns (reuse dishSelect variable from above)
+                const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+                
+                if (dishSelect) {
+                    dishSelect.innerHTML = '<option value="">Select restaurant first</option>';
+                    dishSelect.style.display = 'none';
+                }
+                if (timeSlotSelect) {
+                    timeSlotSelect.innerHTML = '<option value="">Select restaurant first</option>';
+                }
+                
+                // Hide dish container if no valid restaurant
+                if (dishContainer) {
+                    dishContainer.style.display = 'none';
+                }
             }
         }
         
@@ -8137,6 +8930,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!timeStr) return null;
         
         try {
+            console.log('Parsing time string:', timeStr);
+            
             // Handle "HH:MM AM/PM" format
             if (timeStr.includes('AM') || timeStr.includes('PM')) {
                 const today = new Date();
@@ -8148,14 +8943,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (period === 'AM' && hour === 12) hour = 0;
                 
                 today.setHours(hour, parseInt(minutes) || 0, 0, 0);
+                console.log('Parsed 12-hour time:', today);
                 return today;
             }
             
             // Handle "HH:MM" 24-hour format
-            const [hours, minutes] = timeStr.split(':');
-            const today = new Date();
-            today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
-            return today;
+            if (timeStr.includes(':')) {
+                const [hours, minutes] = timeStr.split(':');
+                const today = new Date();
+                today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
+                console.log('Parsed 24-hour time:', today);
+                return today;
+            }
+            
+            // Handle other formats or return null
+            console.log('Unrecognized time format:', timeStr);
+            return null;
         } catch (e) {
             console.error('Error parsing time:', timeStr, e);
             return null;
@@ -8722,93 +9525,121 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dishes for specific restaurant
     function loadDishesForRestaurant(day, restaurantId, index, mealPeriod = null) {
         const dishSelect = document.getElementById('day' + day + '_dish_' + index);
-        if (!dishSelect) return;
-        
-        dishSelect.innerHTML = '<option value="">Loading dishes...</option>';
-        
-        let url = '{{ route('fetch-meals-by-restaurant') }}?restaurant_id=' + restaurantId;
-        if (mealPeriod) {
-            url += '&meal_period=' + mealPeriod;
+        if (!dishSelect) {
+            console.log('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
+            return;
         }
         
+        // Check if restaurantId is valid
+        if (!restaurantId || restaurantId === '' || restaurantId === 'undefined' || restaurantId === null) {
+            console.log('Invalid restaurant ID provided to loadDishesForRestaurant:', restaurantId);
+            dishSelect.innerHTML = '<option value="">Select restaurant first</option>';
+            dishSelect.style.display = 'block';
+            
+            // Clear any existing dynamic container (but keep the original dish container)
+            let existingDynamicContainer = document.querySelector(`#day${day}_dish_container_${index} .dynamic-dishes`);
+            if (existingDynamicContainer) {
+                existingDynamicContainer.remove();
+            }
+            return;
+        }
+        
+        dishSelect.innerHTML = '<option value="">Loading dishes...</option>';
+        dishSelect.style.display = 'block'; // Make sure the select is visible
+        
+        // Clear any existing dynamic container (but keep the original dish container)
+        let existingDynamicContainer = document.querySelector(`#day${day}_dish_container_${index} .dynamic-dishes`);
+        if (existingDynamicContainer) {
+            existingDynamicContainer.remove();
+        }
+        
+        let url = '{{ route('fetch-meals-by-restaurant') }}?restaurant_id=' + encodeURIComponent(restaurantId);
+        if (mealPeriod) {
+            url += '&meal_period=' + encodeURIComponent(mealPeriod);
+        }
+        
+        console.log('Fetching dishes from URL:', url);
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                console.log('Fetched dishes for restaurant:', restaurantId, 'meal period:', mealPeriod, 'Response:', data);
                 dishSelect.innerHTML = '<option value="">Select Dish</option>';
                 
-                if (data.success && data.meals) {
-                    // Clear the select and replace with clickable options
-                    dishSelect.style.display = 'none';
+                if (data.success && data.meals && data.meals.length > 0) {
+                    // If we have meal data, show the dropdown
+                    dishSelect.style.display = 'block';
+                    console.log('Dishes loaded successfully, showing dropdown with', data.meals.length, 'options');
                     
-                    // Create container for clickable dish options
-                    let dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
-                    if (dishContainer) {
-                        dishContainer.remove();
-                    }
+                    // Using dropdown interface instead of buttons
                     
-                    dishContainer = document.createElement('div');
-                    dishContainer.id = 'day' + day + '_dish_container_' + index;
-                    dishContainer.className = 'dish-options-container';
-                    
+                    // Populate the select dropdown with dishes
                     data.meals.forEach(meal => {
-                        // Add icon based on dish type
+                        const option = document.createElement('option');
+                        option.value = meal.meal_id;
+                        
                         let icon = '';
-                        if (meal.type == 1) { // Buffet
-                            icon = '🍽️ ';
-                        } else if (meal.type == 2) { // Set Menu
-                            icon = '📋 ';
-                        }
+                        if (meal.type == 1) icon = '🍽️ ';
+                        if (meal.type == 2) icon = '📋 ';
                         
-                        const dishButton = document.createElement('button');
-                        dishButton.type = 'button';
-                        dishButton.className = 'btn btn-outline-primary btn-sm me-2 mb-2 dish-option-btn';
-                        dishButton.innerHTML = icon + meal.display_name;
-                        dishButton.dataset.mealType = meal.type;
-                        dishButton.dataset.typeLabel = meal.type_label;
-                        dishButton.dataset.price = meal.price;
-                        dishButton.dataset.adultPrice = meal.adult_price || 0;
-                        dishButton.dataset.childPrice = meal.child_price || 0;
-                        dishButton.dataset.mealId = meal.meal_id;
-                        dishButton.dataset.mealName = meal.name;
-                        
-                        // Add backup onclick attribute
-                        dishButton.setAttribute('onclick', `openDishModal(${day}, ${index}, this)`);
-                        
-                        // Add click event to open modal directly
-                        dishButton.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Dish button clicked:', meal.display_name);
-                            
-                            // Directly show modal with content
-                            showDishSelectionModal(meal, day, index);
-                        });
-                        
-                        dishContainer.appendChild(dishButton);
+                        option.textContent = `${icon}${meal.display_name || meal.name}`;
+                        option.dataset.adultPrice = meal.adult_price || 0;
+                        option.dataset.childPrice = meal.child_price || 0;
+                        dishSelect.appendChild(option);
                     });
+                } else {
+                    // If API returns no dishes, create default options based on meal types
+                    dishSelect.style.display = 'block';
+                    console.log('No dishes from API, showing default options');
                     
-                    // Insert the container after the hidden select
-                    dishSelect.parentNode.appendChild(dishContainer);
-                    
-                    if (data.meals.length === 0) {
+                    const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
+                    if (mealTypeSelect && mealTypeSelect.selectedIndex > 0) {
+                        const selectedMealType = mealTypeSelect.options[mealTypeSelect.selectedIndex].value;
+                        
+                        // Create default dish options based on meal type
+                        const defaultDishes = [
+                            { id: 'default_buffet', name: `${selectedMealType} Buffet`, type: 1 },
+                            { id: 'default_set', name: `${selectedMealType} Set Menu`, type: 2 }
+                        ];
+                        
+                        defaultDishes.forEach(dish => {
+                            const option = document.createElement('option');
+                            option.value = dish.id;
+                            option.textContent = dish.name;
+                            dishSelect.appendChild(option);
+                        });
+                    } else {
                         const option = document.createElement('option');
                         option.value = '';
-                        option.textContent = 'No dishes available for this restaurant';
+                        option.textContent = data.message || 'No dishes available for this restaurant';
                         option.disabled = true;
                         dishSelect.appendChild(option);
                     }
-                } else {
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = data.message || 'No dishes available';
-                    option.disabled = true;
-                    dishSelect.appendChild(option);
                 }
             })
             .catch(error => {
                 console.error('Error loading dishes:', error);
+                console.error('URL that failed:', url);
                 dishSelect.innerHTML = '<option value="">Error loading dishes</option>';
+                
+                // Show user-friendly error message
+                showNotification('Error loading dishes. Please try again.', 'error');
             });
+    }
+    
+    // Toggle between dish display modes (buttons/dropdown)
+    function toggleDishDisplayMode(day, index, meals) {
+        const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+        const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
+        
+        if (dishSelect.style.display === 'none') {
+            // Switch to select dropdown mode
+            dishSelect.style.display = 'block';
+            if (dishContainer) dishContainer.style.display = 'none';
+        } else {
+            // Switch to buttons mode
+            dishSelect.style.display = 'none';
+            if (dishContainer) dishContainer.style.display = 'block';
+        }
     }
     
     window.addMoreRestaurants = function(day) {
@@ -8836,10 +9667,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="card-body bg-white">
                     <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-building-line me-1"></i>City
+                            </label>
+                            <select class="form-select restaurant-city-select" name="day${day}_restaurant_city_${newIndex}" id="day${day}_restaurant_city_${newIndex}" onchange="loadRestaurantsForCity(${day}, this.value, ${newIndex})">
+                                <option value="">Select City</option>
+                            </select>
+                            <small class="text-danger" style="display: none;" id="day${day}_restaurant_city_message_${newIndex}">Please select a city first.</small>
+                        </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Restaurant</label>
-                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="loadRestaurantDetails(${day}, this.value, ${newIndex})">
-                                <option value="">Search Restaurant</option>
+                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="console.log('Restaurant changed:', this.value); if(this.value) loadRestaurantDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -8876,7 +9716,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              </select>
                              <small class="text-muted">Available meal types with timings</small>
                          </div>
-                         <div class="col-md-2">
+                         <div class="col-md-2" id="day${day}_dish_container_${newIndex}" style="display: none;">
                              <label class="form-label fw-semibold">Select Dish</label>
                              <select class="form-select" name="day${day}_dish_${newIndex}" id="day${day}_dish_${newIndex}">
                                  <option value="">Select Dish</option>
@@ -8897,11 +9737,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.insertAdjacentHTML('beforeend', newRestaurantHTML);
         
-        // Load restaurants for the new dropdown
-        const newSelect = document.getElementById(`day${day}_restaurant_${newIndex}`);
-        if (newSelect) {
-            loadRestaurantsDropdown(newSelect);
+        // Populate the city dropdown for the new restaurant section
+        const newCitySelect = document.getElementById(`day${day}_restaurant_city_${newIndex}`);
+        if (newCitySelect) {
+            populateCityDropdown(newCitySelect);
         }
+        
+        // Note: Restaurant dropdown will be loaded when city is selected
         
         // Update guest summary for the new restaurant with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
@@ -9206,69 +10048,65 @@ document.addEventListener('DOMContentLoaded', function() {
         // Parse night hours from HH:MM:SS format
         let nightStart = null;
         let nightEnd = null;
-        let nightEndDisplay = null; // For display purposes
         
         if (nightStartTime && nightStartTime !== '00:00:00') {
             nightStart = parseInt(nightStartTime.split(':')[0]);
         }
         if (nightEndTime && nightEndTime !== '00:00:00') {
-            const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
-            nightEnd = originalNightEnd - 1; // Subtract 1 hour from end time for logic
-            nightEndDisplay = nightEnd; // Use the adjusted time for display too
+            nightEnd = parseInt(nightEndTime.split(':')[0]) - 1; // Subtract 1 hour from end time for logic
         }
         
-        // Add night hours info at top if night hours exist
-        if (nightStart !== null && nightEndDisplay !== null && nightEndDisplay >= 0) {
-            const nightInfo = document.createElement('div');
-            nightInfo.className = 'alert alert-warning py-2 mb-2';
-            nightInfo.innerHTML = `
-                <i class="ri-moon-line me-1"></i>
-                <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(nightEndDisplay)}
-                <br><small>Night surcharge applies during these hours</small>
-            `;
-            timeOptionsContainer.appendChild(nightInfo);
-        }
+        // Create a select dropdown for time selection
+        const selectElement = document.createElement('select');
+        selectElement.className = 'form-select';
+        selectElement.id = 'day' + day + '_guide_' + index + '_pickup_time_select';
         
-        // Generate all hours from 12:00 AM to 11:00 PM (24 hours with 1 hour intervals)
+        // Add default empty option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select pickup time';
+        selectElement.appendChild(defaultOption);
+        
+        // Generate all hours for 24-hour format (00:00 to 23:00)
         for (let hour = 0; hour < 24; hour++) {
-            const time12Hour = formatTo12Hour(hour);
-            const time24Hour = hour.toString().padStart(2, '0') + ':00:00';
+            // Format hours for display and value
+            const hourStr = hour.toString().padStart(2, '0');
+            const timeValue = `${hourStr}:00:00`;
+            const timeDisplay = `${hourStr}:00`;
             
             // Check if this hour is in night range
             const isNightHour = nightStart !== null && nightEnd !== null && 
                                isTimeInNightRange(hour, nightStart, nightEnd);
             
-            const timeButton = document.createElement('div');
-            timeButton.className = `pickup-time-option p-2 mb-1 border rounded ${isNightHour ? 'bg-danger text-white' : 'bg-light'}`;
-            timeButton.style.cursor = 'pointer';
+            const option = document.createElement('option');
+            option.value = timeValue;
+            option.textContent = timeDisplay + (isNightHour ? ' (Night Hours)' : '');
+            option.className = isNightHour ? 'text-danger' : '';
             
-            timeButton.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-${isNightHour ? 'moon' : 'sun'}-line me-2"></i>
-                    <div>
-                        <div class="fw-bold">${time12Hour}</div>
-                        <small class="opacity-75">${isNightHour ? 'Night surcharge applies' : 'Standard rate applies'}</small>
-                    </div>
-                </div>
-            `;
-            
-            // Add click event listener
-            timeButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                selectPickupTime(day, index, time24Hour, time12Hour);
-            });
-            
-            timeOptionsContainer.appendChild(timeButton);
+            selectElement.appendChild(option);
         }
         
-        // Prevent dropdown from closing when clicking inside
-        const dropdown = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_dropdown');
-        if (dropdown) {
-            dropdown.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
+        // Add change event listener
+        selectElement.addEventListener('change', function() {
+            const selectedTime = this.value;
+            const selectedTimeDisplay = selectedTime ? selectedTime.substring(0, 5) : '';
+            selectPickupTime(day, index, selectedTime, selectedTimeDisplay);
+        });
+        
+        // Add night hours info at top if night hours exist
+        if (nightStart !== null && nightEnd !== null && nightEnd >= 0) {
+            const nightInfo = document.createElement('div');
+            nightInfo.className = 'alert alert-warning py-2 mb-2';
+            nightInfo.innerHTML = `
+                <i class="ri-moon-line me-1"></i>
+                <strong>Night Hours:</strong> ${nightStart.toString().padStart(2, '0')}:00 - ${nightEnd.toString().padStart(2, '0')}:00
+                <br><small>Night surcharge applies during these hours</small>
+            `;
+            timeOptionsContainer.appendChild(nightInfo);
         }
+        
+        // Append the select element to the container
+        timeOptionsContainer.appendChild(selectElement);
     }
     
     // Check if time is in night range
@@ -9297,26 +10135,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Select pickup time
     function selectPickupTime(day, index, timeValue, timeDisplay) {
         const hiddenInput = document.getElementById('day' + day + '_guide_' + index + '_pickup_time');
-        const button = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_btn');
         
         if (hiddenInput) {
             hiddenInput.value = timeValue;
-        }
-        if (button) {
-            button.textContent = timeDisplay;
-            button.setAttribute('aria-expanded', 'false');
-        }
-        
-        // Close dropdown
-        const dropdownMenu = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_dropdown');
-        if (dropdownMenu) {
-            dropdownMenu.classList.remove('show');
-        }
-        
-        // Remove backdrop if exists
-        const backdrop = document.querySelector('.dropdown-backdrop');
-        if (backdrop) {
-            backdrop.remove();
         }
         
         // Update package prices based on selected time
@@ -9327,35 +10148,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize pickup time dropdown functionality
     function initializePickupTimeDropdown(day, index) {
-        const button = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_btn');
-        const dropdown = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_dropdown');
+        const selectElement = document.getElementById('day' + day + '_guide_' + index + '_pickup_time_select');
         
-        if (!button || !dropdown) {
-            console.error('Pickup time elements not found:', day, index);
+        if (!selectElement) {
+            console.error('Pickup time select element not found:', day, index);
             return;
         }
-        
-        // Remove any existing click listeners
-        button.removeEventListener('click', handleDropdownToggle);
-        
-        // Add click handler for dropdown button
-        function handleDropdownToggle(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Close all other open dropdowns
-            document.querySelectorAll('.pickup-time-dropdown.show').forEach(dd => {
-                if (dd !== dropdown) {
-                    dd.classList.remove('show');
-                }
-            });
-            
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
-            button.setAttribute('aria-expanded', dropdown.classList.contains('show'));
-        }
-        
-        button.addEventListener('click', handleDropdownToggle);
         
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
@@ -9397,10 +10195,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="card-body bg-white">
                     <div class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">
+                                <i class="ri-building-line me-1"></i>City
+                            </label>
+                            <select class="form-select guide-city-select" name="day${day}_guide_city_${newIndex}" id="day${day}_guide_city_${newIndex}" onchange="loadGuidesForCity(${day}, this.value, ${newIndex})">
+                                <option value="">Select City</option>
+                            </select>
+                            <small class="text-danger" style="display: none;" id="day${day}_guide_city_message_${newIndex}">Please select a city first.</small>
+                        </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Guide</label>
-                            <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})">
-                                <option value="">Search Guide</option>
+                            <select class="form-select guide-select" name="day${day}_guide_${newIndex}" id="day${day}_guide_${newIndex}" onchange="loadGuideDetails(${day}, this.value, ${newIndex})" disabled>
+                                <option value="">Select city first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -9427,18 +10234,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                                                  <div class="col-md-3">
                              <label class="form-label fw-semibold">Pickup Time</label>
-                             <div class="dropdown">
-                                 <button class="form-control dropdown-toggle text-start" type="button" id="day${day}_guide_${newIndex}_pickup_time_btn" data-bs-toggle="dropdown" aria-expanded="false">
-                                     Select Pick-up Time
-                                 </button>
-                                 <div class="dropdown-menu p-3 pickup-time-dropdown" id="day${day}_guide_${newIndex}_pickup_time_dropdown" style="width: 300px; max-height: 400px; overflow-y: auto;">
-                                     <h6 class="dropdown-header">Select Pick-up Time</h6>
-                                     <div id="day${day}_guide_${newIndex}_pickup_time_options">
-                                         <p class="text-muted text-center p-3">Please select a guide first</p>
-                                     </div>
-                                 </div>
-                                 <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
+                             <div id="day${day}_guide_${newIndex}_pickup_time_options">
+                                 <select class="form-select" disabled>
+                                     <option value="">Select guide first</option>
+                                 </select>
                              </div>
+                             <input type="hidden" name="day${day}_guide_${newIndex}_pickup_time" id="day${day}_guide_${newIndex}_pickup_time">
                          </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Package</label>
@@ -9461,11 +10262,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.insertAdjacentHTML('beforeend', newGuideHTML);
         
-        // Load guides for the new dropdown
-        const newSelect = document.getElementById(`day${day}_guide_${newIndex}`);
-        if (newSelect) {
-            loadGuidesDropdown(newSelect);
+        // Populate the city dropdown for the new guide section
+        const newCitySelect = document.getElementById(`day${day}_guide_city_${newIndex}`);
+        if (newCitySelect) {
+            populateCityDropdown(newCitySelect);
         }
+        
+        // Note: Guide dropdown will be loaded when city is selected
         
         // Update guest summary for the new guide with current main guest selection
         const mainMale = parseInt(document.getElementById('male')?.value) || 0;
@@ -9524,6 +10327,18 @@ document.addEventListener('DOMContentLoaded', function() {
                      </div>
                  </div>
                  <div class="card-body">
+                     <!-- City Selection for Transport -->
+                     <div class="row mb-3">
+                         <div class="col-md-3">
+                             <label class="form-label fw-semibold">
+                                 <i class="ri-building-line me-1"></i>City
+                             </label>
+                             <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex})">
+                                 <option value="">Select City</option>
+                             </select>
+                             <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_${newIndex}">Please select a city first.</small>
+                         </div>
+                     </div>
                      <div class="d-flex justify-content-between align-items-center mb-3">
                          <div class="d-flex gap-3">
                              <div class="form-check">
@@ -9889,6 +10704,12 @@ document.addEventListener('DOMContentLoaded', function() {
              hourlyPickupTimeSelect.addEventListener('change', function() {
                  enableSearchButton(day, `transport_${newIndex}_hourly`);
              });
+         }
+         
+         // Populate the city dropdown for the new transport section
+         const newCitySelect = document.getElementById(`day${day}_transport_city_${newIndex}`);
+         if (newCitySelect) {
+             populateCityDropdown(newCitySelect);
          }
          
          showNotification(`Transport Booking #${newIndex} added for Day ${day}`, 'success');
@@ -10699,17 +11520,7 @@ document.addEventListener('DOMContentLoaded', function() {
  });
 
  // Zone and Vehicle Management Functions
- function loadZonesForCity() {
-     const citySelect = document.getElementById('city');
-     if (citySelect) {
-         citySelect.addEventListener('change', function() {
-             const selectedCity = this.value;
-             if (selectedCity) {
-                 fetchZonesForAllTransportSections(selectedCity);
-             }
-         });
-     }
- }
+ // loadZonesForCity function removed - zones now loaded per transport section based on city selection
  
 // Function to enable search button when pickup time changes
 function enableSearchButton(day, section) {
@@ -10885,25 +11696,7 @@ function enableSearchButton(day, section) {
          }
      }
      
-     // Add event listener for city changes to update transport search buttons
-     const citySelect = document.getElementById('city');
-     if (citySelect) {
-         citySelect.addEventListener('change', function() {
-             // Update search button state for all transport sections
-             for (let day = 1; day <= 7; day++) {
-                 enableSearchButton(day, 'transport');
-                 
-                 // Also update additional transport sections
-                 const additionalTransports = document.querySelectorAll(`[data-transport-index]`);
-                 additionalTransports.forEach(transport => {
-                     const index = transport.getAttribute('data-transport-index');
-                     if (index && index !== '1') {
-                         enableSearchButton(day, `transport_${index}`);
-                     }
-                 });
-             }
-         });
-     }
+     // Transport search button states are now managed per section when cities are selected
      
      // Enable all search buttons on page load
      setTimeout(() => {
@@ -11261,9 +12054,9 @@ function enablePointToPointSearchButtons() {
     console.log(`Found ${entrySearchButtons.length} entry search buttons`);
     console.log(`Found ${exitSearchButtons.length} exit search buttons`);
     
-    // Check if city is selected (required for Point-to-Point vehicle search)
-    const citySelect = document.getElementById('city');
-    const citySelected = citySelect && citySelect.value;
+    // Check if city is selected in the transport section (required for Point-to-Point vehicle search)
+    const transportCitySelect = document.getElementById(`day${day}_transport_city_1`);
+    const citySelected = transportCitySelect && transportCitySelect.value;
     
     if (citySelected) {
         // Enable entry port search buttons
@@ -11408,10 +12201,10 @@ function loadDropoffZones(day, section) {
                     dropoffZoneSelect.innerHTML = '<option value="">Error loading locations</option>';
                     dropoffZoneSelect.disabled = true;
                 });
-        } else {
-            // For all other dropoffs, use zones
-         const citySelect = document.getElementById('city');
-         const city = citySelect ? citySelect.value : '';
+         } else {
+             // For all other dropoffs, use zones (city will come from transport section)
+         const transportCitySelect = document.querySelector('.transport-city-select');
+         const city = transportCitySelect ? transportCitySelect.value : '';
          
          fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
              .then(response => response.json())
@@ -12259,14 +13052,14 @@ window.saveService = function(day, type) {
 
      // For point_to_point and hourly, use city-based endpoint
      if (transportType === 'point_to_point' || transportType === 'hourly') {
-         // Get city from the city select
-         const citySelect = document.getElementById('city');
-         if (!citySelect || !citySelect.value) {
-             alert('Please select a city first');
+         // Get city from the transport city select for this day
+         const transportCitySelect = document.getElementById(`day${day}_transport_city_1`);
+         if (!transportCitySelect || !transportCitySelect.value) {
+             alert('Please select a city in the transport section first');
              return;
          }
          
-         const city = citySelect.value;
+         const city = transportCitySelect.value;
          console.log('Using city-based endpoint for city:', city);
 
          // Show loading state
@@ -12554,10 +13347,10 @@ window.saveService = function(day, type) {
                      dropoffZoneSelect.disabled = true;
                  });
          } else {
-             // For all other dropoffs, use zones
-         const citySelect = document.getElementById('city');
-         const city = citySelect ? citySelect.value : '';
-
+             // For all other dropoffs, use zones (city will come from transport section)
+         const transportCitySelect = document.querySelector('.transport-city-select');
+         const city = transportCitySelect ? transportCitySelect.value : '';
+         
          fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`)
              .then(response => response.json())
              .then(data => {
@@ -13896,9 +14689,9 @@ window.saveService = function(day, type) {
                  window.initializeGoogleMapsAutocomplete = function() {
                      console.log('Initializing Google Maps Autocomplete...');
                      
-                     // Get selected country and city for location bias
+                     // Get selected country for location bias
                      const selectedCountry = document.getElementById('user_country')?.value || '';
-                     const selectedCity = document.getElementById('city')?.value || '';
+                     const selectedCity = ''; // City will be selected per service section
                      
                      // Create location bias for better search results
                      let locationBias = null;
@@ -14259,7 +15052,7 @@ window.saveService = function(day, type) {
                      
                      // Test country/city selection
                      const selectedCountry = document.getElementById('user_country')?.value || '';
-                     const selectedCity = document.getElementById('city')?.value || '';
+                     const selectedCity = ''; // City will be selected per service section
                      console.log('Current selection:', {
                          country: selectedCountry,
                          city: selectedCity,
@@ -14283,14 +15076,14 @@ window.saveService = function(day, type) {
                     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
                     const vehicleResultsDiv = document.getElementById(`day${day}_${section}_vehicle_results`);
                     
-                    // Get city from the city select
-                    const citySelect = document.getElementById('city');
-                    if (!citySelect || !citySelect.value) {
-                        alert('Please select a city first');
+                    // Get city from the transport city select for this day
+                    const transportCitySelect = document.getElementById(`day${day}_transport_city_1`);
+                    if (!transportCitySelect || !transportCitySelect.value) {
+                        alert('Please select a city in the transport section first');
                         return;
                     }
                     
-                    const city = citySelect.value;
+                    const city = transportCitySelect.value;
                     console.log('Using Point-to-Point city-based endpoint for city:', city);
 
                     // Show loading state
