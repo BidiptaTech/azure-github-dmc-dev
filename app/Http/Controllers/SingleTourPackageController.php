@@ -464,7 +464,7 @@ class SingleTourPackageController extends Controller
     public function cancelOrder(Request $request, $id)
     {
         try {
-            $order = Order::findOrFail($id);
+            $order = Order::where('booking_id', $id);
             
             // Soft delete the order
             $order->delete();
