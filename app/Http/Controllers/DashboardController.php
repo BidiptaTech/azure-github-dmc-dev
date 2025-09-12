@@ -91,7 +91,7 @@ class DashboardController extends Controller
      */
     private function canViewAllProducts($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 130, 132, 133, 135, 136, 137, 138]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC, Product Head
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 130, 132, 133, 135, 136, 137, 138, 139, 140]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC, Product Head
     }
     
     /**
@@ -107,7 +107,7 @@ class DashboardController extends Controller
      */
     private function canViewZones($user)
     {
-        return in_array($user->role_id, [1, 2, 10, 11, 19, 20]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC only
+        return in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 74, 75, 76, 77, 78, 84, 93, 102, 111, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140]); // Admin, Super Admin, Master DMC, DMC, Virtual Master DMC, Virtual DMC only
     }
     
     /**
@@ -182,7 +182,7 @@ class DashboardController extends Controller
     private function canViewEnquiries($user)
     {
         // Exclude product head and all product manager roles from seeing enquiries
-        $excludedRoles = [35, 74, 75, 76, 77, 78, 84, 93, 102, 111, 120, 130, 132, 133, 135, 136, 137, 138];
+        $excludedRoles = [35, 74, 75, 76, 77, 78, 84, 93, 102, 111, 120, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         return !in_array($user->role_id, $excludedRoles) && $this->canViewBusinessMetrics($user);
     }
     
@@ -286,7 +286,7 @@ class DashboardController extends Controller
         }
         
         // Configuration entities - for higher level roles and product managers
-        if (in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 130, 132, 133, 135, 136, 137, 138]) || $this->isProductManager($user)) {
+        if (in_array($user->role_id, [1, 2, 10, 11, 19, 20, 35, 130, 132, 133, 135, 136, 137, 138, 139, 140]) || $this->isProductManager($user)) {
             $counts['facilities'] = $this->getFacilityCounts($dateRanges, $user);
             $counts['categories'] = $this->getCategoryCounts($dateRanges, $user);
         }
@@ -979,7 +979,7 @@ class DashboardController extends Controller
         }
         
         // Check if this is a Product Manager (PM Hotel: 77, PM Attraction: 74, PM Restaurant: 78, PM Guide: 75, PM Driver: 76)
-        if (in_array($user->role_id, [74, 75, 76, 77, 78])) {
+        if (in_array($user->role_id, [74, 75, 76, 77, 78, 139])) {
             // Product managers are created by Product Head (role_id = 35)
             $productHead = User::where('userId', $user->created_by)->first();
             if ($productHead && $productHead->role_id == 35) {
@@ -989,7 +989,7 @@ class DashboardController extends Controller
         }
         
         // Check if this is an Assistant Product Manager (Asst PM Hotel: 84, Asst PM Attraction: 93, Asst PM Restaurant: 120, Asst PM Guide: 102, Asst PM Driver: 111)
-        if (in_array($user->role_id, [84, 93, 102, 111, 120])) {
+        if (in_array($user->role_id, [84, 93, 102, 111, 120, 140])) {
             // Assistant product managers are created by Product Manager
             $productManager = User::where('userId', $user->created_by)->first();
             if ($productManager && in_array($productManager->role_id, [74, 75, 76, 77, 78])) {
