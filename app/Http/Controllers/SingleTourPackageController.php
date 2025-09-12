@@ -81,12 +81,8 @@ class SingleTourPackageController extends Controller
         }
         $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
-
-        $agencyIds = Agency::where(function($query) use ($dmc_id) {
-            $query->whereRaw("dmc_id::jsonb @> ?::jsonb", [ json_encode([$dmc_id]) ]);
-        })->pluck('agency_id')->toArray();
-
-        $agents = Agent::whereIn('agency_id', $agencyIds)
+        $agency = Agency::whereJsonContains('dmc_id', (int) $dmc_id)->orderBy('created_at', 'desc')->get();
+        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
             ->orderBy('name')
             ->get();
         $selectedCountry = $request->country;
@@ -139,7 +135,7 @@ class SingleTourPackageController extends Controller
             }
         }
         
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones'));
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency'));
     }
     
     /**
@@ -298,15 +294,18 @@ class SingleTourPackageController extends Controller
         
         // Get hotels based on user's DMC ID
         $userDmcId = CommonHelper::getDmcId(Auth::user());
+
+        $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
         if ($userDmcId) {
             $hotels = Hotel::with(['rooms.bed'])
                 ->where('country', $tour->destination)
                 ->whereJsonContains('dmc_id', (int)$userDmcId)
                 ->get();
+            
          } else {
             $hotels = collect(); // Empty collection if no DMC ID
         }
-        $guides = Guide::where('dmc_id', $userDmcId)->get();
+        $guides = Guide::with(['languages'])->where('dmc_id', $userDmcId)->get();
 
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
 
@@ -322,6 +321,7 @@ class SingleTourPackageController extends Controller
                 $portsQuery->where('country', $country->name);
             }
         }
+        $cities = City::where('country', $tour->destination)->get();
         $ports = $portsQuery->orderBy('port_name')->get();
         
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
@@ -434,7 +434,8 @@ class SingleTourPackageController extends Controller
         }
 
         
-        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles', 'hotelOrders', 'tourDays'));
+
+        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles', 'hotelOrders', 'tourDays', 'cities', 'UserDmc'));
     }
 
     /**
@@ -510,7 +511,6 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'user_country' => 'required|string', // Country name
-            'city' => 'required|string', // City name  
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'required|date|after:start_date',
             'adults' => 'required|integer|min:1',
@@ -975,6 +975,7 @@ class SingleTourPackageController extends Controller
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
+            $city = $request->input('city');
             
             if (!$dmcId) {
                 return response()->json([
@@ -984,10 +985,17 @@ class SingleTourPackageController extends Controller
             }
 
             // Fetch attractions where dmc_id JSON contains current DMC ID
-            // Using LIKE instead of JSON_CONTAINS for better compatibility
-            $attractions = Attraction::whereJsonContains('dmc_id', (int) $dmcId)
-                        ->select('attraction_id', 'name', 'open_time', 'close_time', 'location', 'adult_price', 'child_price', 'senior_adult_price')
-                        ->get();
+            $query = Attraction::whereJsonContains('dmc_id', (int) $dmcId)
+                        ->select('attraction_id', 'name', 'open_time', 'close_time', 'location', 'adult_price', 'child_price', 'senior_adult_price');
+            
+            // Filter by city if provided
+            if ($city) {
+                $query->where(function($q) use ($city) {
+                    $q->where('location', $city);
+                });
+            }
+            
+            $attractions = $query->get();
 
             $attractionsData = $attractions->map(function ($attraction) {
                 // Parse time slots from JSON
@@ -1033,6 +1041,7 @@ class SingleTourPackageController extends Controller
                     'attraction_id' => $attraction->attraction_id,
                     'name' => $attraction->name,
                     'location' => $attraction->location,
+                    'city' => $attraction->location,
                     'time_slots' => $timeSlots,
                     'adult_price' => $attraction->adult_price,
                     'child_price' => $attraction->child_price,
@@ -1042,7 +1051,152 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => true,
-                'attractions' => $attractionsData
+                'attractions' => $attractionsData,
+                'filtered_by_city' => !empty($city),
+                'city' => $city
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching attractions: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+    
+    /**
+     * Fetch attractions by DMC and city
+     */
+    public function fetchAttractionsByDmc(Request $request)
+    {
+        try {
+            $city = $request->input('city');
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+            
+            if (!$city) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'City parameter is required'
+                ], 400);
+            }
+
+            // Fetch attractions for the specific city and DMC
+            // Note: Attractions table uses 'location' field instead of 'city'
+            $query = Attraction::whereJsonContains('dmc_id', (int) $dmcId)
+                ->where(function($q) use ($city) {
+                    $q->where('location', $city);
+                })
+                ->select('attraction_id', 'name', 'open_time', 'close_time', 'location', 'adult_price', 'child_price', 'senior_adult_price');
+            
+            $attractions = $query->get();
+            // Transform the attractions data to include city (mapped from location) and parse time slots
+            $attractionsData = $attractions->map(function($attraction) {
+                // Parse time slots from JSON
+                $openTimes = [];
+                $closeTimes = [];
+                
+                // Handle open_time JSON - check if it's already an array or needs parsing
+                if ($attraction->open_time) {
+                    \Log::info("Processing open_time for attraction {$attraction->name}", [
+                        'raw_open_time' => $attraction->open_time,
+                        'type' => gettype($attraction->open_time)
+                    ]);
+                    
+                    if (is_array($attraction->open_time)) {
+                        // Already an array from database
+                        $openTimes = $attraction->open_time;
+                    } elseif (is_string($attraction->open_time)) {
+                        // Try to decode JSON string
+                        $decoded = json_decode($attraction->open_time, true);
+                        if (is_array($decoded)) {
+                            $openTimes = $decoded;
+                        } else {
+                            // If it's just a string time, wrap it in array
+                            $openTimes = [$attraction->open_time];
+                        }
+                    }
+                    
+                    \Log::info("Parsed open_times", ['open_times' => $openTimes]);
+                }
+                
+                // Handle close_time JSON - check if it's already an array or needs parsing
+                if ($attraction->close_time) {
+                    \Log::info("Processing close_time for attraction {$attraction->name}", [
+                        'raw_close_time' => $attraction->close_time,
+                        'type' => gettype($attraction->close_time)
+                    ]);
+                    
+                    if (is_array($attraction->close_time)) {
+                        // Already an array from database
+                        $closeTimes = $attraction->close_time;
+                    } elseif (is_string($attraction->close_time)) {
+                        // Try to decode JSON string
+                        $decoded = json_decode($attraction->close_time, true);
+                        if (is_array($decoded)) {
+                            $closeTimes = $decoded;
+                        } else {
+                            // If it's just a string time, wrap it in array
+                            $closeTimes = [$attraction->close_time];
+                        }
+                    }
+                    
+                    \Log::info("Parsed close_times", ['close_times' => $closeTimes]);
+                }
+                
+                // Generate time slots
+                $timeSlots = [];
+                if (!empty($openTimes) && !empty($closeTimes) && is_array($openTimes) && is_array($closeTimes)) {
+                    foreach ($openTimes as $index => $openTime) {
+                        $closeTime = $closeTimes[$index] ?? $closeTimes[0];
+                        $timeSlots[] = [
+                            'open' => $openTime,
+                            'close' => $closeTime,
+                            'slot' => $openTime . ' - ' . $closeTime
+                        ];
+                    }
+                }
+                
+                \Log::info("Generated time slots for attraction {$attraction->name}", [
+                    'time_slots' => $timeSlots,
+                    'open_times_count' => count($openTimes),
+                    'close_times_count' => count($closeTimes)
+                ]);
+                
+                return [
+                    'attraction_id' => $attraction->attraction_id,
+                    'attraction_unique_id' => $attraction->attraction_id, // For compatibility
+                    'name' => $attraction->name,
+                    'location' => $attraction->location,
+                    'city' => $attraction->location, // Map location to city for frontend compatibility
+                    'time_slots' => $timeSlots,
+                    'adult_price' => $attraction->adult_price,
+                    'child_price' => $attraction->child_price,
+                    'senior_adult_price' => $attraction->senior_adult_price
+                ];
+            });
+            
+            \Log::info("Fetching attractions for city: {$city}", [
+                'dmc_id' => $dmcId,
+                'city' => $city,
+                'attractions_found' => $attractions->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'attractions' => $attractionsData,
+                'city' => $city,
+                'count' => $attractions->count()
             ]);
 
         } catch (\Exception $e) {
@@ -1064,6 +1218,7 @@ class SingleTourPackageController extends Controller
     {
         try {
             $attractionId = $request->input('attraction_id');
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
             
             if (!$attractionId) {
                 return response()->json([
@@ -1072,19 +1227,51 @@ class SingleTourPackageController extends Controller
                 ], 400);
             }
 
-            $tickets = Ticket::where('attraction_id', $attractionId)
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+
+            // First verify that the attraction belongs to the current DMC
+            $attraction = Attraction::where('attraction_id', $attractionId)
+                ->whereJsonContains('dmc_id', (int) $dmcId)
+                ->first();
+
+            if (!$attraction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction not found or does not belong to your DMC'
+                ], 404);
+            }
+
+            // Fetch tickets for the attraction
+            $tickets = Ticket::where('attraction_id', $attractionId)->where('dmc_id', $dmcId)
                 ->select('ticket_id', 'name', 'child_price', 'adult_price', 'senior_adult_price', 'description')
                 ->get();
 
+            \Log::info("Fetching tickets for attraction: {$attractionId}", [
+                'dmc_id' => $dmcId,
+                'attraction_id' => $attractionId,
+                'tickets_found' => $tickets->count()
+            ]);
+
             return response()->json([
                 'success' => true,
-                'tickets' => $tickets
+                'tickets' => $tickets,
+                'attraction_id' => $attractionId,
+                'count' => $tickets->count()
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching tickets: ' . $e->getMessage()
+                'message' => 'Error fetching tickets: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
             ], 500);
         }
     }
@@ -1178,7 +1365,7 @@ class SingleTourPackageController extends Controller
                 ->where('status', 1)
                 ->where('created_by', $dmcId) // Filter by DMC ID
                 ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
-                        'breakfast', 'breakfast_type', 'lunch', 'lunch_type', 'dinner', 'dinner_type',
+                        'breakfast', 'breakfast_type', 'breakfast_price', 'lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
                         'breakfast_included', 'dimension', 'features', 'master_image', 'created_by')
                 ->orderBy('room_type')
                 ->get();
@@ -1197,7 +1384,7 @@ class SingleTourPackageController extends Controller
                               ->orWhere('user_id', $dmcId);
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
-                            'breakfast', 'breakfast_type', 'lunch', 'lunch_type', 'dinner', 'dinner_type',
+                            'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
                             'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'company_id', 'user_id')
                     ->orderBy('room_type')
                     ->get();
@@ -1307,6 +1494,7 @@ class SingleTourPackageController extends Controller
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
+            $city = $request->input('city');
             
             if (!$dmcId) {
                 return response()->json([
@@ -1316,9 +1504,15 @@ class SingleTourPackageController extends Controller
             }
 
             // Fetch guides where dmc_id matches current DMC ID (bigint type)
-            $guides = Guide::where('dmc_id', $dmcId)
-                ->where('status', 1)
-                ->select('guide_id', 'name', 'night_start_time', 'night_end_time', 
+            $query = Guide::where('dmc_id', $dmcId)->where('dmc_id', $dmcId)
+                ->where('status', 1);
+                
+            // Filter by city if provided
+            if ($city) {
+                $query->where('city', $city);
+            }
+            
+            $guides = $query->select('guide_id', 'name', 'city', 'night_start_time', 'night_end_time', 
                         'day_rate', 'night_surcharge', 'hourly_price', 
                         'two_hour_price', 'four_hour_price', 'six_hour_price', 
                         'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
@@ -1328,6 +1522,7 @@ class SingleTourPackageController extends Controller
                 return [
                     'guide_id' => $guide->guide_id,
                     'name' => $guide->name,
+                    'city' => $guide->city,
                     'night_start_time' => $guide->night_start_time,
                     'night_end_time' => $guide->night_end_time,
                     'day_rate' => $guide->day_rate,
@@ -1344,7 +1539,67 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => true,
-                'guides' => $guidesData
+                'guides' => $guidesData,
+                'filtered_by_city' => !empty($city),
+                'city' => $city
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching guides: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+    
+    /**
+     * Fetch guides by DMC and city
+     */
+    public function fetchGuidesByDmc(Request $request)
+    {
+        try {
+            $city = $request->input('city');
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+            
+            if (!$city) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'City parameter is required'
+                ], 400);
+            }
+
+            // Fetch guides for the specific city and DMC
+            $guides = Guide::where('dmc_id', $dmcId)
+                ->where('status', 1)
+                ->where('city', $city)
+                ->select('guide_id', 'name', 'city', 'night_start_time', 'night_end_time', 
+                        'day_rate', 'night_surcharge', 'hourly_price', 
+                        'two_hour_price', 'four_hour_price', 'six_hour_price', 
+                        'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
+                ->get();
+            
+            \Log::info("Fetching guides for city: {$city}", [
+                'dmc_id' => $dmcId,
+                'city' => $city,
+                'guides_found' => $guides->count()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'guides' => $guides,
+                'city' => $city,
+                'count' => $guides->count()
             ]);
 
         } catch (\Exception $e) {
@@ -1367,6 +1622,7 @@ class SingleTourPackageController extends Controller
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
+            $city = $request->input('city');
             
             if (!$dmcId) {
                 return response()->json([
@@ -1376,13 +1632,19 @@ class SingleTourPackageController extends Controller
             }
             
             // Fetch restaurants where dmc_id JSON contains current DMC ID AND have meals in meals table
-            $restaurants = Restaurant::whereJsonContains('dmc_id', (int) $dmcId)
+            $query = Restaurant::whereJsonContains('dmc_id', (int) $dmcId)
                 ->whereExists(function ($query) {
                     $query->select(DB::raw(1))
                           ->from('meals')
                           ->whereRaw('meals.restaurant_id = restaurants.restaurant_id');
-                })
-                ->select('restaurant_id', 'name', 'breakfast_available', 'lunch_available', 'dinner_available',
+                });
+                
+            // Filter by city if provided
+            if ($city) {
+                $query->where('city', $city);
+            }
+            
+            $restaurants = $query->select('restaurant_id', 'name', 'city', 'breakfast_available', 'lunch_available', 'dinner_available',
                          'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 'closing_time_lunch',
                          'opening_time_dinner', 'closing_time_dinner')
                 ->get();
@@ -1423,13 +1685,118 @@ class SingleTourPackageController extends Controller
                 return [
                     'restaurant_id' => $restaurant->restaurant_id,
                     'name' => $restaurant->name,
+                    'city' => $restaurant->city,
                     'meal_types' => $mealTypes
                 ];
             });
 
             return response()->json([
                 'success' => true,
-                'restaurants' => $restaurantsData
+                'restaurants' => $restaurantsData,
+                'filtered_by_city' => !empty($city),
+                'city' => $city
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching restaurants: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+    
+    /**
+     * Fetch restaurants by DMC and city
+     */
+    public function fetchRestaurantsByDmc(Request $request)
+    {
+        try {
+            $city = $request->input('city');
+            $dmcId = $request->input('dmc_id') ?? Auth::user()->created_by;
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+            
+            if (!$city) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'City parameter is required'
+                ], 400);
+            }
+
+            // Fetch restaurants for the specific city and DMC
+            $restaurants = Restaurant::whereJsonContains('dmc_id', (int) $dmcId)
+                ->where('city', $city)
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                          ->from('meals')
+                          ->whereRaw('meals.restaurant_id = restaurants.restaurant_id');
+                })
+                ->select('restaurant_id', 'name', 'city', 'breakfast_available', 'lunch_available', 'dinner_available',
+                         'opening_time_bf', 'closing_time_bf', 'opening_time_lunch', 'closing_time_lunch',
+                         'opening_time_dinner', 'closing_time_dinner')
+                ->get();
+            
+            \Log::info("Fetching restaurants for city: {$city}", [
+                'dmc_id' => $dmcId,
+                'city' => $city,
+                'restaurants_found' => $restaurants->count()
+            ]);
+            
+            $restaurantsData = $restaurants->map(function ($restaurant) {
+                $mealTypes = [];
+                
+                // Add breakfast if available
+                if ($restaurant->breakfast_available == 1) {
+                    $mealTypes[] = [
+                        'type' => 'breakfast',
+                        'label' => 'Breakfast',
+                        'open_time' => $this->formatTimeTo12Hour($restaurant->opening_time_bf),
+                        'close_time' => $this->formatTimeTo12Hour($restaurant->closing_time_bf)
+                    ];
+                }
+                
+                // Add lunch if available
+                if ($restaurant->lunch_available == 1) {
+                    $mealTypes[] = [
+                        'type' => 'lunch',
+                        'label' => 'Lunch',
+                        'open_time' => $this->formatTimeTo12Hour($restaurant->opening_time_lunch),
+                        'close_time' => $this->formatTimeTo12Hour($restaurant->closing_time_lunch)
+                    ];
+                }
+                
+                // Add dinner if available
+                if ($restaurant->dinner_available == 1) {
+                    $mealTypes[] = [
+                        'type' => 'dinner',
+                        'label' => 'Dinner',
+                        'open_time' => $this->formatTimeTo12Hour($restaurant->opening_time_dinner),
+                        'close_time' => $this->formatTimeTo12Hour($restaurant->closing_time_dinner)
+                    ];
+                }
+
+                return [
+                    'restaurant_id' => $restaurant->restaurant_id,
+                    'name' => $restaurant->name,
+                    'city' => $restaurant->city,
+                    'meal_types' => $mealTypes
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'restaurants' => $restaurantsData,
+                'city' => $city,
+                'count' => $restaurants->count()
             ]);
 
         } catch (\Exception $e) {
@@ -1453,14 +1820,23 @@ class SingleTourPackageController extends Controller
             $restaurantId = $request->input('restaurant_id');
             $mealPeriod = $request->input('meal_period'); // 1=Breakfast, 2=Lunch, 3=Dinner
             
-            if (!$restaurantId) {
+            // Check if restaurant ID is valid (not empty, null, or 'undefined')
+            if (!$restaurantId || $restaurantId === 'undefined' || $restaurantId === '') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Restaurant ID is required'
                 ], 400);
             }
+            
+            // Validate that restaurant ID is numeric
+            if (!is_numeric($restaurantId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid restaurant ID format'
+                ], 400);
+            }
 
-            $query = Meal::where('restaurant_id', $restaurantId);
+            $query = Meal::where('restaurant_id', $restaurantId)->where('dmc_id', $dmcId);
             
             // Filter by meal period if provided
             if ($mealPeriod) {
@@ -1599,6 +1975,9 @@ class SingleTourPackageController extends Controller
             $toZoneId = $request->to_zone_id;
             $fromZoneType = $request->from_zone_type;
             $toZoneType = $request->to_zone_type;
+            $city = $request->city;
+            $zone_status = $request->zone_status;
+
             
             if (!$dmcId) {
                 return response()->json([
@@ -1615,8 +1994,67 @@ class SingleTourPackageController extends Controller
             }
 
             // Determine the correct IDs based on location types
-            $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId);
-            $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
+            $actualFromZoneId = null;
+            $actualToZoneId = null;
+            $vehicleMappings = collect();
+
+            if($zone_status == 1){
+                
+                $actualFromZoneId = intval($this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId));
+                $actualToZoneId = intval($this->getActualZoneId($toZoneId, $toZoneType, $dmcId));
+
+                $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
+                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
+                ->get();
+                $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
+                    ->map(function ($mapping) {
+                        $vehicle = $mapping->vehicle;
+                        if (!$vehicle) {
+                            return null;
+                        }
+                        return [
+                            'vehicle_id' => $vehicle->vehicle_id,
+                            'vehicle_name' => $vehicle->vehicle_name,
+                            'vehicle_type' => $vehicle->vehicle_type,
+                            'seating_capacity' => $vehicle->seating_capacity,
+                            'vehicle_model' => $vehicle->vehicle_model,
+                            'image' => $vehicle->image,
+                            'base_price' => $vehicle->base_price,
+                            'sharable_base_price' => $vehicle->sharable_base_price,
+                            'service_type' => $vehicle->service_type,
+                            'sharable' => $vehicle->sharable,
+                            'from_zone' => $mapping->fromZone->zone_name ?? '',
+                            'to_zone' => $mapping->toZone->zone_name ?? '',
+                            'mapping_id' => $mapping->mapping_id,
+                            // ✅ Zone mapping prices
+                            'private_price' => $mapping->private_price,
+                            'shared_price' => $mapping->shared_price,
+                        ];
+                    })
+                ->filter()
+                ->values();
+            }
+            else{
+                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable')
+                    ->where('dmc_id', $dmcId)
+                    ->where('city', $city)
+                    ->where('is_available', 1)
+                    ->get();
+                $vehicles = $vehicles->map(function ($vehicle) {
+                    return [
+                        'vehicle_id' => $vehicle->vehicle_id,
+                        'vehicle_name' => $vehicle->vehicle_name,
+                        'vehicle_type' => $vehicle->vehicle_type,
+                        'seating_capacity' => $vehicle->seating_capacity,
+                        'base_price' => $vehicle->base_price,
+                        'sharable_base_price' => $vehicle->sharable_base_price,
+                        'service_type' => $vehicle->service_type,
+                        'private_price' => $vehicle->base_price,
+                        'shared_price' => $vehicle->sharable_base_price,
+                        'sharable' => $vehicle->sharable,
+                    ];
+                });
+            }
 
             // Debug logging for zone ID resolution
             \Log::info('Zone ID Resolution Debug', [
@@ -1626,15 +2064,17 @@ class SingleTourPackageController extends Controller
                 'to_zone_type' => $toZoneType,
                 'actual_from_zone_id' => $actualFromZoneId,
                 'actual_to_zone_id' => $actualToZoneId,
-                'dmc_id' => $dmcId
+                'dmc_id' => $dmcId,
+                'city' => $city,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'zone_status' => $zone_status
             ]);
 
             // Fetch vehicles that have zone mappings between the actual zone IDs
             // Try both directions to ensure bidirectional route coverage
 
-            $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
-                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
-                ->get();
+           
             
                 
             // Debug logging for zone mapping query
@@ -1651,32 +2091,7 @@ class SingleTourPackageController extends Controller
             
 
 
-            $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
-                ->map(function ($mapping) {
-                    $vehicle = $mapping->vehicle;
-                    if (!$vehicle) {
-                        return null;
-                    }
-                    return [
-                        'vehicle_id' => $vehicle->vehicle_id,
-                        'vehicle_name' => $vehicle->vehicle_name,
-                        'vehicle_type' => $vehicle->vehicle_type,
-                        'seating_capacity' => $vehicle->seating_capacity,
-                        'vehicle_model' => $vehicle->vehicle_model,
-                        'image' => $vehicle->image,
-                        'base_price' => $vehicle->base_price,
-                        'sharable_base_price' => $vehicle->sharable_base_price,
-                        'service_type' => $vehicle->service_type,
-                        'from_zone' => $mapping->fromZone->zone_name ?? '',
-                        'to_zone' => $mapping->toZone->zone_name ?? '',
-                        'mapping_id' => $mapping->mapping_id,
-                        // ✅ Zone mapping prices
-                        'private_price' => $mapping->private_price,
-                        'shared_price' => $mapping->shared_price,
-                    ];
-                })
-                ->filter()
-                ->values();
+            
             // Debug logging for final response
             \Log::info('Final Vehicle Response', [
                 'from_zone_id' => $actualFromZoneId,
@@ -1779,7 +2194,7 @@ class SingleTourPackageController extends Controller
             $vehicles = Vehicle::where('dmc_id', $dmcId)
                 ->where('city', $city)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour')
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable')
                 ->orderBy('vehicle_name')
                 ->get();
 
@@ -1797,7 +2212,8 @@ class SingleTourPackageController extends Controller
                     'cost_per_hour' => $vehicle->cost_per_hour,
                     'sharable_cost_per_hour' => $vehicle->sharable_cost_per_hour,
                     'private_price' => $vehicle->base_price,
-                    'shared_price' => $vehicle->sharable_base_price
+                    'shared_price' => $vehicle->sharable_base_price,
+                    'sharable' => $vehicle->sharable
                 ];
             });
 
@@ -1813,6 +2229,53 @@ class SingleTourPackageController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching vehicles: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Fetch agents by agency ID
+     */
+    public function fetchAgentsByAgency(Request $request)
+    {
+        try {
+            $agencyId = $request->input('agency_id');
+            
+            if (!$agencyId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Agency ID is required'
+                ], 400);
+            }
+            $agents = Agent::where('agency_id', $agencyId)
+                ->select('agent_id', 'name', 'email', 'phone')
+                ->orderBy('name')
+                ->get();
+
+            $agentsData = $agents->map(function ($agent) {
+                return [
+                    'agent_id' => $agent->agent_id,
+                    'name' => $agent->name,
+                    'email' => $agent->email,
+                    'phone' => $agent->phone
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'agents' => $agentsData,
+                'total_agents' => count($agentsData),
+                'agency_id' => $agencyId
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching agents: ' . $e->getMessage(),
                 'debug' => [
                     'error_line' => $e->getLine(),
                     'error_file' => $e->getFile()
