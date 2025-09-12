@@ -45,7 +45,9 @@
                             <th>Zone Type</th>
                             <th>City</th>
                             <th>Status</th>
+                            @if(auth()->user()->role_id == 11)
                             <th>Zone</th>
+                            @endif
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -65,6 +67,7 @@
                                     {{ $zone->status == 1 ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
+                            @if(auth()->user()->role_id == 11)
                             <td>
                                 <!-- Settings Icon - Opens Checkbox Modal -->
                                 <button type="button" 
@@ -310,6 +313,7 @@
                                     </div>
                                 </div>
                             </td>
+                            @endif
                             <td>
                                 <div class="d-flex gap-1">
                                     <!-- View -->
