@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Auth;
+use Illuminate\Support\Facades\Auth;
 use App\Models\City;
 use App\Helpers\CommonHelper;
 use App\Models\Hotel;
@@ -17,11 +17,42 @@ use Illuminate\Support\Facades\Crypt;
 class ZoneController extends Controller
 {
     /**
+     * Resolve the DMC ID for the given user based on role hierarchy
+     * This mirrors the conditions used in index() for filtering zones.
+     */
+    private function resolveDmcIdForUser(User $user)
+    {
+        // Direct DMC roles
+        if ($user->role_id == 11 || $user->role_id == 20) {
+            return $user->userId;
+        }
+
+        // Team roles directly under a DMC
+        if ($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])) {
+            return $user->created_by;
+        }
+
+        // Roles under Product Head
+        if ($user->role_id == 76 || $user->role_id == 139) {
+            $productHead = User::where('userId', $user->created_by)->first();
+            return $productHead ? $productHead->created_by : null;
+        }
+
+        // Roles under Product Manager → Product Head
+        if ($user->role_id == 111 || $user->role_id == 140) {
+            $productManager = User::where('userId', $user->created_by)->first();
+            $productHead = $productManager ? User::where('userId', $productManager->created_by)->first() : null;
+            return $productHead ? $productHead->created_by : null;
+        }
+
+        return null;
+    }
+    /**
      * Display a listing of zones.
      */
     public function index()
     {
-        $user = auth()->user();
+        $user = Auth::user();
         if ($user->role_id == 4) {
             $dmc_ids = User::where('assistant_manager_id', $user->userId)->pluck('userId')->toArray();
             $zones = Zone::orderBy('updated_at', 'desc')->whereIn('dmc_id', $dmc_ids)->get();
@@ -111,7 +142,15 @@ class ZoneController extends Controller
         if (!isset($data['zone_id'])) {
             $data['zone_id'] = $zoneId;
         }
-        $data['dmc_id'] = Auth::user()->userId;
+        // Determine DMC ID using the same conditions as index()
+        $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user());
+        
+        if(!$data['dmc_id']){
+            return redirect()->back()
+            ->withErrors(['dmc_id' => 'DMC ID not found'])
+            ->withInput();
+        }
+        
         $zone = Zone::create($data);
         return redirect()->route('zones.index')
             ->with('success', 'Zone created successfully');
@@ -161,7 +200,16 @@ class ZoneController extends Controller
         }
 
         // Update zone
-        $zone->update($request->all());
+        $data = $request->all();
+        $data['dmc_id'] = $this->resolveDmcIdForUser(Auth::user());
+        
+        if(!$data['dmc_id']){
+            return redirect()->back()
+            ->withErrors(['dmc_id' => 'DMC ID not found'])
+            ->withInput();
+        }
+        
+        $zone->update($data);
 
         return redirect()->route('zones.index')
             ->with('success', 'Zone updated successfully');
@@ -210,7 +258,8 @@ class ZoneController extends Controller
             return redirect()->route('zones.index')->with('error', 'Zone not found');
         }
         
-        $currentDmcId = Auth::user()->userId;
+        // Determine DMC ID using the same conditions as index()
+        $currentDmcId = $this->resolveDmcIdForUser(Auth::user());
         
         if (!$currentDmcId) {
             return redirect()->route('zones.index')->with('error', 'Unable to determine your DMC association');
