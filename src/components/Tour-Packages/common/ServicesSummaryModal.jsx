@@ -41,7 +41,7 @@ const ServicesSummaryModal = ({ open, onClose }) => {
   const { searchCriteria } = useSelector((state) => state.tourPackages);
   const selectedCity = useSelector(state => state.common?.selectedCity?.cityName);
   const selectedCountry = useSelector(state => state.common?.selectedCity?.countryName);
-
+const PriceHide = useSelector(state => state.auth.PriceHide);
   // Generate dates array from the selected date range
   const dates = React.useMemo(() => {
     if (!searchCriteria?.checkIn || !searchCriteria?.checkOut) return [];
@@ -508,7 +508,12 @@ const ServicesSummaryModal = ({ open, onClose }) => {
           <Grid container sx={{ height: '100%' }}>
             {/* Left Side - Itinerary */}
             <Grid item xs={12} md={8} sx={{ borderRight: '1px solid #e0e0e0' }}>
-              <Box sx={{ bgcolor: 'white' }}>
+              <Box sx={{ 
+                bgcolor: 'white',
+                height: '100vh',
+                maxHeight: '80vh',
+                overflow: 'auto'
+              }}>
                 
                 {/* Top Route Bar */}
                 {/* <Box sx={{ 
@@ -535,7 +540,7 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                     border: '1px solid #e0c4a0'
                   }}>
                     <Typography variant="h6" fontWeight={600} color="text.primary">
-                      {selectedCity} - {(() => {
+                      {selectedCountry} - {(() => {
                         if (searchCriteria?.checkIn && searchCriteria?.checkOut) {
                           const startDate = moment(searchCriteria.checkIn, 'DD/MM/YYYY');
                           const endDate = moment(searchCriteria.checkOut, 'DD/MM/YYYY');
@@ -909,7 +914,7 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                               case 'travel_hourly':
                                 return {
                                   name: `${serviceData?.vehicles_name || 'Vehicle'} - Hourly Transport`,
-                                  location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`|| 'Pickup location not specified',
+                                  //location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`|| 'Pickup location not specified',
                                   time: `${serviceData?.entrytime || 'N/A'} | Duration: ${serviceData?.selectedHours || 0} hours`,
                                   extra: `${serviceData?.type || 'Private'} Vehicle | Adults: ${serviceData?.adults || 0}`,
                                   price: serviceData?.totalPrice
@@ -918,7 +923,7 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                                 return {
                                   name: `${serviceData?.vehicles_name || 'Vehicle'} - Local Transfer`,
                                   location: `${serviceData?.entrypickup} → ${serviceData?.entrydropoff}`,
-                                  time: `${serviceData?.entrytime || 'N/A'} | Duration: ${serviceData?.selectedHours || 0} hours`,
+                                  time: `${serviceData?.entrytime || 'N/A'}`,
                                   extra: `${serviceData?.type || 'Private'} Vehicle | Adults: ${serviceData?.adults || 0}`,
                                   price: serviceData?.totalPrice
                                 };
@@ -952,78 +957,147 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                           const details = getServiceDetails();
 
                           return (
-                                    <Box 
-                              key={serviceIndex} 
-                              sx={{ 
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        mb: 1.5,
-                                        '&:last-child': { mb: 0 }
-                                      }}
-                                    >
-                                      {/* Service Icon */}
-                                      <Box sx={{ mr: 1.5, mt: 0.5 }}>
-                                        {React.cloneElement(config.icon, { 
-                                          sx: { 
-                                            fontSize: 16, 
-                                            color: '#333' 
-                                          } 
-                                        })}
-                                        </Box>
-                                      
-                                      {/* Service Details */}
-                                      <Box sx={{ flex: 1 }}>
-                                        <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.4 }}>
-                                          {(() => {
-                                            switch (service.type) {
-                                              case 'Hotel':
-                                              case 'hotel':
-                                                // Determine if this is check-in or check-out
-                                                const hotelData = service.data?.[0];
-                                                const bookingDate = hotelData?.bookingDate;
-                                                const currentDate = dayData.date.format('YYYY-MM-DD');
-                                                
-                                                if (Array.isArray(bookingDate)) {
-                                                  const checkInDate = moment(bookingDate[0]).format('YYYY-MM-DD');
-                                                  const checkOutDate = moment(bookingDate[1]).format('YYYY-MM-DD');
-                                                  
-                                                  if (currentDate === checkInDate) {
-                                                    return `Check in to ${details.name}`;
-                                                  } else if (currentDate === checkOutDate) {
-                                                    return `Checkout from ${details.name}`;
-                                                  }
-                                                }
-                                                return `Check in to ${details.name}`;
-                                              case 'attraction':
-                                                return `${details.name}`;
-                                              case 'restaurant':
-                                                const currentDestination = getCurrentDestination(dayData.date);
-                                                const dataObj = service.data?.[0] || {};
-                                                const mealTypeBase = dataObj.mealType 
-                                                  || (Array.isArray(dataObj.MealDescription) && dataObj.MealDescription[0]?.category)
-                                                  || dataObj.foodType 
-                                                  || dataObj.food_type 
-                                                  || 'Meal';
-                                                const mealSpecific = typeof dataObj.mealSpecificType === 'string'
-                                                  ? dataObj.mealSpecificType
-                                                  : (dataObj.mealSpecificType?.mealType || dataObj.mealSpecificType?.meal_type);
-                                                const mealLabel = mealSpecific && mealSpecific.toLowerCase() !== (mealTypeBase || '').toLowerCase()
-                                                  ? `${mealTypeBase} (${mealSpecific})`
-                                                  : `${mealTypeBase}`;
-                                                const rName = dataObj.restaurantName || 'Restaurant';
-                                                return `Day Meals: ${mealLabel}: Included at ${rName}`;
-                                              case 'travel_point':
-                                              case 'local_transfer':
-                                                return details.name;
-                                              default:
-                                                return details.name;
+                            <React.Fragment key={serviceIndex}>
+                              {/* Service Card */}
+                              <Box sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                p: 2,
+                                mb: serviceIndex < services.length - 1 ? 1.5 : 0,
+                                bgcolor: 'rgba(0, 0, 0, 0.02)',
+                                borderRadius: 1,
+                                border: '1px solid rgba(0, 0, 0, 0.08)',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  bgcolor: 'rgba(0, 0, 0, 0.04)',
+                                  borderColor: 'rgba(0, 0, 0, 0.12)'
+                                }
+                              }}>
+                                {/* Service Icon */}
+                                <Box sx={{ 
+                                  mr: 2,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  minWidth: 40,
+                                  height: 40,
+                                  bgcolor: config.bgColor || 'rgba(102, 102, 102, 0.1)',
+                                  borderRadius: '50%',
+                                  border: `2px solid ${config.color || '#666'}`
+                                }}>
+                                  {React.cloneElement(config.icon, { 
+                                    sx: { 
+                                      fontSize: 20, 
+                                      color: config.color || '#666' 
+                                    } 
+                                  })}
+                                </Box>
+                                
+                                {/* Service Details */}
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant="subtitle2" fontWeight={600} color="text.primary" sx={{ 
+                                    mb: 0.5,
+                                    fontSize: '0.95rem',
+                                    lineHeight: 1.3
+                                  }}>
+                                    {(() => {
+                                      switch (service.type) {
+                                        case 'Hotel':
+                                        case 'hotel':
+                                          // Determine if this is check-in or check-out
+                                          const hotelData = service.data?.[0];
+                                          const bookingDate = hotelData?.bookingDate;
+                                          const currentDate = dayData.date.format('YYYY-MM-DD');
+                                          
+                                          if (Array.isArray(bookingDate)) {
+                                            const checkInDate = moment(bookingDate[0]).format('YYYY-MM-DD');
+                                            const checkOutDate = moment(bookingDate[1]).format('YYYY-MM-DD');
+                                            
+                                            if (currentDate === checkInDate) {
+                                              return `Check in to ${details.name}`;
+                                            } else if (currentDate === checkOutDate) {
+                                              return `Checkout from ${details.name}`;
                                             }
-                                          })()}
-                                            </Typography>
-                                          </Box>
-                                    </Box>
-                                  );
-                              })}
+                                          }
+                                          return `Check in to ${details.name}`;
+                                        case 'attraction':
+                                          return `${details.name}`;
+                                        case 'restaurant':
+                                          const currentDestination = getCurrentDestination(dayData.date);
+                                          const dataObj = service.data?.[0] || {};
+                                          const mealTypeBase = dataObj.mealType 
+                                            || (Array.isArray(dataObj.MealDescription) && dataObj.MealDescription[0]?.category)
+                                            || dataObj.foodType 
+                                            || dataObj.food_type 
+                                            || 'Meal';
+                                          const mealSpecific = typeof dataObj.mealSpecificType === 'string'
+                                            ? dataObj.mealSpecificType
+                                            : (dataObj.mealSpecificType?.mealType || dataObj.mealSpecificType?.meal_type);
+                                          const mealLabel = mealSpecific && mealSpecific.toLowerCase() !== (mealTypeBase || '').toLowerCase()
+                                            ? `${mealTypeBase} (${mealSpecific})`
+                                            : `${mealTypeBase}`;
+                                          const rName = dataObj.restaurantName || 'Restaurant';
+                                          return `Day Meals: ${mealLabel}: Included at ${rName}`;
+                                        case 'travel_point':
+                                        case 'local_transfer':
+                                          return details.name;
+                                        default:
+                                          return details.name;
+                                      }
+                                    })()}
+                                  </Typography>
+                                  
+                                  {/* Service Time and Additional Info */}
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                                    {details.time && details.time !== 'Time not specified' && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <AccessTimeIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                          {details.time}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                    
+                                    {details.location && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <LocationOnIcon sx={{ fontSize: 14, mr: 0.5, color: 'text.secondary' }} />
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                          {details.location}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                    
+                                    {details.extra && (
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                        {details.extra}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Box>
+                                
+                                {/* Service Price */}
+                                {details.price && details.price > 0 && (
+                                  <Box sx={{ ml: 2, textAlign: 'right' }}>
+                                    {PriceHide === "0" && (  
+                                    <Typography variant="subtitle2" fontWeight={600} color="primary.main" sx={{ fontSize: '0.9rem' }}>
+                                      SGD {Number(details.price).toLocaleString()}
+                                    </Typography>
+                                  ) }
+                                  </Box>
+                                )}
+                              </Box>
+                              
+                              {/* Horizontal Divider - Show between services, not after the last one */}
+                              {serviceIndex < services.length - 1 && (
+                                <Divider sx={{ 
+                                  mx: 2, 
+                                  my: 1,
+                                  borderColor: 'rgba(0, 0, 0, 0.08)'
+                                }} />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
                             </Box>
                           </Box>
                         </Box>
@@ -1062,7 +1136,17 @@ const ServicesSummaryModal = ({ open, onClose }) => {
 
             {/* Right Side - Pricing */}
             <Grid item xs={12} md={4}>
-              <Box sx={{ p: 3, bgcolor: '#fafafa', height: '100%', borderLeft: '1px solid #e0e0e0' }}>
+              <Box sx={{ 
+                p: 3,
+                position: 'sticky', 
+                top: 0, 
+                bgcolor: '#fafafa', 
+                height: '100vh',
+                maxHeight: '100vh',
+                overflow: 'hidden',
+                borderLeft: '1px solid #e0e0e0',
+                zIndex: 1
+              }}>
                 <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
                   Price Summary
                 </Typography>
@@ -1102,9 +1186,11 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                             {label}
                           </Typography>
                         </Box>
+                        {PriceHide === "0" && (
                          <Typography variant="body2" fontWeight={600}>
                            {Number(price || 0).toLocaleString()} SGD
                                               </Typography>
+                                              )}
                                             </Box>
                           );
                         })}
@@ -1116,9 +1202,11 @@ const ServicesSummaryModal = ({ open, onClose }) => {
                   <Typography variant="subtitle1" fontWeight={700}>
                     Grand Total
                       </Typography>
+                      {PriceHide === "0" && (
                    <Typography variant="h6" fontWeight={800} color="primary.main">
                      SGD {Number(computedGrandTotal || 0).toLocaleString()}
                       </Typography>
+                      )}
                 </Box>
               </Box>
                     </Grid>
