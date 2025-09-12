@@ -271,8 +271,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const portZoneType = useSelector((state) => state.pickupDrop.portZoneType);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  const errorMessage = useSelector((state) => state.pickupDrop.error);
-  console.log("errorMessage", errorMessage);
+  
   // Make sure we're only working with entry ports
   const validEntryPorts = entryPorts && entryPorts.filter(port => port.type === "entry_port");
   console.log("Entry Vehicle - Filtered entryPorts:", validEntryPorts);
