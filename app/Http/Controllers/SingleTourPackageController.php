@@ -298,15 +298,18 @@ class SingleTourPackageController extends Controller
         
         // Get hotels based on user's DMC ID
         $userDmcId = CommonHelper::getDmcId(Auth::user());
+
+        $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
         if ($userDmcId) {
             $hotels = Hotel::with(['rooms.bed'])
                 ->where('country', $tour->destination)
                 ->whereJsonContains('dmc_id', (int)$userDmcId)
                 ->get();
+            
          } else {
             $hotels = collect(); // Empty collection if no DMC ID
         }
-        $guides = Guide::where('dmc_id', $userDmcId)->get();
+        $guides = Guide::with(['languages'])->where('dmc_id', $userDmcId)->get();
 
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
 
@@ -322,6 +325,7 @@ class SingleTourPackageController extends Controller
                 $portsQuery->where('country', $country->name);
             }
         }
+        $cities = City::where('country', $tour->destination)->get();
         $ports = $portsQuery->orderBy('port_name')->get();
         
         $agencies = Agency::whereJsonContains('dmc_id', $userDmcId)->get();
@@ -434,7 +438,8 @@ class SingleTourPackageController extends Controller
         }
 
         
-        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles', 'hotelOrders', 'tourDays'));
+
+        return view('single-tour-package.edit', compact('tour', 'countries', 'agents', 'ports', 'selectedCountry', 'ordersByType','agent_name','hotels','guides','restaurants','attractions','customer_info','agent_id','vehicles', 'hotelOrders', 'tourDays', 'cities', 'UserDmc'));
     }
 
     /**
@@ -1599,6 +1604,9 @@ class SingleTourPackageController extends Controller
             $toZoneId = $request->to_zone_id;
             $fromZoneType = $request->from_zone_type;
             $toZoneType = $request->to_zone_type;
+            $city = $request->city;
+            $zone_status = $request->zone_status;
+
             
             if (!$dmcId) {
                 return response()->json([
@@ -1615,8 +1623,67 @@ class SingleTourPackageController extends Controller
             }
 
             // Determine the correct IDs based on location types
-            $actualFromZoneId = $this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId);
-            $actualToZoneId = $this->getActualZoneId($toZoneId, $toZoneType, $dmcId);
+            $actualFromZoneId = null;
+            $actualToZoneId = null;
+            $vehicleMappings = collect();
+
+            if($zone_status == 1){
+                
+                $actualFromZoneId = intval($this->getActualZoneId($fromZoneId, $fromZoneType, $dmcId));
+                $actualToZoneId = intval($this->getActualZoneId($toZoneId, $toZoneType, $dmcId));
+
+                $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
+                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
+                ->get();
+                $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
+                    ->map(function ($mapping) {
+                        $vehicle = $mapping->vehicle;
+                        if (!$vehicle) {
+                            return null;
+                        }
+                        return [
+                            'vehicle_id' => $vehicle->vehicle_id,
+                            'vehicle_name' => $vehicle->vehicle_name,
+                            'vehicle_type' => $vehicle->vehicle_type,
+                            'seating_capacity' => $vehicle->seating_capacity,
+                            'vehicle_model' => $vehicle->vehicle_model,
+                            'image' => $vehicle->image,
+                            'base_price' => $vehicle->base_price,
+                            'sharable_base_price' => $vehicle->sharable_base_price,
+                            'service_type' => $vehicle->service_type,
+                            'sharable' => $vehicle->sharable,
+                            'from_zone' => $mapping->fromZone->zone_name ?? '',
+                            'to_zone' => $mapping->toZone->zone_name ?? '',
+                            'mapping_id' => $mapping->mapping_id,
+                            // ✅ Zone mapping prices
+                            'private_price' => $mapping->private_price,
+                            'shared_price' => $mapping->shared_price,
+                        ];
+                    })
+                ->filter()
+                ->values();
+            }
+            else{
+                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable')
+                    ->where('dmc_id', $dmcId)
+                    ->where('city', $city)
+                    ->where('is_available', 1)
+                    ->get();
+                $vehicles = $vehicles->map(function ($vehicle) {
+                    return [
+                        'vehicle_id' => $vehicle->vehicle_id,
+                        'vehicle_name' => $vehicle->vehicle_name,
+                        'vehicle_type' => $vehicle->vehicle_type,
+                        'seating_capacity' => $vehicle->seating_capacity,
+                        'base_price' => $vehicle->base_price,
+                        'sharable_base_price' => $vehicle->sharable_base_price,
+                        'service_type' => $vehicle->service_type,
+                        'private_price' => $vehicle->base_price,
+                        'shared_price' => $vehicle->sharable_base_price,
+                        'sharable' => $vehicle->sharable,
+                    ];
+                });
+            }
 
             // Debug logging for zone ID resolution
             \Log::info('Zone ID Resolution Debug', [
@@ -1626,15 +1693,17 @@ class SingleTourPackageController extends Controller
                 'to_zone_type' => $toZoneType,
                 'actual_from_zone_id' => $actualFromZoneId,
                 'actual_to_zone_id' => $actualToZoneId,
-                'dmc_id' => $dmcId
+                'dmc_id' => $dmcId,
+                'city' => $city,
+                'from_zone_type' => $fromZoneType,
+                'to_zone_type' => $toZoneType,
+                'zone_status' => $zone_status
             ]);
 
             // Fetch vehicles that have zone mappings between the actual zone IDs
             // Try both directions to ensure bidirectional route coverage
 
-            $vehicleMappings = VehicleZoneMapping::whereIn('from_zone_id', [$actualFromZoneId, $actualToZoneId])
-                ->whereIn('to_zone_id', [$actualToZoneId, $actualFromZoneId])
-                ->get();
+           
             
                 
             // Debug logging for zone mapping query
@@ -1651,32 +1720,7 @@ class SingleTourPackageController extends Controller
             
 
 
-            $vehicles = $vehicleMappings->load(['vehicle', 'fromZone', 'toZone'])
-                ->map(function ($mapping) {
-                    $vehicle = $mapping->vehicle;
-                    if (!$vehicle) {
-                        return null;
-                    }
-                    return [
-                        'vehicle_id' => $vehicle->vehicle_id,
-                        'vehicle_name' => $vehicle->vehicle_name,
-                        'vehicle_type' => $vehicle->vehicle_type,
-                        'seating_capacity' => $vehicle->seating_capacity,
-                        'vehicle_model' => $vehicle->vehicle_model,
-                        'image' => $vehicle->image,
-                        'base_price' => $vehicle->base_price,
-                        'sharable_base_price' => $vehicle->sharable_base_price,
-                        'service_type' => $vehicle->service_type,
-                        'from_zone' => $mapping->fromZone->zone_name ?? '',
-                        'to_zone' => $mapping->toZone->zone_name ?? '',
-                        'mapping_id' => $mapping->mapping_id,
-                        // ✅ Zone mapping prices
-                        'private_price' => $mapping->private_price,
-                        'shared_price' => $mapping->shared_price,
-                    ];
-                })
-                ->filter()
-                ->values();
+            
             // Debug logging for final response
             \Log::info('Final Vehicle Response', [
                 'from_zone_id' => $actualFromZoneId,
@@ -1779,7 +1823,7 @@ class SingleTourPackageController extends Controller
             $vehicles = Vehicle::where('dmc_id', $dmcId)
                 ->where('city', $city)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour')
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable')
                 ->orderBy('vehicle_name')
                 ->get();
 
@@ -1797,7 +1841,8 @@ class SingleTourPackageController extends Controller
                     'cost_per_hour' => $vehicle->cost_per_hour,
                     'sharable_cost_per_hour' => $vehicle->sharable_cost_per_hour,
                     'private_price' => $vehicle->base_price,
-                    'shared_price' => $vehicle->sharable_base_price
+                    'shared_price' => $vehicle->sharable_base_price,
+                    'sharable' => $vehicle->sharable
                 ];
             });
 
