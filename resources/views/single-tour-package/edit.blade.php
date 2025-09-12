@@ -7583,7 +7583,8 @@
         if (confirm('Are you sure you want to cancel this service?')) {
             showNotification('Cancelling service...', 'info');
             
-            fetch(`/api/orders/${orderId}/cancel`, {
+            const url = route('api.orders.cancel', orderId);
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
