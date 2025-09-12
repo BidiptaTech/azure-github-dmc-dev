@@ -37,11 +37,11 @@ class PackageController extends Controller
         elseif($user->role_id == 11){
             $dmc_id = $user->userId;
         }
-        elseif($user->role_id == 33 || $user->role_id == 34|| $user->role_id == 35 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
+        elseif($user->role_id == 33 || $user->role_id == 34|| $user->role_id == 35 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138 || $user->role_id == 139){
             $userdmc = User::where('userId', $user->created_by)->first();
             $dmc_id = $userdmc->userId;
         }
-        elseif(in_array($user->role_id, array_merge(range(64, 78), [37]))) {
+        elseif(in_array($user->role_id, array_merge(range(64, 78), [37,139]))) {
             $user_product_head = User::where('userId', $user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $dmc_id = $user_product_head_dmc->userId;

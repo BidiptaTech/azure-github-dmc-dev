@@ -83,7 +83,7 @@ class AttractionController extends Controller
                 return $attraction->hasSelectedByDmc($user->created_by);
             });
         }
-        elseif($user->role_id == 74){
+        elseif($user->role_id == 74 || $user->role_id == 139){
             $product_head = User::where('userId', $user->created_by)->first();
             $this_dmc_id = $product_head->created_by;
 
@@ -93,7 +93,7 @@ class AttractionController extends Controller
                 });
             }
         }
-        elseif($user->role_id == 93 || $user->role_id == 90){
+        elseif($user->role_id == 93 || $user->role_id == 90 || $user->role_id == 140){
             $product_manager = User::where('userId', $user->created_by)->first();
             $product_head = User::where('userId', $product_manager->created_by)->first();
             $this_dmc_id = $product_head->created_by;
@@ -277,7 +277,7 @@ class AttractionController extends Controller
         }else{
             $dmcs = User::where('role_id', 11)->get();
         }
-        if(in_array($authuser->role_id, [11, 20, 35, 74, 93, 130, 132, 133, 135, 136, 137, 138])){
+        if(in_array($authuser->role_id, [11, 20, 35, 74, 93, 90, 130, 132, 133, 135, 136, 137, 138, 139, 140])){
             $userCountry = User::where('userId', $authuser->userId)->first()->country;
             $cities = City::where('country', $userCountry)->get();
         }
@@ -387,13 +387,13 @@ class AttractionController extends Controller
                 $dmc_id = $userdmc->userId;
                 $status = 1;
             }
-            elseif(auth()->user()->role_id == 74){
+            elseif(auth()->user()->role_id == 74 || auth()->user()->role_id == 139){
                 $user_product_head = User::where('userId', auth()->user()->created_by)->first();
                 $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
                 $dmc_id = $user_product_head_dmc->userId;
                 $status = 1;
             }
-            elseif(auth()->user()->role_id == 93){
+            elseif(auth()->user()->role_id == 93 || auth()->user()->role_id == 90 || auth()->user()->role_id == 140){
                 $user_product_manager = User::where('userId', auth()->user()->created_by)->first();
                 $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
                 $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
@@ -578,9 +578,9 @@ class AttractionController extends Controller
     */
     public function destroy($id)
     {
-        if (!hasPermission('delete attraction')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
+        // if (!hasPermission('delete attraction')) {
+        //     abort(403, 'You do not have permission to access this page.');
+        // }
         $id = Crypt::decrypt($id);
         // Get attraction and delete images from Azure
         $attraction = Attraction::where('attraction_id', $id)->first();
@@ -638,7 +638,7 @@ class AttractionController extends Controller
     {
         // Check if user is DMC (role_id = 11)
         $user = auth()->user();
-        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35,74, 93, 90, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to access this page.');
         }
@@ -647,10 +647,10 @@ class AttractionController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 74){
+        }else if($user->role_id == 74 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 93){
+        }else if($user->role_id == 93 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $dmc_id = $user_product_head->created_by;
@@ -684,7 +684,7 @@ class AttractionController extends Controller
     public function updateDmcAttractions(Request $request)
     {
         $user = auth()->user();
-        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to perform this action.');
         }
@@ -693,10 +693,10 @@ class AttractionController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 74){
+        }else if($user->role_id == 74 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 93){
+        }else if($user->role_id == 93 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $dmc_id = $user_product_head->created_by;
@@ -732,7 +732,7 @@ class AttractionController extends Controller
             $attractionId = Crypt::decrypt($request->input('attraction_id'));
             $user = Auth::user();
 
-        $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+        $allowedRoles = [11, 35,74, 93, 90, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to perform this action.');
         }
@@ -741,10 +741,10 @@ class AttractionController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 74){
+        }else if($user->role_id == 74 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 93){
+        }else if($user->role_id == 93 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $dmc_id = $user_product_head->created_by;
@@ -789,7 +789,7 @@ class AttractionController extends Controller
             $attractionId = $request->input('attraction_id');
             $user = Auth::user();
 
-            $allowedRoles = [11, 35,74, 93, 130, 132, 133, 135, 136, 137, 138];
+            $allowedRoles = [11, 35,74, 93, 90, 130, 132, 133, 135, 136, 137, 138, 139, 140];
         if (!in_array($user->role_id, $allowedRoles)) {
             abort(403, 'You do not have permission to perform this action.');
         }
@@ -798,10 +798,10 @@ class AttractionController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 35 || in_array($user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 74){
+        }else if($user->role_id == 74 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $user_product_head->created_by;
-        }else if($user->role_id == 93){
+        }else if($user->role_id == 93 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $dmc_id = $user_product_head->created_by;

@@ -64,20 +64,17 @@ class PackagedAttractionController extends Controller
             $dmc_id = $userdmc->userId;
             $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $dmc_id)->get();
         }
-        elseif($user->role_id == 74){
-            $assistant_product_manager_ids = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            if($assistant_product_manager_ids){
-                $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->whereIn('created_by', $assistant_product_manager_ids)->orWhere('created_by', $user->userId)->get();
-            }else{
-                $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
-            }
+        elseif($user->role_id == 74 || $user->role_id == 139){
+            $user_product_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+            // dd($dmc_id);
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $dmc_id)->get();
         }
-        elseif($user->role_id == 93 || $user->role_id == 90){
-            if($user->role_id != 111){
-                $assistant_product_manager = User::where('created_by', $user->userId)->get()->pluck('userId')->toArray();
-            }
-            
-            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('created_by', $user->userId)->get();
+        elseif($user->role_id == 93 || $user->role_id == 90 || $user->role_id == 140){
+            $user_product_manager = User::where('userId', $user->created_by)->first();
+            $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
+            $dmc_id = $user_product_head->created_by;
+            $packagedAttractions = PackagedAttraction::orderBy('updated_at', 'desc')->where('dmc_id', $dmc_id)->get();
         }
         
         return view('packaged_attractions.list', compact('packagedAttractions'));
@@ -100,12 +97,12 @@ class PackagedAttractionController extends Controller
             $userdmc = User::where('userId', $user->created_by)->first();
             $dmc_id = $userdmc->userId;
         }
-        elseif($user->role_id == 74){
+        elseif($user->role_id == 74 || $user->role_id == 139){
             $user_product_head = User::where('userId', $user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
             $dmc_id = $user_product_head_dmc->userId;
         }
-        elseif($user->role_id == 93){
+        elseif($user->role_id == 93 || $user->role_id == 140){
             $user_product_manager = User::where('userId', $user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
@@ -160,12 +157,12 @@ class PackagedAttractionController extends Controller
                 $userdmc = User::where('userId', $user->created_by)->first();
                 $dmc_id = $userdmc->userId;
             }
-            elseif($user->role_id == 74){
+            elseif($user->role_id == 74 || $user->role_id == 139){
                 $user_product_head = User::where('userId', $user->created_by)->first();
                 $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
                 $dmc_id = $user_product_head_dmc->userId;
             }
-            elseif($user->role_id == 93){
+            elseif($user->role_id == 93 || $user->role_id == 140){
                 $user_product_manager = User::where('userId', $user->created_by)->first();
                 $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
                 $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();

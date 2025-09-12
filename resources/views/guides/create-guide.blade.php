@@ -211,7 +211,7 @@
                                     </select>
                                 @else
                                     <input type="text" class="form-control" id="country" onchange="validateDriverAge(document.getElementById('driver_age'))" 
-                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102]) ? $userCountry : ''}}"
+                                    value="{{in_array(auth()->user()->role_id, [11, 35, 75, 102, 139, 140]) ? $userCountry : ''}}"
                                         placeholder="{{ auth()->user()->role_id == 11 ? 'Your country' : 'Select DMC First' }}" 
                                         name="country" required 
                                         {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
@@ -232,7 +232,7 @@
                                 
                                 <select name="city" id="citySelect" class="form-control" required>
                                     <option value="">{{ $placeholder }}</option>
-                                    @if(in_array($roleId, [11, 35, 75, 102]))
+                                    @if(in_array($roleId, [11, 35, 75, 102, 139, 140]))
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}" {{ old('city') == $city->name ? 'selected' : '' }}>{{ $city->name }}</option>
                                         @endforeach

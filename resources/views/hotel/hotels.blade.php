@@ -50,7 +50,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
                             @php
-                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
                             @endphp
 
                             @if($roleId == 10 || $roleId == 19)
@@ -65,7 +65,7 @@
                             <th>Email</th>
                             <th>Image</th>
                             <th>Calender</th>
-                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || hasPermission('edit hotel') || hasPermission('delete hotel'))
+                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit hotel') || hasPermission('delete hotel'))
                             @if(hasPermission('edit hotel') || hasPermission('delete hotel'))
                             <th>Action</th>
                             <th>Created At</th>
@@ -90,7 +90,7 @@
                                 $roleId = auth()->user()->role_id;
                             @endphp
                             @php
-                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84];
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
                             @endphp
 
                             @if($roleId == 10 || $roleId == 19) {{-- Master DMC or Virtual Master DMC --}}
@@ -169,7 +169,7 @@
                                     <i class="fa fa-calendar-alt"></i>View Calendar
                                 </a>
                             </td>
-                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || in_array(auth()->user()->role_id, [130, 132, 133, 135, 136, 137, 138]) || hasPermission('edit hotel') || hasPermission('delete hotel'))
+                            @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || in_array(auth()->user()->role_id, [130, 132, 133, 135, 136, 137, 138, 139, 140]) || hasPermission('edit hotel') || hasPermission('delete hotel'))
                                 @if($hotel->status == 1)
                                     <td style="display: inline-block; white-space: nowrap;">
                                         @if(hasPermission('edit hotel'))
@@ -183,7 +183,7 @@
                                             </svg>
                                         </a>
                                         @endif
-                                        @if(hasPermission('delete hotel'))
+                                        @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
                                         <button type="button"
                                             class="btn btn-danger btn-sm rounded-circle"
                                             style="min-width: 28px; min-height: 28px; padding: 0;" 
