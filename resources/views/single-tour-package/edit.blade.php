@@ -403,7 +403,6 @@
                                     $bookingDates = $hotelInfo['bookingDate'] ?? [];
                                     $checkIn = is_array($bookingDates) ? ($bookingDates[0] ?? '') : $bookingDates;
                                     $checkOut = is_array($bookingDates) ? ($bookingDates[1] ?? '') : '';
-                                    
                                     // Calculate which days this hotel covers
                                     $hotelDays = [];
                                     if ($checkIn && $checkOut) {
@@ -412,7 +411,7 @@
                                         $tourStart = \Carbon\Carbon::parse($tour->check_in_time);
                                         
                                         while ($startDate < $endDate) {
-                                            $dayNumber = $startDate->diffInDays($tourStart) + 1;
+                                            $dayNumber = $tourStart->diffInDays($startDate) + 1;
                                             $hotelDays[] = "Day " . $dayNumber;
                                             $startDate->addDay();
                                         }
@@ -7611,6 +7610,11 @@
     window.removeAttractionService = function(orderId) {
         
         removeService(orderId, 'attraction');
+    };
+
+    window.removeHotelService = function(orderId) {
+        
+        removeService(orderId, 'hotel');
     };
     
     window.removeGuideService = function(orderId) {
