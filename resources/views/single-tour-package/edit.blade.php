@@ -1288,11 +1288,7 @@
                                 <option value="">Select hotel first</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <button type="button" class="btn btn-success" id="add_room_btn">
-                                <i class="ri-add-line"></i>
-                            </button>
-                        </div>
+                        
                     </div>
 
                     <!-- Date Range Selection -->
@@ -6380,7 +6376,14 @@
          bedTypeSelect.innerHTML = '<option value="">Loading bed types...</option>';
          
          // Fetch beds from the beds table using the existing API endpoint
-         fetch(`/fetch-beds-by-room?room_id=${roomId}`)
+         const url = route('fetch-beds-by-room', roomId);
+         fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ room_id: roomId })
+         })
              .then(response => {
                  if (!response.ok) {
                      throw new Error('Network response was not ok');
@@ -7647,10 +7650,11 @@
                 return;
             }
             
-            console.log('Making request to:', `/api/orders/${orderId}/cancel`);
             console.log('CSRF Token:', csrfToken);
+
+            const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             
-            fetch(`/api/orders/${orderId}/cancel`, {
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
