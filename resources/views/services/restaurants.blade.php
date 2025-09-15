@@ -30,13 +30,30 @@
 
         <!-- Selected Restaurants Section -->
         @if(isset($selectedRestaurants) && count($selectedRestaurants) > 0)
-        <div class="card mb-4">
+        <div class="card mb-4" id="selectedRestaurantsSection">
             <div class="card-header">
-                <h5 class="mb-0">Selected Restaurants ({{ count($selectedRestaurants) }})</h5>
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
+                    <h5 class="mb-0">Selected Restaurants ({{ count($selectedRestaurants) }})</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" class="form-control" id="selectedRestaurantSearch" placeholder="Search selected restaurants...">
+                        </div>
+                        <div class="input-group input-group-sm" style="width: 160px;">
+                            <span class="input-group-text">Per page</span>
+                            <select id="selectedRestaurantPageSize" class="form-select">
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-2">
                         <thead>
                             <tr>
                                 <th>Restaurant Name</th>
@@ -45,9 +62,9 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="selectedRestaurantsBody">
                             @foreach($selectedRestaurants as $restaurant)
-                                <tr>
+                                <tr class="selected-restaurant-row" data-restaurant-id="{{ $restaurant->restaurant_id }}" data-name="{{ strtolower($restaurant->name) }}" data-location="{{ strtolower($restaurant->city) }}, {{ strtolower($restaurant->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($restaurant->master_image)
@@ -90,6 +107,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0" id="selectedRestaurantsPagination"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -113,23 +133,37 @@
                     </div>
                 @endif
 
-                <!-- Search Box -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
+                <!-- Advanced Filters -->
+                <div class="row g-3 align-items-end mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <label for="restaurantSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
-                            <input type="text" class="form-control" id="restaurantSearch" placeholder="Search restaurants by name..." onkeyup="filterRestaurants()">
+                            <input type="text" class="form-control" id="restaurantSearch" placeholder="Search restaurants by name..." onkeyup="applyRestaurantFilters()">
                         </div>
                     </div>
-                    <div class="col-md-6 text-end">
-                        <span class="text-muted" id="restaurantCount">Showing all restaurants</span>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="restaurantCountrySelect" class="form-label mb-1">Country</label>
+                        <select id="restaurantCountrySelect" class="form-select" onchange="onRestaurantCountryChange()">
+                            <option value="">All Countries</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="restaurantCitySelect" class="form-label mb-1">City</label>
+                        <select id="restaurantCitySelect" class="form-select" onchange="applyRestaurantFilters()" disabled>
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 text-end">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="resetRestaurantFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
+                        <div class="small text-muted mt-2" id="restaurantCount">Showing all restaurants</div>
                     </div>
                 </div>
                 
                 <div class="row" id="restaurantsContainer">
                     @if(isset($availableRestaurants) && count($availableRestaurants) > 0)
                         @foreach($availableRestaurants as $restaurant)
-                            <div class="col-lg-3 col-md-6 mb-3 restaurant-item" data-restaurant-name="{{ strtolower($restaurant->name) }}">
+                            <div class="col-lg-3 col-md-6 mb-3 restaurant-item" data-restaurant-name="{{ strtolower($restaurant->name) }}" data-country="{{ strtolower($restaurant->country) }}" data-city="{{ strtolower($restaurant->city) }}">
                                 <div class="card h-100 restaurant-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -277,6 +311,7 @@
 
 <script>
 let currentRestaurantId = null;
+const defaultRestaurantCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 
 function selectAll() {
     document.querySelectorAll('.select-restaurant-btn').forEach(button => {
@@ -294,16 +329,23 @@ function deselectAll() {
     });
 }
 
-function filterRestaurants() {
-    const searchTerm = document.getElementById('restaurantSearch').value.toLowerCase();
-    const restaurantItems = document.querySelectorAll('.restaurant-item');
+function applyRestaurantFilters() {
+    const searchTerm = (document.getElementById('restaurantSearch').value || '').toLowerCase();
+    const selectedCountry = (document.getElementById('restaurantCountrySelect').value || '').toLowerCase();
+    const selectedCity = (document.getElementById('restaurantCitySelect').value || '').toLowerCase();
+    const items = document.querySelectorAll('.restaurant-item');
     let visibleCount = 0;
 
-    restaurantItems.forEach(item => {
-        const restaurantName = item.getAttribute('data-restaurant-name');
-        const matches = restaurantName.includes(searchTerm);
-        
-        if (matches) {
+    items.forEach(item => {
+        const name = item.getAttribute('data-restaurant-name') || '';
+        const country = item.getAttribute('data-country') || '';
+        const city = item.getAttribute('data-city') || '';
+
+        const matchSearch = !searchTerm || name.includes(searchTerm);
+        const matchCountry = !selectedCountry || country === selectedCountry;
+        const matchCity = !selectedCity || city === selectedCity;
+
+        if (matchSearch && matchCountry && matchCity) {
             item.style.display = 'block';
             visibleCount++;
         } else {
@@ -311,13 +353,49 @@ function filterRestaurants() {
         }
     });
 
-    // Update count
     const countElement = document.getElementById('restaurantCount');
-    if (searchTerm) {
-        countElement.textContent = `Showing ${visibleCount} of ${restaurantItems.length} restaurants`;
-    } else {
-        countElement.textContent = 'Showing all restaurants';
+    const total = document.querySelectorAll('.restaurant-item').length;
+    countElement.textContent = `Showing ${visibleCount} of ${total} restaurants`;
+}
+
+function resetRestaurantFilters() {
+    document.getElementById('restaurantSearch').value = '';
+    document.getElementById('restaurantCountrySelect').value = '';
+    const citySelect = document.getElementById('restaurantCitySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+    citySelect.disabled = true;
+    applyRestaurantFilters();
+}
+
+function onRestaurantCountryChange() {
+    const country = (document.getElementById('restaurantCountrySelect').value || '').toLowerCase();
+    const citySelect = document.getElementById('restaurantCitySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+
+    if (!country) {
+        citySelect.disabled = true;
+        applyRestaurantFilters();
+        return;
     }
+
+    const items = document.querySelectorAll('.restaurant-item');
+    const cities = new Set();
+    items.forEach(item => {
+        if ((item.getAttribute('data-country') || '') === country) {
+            const c = item.getAttribute('data-city') || '';
+            if (c) cities.add(c);
+        }
+    });
+
+    Array.from(cities).sort().forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
+        citySelect.appendChild(opt);
+    });
+    citySelect.disabled = cities.size === 0;
+
+    applyRestaurantFilters();
 }
 
 // Document ready
@@ -333,6 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const restaurantId = this.getAttribute('data-restaurant-id');
             const restaurantName = this.getAttribute('data-restaurant-name');
+            try { localStorage.setItem('last_selected_restaurant_id', String(restaurantId)); } catch (e) {}
             
             // Show loading state
             const btnText = this.querySelector('.btn-text');
@@ -431,6 +510,85 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('error', 'An error occurred while removing the restaurant.');
         });
     });
+    // Populate country dropdown
+    const countrySelect = document.getElementById('restaurantCountrySelect');
+    const items = document.querySelectorAll('.restaurant-item');
+    const countrySet = new Set();
+    items.forEach(item => {
+        const c = item.getAttribute('data-country');
+        if (c) countrySet.add(c);
+    });
+    Array.from(countrySet).sort().forEach(country => {
+        const opt = document.createElement('option');
+        opt.value = country;
+        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
+        countrySelect.appendChild(opt);
+    });
+    if (defaultRestaurantCountry && Array.from(countrySet).includes(defaultRestaurantCountry)) {
+        countrySelect.value = defaultRestaurantCountry;
+        onRestaurantCountryChange();
+    }
+
+    // Selected Restaurants: client-side pagination + search
+    const selectedBody = document.getElementById('selectedRestaurantsBody');
+    if (selectedBody) {
+        const rows = Array.from(selectedBody.querySelectorAll('.selected-restaurant-row'));
+        const pagination = document.getElementById('selectedRestaurantsPagination');
+        const searchInput = document.getElementById('selectedRestaurantSearch');
+        const pageSizeSelect = document.getElementById('selectedRestaurantPageSize');
+
+        function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+        function getFilteredRows() {
+            const term = (searchInput.value || '').toLowerCase();
+            return rows.filter(r => {
+                if (!term) return true;
+                const name = r.getAttribute('data-name') || '';
+                const loc = r.getAttribute('data-location') || '';
+                return name.includes(term) || loc.includes(term);
+            });
+        }
+        function renderPagination(total, page, pageSize) {
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            pagination.innerHTML = '';
+            const createItem = (label, p, disabled=false, active=false) => {
+                const li = document.createElement('li');
+                li.className = `page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}`;
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = 'javascript:void(0)';
+                a.textContent = label;
+                a.addEventListener('click', () => { if (!disabled) render(p); });
+                li.appendChild(a);
+                return li;
+            };
+            pagination.appendChild(createItem('«', Math.max(1, page-1), page===1));
+            for (let i = 1; i <= Math.max(1, Math.ceil(total / pageSize)); i++) pagination.appendChild(createItem(String(i), i, false, i===page));
+            pagination.appendChild(createItem('»', Math.min(Math.max(1, Math.ceil(total / pageSize)), page+1), page===Math.max(1, Math.ceil(total / pageSize))));
+        }
+        function render(page=1) {
+            const pageSize = getPageSize();
+            const filtered = getFilteredRows();
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            const safePage = Math.min(Math.max(1, page), totalPages);
+            const start = (safePage - 1) * pageSize;
+            const end = start + pageSize;
+            rows.forEach(r => r.classList.add('d-none'));
+            filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
+            renderPagination(total, safePage, pageSize);
+        }
+        try {
+            const lastId = localStorage.getItem('last_selected_restaurant_id');
+            if (lastId) {
+                const row = rows.find(r => String(r.getAttribute('data-restaurant-id')) === String(lastId));
+                if (row && row.parentElement) row.parentElement.insertBefore(row, row.parentElement.firstChild);
+                localStorage.removeItem('last_selected_restaurant_id');
+            }
+        } catch (e) {}
+        render(1);
+        searchInput.addEventListener('input', () => render(1));
+        pageSizeSelect.addEventListener('change', () => render(1));
+    }
 });
 
 function showAlert(type, message) {

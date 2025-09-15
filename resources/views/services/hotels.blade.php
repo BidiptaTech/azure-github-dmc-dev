@@ -30,13 +30,30 @@
 
         <!-- Selected Hotels Section -->
         @if(isset($selectedHotels) && count($selectedHotels) > 0)
-        <div class="card mb-4">
+        <div class="card mb-4" id="selectedHotelsSection">
             <div class="card-header">
-                <h5 class="mb-0">Selected Hotels ({{ count($selectedHotels) }})</h5>
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
+                    <h5 class="mb-0">Selected Hotels ({{ count($selectedHotels) }})</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" class="form-control" id="selectedSearch" placeholder="Search selected hotels...">
+                        </div>
+                        <div class="input-group input-group-sm" style="width: 160px;">
+                            <span class="input-group-text">Per page</span>
+                            <select id="selectedPageSize" class="form-select">
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-2">
                         <thead>
                             <tr>
                                 <th>Hotel Name</th>
@@ -45,9 +62,9 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="selectedHotelsBody">
                             @foreach($selectedHotels as $hotel)
-                                <tr>
+                                <tr class="selected-hotel-row" data-hotel-id="{{ $hotel->id }}" data-name="{{ strtolower($hotel->name) }}" data-location="{{ strtolower($hotel->city) }}, {{ strtolower($hotel->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($hotel->main_image)
@@ -90,6 +107,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0" id="selectedHotelsPagination"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -113,23 +133,37 @@
                     </div>
                 @endif
 
-                <!-- Search Box -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
+                <!-- Advanced Filters -->
+                <div class="row g-3 align-items-end mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <label for="hotelSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
-                            <input type="text" class="form-control" id="hotelSearch" placeholder="Search hotels by name..." onkeyup="filterHotels()">
+                            <input type="text" class="form-control" id="hotelSearch" placeholder="Search hotels by name..." onkeyup="applyFilters()">
                         </div>
                     </div>
-                    <div class="col-md-6 text-end">
-                        <span class="text-muted" id="hotelCount">Showing all hotels</span>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="countrySelect" class="form-label mb-1">Country</label>
+                        <select id="countrySelect" class="form-select" onchange="onCountryChange()">
+                            <option value="">All Countries</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="citySelect" class="form-label mb-1">City</label>
+                        <select id="citySelect" class="form-select" onchange="applyFilters()" disabled>
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 text-end">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
+                        <div class="small text-muted mt-2" id="hotelCount">Showing all hotels</div>
                     </div>
                 </div>
                 
                 <div class="row" id="hotelsContainer">
                     @if(isset($availableHotels) && count($availableHotels) > 0)
                         @foreach($availableHotels as $hotel)
-                            <div class="col-lg-3 col-md-6 mb-3 hotel-item" data-hotel-name="{{ strtolower($hotel->name) }}">
+                            <div class="col-lg-3 col-md-6 mb-3 hotel-item" data-hotel-name="{{ strtolower($hotel->name) }}" data-country="{{ strtolower($hotel->country) }}" data-city="{{ strtolower($hotel->city) }}">
                                 <div class="card h-100 hotel-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -341,6 +375,7 @@
 <script>
 // CSRF Token
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const defaultCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 
 function selectAll() {
     document.querySelectorAll('.select-hotel-btn').forEach(button => {
@@ -358,20 +393,27 @@ function deselectAll() {
     });
 }
 
-function filterHotels() {
+function applyFilters() {
     const searchTerm = document.getElementById('hotelSearch').value.toLowerCase();
+    const selectedCountry = (document.getElementById('countrySelect').value || '').toLowerCase();
+    const selectedCity = (document.getElementById('citySelect').value || '').toLowerCase();
     const hotelItems = document.querySelectorAll('.hotel-item');
     let visibleCount = 0;
 
     hotelItems.forEach(item => {
         const hotelName = item.getAttribute('data-hotel-name');
+        const hotelCountry = item.getAttribute('data-country') || '';
+        const hotelCity = item.getAttribute('data-city') || '';
         const hotelNameElement = item.querySelector('.hotel-name');
-        
-        if (hotelName.includes(searchTerm)) {
+
+        const matchSearch = !searchTerm || hotelName.includes(searchTerm);
+        const matchCountry = !selectedCountry || hotelCountry === selectedCountry;
+        const matchCity = !selectedCity || hotelCity === selectedCity;
+
+        if (matchSearch && matchCountry && matchCity) {
             item.classList.remove('hidden');
             visibleCount++;
-            
-            // Highlight search term in hotel name
+
             if (searchTerm) {
                 const originalText = hotelNameElement.textContent;
                 const highlightedText = originalText.replace(
@@ -380,17 +422,55 @@ function filterHotels() {
                 );
                 hotelNameElement.innerHTML = highlightedText;
             } else {
-                // Remove highlighting when search is empty
                 hotelNameElement.innerHTML = hotelNameElement.textContent;
             }
         } else {
             item.classList.add('hidden');
-            // Remove highlighting for hidden items
             hotelNameElement.innerHTML = hotelNameElement.textContent;
         }
     });
 
     updateHotelCount(visibleCount);
+}
+
+function resetFilters() {
+    document.getElementById('hotelSearch').value = '';
+    document.getElementById('countrySelect').value = '';
+    const citySelect = document.getElementById('citySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+    citySelect.disabled = true;
+    applyFilters();
+}
+
+function onCountryChange() {
+    const country = (document.getElementById('countrySelect').value || '').toLowerCase();
+    const citySelect = document.getElementById('citySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+
+    if (!country) {
+        citySelect.disabled = true;
+        applyFilters();
+        return;
+    }
+
+    const hotelItems = document.querySelectorAll('.hotel-item');
+    const cities = new Set();
+    hotelItems.forEach(item => {
+        if ((item.getAttribute('data-country') || '') === country) {
+            const c = item.getAttribute('data-city') || '';
+            if (c) cities.add(c);
+        }
+    });
+
+    Array.from(cities).sort().forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
+        citySelect.appendChild(opt);
+    });
+    citySelect.disabled = cities.size === 0;
+
+    applyFilters();
 }
 
 function updateHotelCount(visibleCount = null) {
@@ -405,6 +485,8 @@ function updateHotelCount(visibleCount = null) {
 }
 
 function selectHotel(hotelId, hotelName) {
+    // Remember last selected hotel to bring it to top after reload
+    try { localStorage.setItem('last_selected_hotel_id', String(hotelId)); } catch (e) {}
     fetch('{{ route("services.hotels.select") }}', {
         method: 'POST',
         headers: {
@@ -548,8 +630,107 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.hide();
     });
 
-    // Initialize hotel count
+    // Prime Country dropdown from DOM data (unique countries)
+    const countrySelect = document.getElementById('countrySelect');
+    const hotelItems = document.querySelectorAll('.hotel-item');
+    const countrySet = new Set();
+    hotelItems.forEach(item => {
+        const c = item.getAttribute('data-country');
+        if (c) countrySet.add(c);
+    });
+    Array.from(countrySet).sort().forEach(country => {
+        const opt = document.createElement('option');
+        opt.value = country;
+        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
+        countrySelect.appendChild(opt);
+    });
+
+    // Default to user's country if exists
+    if (defaultCountry && Array.from(countrySet).includes(defaultCountry)) {
+        countrySelect.value = defaultCountry;
+        onCountryChange();
+    }
+
+    // Initialize hotel count and apply initial filters
     updateHotelCount();
+    applyFilters();
+
+    // Selected Hotels: client-side pagination + search
+    const selectedBody = document.getElementById('selectedHotelsBody');
+    if (selectedBody) {
+        const rows = Array.from(selectedBody.querySelectorAll('.selected-hotel-row'));
+        const pagination = document.getElementById('selectedHotelsPagination');
+        const searchInput = document.getElementById('selectedSearch');
+        const pageSizeSelect = document.getElementById('selectedPageSize');
+
+        function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+
+        function getFilteredRows() {
+            const term = (searchInput.value || '').toLowerCase();
+            return rows.filter(r => {
+                if (!term) return true;
+                const name = r.getAttribute('data-name') || '';
+                const loc = r.getAttribute('data-location') || '';
+                return name.includes(term) || loc.includes(term);
+            });
+        }
+
+        function renderPagination(total, page, pageSize) {
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            pagination.innerHTML = '';
+            const createItem = (label, p, disabled=false, active=false) => {
+                const li = document.createElement('li');
+                li.className = `page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}`;
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = 'javascript:void(0)';
+                a.textContent = label;
+                a.addEventListener('click', () => { if (!disabled) render(p); });
+                li.appendChild(a);
+                return li;
+            };
+            pagination.appendChild(createItem('«', Math.max(1, page-1), page===1));
+            for (let i = 1; i <= totalPages; i++) {
+                pagination.appendChild(createItem(String(i), i, false, i===page));
+            }
+            pagination.appendChild(createItem('»', Math.min(totalPages, page+1), page===totalPages));
+        }
+
+        function render(page=1) {
+            const pageSize = getPageSize();
+            const filtered = getFilteredRows();
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            const safePage = Math.min(Math.max(1, page), totalPages);
+            const start = (safePage - 1) * pageSize;
+            const end = start + pageSize;
+
+            // Hide all, then show only the slice
+            rows.forEach(r => r.classList.add('d-none'));
+            filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
+
+            renderPagination(total, safePage, pageSize);
+        }
+
+        // Reorder by last selected hotel id if exists
+        try {
+            const lastId = localStorage.getItem('last_selected_hotel_id');
+            if (lastId) {
+                const row = rows.find(r => String(r.getAttribute('data-hotel-id')) === String(lastId));
+                if (row && row.parentElement) {
+                    row.parentElement.insertBefore(row, row.parentElement.firstChild);
+                }
+                localStorage.removeItem('last_selected_hotel_id');
+            }
+        } catch (e) {}
+
+        // Initial render
+        render(1);
+
+        // Bind events
+        searchInput.addEventListener('input', () => render(1));
+        pageSizeSelect.addEventListener('change', () => render(1));
+    }
 });
 </script>
 @endsection 

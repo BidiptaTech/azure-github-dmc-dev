@@ -18,7 +18,7 @@
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New City
+                Add New City Charge
                 <a href="{{ route('country.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
@@ -243,7 +243,7 @@
                 </fieldset> --}}
 
                 <fieldset class="border p-4 rounded mb-4">
-                    <h5 class="card-title mb-3">City Charges</h5>
+                    <h5 class="card-title mb-3">City Charge Details</h5>
                     <div class="row">
                             <div class="col-md-3 mb-3">
                                 <label for="holiday_charges" class="form-label"><strong>Holiday Charges(Multiplier)</strong><span class="text-danger">*</span></label>

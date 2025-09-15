@@ -112,18 +112,48 @@
 
                 
                     <div class="col-md-6 mb-3">
-                        <label for="header_pdf" class="form-label"><strong>Upload Header PDF</strong><span class="text-danger">*</span></label>
-                        <input type="file" class="form-control @error('header_pdf') is-invalid @enderror" name="header_pdf" accept="application/pdf" required>
+                        <label for="header_pdf" class="form-label"><strong>Upload Header PDF</strong></label>
+                        <input type="file" class="form-control @error('header_pdf') is-invalid @enderror" name="header_pdf" accept="application/pdf">
+                        <input type="hidden" name="remove_header_pdf" id="remove_header_pdf" value="0">
                         @error('header_pdf')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
+                        @if(!empty($country->header_pdf))
+                        <div class="mt-2 border rounded p-2" id="headerPdfPreviewWrap">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="ri-file-pdf-2-line text-danger me-1"></i>
+                                    <span class="small">{{ Str::afterLast($country->header_pdf, '/') }}</span>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ $country->header_pdf }}" target="_blank" class="btn btn-outline-primary">View</a>
+                                    <button type="button" class="btn btn-outline-danger" id="removeHeaderBtn">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="footer_pdf" class="form-label"><strong>Upload Footer PDF</strong><span class="text-danger">*</span></label>
-                        <input type="file" class="form-control @error('footer_pdf') is-invalid @enderror" name="footer_pdf" accept="application/pdf" required>
+                        <label for="footer_pdf" class="form-label"><strong>Upload Footer PDF</strong></label>
+                        <input type="file" class="form-control @error('footer_pdf') is-invalid @enderror" name="footer_pdf" accept="application/pdf">
+                        <input type="hidden" name="remove_footer_pdf" id="remove_footer_pdf" value="0">
                         @error('footer_pdf')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
+                        @if(!empty($country->footer_pdf))
+                        <div class="mt-2 border rounded p-2" id="footerPdfPreviewWrap">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="ri-file-pdf-2-line text-danger me-1"></i>
+                                    <span class="small">{{ Str::afterLast($country->footer_pdf, '/') }}</span>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ $country->footer_pdf }}" target="_blank" class="btn btn-outline-primary">View</a>
+                                    <button type="button" class="btn btn-outline-danger" id="removeFooterBtn">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                 </div>
 
@@ -142,13 +172,90 @@
 @section('scripts')
 
 <script>
-    document.getElementById('countrySelect').addEventListener('change', function() {
-        let selectedOption = this.options[this.selectedIndex];
-        let countryCode = selectedOption.getAttribute('data-code');
-        let currency = selectedOption.getAttribute('data-currency');
+    // Guard in case element does not exist in edit form
+    const countrySelectEl = document.getElementById('countrySelect');
+    if (countrySelectEl) {
+        countrySelectEl.addEventListener('change', function() {
+            let selectedOption = this.options[this.selectedIndex];
+            let countryCode = selectedOption.getAttribute('data-code');
+            let currency = selectedOption.getAttribute('data-currency');
+            const codeEl = document.getElementById('countryCode');
+            const currencyEl = document.getElementById('currency');
+            if (codeEl) codeEl.value = countryCode || '';
+            if (currencyEl) currencyEl.value = currency || '';
+        });
+    }
 
-        document.getElementById('countryCode').value = countryCode || '';
-        document.getElementById('currency').value = currency || '';
+    // Handle remove current PDFs and live preview on replace
+    document.addEventListener('DOMContentLoaded', function() {
+        const headerInput = document.querySelector('input[name="header_pdf"]');
+        const footerInput = document.querySelector('input[name="footer_pdf"]');
+        const removeHeader = document.getElementById('remove_header_pdf');
+        const removeFooter = document.getElementById('remove_footer_pdf');
+        const headerWrap = document.getElementById('headerPdfPreviewWrap');
+        const footerWrap = document.getElementById('footerPdfPreviewWrap');
+        const removeHeaderBtn = document.getElementById('removeHeaderBtn');
+        const removeFooterBtn = document.getElementById('removeFooterBtn');
+
+        if (removeHeaderBtn) {
+            removeHeaderBtn.addEventListener('click', function() {
+                removeHeader.value = '1';
+                if (headerWrap) headerWrap.style.display = 'none';
+                // Clear the file input
+                if (headerInput) headerInput.value = '';
+            });
+        }
+        if (removeFooterBtn) {
+            removeFooterBtn.addEventListener('click', function() {
+                removeFooter.value = '1';
+                if (footerWrap) footerWrap.style.display = 'none';
+                // Clear the file input
+                if (footerInput) footerInput.value = '';
+            });
+        }
+
+        function showInlinePreview(file, targetWrapId) {
+            if (!file || file.type !== 'application/pdf') return;
+            const url = URL.createObjectURL(file);
+            let wrap = document.getElementById(targetWrapId);
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.id = targetWrapId;
+                wrap.className = 'mt-2 border rounded p-2';
+                const row = document.createElement('div');
+                row.className = 'd-flex justify-content-between align-items-center';
+                const left = document.createElement('div');
+                left.innerHTML = '<i class="ri-file-pdf-2-line text-danger me-1"></i><span class="small">New PDF selected</span>';
+                const right = document.createElement('div');
+                right.className = 'btn-group btn-group-sm';
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn btn-outline-primary';
+                openBtn.target = '_blank';
+                openBtn.textContent = 'View';
+                right.appendChild(openBtn);
+                row.appendChild(left); row.appendChild(right);
+                wrap.appendChild(row);
+                const anchor = targetWrapId.includes('Header') ? headerInput : footerInput;
+                anchor.parentElement.appendChild(wrap);
+            }
+            const openAnchor = wrap.querySelector('a.btn');
+            openAnchor.href = url;
+        }
+
+        if (headerInput) {
+            headerInput.addEventListener('change', function(e) {
+                if (removeHeader) removeHeader.value = '0';
+                const file = e.target.files && e.target.files[0];
+                showInlinePreview(file, 'newHeaderPdfPreviewWrap');
+            });
+        }
+        if (footerInput) {
+            footerInput.addEventListener('change', function(e) {
+                if (removeFooter) removeFooter.value = '0';
+                const file = e.target.files && e.target.files[0];
+                showInlinePreview(file, 'newFooterPdfPreviewWrap');
+            });
+        }
     });
 </script>
     

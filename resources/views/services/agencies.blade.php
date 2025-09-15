@@ -30,13 +30,30 @@
 
         <!-- Selected Agencies Section -->
         @if(isset($selectedAgencies) && count($selectedAgencies) > 0)
-        <div class="card mb-4">
+        <div class="card mb-4" id="selectedAgenciesSection">
             <div class="card-header">
-                <h5 class="mb-0">Selected Agencies ({{ count($selectedAgencies) }})</h5>
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
+                    <h5 class="mb-0">Selected Agencies ({{ count($selectedAgencies) }})</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" class="form-control" id="selectedAgencySearch" placeholder="Search selected agencies...">
+                        </div>
+                        <div class="input-group input-group-sm" style="width: 160px;">
+                            <span class="input-group-text">Per page</span>
+                            <select id="selectedAgencyPageSize" class="form-select">
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-2">
                         <thead>
                             <tr>
                                 <th>Agency Name</th>
@@ -46,9 +63,9 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="selectedAgenciesBody">
                             @foreach($selectedAgencies as $agency)
-                                <tr>
+                                <tr class="selected-agency-row" data-agency-id="{{ $agency->agency_id }}" data-name="{{ strtolower($agency->agency_name) }}" data-location="{{ strtolower($agency->city) }}, {{ strtolower($agency->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" 
@@ -101,6 +118,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0" id="selectedAgenciesPagination"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -124,23 +144,37 @@
                     </div>
                 @endif
 
-                <!-- Search Box -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
+                <!-- Advanced Filters -->
+                <div class="row g-3 align-items-end mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <label for="agencySearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
-                            <input type="text" class="form-control" id="agencySearch" placeholder="Search agencies by name..." onkeyup="filterAgencies()">
+                            <input type="text" class="form-control" id="agencySearch" placeholder="Search agencies by name..." onkeyup="applyAgencyFilters()">
                         </div>
                     </div>
-                    <div class="col-md-6 text-end">
-                        <span class="text-muted" id="agencyCount">Showing all agencies</span>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="agencyCountrySelect" class="form-label mb-1">Country</label>
+                        <select id="agencyCountrySelect" class="form-select" onchange="onAgencyCountryChange()">
+                            <option value="">All Countries</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="agencyCitySelect" class="form-label mb-1">City</label>
+                        <select id="agencyCitySelect" class="form-select" onchange="applyAgencyFilters()" disabled>
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 text-end">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="resetAgencyFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
+                        <div class="small text-muted mt-2" id="agencyCount">Showing all agencies</div>
                     </div>
                 </div>
                 
                 <div class="row" id="agenciesContainer">
                     @if(isset($availableAgencies) && count($availableAgencies) > 0)
                         @foreach($availableAgencies as $agency)
-                            <div class="col-lg-4 col-md-6 mb-3 agency-item" data-agency-name="{{ strtolower($agency->agency_name) }}">
+                            <div class="col-lg-4 col-md-6 mb-3 agency-item" data-agency-name="{{ strtolower($agency->agency_name) }}" data-country="{{ strtolower($agency->country) }}" data-city="{{ strtolower($agency->city) }}">
                                 <div class="card h-100 agency-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -278,6 +312,7 @@
 
 <script>
 let currentAgencyId = null;
+const defaultAgencyCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 
 function selectAll() {
     document.querySelectorAll('.select-agency-btn').forEach(button => {
@@ -295,16 +330,23 @@ function deselectAll() {
     });
 }
 
-function filterAgencies() {
-    const searchTerm = document.getElementById('agencySearch').value.toLowerCase();
-    const agencyItems = document.querySelectorAll('.agency-item');
+function applyAgencyFilters() {
+    const searchTerm = (document.getElementById('agencySearch').value || '').toLowerCase();
+    const selectedCountry = (document.getElementById('agencyCountrySelect').value || '').toLowerCase();
+    const selectedCity = (document.getElementById('agencyCitySelect').value || '').toLowerCase();
+    const items = document.querySelectorAll('.agency-item');
     let visibleCount = 0;
 
-    agencyItems.forEach(item => {
-        const agencyName = item.getAttribute('data-agency-name');
-        const matches = agencyName.includes(searchTerm);
-        
-        if (matches) {
+    items.forEach(item => {
+        const name = item.getAttribute('data-agency-name') || '';
+        const country = item.getAttribute('data-country') || '';
+        const city = item.getAttribute('data-city') || '';
+
+        const matchSearch = !searchTerm || name.includes(searchTerm);
+        const matchCountry = !selectedCountry || country === selectedCountry;
+        const matchCity = !selectedCity || city === selectedCity;
+
+        if (matchSearch && matchCountry && matchCity) {
             item.style.display = 'block';
             visibleCount++;
         } else {
@@ -312,13 +354,49 @@ function filterAgencies() {
         }
     });
 
-    // Update count
     const countElement = document.getElementById('agencyCount');
-    if (searchTerm) {
-        countElement.textContent = `Showing ${visibleCount} of ${agencyItems.length} agencies`;
-    } else {
-        countElement.textContent = 'Showing all agencies';
+    const total = document.querySelectorAll('.agency-item').length;
+    countElement.textContent = `Showing ${visibleCount} of ${total} agencies`;
+}
+
+function resetAgencyFilters() {
+    document.getElementById('agencySearch').value = '';
+    document.getElementById('agencyCountrySelect').value = '';
+    const citySelect = document.getElementById('agencyCitySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+    citySelect.disabled = true;
+    applyAgencyFilters();
+}
+
+function onAgencyCountryChange() {
+    const country = (document.getElementById('agencyCountrySelect').value || '').toLowerCase();
+    const citySelect = document.getElementById('agencyCitySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+
+    if (!country) {
+        citySelect.disabled = true;
+        applyAgencyFilters();
+        return;
     }
+
+    const items = document.querySelectorAll('.agency-item');
+    const cities = new Set();
+    items.forEach(item => {
+        if ((item.getAttribute('data-country') || '') === country) {
+            const c = item.getAttribute('data-city') || '';
+            if (c) cities.add(c);
+        }
+    });
+
+    Array.from(cities).sort().forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
+        citySelect.appendChild(opt);
+    });
+    citySelect.disabled = cities.size === 0;
+
+    applyAgencyFilters();
 }
 
 // Document ready
@@ -432,6 +510,86 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('error', 'An error occurred while removing the agency.');
         });
     });
+    // Populate country dropdown from DOM
+    const countrySelect = document.getElementById('agencyCountrySelect');
+    const items = document.querySelectorAll('.agency-item');
+    const countrySet = new Set();
+    items.forEach(item => {
+        const c = item.getAttribute('data-country');
+        if (c) countrySet.add(c);
+    });
+    Array.from(countrySet).sort().forEach(country => {
+        const opt = document.createElement('option');
+        opt.value = country;
+        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
+        countrySelect.appendChild(opt);
+    });
+    if (defaultAgencyCountry && Array.from(countrySet).includes(defaultAgencyCountry)) {
+        countrySelect.value = defaultAgencyCountry;
+        onAgencyCountryChange();
+    }
+
+    // Selected Agencies: client-side pagination + search
+    const selectedBody = document.getElementById('selectedAgenciesBody');
+    if (selectedBody) {
+        const rows = Array.from(selectedBody.querySelectorAll('.selected-agency-row'));
+        const pagination = document.getElementById('selectedAgenciesPagination');
+        const searchInput = document.getElementById('selectedAgencySearch');
+        const pageSizeSelect = document.getElementById('selectedAgencyPageSize');
+
+        function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+        function getFilteredRows() {
+            const term = (searchInput.value || '').toLowerCase();
+            return rows.filter(r => {
+                if (!term) return true;
+                const name = r.getAttribute('data-name') || '';
+                const loc = r.getAttribute('data-location') || '';
+                return name.includes(term) || loc.includes(term);
+            });
+        }
+        function renderPagination(total, page, pageSize) {
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            pagination.innerHTML = '';
+            const createItem = (label, p, disabled=false, active=false) => {
+                const li = document.createElement('li');
+                li.className = `page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}`;
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = 'javascript:void(0)';
+                a.textContent = label;
+                a.addEventListener('click', () => { if (!disabled) render(p); });
+                li.appendChild(a);
+                return li;
+            };
+            pagination.appendChild(createItem('«', Math.max(1, page-1), page===1));
+            for (let i = 1; i <= totalPages; i++) pagination.appendChild(createItem(String(i), i, false, i===page));
+            pagination.appendChild(createItem('»', Math.min(totalPages, page+1), page===totalPages));
+        }
+        function render(page=1) {
+            const pageSize = getPageSize();
+            const filtered = getFilteredRows();
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            const safePage = Math.min(Math.max(1, page), totalPages);
+            const start = (safePage - 1) * pageSize;
+            const end = start + pageSize;
+            rows.forEach(r => r.classList.add('d-none'));
+            filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
+            renderPagination(total, safePage, pageSize);
+        }
+        // Last selected agency to top
+        try {
+            const lastId = localStorage.getItem('last_selected_agency_id');
+            if (lastId) {
+                const row = rows.find(r => String(r.getAttribute('data-agency-id')) === String(lastId));
+                if (row && row.parentElement) row.parentElement.insertBefore(row, row.parentElement.firstChild);
+                localStorage.removeItem('last_selected_agency_id');
+            }
+        } catch (e) {}
+        render(1);
+        searchInput.addEventListener('input', () => render(1));
+        pageSizeSelect.addEventListener('change', () => render(1));
+    }
 });
 
 function showAlert(type, message) {
@@ -457,3 +615,4 @@ function showAlert(type, message) {
 }
 </script>
 @endsection
+
