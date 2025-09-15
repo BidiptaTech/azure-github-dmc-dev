@@ -294,7 +294,7 @@ const TooltipContent = ({ hotel }) => {
   );
 };
 
-const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
+const HotelListing = ({ onSelect, initialHotels = [], selectedHotelId, disabled = false }) => {
   const dispatch = useDispatch();
   const { hotels, status, searchState } = useSelector((state) => state.hotels);
   const [searchTerm, setSearchTerm] = useState("");
@@ -385,10 +385,12 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
 
   // Handle hotel selection
   const handleHotelSelect = (hotel) => {
-    if (!hotel) {
-      setSelectedHotel(null);
-      if (onSelect) onSelect(null);
-      console.log("Hotel selection cleared");
+    if (!hotel || disabled) {
+      if (!hotel) {
+        setSelectedHotel(null);
+        if (onSelect) onSelect(null);
+        console.log("Hotel selection cleared");
+      }
       return;
     }
     
@@ -437,6 +439,7 @@ const HotelListing = ({ onSelect, initialHotels = [],  selectedHotelId }) => {
           noOptionsText={status === "loading" ? "Loading hotels..." : "No hotels available"}
           loading={status === "loading"}
           disableListWrap
+          disabled={disabled}
           ListboxProps={{
             style: { maxHeight: 350, overflow: 'auto' }
           }}

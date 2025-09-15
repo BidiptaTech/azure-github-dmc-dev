@@ -25,11 +25,15 @@ import HotelIcon from '@mui/icons-material/Hotel';
 import AttractionsIcon from '@mui/icons-material/Attractions';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import AttractionRestaurantSearch from "./AttractionRestaurantSearch";
+import PortCity from "./PortCity";
 import {
   fetchLocalZone,
   setPicktype,
   setSelectbooking,
 } from "@/slice/localtour/Localslice";
+import { fetchHotels } from "@/slice/hotel/hotelSlice";
+import { fetchAttractions } from "@/slice/attractions/attractionSlice";
+import { fetchRestaurants } from "@/slice/restaurant/RestaurantsSlice";
 
 // Drop-off Location Search Component
 const DropOffLocationSearch = ({ onSelect, dayIndex = 0, onFocus, onBlur, disabled = false, picktype }) => {
@@ -364,7 +368,129 @@ const SearchZone = ({
   const attractions = useSelector((state) => state.attractions.attractions);
   const restaurants = useSelector((state) => state.restaurants.restaurants);
   
+  // City selection state
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isPickupLocationEnabled, setIsPickupLocationEnabled] = useState(false);
+  
+  // Get additional selectors
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
+  const tour = useSelector((state) => state.hotels.tourdetails);
+  console.log("selectedCity", selectedCity);
+  console.log("tour", tour);
+  
+  // Reset pickup location state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsPickupLocationEnabled(false);
+    }
+  }, [selectedCity]);
 
+  // Debug effect to track isPickupLocationEnabled changes
+  useEffect(() => {
+    console.log("isPickupLocationEnabled changed to:", isPickupLocationEnabled);
+  }, [isPickupLocationEnabled]);
+
+  // Handle city selection
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    console.log("Current isPickupLocationEnabled:", isPickupLocationEnabled);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable pickup location until all API calls are successful
+      console.log("Disabling pickup location - waiting for API responses");
+      setIsPickupLocationEnabled(false);
+      
+      // Get search criteria for API calls
+      const searchCriteria = {
+        checkIn: "01/01/2024", // Default dates - you may want to get these from props or state
+        checkOut: "02/01/2024",
+        guests: {
+          adults: 1,
+          children: 0,
+          infant: 0
+        }
+      };
+      
+      // Dispatch all three API calls simultaneously
+      console.log("Dispatching all three APIs with params:", {
+        city: `${city.name}, (${country})`,
+        searchCriteria
+      });
+      
+      const hotelPromise = dispatch(fetchHotels({ 
+        location: `${city.name}, (${country})`, 
+        ucheckIn: searchCriteria.checkIn,
+        ucheckOut: searchCriteria.checkOut,
+        guests: searchCriteria.guests
+      }));
+      
+      const attractionPromise = dispatch(fetchAttractions({ 
+        city: `${city.name}, (${country})`, 
+        date: searchCriteria.checkIn,
+        adults: searchCriteria.guests.adults,
+        children: searchCriteria.guests.children,
+        tour_id: tour?.tour_id || 0,
+        selectedDate: searchCriteria.checkIn,
+        fromMainSearch: false
+      }));
+      
+      const restaurantPromise = dispatch(fetchRestaurants({ 
+        city: `${city.name}, (${country})`, 
+        date: searchCriteria.checkIn,
+        adults: searchCriteria.guests.adults,
+        children: searchCriteria.guests.children,
+        tour_id: tour?.tour_id || 0,
+        selectedDate: searchCriteria.checkIn,
+        fromMainSearch: false
+      }));
+      
+      // Wait for all three API calls to complete
+      Promise.allSettled([hotelPromise, attractionPromise, restaurantPromise])
+        .then((results) => {
+          console.log("All API results:", results);
+          
+          const hotelResult = results[0];
+          const attractionResult = results[1];
+          const restaurantResult = results[2];
+          
+          const hotelSuccess = hotelResult.status === 'fulfilled' && !hotelResult.value.error;
+          const attractionSuccess = attractionResult.status === 'fulfilled' && !attractionResult.value.error;
+          const restaurantSuccess = restaurantResult.status === 'fulfilled' && !restaurantResult.value.error;
+          
+          console.log("API Success Status:", {
+            hotels: hotelSuccess,
+            attractions: attractionSuccess,
+            restaurants: restaurantSuccess
+          });
+          
+          if (hotelSuccess && attractionSuccess && restaurantSuccess) {
+            console.log("All APIs succeeded - enabling pickup location");
+            setIsPickupLocationEnabled(true);
+          } else {
+            console.log("One or more APIs failed - keeping pickup location disabled");
+            console.error("Failed APIs:", {
+              hotels: hotelResult.status === 'rejected' ? hotelResult.reason : hotelResult.value.error,
+              attractions: attractionResult.status === 'rejected' ? attractionResult.reason : attractionResult.value.error,
+              restaurants: restaurantResult.status === 'rejected' ? restaurantResult.reason : restaurantResult.value.error
+            });
+            setIsPickupLocationEnabled(false);
+          }
+        })
+        .catch((error) => {
+          console.error("Error in Promise.allSettled:", error);
+          console.log("Promise.allSettled failed - keeping pickup location disabled");
+          setIsPickupLocationEnabled(false);
+        });
+    } else {
+      // If no city selected, disable pickup location
+      console.log("No city selected - disabling pickup location");
+      setIsPickupLocationEnabled(false);
+    }
+  };
   
   useEffect(() => {
     if (picktype === "hotel" && currentbooking?.hotelDetails) {
@@ -387,13 +513,26 @@ const SearchZone = ({
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Location Input Fields in Horizontal Layout */}
-      <Grid container spacing={2}>
+      {/* Location Input Fields in Horizontal Layout - 3 columns for location fields */}
+      <Grid container spacing={1.5} alignItems="flex-end">
       
-        {/* Pick-up Location */}
-        <Grid item xs={12} md={6}>
+        {/* City Selection */}
+        <Grid item xs={12} md={3.5}>
           <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
-            Pick Up Location
+            City
+          </Typography>
+          <PortCity
+            onLocationSelect={handleCitySelect}
+            hasError={cityError}
+            setError={setCityError}
+            disabled={!isCityEnabled}
+          />
+        </Grid>
+
+        {/* Pick-up Location */}
+        <Grid item xs={12} md={4.5}>
+          <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
+            Pick Up Location 
           </Typography>
           <AttractionRestaurantSearch 
               onSelect={(selected) => {
@@ -419,11 +558,12 @@ const SearchZone = ({
               dayIndex={dayIndex}
               onFocus={() => setPickupFocused(true)}
               onBlur={() => setPickupFocused(false)}
+              disabled={!isPickupLocationEnabled}
             />
         </Grid>
 
         {/* Drop-off Location */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Drop Off Location
           </Typography>
@@ -445,6 +585,7 @@ const SearchZone = ({
               picktype={picktype}
             />
         </Grid>
+
         
       </Grid>
     </Box>

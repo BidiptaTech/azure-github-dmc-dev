@@ -28,13 +28,14 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import AttractionsIcon from '@mui/icons-material/Attractions';
 import TourIcon from '@mui/icons-material/Tour';
-import { selectAttractions } from '../../../slice/attractions/attractionSlice';
+import { fetchAttractions, selectAttractions } from '../../../slice/attractions/attractionSlice';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 import AttractionListing from './AttractionListing';
 import PaxSelector from './PaxSelector';
 import TimeSlotSelector from './TimeSlotSelector';
 import TicketTypeSelector from './TicketTypeSelector';
 import BookingSummaryModal from './BookingSummaryModal';
+import PortCity from './PortCity';
 
 const initialFormState = {
   attraction: '',
@@ -100,7 +101,14 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const [expandedSections, setExpandedSections] = useState([0]);
   // Track which sections have already been saved to Redux
   const [savedSectionIds, setSavedSectionIds] = useState([]);
-  
+  const [selectedCity, setSelectedCity] = useState(null);
+  const [cityError, setCityError] = useState(false);
+  const [isCityEnabled, setIsCityEnabled] = useState(true);
+  const [isAttractionListingEnabled, setIsAttractionListingEnabled] = useState(false);
+  console.log("selectedCity", selectedCity);
+  const country = useSelector((state) => state.tourPackages.searchCriteria.country);
+  const tour = useSelector((state) => state.hotels.tourdetails);
+  console.log("tour", tour);
   // Refs to prevent infinite loops
   const hasInitializedRef = useRef(false);
   const lastDispatchRef = useRef(null);
@@ -111,6 +119,18 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   useEffect(() => {
     currentServicesRef.current = existingServices;
   }, [existingServices]);
+
+  // Reset attraction listing state when city changes or component mounts
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsAttractionListingEnabled(false);
+    }
+  }, [selectedCity]);
+
+  // Debug effect to track isAttractionListingEnabled changes
+  useEffect(() => {
+    console.log("isAttractionListingEnabled changed to:", isAttractionListingEnabled);
+  }, [isAttractionListingEnabled]);
 
   // Function to initialize form sections from attractionspack data
   const initializeFormSectionsFromAttractionPack = useCallback(() => {
@@ -1284,29 +1304,80 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     return !isDateValid;
   };
 
-  if (!attractions || attractions.length === 0) {
-    return (
-      <Container maxWidth="xl">
-        <Card 
-          elevation={3}
-          sx={{
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-            color: 'white',
-            mb: 2,
-            mx: 'auto',
-          }}
-        >
-          <CardContent sx={{ py: 2, textAlign: 'center' }}>
-            <AttractionsIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
-            <Typography variant="h6" color="white">
-              Please search for attractions first
-            </Typography>
-          </CardContent>
-        </Card>
-      </Container>
-    );
-  }
+  // if (!attractions || attractions.length === 0) {
+  //   return (
+  //     <Container maxWidth="xl">
+  //       <Card 
+  //         elevation={3}
+  //         sx={{
+  //           borderRadius: 3,
+  //           background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+  //           color: 'white',
+  //           mb: 2,
+  //           mx: 'auto',
+  //         }}
+  //       >
+  //         <CardContent sx={{ py: 2, textAlign: 'center' }}>
+  //           <AttractionsIcon sx={{ fontSize: 64, color: '#FFD700', mb: 2 }} />
+  //           <Typography variant="h6" color="white">
+  //             Please search for attractions first
+  //           </Typography>
+  //         </CardContent>
+  //       </Card>
+  //     </Container>
+  //   );
+  // }
+
+  const handleCitySelect = (city) => {
+    console.log("City selected:", city);
+    console.log("Current isAttractionListingEnabled:", isAttractionListingEnabled);
+    setSelectedCity(city);
+    
+    if (city) {
+      setCityError(false);
+      // Disable attraction listing until API call is successful
+      console.log("Disabling attraction listing - waiting for API response");
+      setIsAttractionListingEnabled(false);
+      
+      // Dispatch fetchAttractions API call
+      console.log("Dispatching fetchAttractions with params:", {
+        city: `${city.name}, (${country})`,
+        date: bookingDate,
+        adults: tour.adult,
+        children: tour.child,
+        tour_id: tour.tour_id,
+        selectedDate: bookingDate,
+        fromMainSearch: false
+      });
+      
+      dispatch(fetchAttractions({ city: `${city.name}, (${country})`, date: bookingDate, adults: tour.adult,
+        children: tour.child,
+        tour_id: tour.tour_id, // Use tour_id from packageData
+        selectedDate: bookingDate,
+        fromMainSearch: false, }))
+        .then((result) => {
+          console.log("fetchAttractions API result:", result);
+          if (result.error) {
+            console.error("fetchAttractions API Error:", result.error);
+            console.log("API failed - keeping attraction listing disabled");
+            setIsAttractionListingEnabled(false);
+          } else {
+            console.log("fetchAttractions API Success - enabling attraction listing");
+            console.log("API succeeded - enabling attraction listing");
+            setIsAttractionListingEnabled(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error dispatching fetchAttractions:", error);
+          console.log("API dispatch failed - keeping attraction listing disabled");
+          setIsAttractionListingEnabled(false);
+        });
+    } else {
+      // If no city selected, disable attraction listing
+      console.log("No city selected - disabling attraction listing");
+      setIsAttractionListingEnabled(false);
+    }
+  };
 
   return (
     <Container maxWidth="xl" sx={{ py: 2, position: 'relative' }}>
@@ -1568,8 +1639,31 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                         <Grid item xs={12} md={3}>
                           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                             <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+                              <LocationOnIcon sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
+                              <Typography 
+                                variant="body2" 
+                                fontWeight="600"
+                                color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                                sx={{ fontSize: '0.8rem' }}
+                              >
+                                City
+                              </Typography>
+                            </Box>
+                            <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                              <PortCity
+                                onLocationSelect={handleCitySelect}
+                                hasError={cityError}
+                                setError={setCityError}
+                                disabled={!isCityEnabled}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
                               <AttractionsIcon sx={{ mr: 0.8, color: '#ff6b6b', fontSize: 18 }} />
-                              <Typography variant="body2" fontWeight="600" color="text.primary" sx={{ fontSize: '0.8rem' }}>
+                              <Typography variant="body2" fontWeight="600" color={!isAttractionListingEnabled ? "text.disabled" : "text.primary"}  sx={{ fontSize: '0.8rem' }}>
                                 Select Attraction
                               </Typography>
                             </Box>
@@ -1577,6 +1671,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                               <AttractionListing
                                 attractions={attractions}
                                 selectedAttraction={section.attraction}
+                                disabled={!isAttractionListingEnabled}
                                 onAttractionChange={(value) => handleInputChange(sectionIndex, 'attraction', value)}
                               />
                             </Box>

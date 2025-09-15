@@ -229,7 +229,7 @@ const TooltipContent = ({ restaurant }) => {
   );
 };
 
-const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange }) => {
+const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange, disabled = false }) => {
   const dispatch = useDispatch();
   const bookingMode = useSelector((state) => state.common.bookingMode);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
@@ -274,7 +274,7 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
   }) : [];
 
   const handleRestaurantClick = (restaurant) => {
-    if (!restaurant) return;
+    if (!restaurant || disabled) return;
     
     console.log('Selected restaurant:', restaurant);
     
@@ -328,6 +328,7 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
         options={filteredRestaurants}
         getOptionLabel={(option) => option.restaurant_name || ''}
         noOptionsText="No restaurants with valid pricing available"
+        disabled={disabled}
         sx={{
           '& .MuiInputBase-input': {
             fontSize: '0.8rem',

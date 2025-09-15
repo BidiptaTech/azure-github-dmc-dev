@@ -299,7 +299,7 @@ const RestaurantDropOffSearch = ({ onSelect, value = null }) => {
                         {getDescriptionSnippet(restaurant.description)}
                       </Typography>
                     )}
-                    {PriceHide === "0" ? (
+                    {/* {PriceHide === "0" ? (
                       restaurant['base-price'] && (
                         <PriceChip 
                           label={`${formatPrice(restaurant['base-price'])}/person`}
@@ -310,7 +310,7 @@ const RestaurantDropOffSearch = ({ onSelect, value = null }) => {
                         <div className="text-12 text-dark-1 fw-500">
                           Price available on request
                         </div>
-                      )}
+                      )} */}
                   </RestaurantInfo>
                   {restaurant.master_image && (
                     <RestaurantImage>
@@ -328,10 +328,10 @@ const RestaurantDropOffSearch = ({ onSelect, value = null }) => {
                 </Typography>
               </Box>
             )}
-            <OthersOption onClick={() => handleRestaurantSelect("others")}>
+            {/* <OthersOption onClick={() => handleRestaurantSelect("others")}>
               <AddIcon fontSize="small" sx={{ mr: 1 }} />
               <Typography variant="body2">Can't find your restaurant? Add it manually</Typography>
-            </OthersOption>
+            </OthersOption> */}
           </List>
         </DropdownContainer>
       )}

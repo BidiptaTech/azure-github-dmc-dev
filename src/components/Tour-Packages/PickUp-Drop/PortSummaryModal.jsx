@@ -140,16 +140,16 @@ const PortSummaryModal = ({
 
     return (
       <Stack spacing={0.5}>
-        <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
+        <Typography variant="h6" color="primary" sx={{ fontWeight: 600, color: 'white' }}>
           {currencyCode} {mainPrice}
         </Typography>
         {currencyCode !== 'USD' && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ color: 'white' }}>
             USD {usdPrice}
           </Typography>
         )}
         {currencyCode !== 'SGD' && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ color: 'white' }}>
             SGD {sgdPrice}
           </Typography>
         )}
@@ -279,7 +279,7 @@ const PortSummaryModal = ({
                     color: 'white'
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'white' }}>
                     {colorTheme.name} Transfer
                   </Typography>
                 </Box>

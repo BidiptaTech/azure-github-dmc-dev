@@ -7,7 +7,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import HotelIcon from '@mui/icons-material/Hotel';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import InfoIcon from '@mui/icons-material/Info';
+import { LocationOn as LocationOnIcon } from '@mui/icons-material';
 import HotelListing from '../HotelListing';
+import PortCity from '../PortCity';
 
 /**
  * Hotel Selection Form component
@@ -29,7 +31,14 @@ const HotelSelectionForm = ({
   renderRoomDataLoadingIndicator,
   renderMealPlanSection,
   renderNightSelection,
-  searchCriteria
+  searchCriteria,
+  isHotelListingEnabled = true,
+  // City selection props
+  selectedCity,
+  cityError,
+  isCityEnabled,
+  handleCitySelect,
+  setCityError
 }) => {
   
   // console.log("HotelSelectionForm render:", {
@@ -62,8 +71,32 @@ const HotelSelectionForm = ({
   
   return (
     <Box>
+
       {/* Main Selection Row */}
       <Grid container spacing={1.5} sx={{ mb: 1.5, alignItems: 'flex-start' }}>
+      <Grid item xs={12} md={2.5}>
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box display="flex" alignItems="center" mb={0.8} sx={{ height: '28px' }}>
+              <LocationOnIcon sx={{ mr: 0.8, color: '#1976d2', fontSize: 18 }} />
+              <Typography 
+                variant="body2" 
+                fontWeight="600"
+                color={!isCityEnabled ? "text.disabled" : "text.primary"}
+                sx={{ fontSize: '0.8rem' }}
+              >
+                City
+              </Typography>
+            </Box>
+            <Box sx={{ minHeight: '36px', display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+              <PortCity
+                onLocationSelect={handleCitySelect}
+                hasError={cityError}
+                setError={setCityError}
+                disabled={!isCityEnabled}
+              />
+            </Box>
+          </Box>
+        </Grid>
         {/* Hotel Selection */}
         <Grid item xs={12} md={2.5}>
           <Typography 
@@ -72,7 +105,7 @@ const HotelSelectionForm = ({
             sx={{ 
               mb: 1, 
               fontSize: '0.875rem',
-              color: 'text.primary',
+              color: !isHotelListingEnabled ? "text.disabled" : "text.primary",
               minHeight: '21px',
               display: 'flex',
               alignItems: 'center'
@@ -85,6 +118,7 @@ const HotelSelectionForm = ({
               onSelect={(hotel) => setSelectedHotel(hotel)}
               searchParams={searchCriteria}
               selectedHotelId={selectedHotel}
+              disabled={!isHotelListingEnabled}
             />
             {renderRoomDataLoadingIndicator && renderRoomDataLoadingIndicator()}
           </Box>
