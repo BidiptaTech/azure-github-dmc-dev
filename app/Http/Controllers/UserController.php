@@ -1503,6 +1503,8 @@ class UserController extends Controller
                 $masterImage = $pathData['master_value'];
             }
         }
+
+        $dmc_id = CommonHelper::getDmcId($this->auth_user);
         
         $user = User::create([
             'salutation' => $request->input('salutation'),
@@ -1510,7 +1512,7 @@ class UserController extends Controller
             'role_id' => (int) $request->input('role'), // Ensure integer
             'master_dmc_id' => isset($masterDmcId) ? (int) $masterDmcId : (int) ($request->master_dmc ?? 0), // Convert to integer
             'country' => is_array($request->country_names) ? implode(',', $request->country_names) : ($get_country_name ?? null),
-            'dmcId' => (int) ($request->dmc ?? 0), // Ensure integer
+            'dmcId' => (int) ($dmc_id ?? 0), // Ensure integer
             'country_code' => (string) ($request->input('code') ?? ''), // Ensure string
             'phone' => (string) $request->input('phone'),
             'city' => $request->input('city'),
@@ -2444,7 +2446,6 @@ class UserController extends Controller
     public function updateTravclicks(Request $request)
     {            
         try {
-            
             $user = User::where('userId', $request->user_id)->first();
             if(!$user){
                 return response()->json([
