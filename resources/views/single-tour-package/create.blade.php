@@ -670,23 +670,23 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" required>
+                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" >
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" required>
+                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" >
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Country Code</label>
-                                    <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required>
+                                    <input type="number" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" >
                                 </div>
                                 <div class="col-md-9">
                                     <label class="form-label">Phone Number</label>
-                                    <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required>
+                                    <input type="number" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" >
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 1</label>
-                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" required>
+                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" >
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 2</label>
@@ -6942,10 +6942,14 @@ document.addEventListener('DOMContentLoaded', function() {
          
          let servicesHTML = '';
          
-         for (let day = 1; day <= totalDays; day++) {
-             const currentDate = moment(tourStartDate).add(day-1, 'days');
-             const isFirstDay = day === 1;
-             const isLastDay = day === totalDays;
+        // Only show Day 1 and last day with exit port (if more than 1 day)
+        const daysToShow = totalDays > 1 ? [1, totalDays] : [1];
+        
+        for (let dayIndex = 0; dayIndex < daysToShow.length; dayIndex++) {
+            const day = daysToShow[dayIndex];
+            const currentDate = moment(tourStartDate).add(day-1, 'days');
+            const isFirstDay = day === 1;
+            const isLastDay = day === totalDays;
              
                          servicesHTML += `
                 <div class="daily-service-section border-bottom" id="day${day}">
@@ -7155,8 +7159,8 @@ document.addEventListener('DOMContentLoaded', function() {
                  `;
              }
              
-                           // Exit Port Services (Only on last day)
-              if (day === totalDays) {
+                           // Exit Port Services (Only on last day and only if more than 1 day)
+              if (day === totalDays && totalDays > 1) {
                                    servicesHTML += `
                       <div class="service-card mb-4">
                           <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-danger">
@@ -7342,8 +7346,9 @@ document.addEventListener('DOMContentLoaded', function() {
                  `;
              }
              
-                           // Other Services (All days)
-              servicesHTML += `
+                           // Other Services (Only on Day 1)
+              if (day === 1) {
+                  servicesHTML += `
                   <div class="services-container">
                       <!-- Attraction Tickets -->
                       <div class="service-card mb-4">
@@ -8030,6 +8035,7 @@ document.addEventListener('DOMContentLoaded', function() {
              </div>
          </div>
              `;
+              }
          }
          
          container.innerHTML = servicesHTML;
