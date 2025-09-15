@@ -76,6 +76,8 @@
             @foreach ($agents as $key => $agent)
 
               @php
+                $dmc = $agent->getDmc($agent->agent_id);
+                
                 $agencyId = $agent->agency_id ?? null;
 
                 $agency = $agencyId 
@@ -104,7 +106,7 @@
                         ->values()
                         ->toArray();
                 }
-                $dmc = $agent->getDmc($agent->agent_id);
+                
 
               @endphp
               <tr>
@@ -153,10 +155,7 @@
                               </div>
                           </div>
                       @endif
-                      @php
-
                       
-                      @endphp
                   @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) && $dmc->userId == $user->dmcId)
                       <span class="badge bg-primary text-white me-1">
                           {{ $user->company_name }}

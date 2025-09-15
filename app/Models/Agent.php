@@ -172,7 +172,7 @@ class Agent extends Authenticatable
         $agent = $this->where('agent_id', $agent_id)->first();
         $agent_creator = User::where('userId', $agent->sales_manager_dmc)->first();
         $dmc_id = null;
-        if($agent->role_id == 11){
+        if($agent->role_id == 11 || $agent->role_id == 20){
             $dmc_id = $agent_creator->userId;
         }
         elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
@@ -188,6 +188,7 @@ class Agent extends Authenticatable
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
         }
+       
         $dmc = User::where('userId', $dmc_id)->first();
         return $dmc;
     }
