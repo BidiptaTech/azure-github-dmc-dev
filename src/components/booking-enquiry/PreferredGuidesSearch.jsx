@@ -144,10 +144,16 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
     }
   };
 
-  // Filter guides based on search term
-  const filteredGuides = guides ? guides.filter((guide) =>
-    guide.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // Filter guides based on search term and price
+  const filteredGuides = guides ? guides.filter((guide) => {
+    // Filter by search term
+    const matchesSearch = guide.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by price - only show guides with base_price > 0
+    const hasValidPrice = parseFloat(guide.base_price) > 0;
+    
+    return matchesSearch && hasValidPrice;
+  }) : [];
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
