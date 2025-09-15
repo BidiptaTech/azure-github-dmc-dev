@@ -284,7 +284,7 @@ const dmcSlice = createSlice({
     // Remove DMC from multiple selection (for Book an Enquiry)
     removeDmcFromSelection: (state, action) => {
       const { dmcId } = action.payload;
-      console.log(dmcId, "dmcId");
+      // console.log(dmcId, "dmcId");
       
       const index = state.selectedDmcIds.indexOf(dmcId);
       if (index > -1) {

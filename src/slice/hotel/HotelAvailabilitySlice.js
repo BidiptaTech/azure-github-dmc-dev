@@ -58,14 +58,14 @@ export const fetchRoomData = createAsyncThunk(
       );
       
       const responseData = response.data;
-      console.log("API response:", responseData);
+      // console.log("API response:", responseData);
       
       // Dispatch hotel details
       dispatch(setHotelDetails(responseData));
       
       // Extract and dispatch policy data
       const policyData = extractPolicyData(responseData);
-      console.log("Extracted policy data:", policyData);
+      // console.log("Extracted policy data:", policyData);
       
       // Dispatch only if policy data exists
       if (policyData && policyData.length > 0) {
@@ -152,7 +152,7 @@ const roomSlice = createSlice({
         state.status = "succeeded";
         state.roomDatas = action.payload || [];
 
-        console.log("Room data updated in state:", state.roomDatas);
+        // console.log("Room data updated in state:", state.roomDatas);
       })
       .addCase(fetchRoomData.rejected, (state, action) => {
         //console.error("Thunk rejected. Error:", action.payload);
