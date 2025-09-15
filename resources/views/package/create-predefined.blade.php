@@ -1328,7 +1328,7 @@ $(document).ready(function() {
             citySelect.prop('disabled', false);
             
             $.ajax({
-                url: `{{ env('APP_URL') }}/cities/${encodeURIComponent(country)}`,
+                url: `{{ env('APP_URL') }}/cities-by-country/${encodeURIComponent(country)}`,
                 method: 'GET',
                 success: function(response) {
                     citySelect.empty().append('<option value="">Select City</option>');

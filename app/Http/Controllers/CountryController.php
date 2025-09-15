@@ -167,30 +167,57 @@ class CountryController extends Controller
             'max_length' => 'required|numeric|min:1',
         ]);
         
-        $existing_country = Country::where('name', $request->name)->first();
-        if($existing_country){
-            
-            $header_pdf = $existing_country->header_pdf ?? ''; // Default to existing PDF if no new file
+        // Find the country by ID
+        $country = Country::findOrFail($id);
+        
+        // Handle header PDF
+        $header_pdf = $country->header_pdf; // Keep existing PDF by default
+        
+        // Check if user wants to remove header PDF
+        if ($request->input('remove_header_pdf') == '1') {
+            // Delete the existing file if it exists
+            if ($country->header_pdf && file_exists(public_path($country->header_pdf))) {
+                unlink(public_path($country->header_pdf));
+            }
+            $header_pdf = null; // Set to null to remove from database
         }
-        if ($request->hasFile('header_pdf')) {
+        // Check if new header PDF is uploaded
+        elseif ($request->hasFile('header_pdf')) {
+            // Delete old file if exists
+            if ($country->header_pdf && file_exists(public_path($country->header_pdf))) {
+                unlink(public_path($country->header_pdf));
+            }
+            // Upload new file
             $header_pdfPath = CommonHelper::image_path('file_storage', $request->file('header_pdf'));
             if (!empty($header_pdfPath['master_value'])) {
                 $header_pdf = $header_pdfPath['master_value'];
             }
         }
-        if($existing_country){
-            $footer_pdf = $existing_country->footer_pdf ?? ''; // Default to existing PDF if no new file
-        }
         
-        if ($request->hasFile('footer_pdf')) {
+        // Handle footer PDF
+        $footer_pdf = $country->footer_pdf; // Keep existing PDF by default
+        
+        // Check if user wants to remove footer PDF
+        if ($request->input('remove_footer_pdf') == '1') {
+            // Delete the existing file if it exists
+            if ($country->footer_pdf && file_exists(public_path($country->footer_pdf))) {
+                unlink(public_path($country->footer_pdf));
+            }
+            $footer_pdf = null; // Set to null to remove from database
+        }
+        // Check if new footer PDF is uploaded
+        elseif ($request->hasFile('footer_pdf')) {
+            // Delete old file if exists
+            if ($country->footer_pdf && file_exists(public_path($country->footer_pdf))) {
+                unlink(public_path($country->footer_pdf));
+            }
+            // Upload new file
             $footer_pdfPath = CommonHelper::image_path('file_storage', $request->file('footer_pdf'));
             if (!empty($footer_pdfPath['master_value'])) {
                 $footer_pdf = $footer_pdfPath['master_value'];
             }
         }
 
-        // Find the country by ID
-        $country = Country::findOrFail($id);
         // Update the country data
         $country->update([
             'name' => $request->name,
@@ -203,7 +230,7 @@ class CountryController extends Controller
             'card_length' => $request->card_length,
             'min_length' => $request->min_length,
             'max_length' => $request->max_length,
-            'header_pdf' =>$header_pdf,
+            'header_pdf' => $header_pdf,
             'footer_pdf' => $footer_pdf,
         ]);
 
