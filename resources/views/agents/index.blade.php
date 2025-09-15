@@ -81,7 +81,6 @@
                 $agency = $agencyId 
                     ? App\Models\Agency::where('agency_id', $agencyId)->first()
                     : null;
-
                 $dmcIds = [];
 
                 if ($agency && !empty($agency->dmc_id)) {
@@ -105,6 +104,8 @@
                         ->values()
                         ->toArray();
                 }
+                $dmc = $agent->getDmc($agent->agent_id);
+
               @endphp
               <tr>
                 <td>{{ ++$key }}</td>
@@ -152,14 +153,18 @@
                               </div>
                           </div>
                       @endif
-                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138))
+                      @php
+
+                      
+                      @endphp
+                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) && $dmc->userId == $user->dmcId)
                       <span class="badge bg-primary text-white me-1">
                           {{ $user->company_name }}
                       </span>
                   @else
-                      <span class="text-muted">No DMC Assigned</span>
+                      <span class="text-muted">TravelClicks</span>
                   @endif
-                </td>                                               
+                </td>
                 <td>{{ $agent->company_name ?? 'N/A' }}</td>
                 <td>{{ $agent->name }}</td>
                 <td>{{ $agent->email }}</td>

@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\User;
 
 class Agent extends Authenticatable
 {
@@ -165,6 +166,30 @@ class Agent extends Authenticatable
     public function agency()
     {
         return $this->belongsTo(Agency::class, 'agency_id', 'agency_id');
+    }
+
+    public function getDmc($agent_id){
+        $agent = $this->where('agent_id', $agent_id)->first();
+        $agent_creator = User::where('userId', $agent->sales_manager_dmc)->first();
+        $dmc_id = null;
+        if($agent->role_id == 11){
+            $dmc_id = $agent_creator->userId;
+        }
+        elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
+            $dmc_id = $agent_creator->created_by;
+        }
+        elseif($agent->role_id == 12 || $agent->role_id == 37){
+            $sales_head = User::where('userId', $agent_creator->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        elseif($agent->role_id == 38){
+            $assistant_sales_manager = User::where('userId', $agent_creator->created_by)->first();
+            $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+        $dmc = User::where('userId', $dmc_id)->first();
+        return $dmc;
     }
 }
 
