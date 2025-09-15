@@ -1507,7 +1507,7 @@ const Index = () => {
             elevation={24}
             sx={{
               width: '95%',
-              maxWidth: '1200px',
+              maxWidth: specificMealType === "Buffet" ? '800px' : '1200px',
               height: 'auto',
               maxHeight: '90vh',
               margin: 'auto',
@@ -1796,13 +1796,31 @@ const Index = () => {
                   width: '100%', 
                   borderCollapse: 'separate', 
                   borderSpacing: '0',
-                  tableLayout: 'fixed' 
+                  tableLayout: specificMealType === "Buffet" ? 'auto' : 'fixed' 
                 }}>
                   <thead>
                     <tr style={{ 
                       background: 'linear-gradient(135deg, #EBF2FF 0%, #F8FAFF 100%)',
                       borderBottom: '2px solid rgba(53, 84, 209, 0.1)'
                     }}>
+                      {specificMealType !== "Buffet" && (
+                        <th style={{ 
+                          padding: '24px 28px', 
+                          textAlign: 'left', 
+                          fontWeight: 700, 
+                          color: '#1E293B',
+                          fontSize: '15px',
+                          letterSpacing: '0.8px',
+                          textTransform: 'uppercase',
+                          borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
+                          position: 'relative'
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <RestaurantMenuIcon sx={{ fontSize: 20, color: '#3554D1' }} />
+                            Item Details
+                          </Box>
+                        </th>
+                      )}
                       <th style={{ 
                         padding: '24px 28px', 
                         textAlign: 'left', 
@@ -1812,22 +1830,7 @@ const Index = () => {
                         letterSpacing: '0.8px',
                         textTransform: 'uppercase',
                         borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                        position: 'relative'
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <RestaurantMenuIcon sx={{ fontSize: 20, color: '#3554D1' }} />
-                          Item Details
-                        </Box>
-                      </th>
-                      <th style={{ 
-                        padding: '24px 28px', 
-                        textAlign: 'left', 
-                        fontWeight: 700, 
-                        color: '#1E293B',
-                        fontSize: '15px',
-                        letterSpacing: '0.8px',
-                        textTransform: 'uppercase',
-                        borderBottom: '2px solid rgba(53, 84, 209, 0.1)'
+                        width: specificMealType === "Buffet" ? '50%' : 'auto'
                       }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <MenuBookIcon sx={{ fontSize: 20, color: '#3554D1' }} />
@@ -1863,7 +1866,7 @@ const Index = () => {
                             letterSpacing: '0.8px',
                             textTransform: 'uppercase',
                             borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                            width: '140px'
+                            width: specificMealType === "Buffet" ? '120px' : '140px'
                           }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                               <Typography sx={{ fontSize: 20, color: '#3554D1' }}>👥</Typography>
@@ -1880,7 +1883,7 @@ const Index = () => {
                               letterSpacing: '0.8px',
                               textTransform: 'uppercase',
                               borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                              width: '140px'
+                              width: specificMealType === "Buffet" ? '120px' : '140px'
                             }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                                 <Typography sx={{ fontSize: 20, color: '#3554D1' }}>👶</Typography>
@@ -1899,7 +1902,7 @@ const Index = () => {
                         letterSpacing: '0.8px',
                         textTransform: 'uppercase',
                         borderBottom: '2px solid rgba(53, 84, 209, 0.1)',
-                        width: '160px'
+                        width: specificMealType === "Buffet" ? '140px' : '160px'
                       }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                           <Typography sx={{ fontSize: 20, color: '#3554D1' }}>💰</Typography>
@@ -1940,9 +1943,9 @@ const Index = () => {
                             e.currentTarget.style.boxShadow = 'none';
                           }}
                         >
-                          <td style={{ padding: '24px 28px', color: '#334155' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                              {specificMealType !== "Buffet" && (
+                          {specificMealType !== "Buffet" && (
+                            <td style={{ padding: '24px 28px', color: '#334155' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                 <Box 
                                   sx={{ 
                                     display: 'flex', 
@@ -2029,34 +2032,36 @@ const Index = () => {
                                     </Tooltip>
                                   ) : null}
                                 </Box>
-                              )}
-                              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                <Typography sx={{ 
-                                  fontWeight: 700,
-                                  fontSize: '18px',
-                                  color: '#1E293B',
-                                  marginBottom: '4px'
-                                }}>
-                                  {part.item_name || "Unnamed Item"}
-                                </Typography>
-                                {/* {part.category && (
-                                  <Box sx={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    padding: '4px 12px',
-                                    backgroundColor: 'rgba(53, 84, 209, 0.1)',
-                                    borderRadius: '16px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    color: '#3554D1',
-                                    width: 'fit-content'
-                                  }}>
-                                    {part.category}
-                                  </Box>
-                                )} */}
-                              </Box>
-                            </div>
-                          </td>
+                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                  {specificMealType !== "Set Menu" && (
+                                    <Typography sx={{ 
+                                      fontWeight: 700,
+                                      fontSize: '18px',
+                                      color: '#1E293B',
+                                      marginBottom: '4px'
+                                    }}>
+                                      {part.item_name || "Unnamed Item"}
+                                    </Typography>
+                                  )}
+                                  {/* {part.category && (
+                                    <Box sx={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '4px 12px',
+                                      backgroundColor: 'rgba(53, 84, 209, 0.1)',
+                                      borderRadius: '16px',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      color: '#3554D1',
+                                      width: 'fit-content'
+                                    }}>
+                                      {part.category}
+                                    </Box>
+                                  )} */}
+                                </Box>
+                              </div>
+                            </td>
+                          )}
                           <td style={{ padding: '24px 28px' }}>
                             {specificMealType === "A la carte" ? (
                               <FormControlLabel
@@ -2248,14 +2253,27 @@ const Index = () => {
                                 flexDirection: 'column',
                                 alignItems: 'flex-end'
                               }}>
-                                <Typography sx={{ 
-                                  color: '#3554D1', 
-                                  fontWeight: 800,
-                                  fontSize: '20px',
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'baseline',
                                   marginBottom: '4px'
                                 }}>
-                                  S$ {calculateItemPrice(part).toFixed(2)}
-                                </Typography>
+                                  <Typography sx={{ 
+                                    color: '#3554D1', 
+                                    fontWeight: 800,
+                                    fontSize: '12px',
+                                    marginRight: '2px'
+                                  }}>
+                                    SGD
+                                  </Typography>
+                                  <Typography sx={{ 
+                                    color: '#3554D1', 
+                                    fontWeight: 800,
+                                    fontSize: '20px'
+                                  }}>
+                                    {calculateItemPrice(part).toFixed(2)}
+                                  </Typography>
+                                </Box>
                                 <Box sx={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -2306,7 +2324,13 @@ const Index = () => {
                     ) : (
                       <tr>
                         <td 
-                          colSpan={showBuffetColumns ? (searchParams?.children > 0 ? 6 : 5) : (showQuantityColumn ? 4 : 3)} 
+                          colSpan={
+                            specificMealType === "Buffet" 
+                              ? (searchParams?.children > 0 ? 4 : 3) // Description + Adults + Children(if any) + Price
+                              : showBuffetColumns 
+                                ? (searchParams?.children > 0 ? 6 : 5) // Item Details + Description + Adults + Children(if any) + Price
+                                : (showQuantityColumn ? 4 : 3) // Item Details + Description + Quantity(if any) + Price
+                          } 
                           style={{ 
                             padding: '60px 28px', 
                             textAlign: 'center', 
