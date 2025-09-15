@@ -7,7 +7,7 @@ const citySlice = createSlice({
   },
   reducers: {
     setCity: (state, action) => {
-     console.log("City Data being set srk:", action.payload);
+    //  console.log("City Data being set srk:", action.payload);
     state.city = action.payload;
     },
   },

@@ -28,19 +28,19 @@ const ProtectedRoute = ({ children }) => {
   // Convert to boolean
   const finalAuthStatus = isAuthenticated ?? storedAuth === "true";
 
-  console.log("isAuthenticated:", finalAuthStatus);
+  // console.log("isAuthenticated:", finalAuthStatus);
   const dispatch = useDispatch();
   const location = useLocation();
 
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log("Before dispatch........");
+      // console.log("Before dispatch........");
       dispatch(logoutUser());
     }
   }, [isAuthenticated, dispatch]);
 
   if (!isAuthenticated) {
-    console.log("Redirecting to login...");
+    // console.log("Redirecting to login...");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -6,11 +6,11 @@ export const fetchHotels = createAsyncThunk(
   "hotels/fetchHotels",
   async (searchLocation, { rejectWithValue }) => {
     try {
-      console.log("search location = ", searchLocation);
+      // console.log("search location = ", searchLocation);
       const response = await axios.get(
         `http://localhost:5000/api/hotels`
       );
-      console.log("API response:", response.data); // Log the entire response
+      // console.log("API response:", response.data); // Log the entire response
 
       return response.data; // Make sure this contains the hotel data you expect
     } catch (error) {
