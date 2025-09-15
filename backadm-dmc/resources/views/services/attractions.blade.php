@@ -30,24 +30,41 @@
 
         <!-- Selected Attractions Section -->
         @if(isset($selectedAttractions) && count($selectedAttractions) > 0)
-        <div class="card mb-4">
+        <div class="card mb-4" id="selectedAttractionsSection">
             <div class="card-header">
-                <h5 class="mb-0">Selected Attractions ({{ count($selectedAttractions) }})</h5>
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
+                    <h5 class="mb-0">Selected Attractions ({{ count($selectedAttractions) }})</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" class="form-control" id="selectedAttractionSearch" placeholder="Search selected attractions...">
+                        </div>
+                        <div class="input-group input-group-sm" style="width: 160px;">
+                            <span class="input-group-text">Per page</span>
+                            <select id="selectedAttractionPageSize" class="form-select">
+                                <option value="5" selected>5</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-2">
                         <thead>
                             <tr>
                                 <th>Attraction Name</th>
                                 <th>Location</th>
-                                <th>Type</th>
+                                {{-- <th>Type</th> --}}
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="selectedAttractionsBody">
                             @foreach($selectedAttractions as $attraction)
-                                <tr>
+                                <tr class="selected-attraction-row" data-attraction-id="{{ $attraction->attraction_id }}" data-name="{{ strtolower($attraction->name) }}" data-location="{{ strtolower($attraction->location ?? $attraction->city) }}, {{ strtolower($attraction->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             @if($attraction->master_image)
@@ -67,11 +84,11 @@
                                         </div>
                                     </td>
                                     <td>{{ $attraction->location ?? $attraction->city }}, {{ $attraction->country }}</td>
-                                    <td>
+                                    {{-- <td>
                                         <span class="badge bg-label-success">
                                             {{ $attraction->adult_price ? 'Paid' : 'Free' }}
                                         </span>
-                                    </td>
+                                    </td> --}}
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}" 
@@ -80,7 +97,7 @@
                                             </a>
                                             <button type="button" 
                                                     class="btn btn-sm btn-outline-danger remove-attraction-btn" 
-                                                    data-attraction-id="{{ $attraction->id }}"
+                                                    data-attraction-id="{{ $attraction->attraction_id }}"
                                                     data-attraction-name="{{ $attraction->name }}">
                                                 <i class="ri-delete-bin-line me-1"></i>Remove
                                             </button>
@@ -90,6 +107,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0" id="selectedAttractionsPagination"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -113,23 +133,37 @@
                     </div>
                 @endif
 
-                <!-- Search Box -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
+                <!-- Advanced Filters -->
+                <div class="row g-3 align-items-end mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <label for="attractionSearch" class="form-label mb-1">Search</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
-                            <input type="text" class="form-control" id="attractionSearch" placeholder="Search attractions by name..." onkeyup="filterAttractions()">
+                            <input type="text" class="form-control" id="attractionSearch" placeholder="Search attractions by name..." onkeyup="applyAttractionFilters()">
                         </div>
                     </div>
-                    <div class="col-md-6 text-end">
-                        <span class="text-muted" id="attractionCount">Showing all attractions</span>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="attractionCountrySelect" class="form-label mb-1">Country</label>
+                        <select id="attractionCountrySelect" class="form-select" onchange="onAttractionCountryChange()">
+                            <option value="">All Countries</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label for="attractionCitySelect" class="form-label mb-1">City</label>
+                        <select id="attractionCitySelect" class="form-select" onchange="applyAttractionFilters()" disabled>
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 text-end">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="resetAttractionFilters()"><i class="ri-filter-off-line me-1"></i>Clear Filters</button>
+                        <div class="small text-muted mt-2" id="attractionCount">Showing all attractions</div>
                     </div>
                 </div>
                 
                 <div class="row" id="attractionsContainer">
                     @if(isset($availableAttractions) && count($availableAttractions) > 0)
                         @foreach($availableAttractions as $attraction)
-                            <div class="col-lg-3 col-md-6 mb-3 attraction-item" data-attraction-name="{{ strtolower($attraction->name) }}">
+                            <div class="col-lg-3 col-md-6 mb-3 attraction-item" data-attraction-name="{{ strtolower($attraction->name) }}" data-country="{{ strtolower($attraction->country) }}" data-city="{{ strtolower($attraction->location ?? $attraction->city) }}">
                                 <div class="card h-100 attraction-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -166,18 +200,18 @@
                                                 <p class="small text-muted mb-2">{{ Str::limit(strip_tags($attraction->description), 40) }}</p>
                                             @endif
                                             
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                            {{-- <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span class="badge bg-label-success small">
                                                     {{ $attraction->adult_price ? 'Paid' : 'Free' }}
                                                 </span>
-                                            </div>
+                                            </div> --}}
                                             
-                                            @if($attraction->adult_price)
+                                            @if($attraction->senior_min_age)
                                                 <div class="mb-2">
                                                     <small class="text-muted">
-                                                        Adult: ${{ number_format($attraction->adult_price, 2) }}
-                                                        @if($attraction->child_price)
-                                                            | Child: ${{ number_format($attraction->child_price, 2) }}
+                                                        Senior: {{ number_format($attraction->senior_min_age) }}
+                                                        @if($attraction->child_max_age)
+                                                            | Child: {{ number_format($attraction->child_max_age) }}
                                                         @endif
                                                     </small>
                                                 </div>
@@ -269,6 +303,7 @@
 
 <script>
 let currentAttractionId = null;
+const defaultAttractionCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 
 function selectAll() {
     document.querySelectorAll('.select-attraction-btn').forEach(button => {
@@ -286,16 +321,23 @@ function deselectAll() {
     });
 }
 
-function filterAttractions() {
-    const searchTerm = document.getElementById('attractionSearch').value.toLowerCase();
+function applyAttractionFilters() {
+    const searchTerm = (document.getElementById('attractionSearch').value || '').toLowerCase();
+    const selectedCountry = (document.getElementById('attractionCountrySelect').value || '').toLowerCase();
+    const selectedCity = (document.getElementById('attractionCitySelect').value || '').toLowerCase();
     const attractionItems = document.querySelectorAll('.attraction-item');
     let visibleCount = 0;
 
     attractionItems.forEach(item => {
-        const attractionName = item.getAttribute('data-attraction-name');
-        const matches = attractionName.includes(searchTerm);
-        
-        if (matches) {
+        const name = item.getAttribute('data-attraction-name') || '';
+        const country = item.getAttribute('data-country') || '';
+        const city = item.getAttribute('data-city') || '';
+
+        const matchSearch = !searchTerm || name.includes(searchTerm);
+        const matchCountry = !selectedCountry || country === selectedCountry;
+        const matchCity = !selectedCity || city === selectedCity;
+
+        if (matchSearch && matchCountry && matchCity) {
             item.style.display = 'block';
             visibleCount++;
         } else {
@@ -303,13 +345,49 @@ function filterAttractions() {
         }
     });
 
-    // Update count
     const countElement = document.getElementById('attractionCount');
-    if (searchTerm) {
-        countElement.textContent = `Showing ${visibleCount} of ${attractionItems.length} attractions`;
-    } else {
-        countElement.textContent = 'Showing all attractions';
+    const total = document.querySelectorAll('.attraction-item').length;
+    countElement.textContent = `Showing ${visibleCount} of ${total} attractions`;
+}
+
+function resetAttractionFilters() {
+    document.getElementById('attractionSearch').value = '';
+    document.getElementById('attractionCountrySelect').value = '';
+    const citySelect = document.getElementById('attractionCitySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+    citySelect.disabled = true;
+    applyAttractionFilters();
+}
+
+function onAttractionCountryChange() {
+    const country = (document.getElementById('attractionCountrySelect').value || '').toLowerCase();
+    const citySelect = document.getElementById('attractionCitySelect');
+    citySelect.innerHTML = '<option value="">All Cities</option>';
+
+    if (!country) {
+        citySelect.disabled = true;
+        applyAttractionFilters();
+        return;
     }
+
+    const items = document.querySelectorAll('.attraction-item');
+    const cities = new Set();
+    items.forEach(item => {
+        if ((item.getAttribute('data-country') || '') === country) {
+            const c = item.getAttribute('data-city') || '';
+            if (c) cities.add(c);
+        }
+    });
+
+    Array.from(cities).sort().forEach(city => {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city.replace(/\b\w/g, ch => ch.toUpperCase());
+        citySelect.appendChild(opt);
+    });
+    citySelect.disabled = cities.size === 0;
+
+    applyAttractionFilters();
 }
 
 // Document ready
@@ -325,6 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const attractionId = this.getAttribute('data-attraction-id');
             const attractionName = this.getAttribute('data-attraction-name');
+            try { localStorage.setItem('last_selected_attraction_id', String(attractionId)); } catch (e) {}
             
             // Show loading state
             const btnText = this.querySelector('.btn-text');
@@ -423,6 +502,85 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('error', 'An error occurred while removing the attraction.');
         });
     });
+    // Populate country dropdown from DOM
+    const countrySelect = document.getElementById('attractionCountrySelect');
+    const items = document.querySelectorAll('.attraction-item');
+    const countrySet = new Set();
+    items.forEach(item => {
+        const c = item.getAttribute('data-country');
+        if (c) countrySet.add(c);
+    });
+    Array.from(countrySet).sort().forEach(country => {
+        const opt = document.createElement('option');
+        opt.value = country;
+        opt.textContent = country.replace(/\b\w/g, ch => ch.toUpperCase());
+        countrySelect.appendChild(opt);
+    });
+    if (defaultAttractionCountry && Array.from(countrySet).includes(defaultAttractionCountry)) {
+        countrySelect.value = defaultAttractionCountry;
+        onAttractionCountryChange();
+    }
+
+    // Selected Attractions: client-side pagination + search
+    const selectedBody = document.getElementById('selectedAttractionsBody');
+    if (selectedBody) {
+        const rows = Array.from(selectedBody.querySelectorAll('.selected-attraction-row'));
+        const pagination = document.getElementById('selectedAttractionsPagination');
+        const searchInput = document.getElementById('selectedAttractionSearch');
+        const pageSizeSelect = document.getElementById('selectedAttractionPageSize');
+
+        function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+        function getFilteredRows() {
+            const term = (searchInput.value || '').toLowerCase();
+            return rows.filter(r => {
+                if (!term) return true;
+                const name = r.getAttribute('data-name') || '';
+                const loc = r.getAttribute('data-location') || '';
+                return name.includes(term) || loc.includes(term);
+            });
+        }
+        function renderPagination(total, page, pageSize) {
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            pagination.innerHTML = '';
+            const createItem = (label, p, disabled=false, active=false) => {
+                const li = document.createElement('li');
+                li.className = `page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}`;
+                const a = document.createElement('a');
+                a.className = 'page-link';
+                a.href = 'javascript:void(0)';
+                a.textContent = label;
+                a.addEventListener('click', () => { if (!disabled) render(p); });
+                li.appendChild(a);
+                return li;
+            };
+            pagination.appendChild(createItem('«', Math.max(1, page-1), page===1));
+            for (let i = 1; i <= totalPages; i++) pagination.appendChild(createItem(String(i), i, false, i===page));
+            pagination.appendChild(createItem('»', Math.min(totalPages, page+1), page===totalPages));
+        }
+        function render(page=1) {
+            const pageSize = getPageSize();
+            const filtered = getFilteredRows();
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            const safePage = Math.min(Math.max(1, page), totalPages);
+            const start = (safePage - 1) * pageSize;
+            const end = start + pageSize;
+            rows.forEach(r => r.classList.add('d-none'));
+            filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
+            renderPagination(total, safePage, pageSize);
+        }
+        try {
+            const lastId = localStorage.getItem('last_selected_attraction_id');
+            if (lastId) {
+                const row = rows.find(r => String(r.getAttribute('data-attraction-id')) === String(lastId));
+                if (row && row.parentElement) row.parentElement.insertBefore(row, row.parentElement.firstChild);
+                localStorage.removeItem('last_selected_attraction_id');
+            }
+        } catch (e) {}
+        render(1);
+        searchInput.addEventListener('input', () => render(1));
+        pageSizeSelect.addEventListener('change', () => render(1));
+    }
 });
 
 function showAlert(type, message) {
