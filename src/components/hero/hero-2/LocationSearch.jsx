@@ -387,7 +387,16 @@ const SearchBar = ({ onLocationSelect }) => {
             {isCountryDropdownOpen && countrySuggestions.length > 0 && (
               <div className="shadow-2 dropdown-menu min-width-200 show">
                 <div className="px-20 py-20 bg-white rounded-4">
-                  <ul className="y-gap-5 js-results" ref={countryListRef}>
+                  <ul 
+                    className="y-gap-5 js-results" 
+                    ref={countryListRef}
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#ccc #f1f1f1'
+                    }}
+                  >
                     {countrySuggestions.map((country, index) => (
                       <li
                         className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
@@ -450,7 +459,16 @@ const SearchBar = ({ onLocationSelect }) => {
             {isCityDropdownOpen && citySuggestions.length > 0 && (
               <div className="shadow-2 dropdown-menu min-width-200 show">
                 <div className="px-20 py-20 bg-white rounded-4">
-                  <ul className="y-gap-5 js-results" ref={cityListRef}>
+                  <ul 
+                    className="y-gap-5 js-results" 
+                    ref={cityListRef}
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#ccc #f1f1f1'
+                    }}
+                  >
                     {citySuggestions.map((city, index) => (
                       <li
                         className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${

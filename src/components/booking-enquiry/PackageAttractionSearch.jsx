@@ -121,10 +121,16 @@ const PackageAttractionSearch = ({ onSelect, value = [] }) => {
   // Get packaged attractions from Redux store
   const { packaged_attractions = [], loading, error } = useSelector(state => state.enquiryList || { packaged_attractions: [], loading: false });
   const PriceHide = useSelector((state) => state.auth.PriceHide);
-  // Filter packages based on search term
-  const filteredPackages = packaged_attractions.filter(pkg =>
-    pkg.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter packages based on search term and price
+  const filteredPackages = packaged_attractions.filter(pkg => {
+    // Filter by search term
+    const matchesSearch = pkg.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by price - only show packages with base_price > 0
+    const hasValidPrice = parseFloat(pkg.base_price) > 0;
+    
+    return matchesSearch && hasValidPrice;
+  });
 
   // Handle clicking outside to close dropdown
   useEffect(() => {

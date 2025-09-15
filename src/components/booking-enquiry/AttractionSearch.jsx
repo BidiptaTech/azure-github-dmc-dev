@@ -169,10 +169,16 @@ const AttractionSearch = ({ onSelect, value = [] }) => {
   //   }
   // };
 
-  // Filter attractions based on search term
-  const filteredAttractions = attractions ? attractions.filter((attraction) =>
-    attraction.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // Filter attractions based on search term and price
+  const filteredAttractions = attractions ? attractions.filter((attraction) => {
+    // Filter by search term
+    const matchesSearch = attraction.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by price - only show attractions with base_price > 0
+    const hasValidPrice = parseFloat(attraction.base_price) > 0;
+    
+    return matchesSearch && hasValidPrice;
+  }) : [];
 
   // Handle clicking outside to close dropdown
   useEffect(() => {

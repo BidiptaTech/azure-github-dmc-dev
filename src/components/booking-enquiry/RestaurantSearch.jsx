@@ -176,10 +176,16 @@ const RestaurantSearch = ({ onSelect, value = [] }) => {
     }
   };
 
-  // Filter restaurants based on search term
-  const filteredRestaurants = restaurants ? restaurants.filter((restaurant) =>
-    restaurant.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  // Filter restaurants based on search term and price
+  const filteredRestaurants = restaurants ? restaurants.filter((restaurant) => {
+    // Filter by search term
+    const matchesSearch = restaurant.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by price - only show restaurants with base-price > 0
+    const hasValidPrice = parseFloat(restaurant['base-price']) > 0;
+    
+    return matchesSearch && hasValidPrice;
+  }) : [];
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
