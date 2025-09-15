@@ -1233,11 +1233,12 @@ class CommonHelper
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
                 $dmcId = $sales_head->created_by;
             }
+            return $dmcId;
         }
         elseif($auth_user->userId){
             $user = $auth_user;
             if($user->role_id == 11){
-                return $user->created_by;
+                return $user->userId;
             }
             elseif(in_array($user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])){
                 $sales_head = User::where('userId', $user->userId)->first();
