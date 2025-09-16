@@ -4,11 +4,6 @@ import { useSelector } from "react-redux";
 const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
   const [searchValue, setSearchValue] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
-  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [suggestions, setSuggestions] = useState([]);
-  
-  const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   
   // Get selected DMC data from Redux store
@@ -40,7 +35,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
 
   // Get country from selected DMC data - memoize to prevent recreating on every render
   const locationSearchContent = useMemo(() => {
-    if (selectedDmcData && selectedDmcData.location) {
+    if (selectedDmcData && selectedDmcData.location && selectedDmcData.location !== 'Auto-selected') {
       return [{ 
         name: selectedDmcData.location, // Full country name
         code: selectedDmcData.location, // Use full name as code for database
@@ -53,7 +48,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
 
   // Auto-select DMC country when selectedDmcData changes
   useEffect(() => {
-    if (selectedDmcData && selectedDmcData.location) {
+    if (selectedDmcData && selectedDmcData.location && selectedDmcData.location !== 'Auto-selected') {
       const dmcCountry = {
         name: selectedDmcData.location, // Full country name
         code: selectedDmcData.location, // Use full name as code for database
@@ -63,17 +58,25 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
       // Check if the country has actually changed to avoid unnecessary updates
       const currentCountry = selectedItem?.name;
       if (currentCountry !== dmcCountry.name) {
+        console.log('🌍 LocationSearch - Auto-selecting country:', dmcCountry.name);
         setSearchValue(dmcCountry.name);
         setSelectedItem(dmcCountry);
-        setIsDropdownVisible(false);
         
         // Call the onLocationSelect callback
         if (onLocationSelect) {
           onLocationSelect(dmcCountry);
         }
       }
+    } else if (!selectedDmcData && selectedItem) {
+      // If DMC data is cleared, clear the selection
+      console.log('🌍 LocationSearch - Clearing selection due to no DMC data');
+      setSelectedItem(null);
+      setSearchValue("");
+      if (onLocationSelect) {
+        onLocationSelect(null);
+      }
     }
-  }, [selectedDmcData, onLocationSelect, selectedItem]);
+  }, [selectedDmcData, onLocationSelect]); // Removed selectedItem from dependencies
 
   // Set initial value if provided
   useEffect(() => {
@@ -93,88 +96,42 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
     }
   }, [initialValue, locationSearchContent, selectedItem]);
 
-  // Filter suggestions based on search input
+  // Handle country selection when user types and presses Enter or loses focus
   useEffect(() => {
-    if (!selectedItem) {
-      if (searchValue && searchValue.trim().length > 0) {
-        const filtered = locationSearchContent.filter(country => 
-          country.name.toLowerCase().includes(searchValue.toLowerCase())
-        );
-        setSuggestions(filtered);
-        setIsDropdownVisible(filtered.length > 0);
-      } else {
-        // Don't show dropdown when search is empty
-        setSuggestions([]);
-        setIsDropdownVisible(false);
+    if (searchValue && searchValue.trim().length > 0) {
+      // Check if the typed value matches any available country
+      const matchedCountry = locationSearchContent.find(country => 
+        country.name.toLowerCase() === searchValue.toLowerCase()
+      );
+      
+      if (matchedCountry) {
+        setSelectedItem(matchedCountry);
+        if (onLocationSelect) {
+          onLocationSelect(matchedCountry);
+        }
       }
     }
-  }, [searchValue, selectedItem, locationSearchContent]);
+  }, [searchValue, locationSearchContent, onLocationSelect]);
 
-  // Ensure highlighted item is visible in scroll
-  useEffect(() => {
-    if (dropdownRef.current && highlightedIndex !== -1 && isDropdownVisible) {
-      const activeItem = dropdownRef.current.children[highlightedIndex];
-      if (activeItem) {
-        activeItem.scrollIntoView({ block: "nearest" });
-      }
-    }
-  }, [highlightedIndex, isDropdownVisible]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        dropdownRef.current && 
-        !dropdownRef.current.contains(event.target) && 
-        inputRef.current && 
-        !inputRef.current.contains(event.target)
-      ) {
-        setIsDropdownVisible(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const handleOptionClick = (item) => {
-    setSearchValue(item.name);
-    setSelectedItem(item);
-    setIsDropdownVisible(false);
-    
-    // Call the onLocationSelect callback if provided
-    if (onLocationSelect) {
-      onLocationSelect(item);
-    }
-    
-    // Remove focus
-    if (inputRef.current) {
-      inputRef.current.blur();
-    }
-  };
 
   const handleInputChange = (e) => {
-    // If a country is already selected, prevent typing
-    if (selectedItem) return;
-    
     setSearchValue(e.target.value);
-    setHighlightedIndex(-1);
+    
+    // If user starts typing, clear selection to allow new search
+    if (selectedItem && e.target.value !== selectedItem.name) {
+      setSelectedItem(null);
+    }
   };
 
   const handleInputFocus = () => {
-    // Don't show dropdown on focus - only when user types
-    if (!selectedItem && searchValue && searchValue.trim().length > 0) {
-      setIsDropdownVisible(true);
-    }
+    // No dropdown needed - just focus the input
   };
 
   const handleClearSelection = (e) => {
     e.stopPropagation();
     setSelectedItem(null);
     setSearchValue("");
-    setIsDropdownVisible(false);
     
     // Inform parent component about cleared selection
     if (onLocationSelect) {
@@ -197,28 +154,29 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
       return;
     }
     
-    if (!suggestions.length) return;
-
-    if (e.key === "ArrowDown") {
-      setHighlightedIndex((prev) =>
-        prev < suggestions.length - 1 ? prev + 1 : 0
-      );
-    } else if (e.key === "ArrowUp") {
-      setHighlightedIndex((prev) =>
-        prev > 0 ? prev - 1 : suggestions.length - 1
-      );
-    } else if (e.key === "Enter" && highlightedIndex !== -1) {
+    // Handle Enter key to confirm selection
+    if (e.key === "Enter") {
       e.preventDefault();
-      handleOptionClick(suggestions[highlightedIndex]);
+      if (searchValue && searchValue.trim().length > 0) {
+        // Check if the typed value matches any available country
+        const matchedCountry = locationSearchContent.find(country => 
+          country.name.toLowerCase() === searchValue.toLowerCase()
+        );
+        
+        if (matchedCountry) {
+          setSelectedItem(matchedCountry);
+          if (onLocationSelect) {
+            onLocationSelect(matchedCountry);
+          }
+        }
+      }
     }
   };
 
   return (
     <>
       <div className="searchMenu-loc px-30 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
-        <div
-          onClick={() => !selectedItem && searchValue && searchValue.trim().length > 0 && setIsDropdownVisible(!isDropdownVisible)}
-        >
+        <div>
           <h4 className="text-15 fw-500 ls-2 lh-16">Country</h4>
           <div className="text-15 text-light-1 ls-2 lh-16 position-relative">
             <input
@@ -231,7 +189,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
               onChange={handleInputChange}
               onFocus={handleInputFocus}
               onKeyDown={handleKeyDown}
-              readOnly={selectedItem !== null}
+              readOnly={false}
             />
             {selectedItem && (
               <button 
@@ -244,54 +202,8 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
             )}
           </div>
         </div>
-
-        <div 
-          className={`shadow-2 dropdown-menu min-width-400 ${isDropdownVisible ? 'show' : ''}`}
-          style={{
-            position: 'absolute',
-            zIndex: 9999,
-            display: isDropdownVisible ? 'block' : 'none',
-            top: '100%',
-            left: 0,
-          }}
-        >
-          <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
-            <ul className="y-gap-5 js-results" ref={dropdownRef} tabIndex="-1">
-              {suggestions.length > 0 ? (
-                suggestions.map((item, index) => (
-                  <li
-                    className={`-link d-block col-12 text-left rounded-4 px-20 py-15 js-search-option mb-1 ${
-                      highlightedIndex === index ? "highlighted" : ""
-                    }`}
-                    key={item.key || item.code || index}
-                    role="button"
-                    onClick={() => handleOptionClick(item)}
-                  >
-                    <div className="d-flex">
-                      <div className="icon-location-2 text-light-1 text-20 pt-4" />
-                      <div className="ml-10">
-                        <div className="text-15 lh-12 fw-500 js-search-option-target">
-                          {item.name}
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))
-              ) : (
-                <li className="d-block col-12 text-left rounded-4 px-20 py-15">
-                  <div className="text-15 lh-12">No locations found</div>
-                </li>
-              )}
-            </ul>
-          </div>
-        </div>
       </div>
       
-      <style jsx>{`
-        .highlighted {
-          background-color: rgba(53, 84, 209, 0.05);
-        }
-      `}</style>
     </>
   );
 };

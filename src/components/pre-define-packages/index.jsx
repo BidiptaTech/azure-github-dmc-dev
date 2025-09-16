@@ -87,14 +87,27 @@ const PreDefinePackages = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
   const [hasSearched, setHasSearched] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Check if search parameters exist when component mounts
   useEffect(() => {
     if (searchParams) {
       setHasSearched(true);
       // Optionally restore form values from searchParams
-      if (searchParams.country) setSelectedLocation(searchParams.country);
-      if (searchParams.city) setSelectedCity(searchParams.city);
+      if (searchParams.country) {
+        // If country is a string, create an object, otherwise use as is
+        const countryObj = typeof searchParams.country === 'string' 
+          ? { name: searchParams.country, code: searchParams.country }
+          : searchParams.country;
+        setSelectedLocation(countryObj);
+      }
+      if (searchParams.city) {
+        // If city is a string, create an object, otherwise use as is
+        const cityObj = typeof searchParams.city === 'string' 
+          ? { name: searchParams.city, address: searchParams.city }
+          : searchParams.city;
+        setSelectedCity(cityObj);
+      }
       if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
       if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
       if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
@@ -111,6 +124,11 @@ const PreDefinePackages = () => {
       };
       setGuestCounts(updatedGuestCounts);
     }
+    
+    // Mark initialization as complete after a short delay
+    setTimeout(() => {
+      setIsInitializing(false);
+    }, 100);
   }, [searchParams, showAgentSelector]);
   
   
@@ -124,12 +142,28 @@ const PreDefinePackages = () => {
   };
   
   const handleLocationSelect = (location) => {
+    console.log('🌍 Location selected:', location);
+    console.log('🌍 Location name:', location?.name);
+    console.log('🌍 Is initializing:', isInitializing);
+    
+    // Check if this is the same location as already selected
+    const isSameLocation = selectedLocation?.name === location?.name;
+    
     setSelectedLocation(location);
-    // Reset city when location changes
-    setSelectedCity(null);
+    
+    // Only reset city if the location actually changed AND we're not initializing
+    if (!isSameLocation && !isInitializing) {
+      console.log('🌍 Resetting city due to location change');
+      setSelectedCity(null);
+    } else {
+      console.log('🌍 Same location selected or initializing, keeping city');
+    }
   };
 
   const handleCitySelect = (city) => {
+    console.log('🏙️ City selected:', city);
+    console.log('🏙️ City name:', city?.name);
+    console.log('🏙️ City address:', city?.address);
     setSelectedCity(city);
   };
 
@@ -142,8 +176,12 @@ const PreDefinePackages = () => {
   };
 
   const validateForm = () => {
+    console.log('✅ Validation - selectedLocation:', selectedLocation);
+    console.log('✅ Validation - selectedCity:', selectedCity);
+    
     // Validate location selection
     if (!selectedLocation) {
+      console.log('❌ Validation failed: No location selected');
       setSnackbarMessage("Please select a location");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -152,11 +190,14 @@ const PreDefinePackages = () => {
 
     // Validate city selection
     if (!selectedCity) {
+      console.log('❌ Validation failed: No city selected');
       setSnackbarMessage("Please select a city");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
+    
+    console.log('✅ Validation passed');
 
     // Validate agent selection only if the agent selector is shown
     if (showAgentSelector && !selectedAgent) {
@@ -259,8 +300,8 @@ const PreDefinePackages = () => {
     
     // Format the data for API request
     const searchParams = {
-      country: selectedLocation,
-      city: selectedCity,
+      country: selectedLocation?.name || selectedLocation,
+      city: selectedCity?.name || selectedCity,
       date: selectedDate,
       adults: guestCounts.Adults,
       male_count: guestCounts.maleCount || 0,
@@ -274,16 +315,11 @@ const PreDefinePackages = () => {
     if (showAgentSelector && selectedAgent) {
       searchParams.agent_id = selectedAgent?.id;
     }
-
-    // Add agent_id parameter only if the agent selector is shown
-    if (showAgentSelector && selectedAgent) {
-      searchParams.agent_id = selectedAgent?.id;
-    }
-
-    // Add agent_id parameter only if the agent selector is shown
-    if (showAgentSelector && selectedAgent) {
-      searchParams.agent_id = selectedAgent?.id;
-    }
+    
+    // Debug: Log the search parameters
+    console.log('🔍 Search Parameters:', searchParams);
+    console.log('🔍 Selected Location:', selectedLocation);
+    console.log('🔍 Selected City:', selectedCity);
     
     // Set search status to true
     setHasSearched(true);

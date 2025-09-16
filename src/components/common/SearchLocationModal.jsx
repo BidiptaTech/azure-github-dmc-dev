@@ -102,6 +102,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   const dispatch = useDispatch();
   const global_countries = useSelector((state) => state.auth.global_countries);
   const { loading: dmcLoading, error: dmcError } = useSelector((state) => state.dmc);
+  const currentDmcData = useSelector((state) => state.dmc.selectedDmcData);
   
   const defaultCountries = [
     { name: "India", code: "in" },
@@ -141,9 +142,14 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   const handleSearch = async () => {
     if (selectedCountry) {
       try {
-        // Clear any previously selected DMCs before starting new search
-        dispatch(clearSelectedDmc());
-        dispatch(clearSelectedDmcs());
+        // Check if we're searching for the same country as the current DMC
+        const isSameCountry = currentDmcData && currentDmcData.location === selectedCountry.name;
+        
+        if (!isSameCountry) {
+          // Clear any previously selected DMCs before starting new search
+          dispatch(clearSelectedDmc());
+          dispatch(clearSelectedDmcs());
+        }
         
         // Set selected countries in the store (store complete country object)
         dispatch(setSelectedCountries([selectedCountry]));
@@ -152,8 +158,32 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         const result = await dispatch(fetchDMCsByCountry([selectedCountry.name]));
         
         if (fetchDMCsByCountry.fulfilled.match(result)) {
-          // API call was successful, proceed to DMC selection
-          onSearch(selectedCountry);
+          // Check if there's only 1 DMC available
+          const dmcData = result.payload;
+          if (dmcData && dmcData.data && dmcData.data.length === 1) {
+            // Only 1 DMC available - auto-select it and skip DMC modal
+            const singleDMC = dmcData.data[0];
+            const selectedDMCData = {
+              id: `dmc-auto-${singleDMC.userId}`,
+              dmcId: singleDMC.userId,
+              name: singleDMC.company_name || singleDMC.name || `DMC ${singleDMC.userId}`,
+              location: singleDMC.country || 'Unknown Location',
+              logo: singleDMC.logo || '',
+              description: 'Automatically selected DMC',
+              originalData: singleDMC
+            };
+            
+            // Pass the auto-selected DMC data to the parent component
+            onSearch({
+              country: selectedCountry,
+              skipDMCModal: true,
+              selectedDMC: selectedDMCData
+            });
+          } else {
+            // Multiple DMCs available - proceed with normal DMC selection modal
+            onSearch(selectedCountry);
+          }
+          
           onClose();
           // Reset form
           setSelectedCountry(null);
