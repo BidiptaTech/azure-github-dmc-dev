@@ -226,6 +226,8 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/confirm-payment', [PackageController::class, 'confirmPayment'])->name('package.confirm-payment');
         Route::post('/package-booking/{booking_id}/approve-payment', [PackageController::class, 'approvePayment'])->name('package.approve-payment');
         Route::post('/package-booking/{booking_id}/decline-payment', [PackageController::class, 'declinePayment'])->name('package.decline-payment');
+        Route::post('/package-booking/{booking_id}/cancel-booking', [PackageController::class, 'cancelBooking'])->name('package.cancel-booking');
+        Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
