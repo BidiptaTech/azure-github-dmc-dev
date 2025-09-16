@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   Grid, 
   Autocomplete, 
@@ -327,7 +327,9 @@ const VehicleListDropdown = ({
   cachedVehicles,
   cachedVehicleName,
   isGridLayout = false,
-  preloadedBooking = null
+  preloadedBooking = null,
+  onAddMore = null,
+  PointToPoint,
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   const portZoneType = useSelector((state) => state.localtour.portZoneType);
