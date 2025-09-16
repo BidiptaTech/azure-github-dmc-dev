@@ -19,7 +19,7 @@ export const fetchLists = createAsyncThunk(
     const agent=agentId1 || agentId;
     // Prioritize the type from params over the state type
     const type = paramType || stateType;
-    console.log(agentId, "agentIdd", start, limit, reset, "paramType:", paramType, "stateType:", stateType, "finalType:", type);
+    // console.log(agentId, "agentIdd", start, limit, reset, "paramType:", paramType, "stateType:", stateType, "finalType:", type);
     
     try {
       const authToken = Cookies.get("authToken");
@@ -62,7 +62,7 @@ export const fetchLists = createAsyncThunk(
       return { data: response.data.data, reset, start, limit };
     } catch (error) {
       if (error.response?.status === 401) {
-        console.log("Unauthorized! Dispatching logout...");
+        // console.log("Unauthorized! Dispatching logout...");
         await dispatch(logoutUser()); // Ensure the logout process completes
         dispatch(setAuthenticated(false));
       }
@@ -106,14 +106,7 @@ const listSlice = createSlice({
         const { data: payload, reset, start, limit } = action.payload;
         const today = moment();
         
-        console.log('Redux slice received data:', {
-          payloadLength: payload?.length || 0,
-          reset,
-          start,
-          limit,
-          currentType: state.type,
-          existingListsLength: state.lists.length
-        });
+      
         
         // Update start and limit in state
         if (start !== undefined) state.start = start;
@@ -172,11 +165,11 @@ const listSlice = createSlice({
             break;
         }
 
-        console.log('Redux slice processing data for type:', state.type, 'targetList:', targetListKey);
+        // console.log('Redux slice processing data for type:', state.type, 'targetList:', targetListKey);
 
         if (reset) {
           state[targetListKey] = currentFilterFunction(payload);
-          console.log(`Resetting ${targetListKey}:`, { newLength: state[targetListKey].length });
+          // console.log(`Resetting ${targetListKey}:`, { newLength: state[targetListKey].length });
         } else {
           const existingIds = new Set(state[targetListKey].map(tour => tour.id));
           const newTours = payload.filter(tour => !existingIds.has(tour.id));
@@ -186,13 +179,13 @@ const listSlice = createSlice({
             const previousLength = state[targetListKey].length;
             state[targetListKey] = [...state[targetListKey], ...newFilteredTours];
             
-            console.log(`Accumulated data for ${targetListKey}:`, {
-              newToursCount: newTours.length,
-              newFilteredToursCount: newFilteredTours.length,
-              previousLength: previousLength,
-              totalLength: state[targetListKey].length,
-              type: state.type
-            });
+            // console.log(`Accumulated data for ${targetListKey}:`, {
+            //   newToursCount: newTours.length,
+            //   newFilteredToursCount: newFilteredTours.length,
+            //   previousLength: previousLength,
+            //   totalLength: state[targetListKey].length,
+            //   type: state.type
+            // });
           } else {
             console.log(`No new tours to add to ${targetListKey} - all were duplicates or filtered out.`);
           }

@@ -151,12 +151,20 @@ const PreferredCarsSearch = ({ onSelect, value = [] }) => {
     }
   };
 
-  // Filter vehicles based on search term with safety checks
-  const filteredCars = vehicles ? vehicles.filter((car) =>
-    car && (car.vehicle_name || car.name) && 
-    ((car.vehicle_name && car.vehicle_name.toLowerCase().includes(searchTerm.toLowerCase())) || 
-     (car.name && car.name.toLowerCase().includes(searchTerm.toLowerCase())))
-  ) : [];
+  // Filter vehicles based on search term and price with safety checks
+  const filteredCars = vehicles ? vehicles.filter((car) => {
+    // Safety checks
+    if (!car || (!car.vehicle_name && !car.name)) return false;
+    
+    // Filter by search term
+    const matchesSearch = (car.vehicle_name && car.vehicle_name.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                         (car.name && car.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Filter by price - only show cars with base_price > 0
+    const hasValidPrice = parseFloat(car.base_price) > 0;
+    
+    return matchesSearch && hasValidPrice;
+  }) : [];
 
   // Handle clicking outside to close dropdown
   useEffect(() => {

@@ -826,7 +826,7 @@ const TourProperties = () => {
         searchParamsFromRedux?.location?.address
       ) {
         // Log for debugging
-        console.log(`Triggering infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
+        // console.log(`Triggering infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
         setCurrentPage(prev => prev + 1);
       }
     };

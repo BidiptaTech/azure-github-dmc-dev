@@ -454,7 +454,7 @@ const TourProperties = () => {
       ) {
         // Log for debugging
         const itemsPerPage = 5; // Same as defined in other effects
-        console.log(`Triggering restaurant infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
+        // console.log(`Triggering restaurant infinite scroll load: page ${currentPage + 1}, start: ${currentPage * itemsPerPage}`);
         
         //setIsLoadingMore(true);
         setCurrentPage(prev => prev + 1);

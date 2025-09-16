@@ -468,9 +468,9 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </TableCell>
                 )}
                 <TableCell sx={{ minWidth: 120, width: 120 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', mr: 0.5 }}>
-                      S$
+                  <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', mr: 0.5, fontSize: '10px' }}>
+                      SGD
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {row.payment}

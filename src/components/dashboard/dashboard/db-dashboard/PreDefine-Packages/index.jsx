@@ -629,52 +629,8 @@ const PreDefinePackages = () => {
             restaurants: booking.restaurants || []
         };
 
-        console.log("Final formatted booking:", result);
-        
-        // Log all possible agent ID fields for debugging
-        console.log("Agent ID fields found:", {
-            "booking.agent_id": booking.agent_id,
-            "booking.agentId": booking.agentId,
-            "booking.agent": booking.agent,
-            "booking.assigned_agent_id": booking.assigned_agent_id,
-            "booking.assignedAgentId": booking.assignedAgentId,
-            "booking.created_by": booking.created_by,
-            "booking.createdBy": booking.createdBy,
-            "booking.user_id": booking.user_id,
-            "booking.userId": booking.userId,
-            "bookingDetails.agent_id": bookingDetails && bookingDetails.agent_id,
-            "bookingDetails.agentId": bookingDetails && bookingDetails.agentId,
-            "bookingDetails.agent": bookingDetails && bookingDetails.agent,
-            "bookingDetails.assigned_agent_id": bookingDetails && bookingDetails.assigned_agent_id,
-            "bookingDetails.created_by": bookingDetails && bookingDetails.created_by,
-            "bookingDetails.createdBy": bookingDetails && bookingDetails.createdBy,
-            "bookingDetails.user_id": bookingDetails && bookingDetails.user_id,
-            "bookingDetails.userId": bookingDetails && bookingDetails.userId,
-            "userInfo.agent_id": userInfo && userInfo.agent_id,
-            "userInfo.user_id": userInfo && userInfo.user_id,
-            "packageInfo.agent_id": packageInfo && packageInfo.agent_id,
-            "Final agentId used": result.agentId
-        });
-        
-        // Log payment and status fields for debugging
-        console.log("Payment and Status fields found:", {
-            "booking.payment_amount": booking.payment_amount,
-            "booking.total_payment": booking.total_payment,
-            "booking.price": booking.price,
-            "booking.amount": booking.amount,
-            "booking.status": booking.status,
-            "booking.payment_status": booking.payment_status,
-            "bookingDetails.total_price": bookingDetails && bookingDetails.total_price,
-            "bookingDetails.price": bookingDetails && bookingDetails.price,
-            "bookingDetails.amount": bookingDetails && bookingDetails.amount,
-            "bookingDetails.payment_status": bookingDetails && bookingDetails.payment_status,
-            "bookingDetails.status": bookingDetails && bookingDetails.status,
-            "packageInfo.price": packageInfo && packageInfo.price,
-            "packageInfo.amount": packageInfo && packageInfo.amount,
-            "Final payment used": result.payment,
-            "Final status used": result.status,
-            "Final paymentStatus used": result.paymentStatus
-        });
+       
+     
         
         return result;
     };

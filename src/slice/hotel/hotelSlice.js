@@ -21,7 +21,7 @@ export const fetchHotels = createAsyncThunk(
       const state = getState();
      const { location, ucheckIn, ucheckOut, guests } = state.hotels.searchState;
      const selectedDmcId = selectDmcId(state);
-     console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
+    //  console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
      
     //  console.log( state.hotels.searchState,"hotel details>>>>>");
      
@@ -68,10 +68,10 @@ export const fetchHotels = createAsyncThunk(
         }
       );
 
-     console.log("API Response:", response.data);
+    //  console.log("API Response:", response.data);
       return response.data;
     } catch (error) {
-     console.error("API Error:", error);
+     // console.error("API Error:", error);
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -83,7 +83,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
     try {
       const state = getState();
       const selectedDmcId = selectDmcId(state);
-      console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
+      // console.log('🎯 HotelSlice - Selected DMC ID from Redux:', selectedDmcId);
       
       const authToken = Cookies.get("authToken");
       let { submitHotels, id, type } = state.hotels;
@@ -150,7 +150,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
         throw new Error("Authorization and AgentId are missing.");
       }
 
-      console.log("Booking request data:", formData); // Log the complete request for debugging
+      // console.log("Booking request data:", formData); // Log the complete request for debugging
 
       const response = await axios.post(
         `${BASE_URL}/create-booking`,
@@ -163,7 +163,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
         }
       );
 
-      console.log("API Response:", response.data);
+      // console.log("API Response:", response.data);
       
       // Update stepper button visibility based on booking response
       dispatch(updateServiceResponse({ 
@@ -173,7 +173,7 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       
       return response.data;
     } catch (error) {
-      console.error("API Error:", error);
+      // console.error("API Error:", error);
       return rejectWithValue(error.response?.data || error.message);
     }
   }
@@ -212,7 +212,7 @@ const hotelSlice = createSlice({
       if (action.payload.start !== undefined) {
         state.start = action.payload.start;
       }
-      console.log(`Updated pagination state: hasMore=${state.hasMore}, start=${state.start}`);
+      // console.log(`Updated pagination state: hasMore=${state.hasMore}, start=${state.start}`);
     },
     setSelectedPriceMode: (state, action) => {
       state.selectedPriceMode = action.payload; // Just store the selected mode directly as a string
@@ -255,11 +255,11 @@ const hotelSlice = createSlice({
         ...updatedState,
       };
 
-      console.log("Updated searchState:", state.searchState);
+      // console.log("Updated searchState:", state.searchState);
     },
     settourdetails: (state, action) => {
       state.tourdetails = action.payload;
-      console.log("tdetails", state.tourdetails);
+      // console.log("tdetails", state.tourdetails);
     },
     resetHotels: (state) => {
       state.hotels = [];
@@ -301,7 +301,7 @@ const hotelSlice = createSlice({
           state.hasMore = false;
         }
         
-        console.log(`Hotels after update: ${state.hotels.length}, hasMore: ${state.hasMore}`);
+        // console.log(`Hotels after update: ${state.hotels.length}, hasMore: ${state.hasMore}`);
       })
       .addCase(fetchHotels.rejected, (state, action) => {
         state.status = "failed";
@@ -311,7 +311,7 @@ const hotelSlice = createSlice({
         if (action.error && (action.error.message.includes('404') || 
             (action.payload && action.payload.status === 404))) {
           state.hasMore = false;
-          console.log("No more hotels available, stopping pagination");
+          // console.log("No more hotels available, stopping pagination");
         }
       })
       .addCase(hottelBookingDataSubmit.pending, (state) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSelector, useDispatch } from 'react-redux';
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -16,52 +16,90 @@ const SearchBar = ({ onLocationSelect }) => {
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [cityList, setCityList] = useState([]);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [hasFetchedCities, setHasFetchedCities] = useState(false);
+  const [citiesFetchedForCountry, setCitiesFetchedForCountry] = useState(null);
   const countryListRef = useRef(null);
   const cityListRef = useRef(null);
   const countryInputRef = useRef(null);
   const cityInputRef = useRef(null);
   
-  // Get user_country from Redux state
-  const user_country = useSelector((state) => state.auth.user_country);
+  // Get selected DMC data from Redux store (same pattern as hero-1/LocationSearch)
+  const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
+  const selectedDmcData = selectedCountries && selectedCountries.length > 0 ? selectedCountries[0] : null;
+  console.log('selectedDmcData', selectedDmcData);
 
-  console.log('user_country123',user_country);
-  // Default countries if user_country isn't available
   const defaultCountries = [
     { name: "United States", code: "US" },
     { name: "Singapore", code: "SG" },
     // More countries can be added here
   ];
 
-  // Process available countries from user_country
+  // Get country from selected DMC data (same pattern as hero-1/LocationSearch)
   const availableCountries = useMemo(() => {
-    if (user_country) {
-      // Handle object format (current data structure)
-      if (typeof user_country === 'object' && user_country.name) {
-        return [{
-          name: user_country.name,
-          code: user_country.code || user_country.country_code,
-          key: `country-0`
-        }];
-      }
-      // Handle string format (comma-separated countries)
-      else if (typeof user_country === 'string') {
-        return user_country.split(',').map((country, index) => ({ 
-          name: country.trim(),
-          code: country.trim().toLowerCase(), 
-          key: `country-${index}`
-        }));
-      }
-      // Handle array format
-      else if (Array.isArray(user_country)) {
-        return user_country.map((country, index) => ({
-          name: country.name || country,
-          code: country.code || country.country_code || country.toLowerCase(),
-          key: `country-${index}`
-        }));
-      }
+    if (selectedDmcData && selectedDmcData.name) {
+      return [{ 
+        name: selectedDmcData.name, // Full country name
+        code: selectedDmcData.code, // Use full name as code too for database
+        key: 'selected-dmc-country' 
+      }];
     }
     return defaultCountries;
-  }, [user_country]);
+  }, [selectedDmcData]);
+
+  // Stable callback for parent notification
+  const notifyParent = useCallback((locationData) => {
+    if (onLocationSelect) {
+      onLocationSelect(locationData);
+    }
+  }, [onLocationSelect]);
+
+  // Update location content when selected DMC changes (same pattern as hero-1/LocationSearch)
+  useEffect(() => {
+    // Auto-select the DMC's country if available
+    if (selectedDmcData && selectedDmcData.name) {
+      const dmcCountry = {
+        name: selectedDmcData.name, // Full country name
+        code: selectedDmcData.code, // Use full name as code for database
+        key: 'selected-dmc-country'
+      };
+      
+      // Only update if the country is different from current selection
+      if (!selectedCountry || selectedCountry.name !== dmcCountry.name) {
+        // Clear previous city selection when country changes
+        setSelectedCity(null);
+        setSearchValueCity("");
+        
+        // Auto-select the country
+        setSelectedCountry(dmcCountry);
+        setSearchValueCountry(dmcCountry.name);
+        
+        // Auto-fetch cities for the selected DMC country
+        fetchCities(dmcCountry);
+        
+        // Notify parent component about the auto-selected country
+        notifyParent({
+          country: dmcCountry.name,
+          countryCode: dmcCountry.code,
+          city: null,
+          cityCode: null
+        });
+      }
+    } else {
+      // Clear selection if no DMC data and we have a selection
+      if (selectedCountry) {
+        setSelectedCountry(null);
+        setSearchValueCountry("");
+        setSelectedCity(null);
+        setSearchValueCity("");
+        setCityList([]);
+        setHasFetchedCities(false);
+        setCitiesFetchedForCountry(null);
+        
+        // Notify parent component about cleared selection
+        notifyParent(null);
+      }
+    }
+  }, [selectedDmcData, selectedCountry, notifyParent]);
 
   // Filter and suggest countries based on search input
   useEffect(() => {
@@ -79,29 +117,44 @@ const SearchBar = ({ onLocationSelect }) => {
 
   // Fetch cities when a country is selected
   const fetchCities = async (country) => {
+    // Handle both string and object parameters
+    const countryName = typeof country === 'string' ? country : country.name;
+    
+    // Prevent multiple API calls for the same country
+    if (citiesFetchedForCountry === countryName) {
+      return;
+    }
+    
     setIsLoadingCities(true);
+    setHasFetchedCities(false);
+    
     try {
       // Make API call to fetch cities for the selected country
-      const response = await endpoints.getCities(country.name);
+      // Use country name for the API call (same as other components)
+      console.log('Fetching cities for country:', countryName);
+      const response = await endpoints.getCities(countryName);
       
       // Log the raw API response for debugging
       console.log('Raw API response:', response.data);
       
       let formattedCities = [];
       
+      // Get country code for city code generation
+      const countryCode = typeof country === 'string' ? country : (country.code || country.name);
+      
       // Check for the exact format shown in the user's example
       if (response.data && Array.isArray(response.data.cities)) {
         // Handle the array of city strings format
         formattedCities = response.data.cities.map((cityName, index) => ({
           name: cityName,
-          code: `${country.code}-${cityName.replace(/\s+/g, '')}`,
+          code: `${countryCode}-${cityName.replace(/\s+/g, '')}`,
           key: `city-${index}`
         }));
       } else if (response.data && Array.isArray(response.data)) {
         // Handle direct array format (as shown in the message)
         formattedCities = response.data.map((cityName, index) => ({
           name: cityName,
-          code: `${country.code}-${cityName.replace(/\s+/g, '')}`,
+          code: `${countryCode}-${cityName.replace(/\s+/g, '')}`,
           key: `city-${index}`
         }));
       } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
@@ -110,21 +163,25 @@ const SearchBar = ({ onLocationSelect }) => {
           const cityName = typeof city === 'string' ? city : city.name;
           return {
             name: cityName,
-            code: city.id || `${country.code}-${cityName.replace(/\s+/g, '')}`,
+            code: city.id || `${countryCode}-${cityName.replace(/\s+/g, '')}`,
             key: `city-${index}`
           };
         });
       } else {
-        console.error("Unexpected cities data format:", response.data);
+        // console.error("Unexpected cities data format:", response.data);
       }
       
       console.log('Formatted cities:', formattedCities);
       setCityList(formattedCities);
       setCitySuggestions(formattedCities);
+      setHasFetchedCities(true);
+      setCitiesFetchedForCountry(countryName);
     } catch (error) {
       console.error("Error fetching cities:", error);
       setCityList([]);
       setCitySuggestions([]);
+      setHasFetchedCities(true);
+      setCitiesFetchedForCountry(countryName);
     } finally {
       setIsLoadingCities(false);
     }
@@ -133,24 +190,26 @@ const SearchBar = ({ onLocationSelect }) => {
   // Filter and suggest cities based on selected country and search input
   useEffect(() => {
     if (selectedCountry) {
-      if (cityList.length === 0 && !isLoadingCities) {
-        // Fetch cities for this country if we don't have them yet
+      // Only fetch cities if we haven't fetched them for this country yet
+      if (!hasFetchedCities && !isLoadingCities && citiesFetchedForCountry !== selectedCountry.name) {
         fetchCities(selectedCountry);
       } else if (searchValueCity) {
         const filtered = cityList.filter((city) =>
           city.name.toLowerCase().includes(searchValueCity.toLowerCase())
         );
         setCitySuggestions(filtered);
-        setIsCityDropdownOpen(filtered.length > 0);
+        // Always show dropdown when searching, even if no results
+        setIsCityDropdownOpen(true);
       } else {
         setCitySuggestions(cityList);
+        // Only show dropdown if we have cities, don't show for empty cities
         setIsCityDropdownOpen(cityList.length > 0);
       }
     } else {
       setCitySuggestions([]);
       setIsCityDropdownOpen(false);
     }
-  }, [searchValueCity, selectedCountry, cityList, isLoadingCities]);
+  }, [searchValueCity, selectedCountry, cityList, isLoadingCities, hasFetchedCities, citiesFetchedForCountry]);
 
   // Ensure highlighted item is visible in scroll
   useEffect(() => {
@@ -196,10 +255,13 @@ const SearchBar = ({ onLocationSelect }) => {
     setSelectedCountry(country);
     setIsCountryDropdownOpen(false);
     
-    // Clear any previously selected city
+    // Clear any previously selected city and reset city states
     setSearchValueCity("");
     setSelectedCity(null);
     setCityList([]);
+    setCitySuggestions([]);
+    setHasFetchedCities(false);
+    setCitiesFetchedForCountry(null);
     
     // Put focus on city input
     if (cityInputRef.current) {
@@ -217,11 +279,11 @@ const SearchBar = ({ onLocationSelect }) => {
     setSelectedCity(city);
     setIsCityDropdownOpen(false);
     
-    // Call the callback to notify parent component
+    // Call the callback to notify parent component (same structure as SearchLocationModal)
     if (onLocationSelect && selectedCountry) {
       onLocationSelect({
         country: selectedCountry.name,
-        countryCode: selectedCountry.code,
+        countryCode: selectedCountry.code || selectedCountry.country_code,
         city: city.name,
         cityCode: city.code
       });
@@ -290,11 +352,11 @@ const SearchBar = ({ onLocationSelect }) => {
     setSearchValueCity("");
     setIsCityDropdownOpen(true);
     
-    // Inform parent of cleared city selection
+    // Inform parent of cleared city selection (same structure as SearchLocationModal)
     if (onLocationSelect && selectedCountry) {
       onLocationSelect({
         country: selectedCountry.name,
-        countryCode: selectedCountry.code,
+        countryCode: selectedCountry.code || selectedCountry.country_code,
         city: null,
         cityCode: null
       });
@@ -374,7 +436,7 @@ const SearchBar = ({ onLocationSelect }) => {
               readOnly={selectedCountry !== null}
             />
             
-            {selectedCountry && (
+            {/* {selectedCountry && (
               <button 
                 className="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent cursor-pointer" 
                 onClick={handleClearCountrySelection}
@@ -382,12 +444,21 @@ const SearchBar = ({ onLocationSelect }) => {
               >
                 <i className="icon-close text-12" />
               </button>
-            )}
+            )} */}
             
             {isCountryDropdownOpen && countrySuggestions.length > 0 && (
               <div className="shadow-2 dropdown-menu min-width-200 show">
                 <div className="px-20 py-20 bg-white rounded-4">
-                  <ul className="y-gap-5 js-results" ref={countryListRef}>
+                  <ul 
+                    className="y-gap-5 js-results" 
+                    ref={countryListRef}
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#ccc #f1f1f1'
+                    }}
+                  >
                     {countrySuggestions.map((country, index) => (
                       <li
                         className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
@@ -419,7 +490,13 @@ const SearchBar = ({ onLocationSelect }) => {
             <input
               ref={cityInputRef}
               type="text"
-              placeholder={selectedCountry ? "Select a city" : "First select a country"}
+              placeholder={
+                !selectedCountry 
+                  ? "First select a country" 
+                  : hasFetchedCities && cityList.length === 0 
+                    ? "No cities available " 
+                    : "Select a city available"
+              }
               className="js-search js-dd-focus border-0 h-50"
               value={searchValueCity}
               onChange={handleCityInputChange}
@@ -450,7 +527,16 @@ const SearchBar = ({ onLocationSelect }) => {
             {isCityDropdownOpen && citySuggestions.length > 0 && (
               <div className="shadow-2 dropdown-menu min-width-200 show">
                 <div className="px-20 py-20 bg-white rounded-4">
-                  <ul className="y-gap-5 js-results" ref={cityListRef}>
+                  <ul 
+                    className="y-gap-5 js-results" 
+                    ref={cityListRef}
+                    style={{
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#ccc #f1f1f1'
+                    }}
+                  >
                     {citySuggestions.map((city, index) => (
                       <li
                         className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
@@ -472,12 +558,6 @@ const SearchBar = ({ onLocationSelect }) => {
                     ))}
                   </ul>
                 </div>
-              </div>
-            )}
-            
-            {selectedCountry && !isLoadingCities && cityList.length === 0 && (
-              <div className="text-danger text-12 mt-5">
-                No cities available for this country.
               </div>
             )}
           </div>

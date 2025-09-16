@@ -27,7 +27,7 @@ export const fetchViewDetails = createAsyncThunk(
             },
           }
       );
-       console.log("201Fetched Data:", response.data);
+      //  console.log("201Fetched Data:", response.data);
       return response.data; // Adjust based on the actual API response structure
     } catch (error) {
       console.error("Fetch Error:", error.response?.data || error.message); // Log error to console

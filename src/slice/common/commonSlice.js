@@ -10,10 +10,10 @@ export const singleBooking = createAsyncThunk(
       const userRole = getState().auth?.userRole;
       const authToken = Cookies.get("authToken");
       const AgentId = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)" ? getState().editing.agentId : Cookies.get("AgentId");
-      console.log("bookingIdcommon", bookingId);
-      console.log("tourIdcommon", tourId);
-      console.log("AgentIdcommon", AgentId);
-      console.log("authTokencommon", authToken);
+      // console.log("bookingIdcommon", bookingId);
+      // console.log("tourIdcommon", tourId);
+      // console.log("AgentIdcommon", AgentId);
+      // console.log("authTokencommon", authToken);
       
       const response = await axios.post(`${BASE_URL}/cancel-booking`, {
         booking_id: String(bookingId),
@@ -27,7 +27,7 @@ export const singleBooking = createAsyncThunk(
         }
       });
       
-      console.log("API response:", response.data);
+      // console.log("API response:", response.data);
       return response.data;
     } catch (error) {
       console.error("API error:", error.response?.data || error.message);

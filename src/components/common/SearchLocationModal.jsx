@@ -181,8 +181,8 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
 
   const isSearchDisabled = !selectedCountry || dmcLoading;
   
-  console.log('selectedCountry:', selectedCountry);
-  console.log('countries:', countries);
+  // console.log('selectedCountry:', selectedCountry);
+  // console.log('countries:', countries);
 
   return (
     <StyledDialog 

@@ -124,9 +124,15 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
     const actualPrice = parseFloat(price) || 0;
     return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
   };
-  const filteredHotels = hotels.filter((hotel) =>
-    hotel.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredHotels = hotels.filter((hotel) => {
+    // Filter by search term
+    const matchesSearch = hotel.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filter by price - only show hotels with single_base_price > 0
+    const hasValidPrice = parseFloat(hotel.single_base_price) > 0;
+    
+    return matchesSearch && hasValidPrice;
+  });
 
   useEffect(() => {
     const handleClickOutside = (event) => {
