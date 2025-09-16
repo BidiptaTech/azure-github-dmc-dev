@@ -75,24 +75,24 @@ const hotelDetailsSlice = createSlice({
       };
       
       state.bookingDetails = updatedPayload;
-      console.log("Hotel details set:", state.bookingDetails);
+      // console.log("Hotel details set:", state.bookingDetails);
     },
     setHotelPolicies:(state,action) =>{
      state.hotelPolicies =action.payload
-     console.log("Hotel policies set:", state.hotelPolicies);
+     // console.log("Hotel policies set:", state.hotelPolicies);
     },
     setHotelImages: (state, action) => {
       state.images = action.payload; // Update hotel images
     },
     setBookingArray: (state, action) => {
       state.bookingArray = action.payload;
-      console.log("Booking Array",state.bookingArray);
+      // console.log("Booking Array",state.bookingArray);
     },
     updateBookingArray: (state, action) => {
       const { roomId, bedId, operation, data } = action.payload;
     
       const updatedArray = [...state.bookingArray];
-      console.log("Updated Array before changes:", JSON.stringify(updatedArray));
+      // console.log("Updated Array before changes:", JSON.stringify(updatedArray));
       const roomIndex = updatedArray.findIndex((room) => room.room_id === roomId);
 
       if (operation === "increment") {
@@ -208,27 +208,27 @@ const hotelDetailsSlice = createSlice({
       }
       
       state.bookingArray = updatedArray;
-      console.log("Updated Array after changes:", JSON.stringify(updatedArray));
+      // console.log("Updated Array after changes:", JSON.stringify(updatedArray));
       
       // Calculate the new total price after updating the bookingArray
       let total = 0;
-      console.log("[PRICE DEBUG] Starting total price calculation");
+      // console.log("[PRICE DEBUG] Starting total price calculation");
       
       // Debug the structure of the booking array
-      console.log("[PRICE DEBUG] Number of rooms in booking array:", updatedArray.length);
+      // console.log("[PRICE DEBUG] Number of rooms in booking array:", updatedArray.length);
       
       updatedArray.forEach((room, roomIdx) => {
-        console.log(`[PRICE DEBUG] Room ${roomIdx}: ${room.room_type}, Beds count: ${room.beds.length}`);
+        // console.log(`[PRICE DEBUG] Room ${roomIdx}: ${room.room_type}, Beds count: ${room.beds.length}`);
         
         room.beds.forEach((bed, bedIdx) => {
-          console.log(`[PRICE DEBUG] Bed ${bedIdx}: ${bed.bed_type}, Selected meals count: ${Object.keys(bed.selectedMeals || {}).length}`);
+          // console.log(`[PRICE DEBUG] Bed ${bedIdx}: ${bed.bed_type}, Selected meals count: ${Object.keys(bed.selectedMeals || {}).length}`);
           
           // Calculate meal prices
           if (bed.selectedMeals) {
             Object.entries(bed.selectedMeals).forEach(([key, meal]) => {
               if (meal && meal.price) {
                 const mealPrice = Number(meal.price);
-                console.log(`[PRICE DEBUG] Adding meal price from ${key}: ${meal.type} - ${mealPrice}`);
+                // console.log(`[PRICE DEBUG] Adding meal price from ${key}: ${meal.type} - ${mealPrice}`);
                 if (!isNaN(mealPrice)) {
                   total += mealPrice;
                 }
@@ -239,11 +239,11 @@ const hotelDetailsSlice = createSlice({
           // Always add baby cot price if applicable - improved error handling
           if (bed.baby_cot && bed.baby_cot_price !== undefined) {
             const babyCotPrice = parseFloat(bed.baby_cot_price);
-            console.log(`[PRICE DEBUG] Baby cot found for bed ${bedIdx}!`);
-            console.log(`[PRICE DEBUG] Baby cot status: ${bed.baby_cot}, price: ${babyCotPrice}, raw value: ${bed.baby_cot_price}`);
+            // console.log(`[PRICE DEBUG] Baby cot found for bed ${bedIdx}!`);
+            // console.log(`[PRICE DEBUG] Baby cot status: ${bed.baby_cot}, price: ${babyCotPrice}, raw value: ${bed.baby_cot_price}`);
             
             if (!isNaN(babyCotPrice) && babyCotPrice > 0) {
-              console.log(`[PRICE DEBUG] Adding baby cot price: ${babyCotPrice}`);
+              // console.log(`[PRICE DEBUG] Adding baby cot price: ${babyCotPrice}`);
               total += babyCotPrice;
             } else {
               console.log(`[PRICE DEBUG] Invalid baby cot price: ${bed.baby_cot_price}`);
@@ -254,7 +254,7 @@ const hotelDetailsSlice = createSlice({
         });
       });
       
-      console.log(`[PRICE DEBUG] Final calculated total: ${total}`);
+      // console.log(`[PRICE DEBUG] Final calculated total: ${total}`);
       state.totalPrice = total;
     },
     clearHotelDetails: (state) => {

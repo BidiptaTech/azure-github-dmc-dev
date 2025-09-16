@@ -1,33 +1,3 @@
-// import React from "react";
-// import { useDispatch, useSelector } from "react-redux";
-// import { useParams } from "react-router-dom";
-// import { fetchRestaurantsDetails } from "@/slice/restaurant/RestaurantsSlice";
-
-// const Overview = () => {
-//   // Fetch attraction details from Redux
-//   const restaurantsDetails = useSelector(
-//     (state) => state.restaurants.selectedRestaurant
-//   );
-
-//   return (
-//     <>
-//       <div className="row x-gap-40 y-gap-40">
-//         <div className="col-12">
-//           <h3 className="text-22 fw-500">Overview</h3>
-//           <p
-//             className="text-dark-1 text-15 mt-20"
-//             dangerouslySetInnerHTML={{
-//               __html:
-//                 restaurantsDetails?.description || "No description available.",
-//             }}
-//           />
-//         </div>
-//       </div>
-//     </>
-//   );
-// };
-
-// export default Overview;
 
 
 import React, { useState } from "react";

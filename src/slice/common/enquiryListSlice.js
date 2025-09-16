@@ -23,7 +23,7 @@ export const fetchEnquiryList = createAsyncThunk(
     try {
       // Validate input parameters
       if (!country || !city || country === 'undefined' || city === 'undefined') {
-        console.warn("Invalid country or city provided:", { country, city });
+        // console.warn("Invalid country or city provided:", { country, city });
         return rejectWithValue("Please provide valid country and city values");
       }
 
@@ -31,7 +31,7 @@ export const fetchEnquiryList = createAsyncThunk(
       const dmcState = state.dmc;
       const selectedDmcIds = dmcState?.selectedDmcIds || [];
       const selectedDmcId = dmcState?.dmcId || null;
-      console.log("FETCH ENQUIRY LIST - Selected DMC IDs:", selectedDmcIds);
+      // console.log("FETCH ENQUIRY LIST - Selected DMC IDs:", selectedDmcIds);
       
       // Get auth token
       const authToken = Cookies.get("authToken");
@@ -40,7 +40,7 @@ export const fetchEnquiryList = createAsyncThunk(
         return rejectWithValue("Authentication token not found");
       }
 
-      console.log("Making API call with params:", { country, city, dmc_ids: selectedDmcIds });
+      // console.log("Making API call with params:", { country, city, dmc_ids: selectedDmcIds });
 
       const response = await axios.get(`${BASE_URL}/enquiry_lists`, {
         headers: {
@@ -55,7 +55,7 @@ export const fetchEnquiryList = createAsyncThunk(
         }
       });
 
-      console.log("API Response:", response.data);
+      // console.log("API Response:", response.data);
 
       if (response.data && response.data.success) {
         return response.data.data;
@@ -63,7 +63,7 @@ export const fetchEnquiryList = createAsyncThunk(
 
       return rejectWithValue(response.data?.message || "Failed to fetch enquiry list");
     } catch (error) {
-      console.error("API Error:", error);
+      // console.error("API Error:", error);
       return rejectWithValue(
         error.response?.data?.message || error.message || "Network error"
       );
@@ -90,12 +90,12 @@ const enquiryListSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchEnquiryList.pending, (state) => {
-        console.log("FETCH ENQUIRY LIST - Status: PENDING");
+        // console.log("FETCH ENQUIRY LIST - Status: PENDING");
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchEnquiryList.fulfilled, (state, action) => {
-        console.log("FETCH ENQUIRY LIST - Status: FULFILLED with payload:", action.payload);
+        // console.log("FETCH ENQUIRY LIST - Status: FULFILLED with payload:", action.payload);
         state.loading = false;
         state.hotels = action.payload.hotels || [];
         state.attractions = action.payload.attractions || [];
@@ -106,7 +106,7 @@ const enquiryListSlice = createSlice({
         state.packaged_attractions = action.payload.packaged_attractions || [];
       })
       .addCase(fetchEnquiryList.rejected, (state, action) => {
-        console.error("FETCH ENQUIRY LIST - Status: REJECTED with error:", action.payload);
+        // console.error("FETCH ENQUIRY LIST - Status: REJECTED with error:", action.payload);
         state.loading = false;
         state.error = action.payload;
       });
