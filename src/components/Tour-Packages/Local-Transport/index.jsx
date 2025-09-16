@@ -1383,41 +1383,39 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         [selectedPort]: true
       }));
 
-      const hasBookingOfType = allBookings.some(booking => booking.transportType === selectedPort);
+      // Always create a new booking when vehicles are loaded from search
+      // Remove the hasBookingOfType check to allow multiple bookings of the same transport type
+      let newBookingData = { ...initialFormState, transportType: selectedPort };
 
-      if (!hasBookingOfType) {
-        let newBookingData = { ...initialFormState, transportType: selectedPort };
-
-        if (selectedPort === "Point To Point") {
-          newBookingData.pickupLocation = pickupLocation;
-          newBookingData.dropoffLocation = dropoffLocation;
-          newBookingData.pickupTime = pickupTime;
-          newBookingData.bookingDate = pickupDate;
-        } else if (selectedPort === "Hourly") {
-          newBookingData.pickupLocation = exitPickupLocation;
-          newBookingData.pickupTime = pickupTime1;
-          newBookingData.bookingDate = exitPickupDate;
-        } else if (selectedPort === "Local Transfer") {
-          newBookingData.pickupLocation = pickupLocation;
-          newBookingData.dropoffLocation = dropoffLocation;
-          newBookingData.pickupTime = pickupTimeZone;
-          newBookingData.bookingDate = pickupDate;
-        }
-
-        // Use setTimeout to prevent immediate state updates that could cause loops
-        setTimeout(() => {
-          setAllBookings(prev => {
-            const newBookings = [...prev, newBookingData];
-            const newIndex = newBookings.length - 1;
-            setExpandedSections(prevExpanded => [...prevExpanded, newIndex]);
-            
-            // Clear the search day index after creating the booking
-            dispatch(clearSearchDayIndex());
-            
-            return newBookings;
-          });
-        }, 50);
+      if (selectedPort === "Point To Point") {
+        newBookingData.pickupLocation = pickupLocation;
+        newBookingData.dropoffLocation = dropoffLocation;
+        newBookingData.pickupTime = pickupTime;
+        newBookingData.bookingDate = pickupDate;
+      } else if (selectedPort === "Hourly") {
+        newBookingData.pickupLocation = exitPickupLocation;
+        newBookingData.pickupTime = pickupTime1;
+        newBookingData.bookingDate = exitPickupDate;
+      } else if (selectedPort === "Local Transfer") {
+        newBookingData.pickupLocation = pickupLocation;
+        newBookingData.dropoffLocation = dropoffLocation;
+        newBookingData.pickupTime = pickupTimeZone;
+        newBookingData.bookingDate = pickupDate;
       }
+
+      // Use setTimeout to prevent immediate state updates that could cause loops
+      setTimeout(() => {
+        setAllBookings(prev => {
+          const newBookings = [...prev, newBookingData];
+          const newIndex = newBookings.length - 1;
+          setExpandedSections(prevExpanded => [...prevExpanded, newIndex]);
+          
+          // Clear the search day index after creating the booking
+          dispatch(clearSearchDayIndex());
+          
+          return newBookings;
+        });
+      }, 50);
     } else if (hasVehicles && selectedPort) {
       // Log when we have vehicles but this component shouldn't create the booking
       console.log(`Local Transport - Day ${dayIndex}: Skipping booking creation (searchDayIndex: ${searchDayIndex}, this dayIndex: ${dayIndex})`);
@@ -2087,11 +2085,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                       />
                       {(Number(booking.price) > 0 || Number(booking.totalPrice) > 0) && PriceHide !== "1" && (
                         <Chip
-                          label={`$${(
-                            !isNaN(Number(booking.price)) && Number(booking.price) > 0
-                              ? Number(booking.price)
-                              : Number(booking.totalPrice)
-                          ).toFixed(2)}`}
+                          label={`Booking Successfully Added`}
                           color="success"
                           size="small"
                           variant="outlined"
@@ -2208,6 +2202,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             cachedVehicles={getVehiclesForBooking(booking)}
                             cachedVehicleName={booking.vehicleName}
                             preloadedBooking={booking.originalData ? booking : null}
+                            onAddMore={handleAddMore}
+                            PointToPoint={PointToPoint}
                           />
                         )}
 
@@ -2230,6 +2226,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             cachedVehicles={getVehiclesForBooking(booking)}
                             cachedVehicleName={booking.vehicleName}
                             preloadedBooking={booking.originalData ? booking : null}
+                            onAddMore={handleAddMore}
+                            Hourly={Hourly}
                           />
                         )}
 
@@ -2282,6 +2280,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                             cachedVehicles={getVehiclesForBooking(booking)}
                             cachedVehicleName={booking.vehicleName}
                             preloadedBooking={booking.originalData ? booking : null}
+                            onAddMore={handleAddMore}
+                            LocalTransports={LocalTransports}
                           />
                         )}
                       </Box>

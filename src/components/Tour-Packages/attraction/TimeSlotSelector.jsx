@@ -34,8 +34,9 @@ const TimeSlotSelector = ({ selectedTimeSlot, onTimeSlotChange, attraction, disa
           id="time-slot-label"
           sx={{
             backgroundColor: 'white',
-            px: 1,
-            fontSize: '0.8rem'
+            px: 2,
+            fontSize: '1rem',
+            marginTop: '-5px',
           }}
         >
           Select Time Slot
@@ -54,14 +55,14 @@ const TimeSlotSelector = ({ selectedTimeSlot, onTimeSlotChange, attraction, disa
             }
           }}
           renderValue={(selected) => {
-            if (!selected) {
-              return (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                  <AccessTimeIcon sx={{ fontSize: 18 }} />
-                  <Typography sx={{ fontSize: '0.8rem' }}>Select Time Slot</Typography>
-                </Box>
-              );
-            }
+            // if (!selected) {
+            //   return (
+            //     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+            //       <AccessTimeIcon sx={{ fontSize: 18 }} />
+            //       <Typography sx={{ fontSize: '0.8rem' }}>Select Time Slot</Typography>
+            //     </Box>
+            //   );
+            // }
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 18 }} />

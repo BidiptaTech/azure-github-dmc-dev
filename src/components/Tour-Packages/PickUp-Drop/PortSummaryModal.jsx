@@ -69,9 +69,10 @@ const PortSummaryModal = ({
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
+  //const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
   const PriceHide = useSelector((state) => state.auth.PriceHide);
-
+  const dmcName = useSelector((state) => state.tourPackages.packageData.dmc_company_name);
+  
   // Determine color theme based on port type
   const getColorTheme = () => {
     if (portType === "Entry Port") {

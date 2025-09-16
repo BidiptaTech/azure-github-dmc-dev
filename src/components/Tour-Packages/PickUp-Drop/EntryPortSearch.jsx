@@ -21,6 +21,7 @@ import {
   setPickupPlaceid,
   setDropoffPlaceid,
   setPortZoneType,
+  resetVehicles,
 } from "@/slice/port/pickupDropSlice";
 import DateSearch1 from "@/components/activity-list/common/DateSearch1";
 import Pickuptime from "./Pickuptime";
@@ -98,10 +99,10 @@ const EntryPortSearch = ({ Location }) => {
     // Set validation triggered to true when search button is clicked
     setValidationTriggered(true);
     dispatch(setPortZoneType(""));
-    
+    dispatch(resetVehicles());
     // Only proceed if both locations are selected from autocomplete
     const locationsValid = pickupFromAutocomplete && dropoffFromAutocomplete;
-
+     
     dispatch(setentrypickup(pickUpLocation));
     dispatch(setentrydropoff(dropOffLocation));
     dispatch(setpickupdate(selectedDate));

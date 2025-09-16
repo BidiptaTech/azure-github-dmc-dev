@@ -353,6 +353,15 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
           <TextField
             {...params}
             label="Search Attraction"
+          
+            InputProps={{
+              ...params.InputProps,
+              sx: {
+                '& .MuiInputBase-input': {
+                  marginBottom: '10px',
+                },
+              },
+            }}
             fullWidth
           />
         )}

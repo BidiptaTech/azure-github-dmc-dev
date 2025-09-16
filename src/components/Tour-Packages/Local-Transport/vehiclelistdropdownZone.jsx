@@ -280,7 +280,9 @@ const VehicleListDropdownZone = ({
   cachedVehicleName,
   isGridLayout = false,
   preloadedBooking = null,
-  onBookingComplete // Add this prop
+  onBookingComplete, // Add this prop
+  onAddMore = null,
+  LocalTransports,
 }) => {
   const vehicles = useSelector((state) => state.localtour.vehicles || []);
   console.log("vehicles55", vehicles);
