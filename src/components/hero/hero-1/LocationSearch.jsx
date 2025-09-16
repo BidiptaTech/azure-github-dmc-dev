@@ -192,7 +192,7 @@ const SearchBar = ({ onLocationSelect }) => {
             onFocus={handleInputFocus}
             readOnly={selectedItem !== null}
           />
-          {selectedItem && (
+          {/* {selectedItem && (
             <button 
               className="position-absolute end-0 top-50 translate-middle-y pe-3 border-0 bg-transparent cursor-pointer" 
               onClick={handleClearSelection}
@@ -200,7 +200,7 @@ const SearchBar = ({ onLocationSelect }) => {
             >
               <i className="icon-close text-10" />
             </button>
-          )}
+          )} */}
         </div>
       </div>
 
