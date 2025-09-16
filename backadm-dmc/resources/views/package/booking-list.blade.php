@@ -163,9 +163,9 @@
                             <th>Status</th>
                             <th>Agent Name</th>
                             <th>Action</th>
-                            @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
+                            @if(in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 131, 132, 134, 135, 137, 138]))
                                 <th>Add Payment</th>
-                            @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                            @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
                                 <th>Confirm Payment </th>
                             @endif
                             <th>Created At</th>
@@ -242,11 +242,11 @@
                                     @endphp
                                     <span class="booking-status {{ $statusClass }}">
                                         @if($booking->status == '1')
-                                            Pending
-                                        @elseif($booking->status == '2')
                                             Confirmed
+                                        @elseif($booking->status == '2')
+                                            Definite
                                         @elseif($booking->status == '3')
-                                            On Hold
+                                            Actual
                                         @elseif($booking->status == '4')
                                             Cancelled
                                         @endif
@@ -266,34 +266,63 @@
                                     </button>
                                 </td>
 
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138)
-                                <td>
-                                    @if($booking->status == '1')
-                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
-                                            <i class="fas fa-plus"></i> Add Payment
-                                        </button>
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138)
+                                    @php
+                                        // Calculate payment totals
+                                        $paidAmount = 0;
+                                        $packageTotal = 0;
+                                        $hasPendingPayment = false;
+                                        
+                                        // Get package total from booking_details
+                                        if ($booking->booking_details) {
+                                            $bookingDetails = is_array($booking->booking_details) ? $booking->booking_details : json_decode($booking->booking_details, true);
+                                            $packageTotal = $bookingDetails['total_price'] ?? 0;
+                                        }
+                                        
+                                        // Calculate paid amount and check for pending payments
+                                        if ($booking->payment_details) {
+                                            $paymentDetails = json_decode($booking->payment_details, true);
+                                            if ($paymentDetails) {
+                                                foreach ($paymentDetails as $payment) {
+                                                    if (isset($payment['status']) && $payment['status'] == 1) {
+                                                        $paidAmount += $payment['payment_amount'];
+                                                    } elseif (!isset($payment['status']) || $payment['status'] == 0) {
+                                                        $hasPendingPayment = true; // There's a pending payment
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        $isPaymentComplete = $paidAmount >= $packageTotal && $packageTotal > 0;
+                                    @endphp
                                     
-                                    @elseif($booking->status == '2')
-                                        <span class="badge bg-success">Payment Done</span>
-                                    @elseif($booking->status == '3')
-                                        <span class="badge bg-warning">On Hold</span>
-                                    @elseif($booking->status == '4')
-                                        <span class="badge bg-danger">Cancelled</span>
-                                    @endif
+                                    <td>
+                                        <div style="margin-top: 5px;">
+                                            @if($isPaymentComplete || ($packageTotal - $paidAmount) <= 0)
+                                                <span class="badge bg-success">Payment Complete</span>
+                                            @elseif($hasPendingPayment)
+                                                <span class="badge bg-warning">Pending Verification</span>
+                                            @else
+                                                <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
+                                                    <i class="fas fa-plus"></i> Add Payment
+                                                </button>
+                                                @if($packageTotal > 0)
+                                                    <small class="text-muted d-block">Due: ${{ number_format($packageTotal - $paidAmount, 2) }}</small>
+                                                @endif
+                                            @endif
+                                            
+                                            @if($booking->payment_details)
+                                                <button type="button" class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
+                                                    <i class="fas fa-history"></i> History
+                                                </button>
+                                            @endif
+                                        </div>
                                     </td>
                                 @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <td>
-                                        @if($booking->status == '3')
-                                            <button type="button" class="btn btn-sm btn-info confirm-payment-btn" data-booking-id="{{ $booking->booking_id }}">
-                                                <i class="fas fa-check"></i> Confirm Payment
-                                            </button>
-                                        @elseif($booking->status == '2')
-                                            <span class="badge bg-success">Confirmed</span>
-                                        @elseif($booking->status == '4')
-                                            <span class="badge bg-danger">Cancelled</span>
-                                        @else
-                                            <span class="badge bg-warning">Pending</span>
-                                        @endif
+                                        {{-- Finance users always need access to history for verification --}}
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
+                                            <i class="fas fa-history"></i> History
+                                        </button>
                                     </td>
                                 @endif
                                 <td>
@@ -650,9 +679,35 @@
                         
                         <!-- Payment Amount -->
                         <div class="mb-4">
+                            @php
+                                // Calculate due amount
+                                $paidAmount = 0;
+                                $packageTotal = 0;
+                                
+                                // Get package total from booking_details
+                                if ($booking->booking_details) {
+                                    $bookingDetails = is_array($booking->booking_details) ? $booking->booking_details : json_decode($booking->booking_details, true);
+                                    $packageTotal = $bookingDetails['total_price'] ?? 0;
+                                }
+                                
+                                // Calculate paid amount
+                                if ($booking->payment_details) {
+                                    $paymentDetails = json_decode($booking->payment_details, true);
+                                    if ($paymentDetails) {
+                                        foreach ($paymentDetails as $payment) {
+                                            if (isset($payment['status']) && $payment['status'] == 1) {
+                                                $paidAmount += $payment['payment_amount'];
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                $dueAmount = $packageTotal - $paidAmount;
+                            @endphp
+                            
                             <label for="payment_amount{{ $booking->booking_id }}" class="form-label fw-bold d-flex align-items-center">
                                 <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
-                                <small class="text-muted ms-2">(Max: {{ $currency ?? 'SGD' }} {{ number_format($totalPrice, 2) }})</small>
+                                <small class="text-muted ms-2">(Max: {{ $currency ?? 'SGD' }} {{ number_format($dueAmount, 2) }})</small>
                             </label>
                             <div class="input-group">
                                 <span class="input-group-text">{{ $currency ?? 'SGD' }}</span>
@@ -662,15 +717,17 @@
                                     name="payment_amount" 
                                     step="0.01" 
                                     min="0.01" 
-                                    max="{{ $totalPrice }}"
-                                    value="{{ $totalPrice }}"
-                                    data-max-amount="{{ $totalPrice }}"
-                                    oninput="validateAmount(this, {{ $totalPrice }})"
+                                    max="{{ $dueAmount }}"
+                                    value="{{ $dueAmount }}"
+                                    data-max-amount="{{ $dueAmount }}"
+                                    oninput="validateAmount(this, {{ $dueAmount }})"
                                     required>
                             </div>
                             <small class="text-info payment-info-text">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Total package price: {{ $currency ?? 'SGD' }} {{ number_format($totalPrice, 2) }}
+                                Total package price: {{ $currency ?? 'SGD' }} {{ number_format($packageTotal, 2) }} | 
+                                Paid amount: {{ $currency ?? 'SGD' }} {{ number_format($paidAmount, 2) }} | 
+                                Due amount: {{ $currency ?? 'SGD' }} {{ number_format($dueAmount, 2) }}
                             </small>
                             <div id="amountWarning{{ $booking->booking_id }}" class="text-warning mt-1" style="display: none;">
                                 <small><i class="fas fa-exclamation-triangle me-1"></i>Amount adjusted to maximum allowed</small>
@@ -728,6 +785,166 @@
         </div>
     </div>
     @endif
+    @endforeach
+@endif
+
+<!-- Payment History Modals -->
+@if(isset($bookings))
+    @foreach($bookings as $booking)
+        @if($booking->payment_details)
+            @php
+                $paymentDetails = json_decode($booking->payment_details, true);
+                $bookingDetails = is_array($booking->booking_details) ? $booking->booking_details : json_decode($booking->booking_details, true);
+                $TotalPrice = $bookingDetails['total_price'] ?? 0;
+                $totalAmount = 0;
+                $paidAmount = 0;
+                $remainingAmount = 0;
+                
+                if ($paymentDetails) {
+                    foreach ($paymentDetails as $payment) {
+                        $totalAmount = $TotalPrice;
+                        if (isset($payment['status']) && $payment['status'] == 1) {
+                            $paidAmount += $payment['payment_amount'];
+                        }
+                    }
+                    $remainingAmount = $TotalPrice - $paidAmount;
+                }
+            @endphp
+            
+            <div class="modal fade" id="paymentHistoryModal{{ $booking->id }}" tabindex="-1" aria-labelledby="paymentHistoryModalLabel{{ $booking->id }}" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content shadow-lg rounded">
+                        <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
+                            <h5 class="modal-title d-flex align-items-center" id="paymentHistoryModalLabel{{ $booking->id }}" style="margin: 0; font-weight: bold; color: white;">
+                                <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1.4rem;"></i> 
+                                <span style="color: white;">Payment History for Tour #{{ $booking->booking_id }}</span>
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            @if($paymentDetails && count($paymentDetails) > 0)
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>PAYMENT DATE</th>
+                                                <th>RECORD DATE</th>
+                                                <th>PAID AMOUNT</th>
+                                                <th>CURRENCY</th>
+                                                <th>EXCHANGE RATE</th>
+                                                <th>PAYMENT MODE</th>
+                                                <th>TRANSACTION ID</th>
+                                                <th>REMARKS</th>
+                                                <th>STATUS</th>
+                                                <th>ACTIONS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($paymentDetails as $index => $payment)
+                                                <tr>
+                                                    <td>{{ \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') }}</td>
+                                                    <td>{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
+                                                    <td class="text-success fw-bold">${{ number_format($payment['payment_amount'], 2) }}</td>
+                                                    <td>SGD</td>
+                                                    <td>1.0000</td>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ $payment['payment_type'] }}</span>
+                                                    </td>
+                                                    <td>{{ $payment['transaction_id'] }}</td>
+                                                    <td>{{ $payment['transaction_id'] }}</td>
+                                                    <td>
+                                                        @if(isset($payment['status']))
+                                                            @if($payment['status'] == 1)
+                                                                <span class="badge bg-success">✔ Verified</span>
+                                                            @elseif($payment['status'] == 2)
+                                                                <span class="badge bg-danger">✗ Declined</span>
+                                                            @elseif($payment['status'] == 0)
+                                                                <span class="badge bg-warning">⏳ Pending Approval</span>
+                                                            @else
+                                                                <span class="badge bg-secondary">Unknown</span>
+                                                            @endif
+                                                        @else
+                                                            <span class="badge bg-warning">⏳ Pending Approval</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if(!isset($payment['status']) || $payment['status'] == 0)
+                                                            @if(in_array(auth()->user()->role_id, [36, 129, 131, 133, 134, 136, 137, 138, 126, 127]))
+                                                                {{-- Finance roles can approve/decline payments --}}
+                                                                <div class="btn-group" role="group">
+                                                                    <button type="button" class="btn btn-sm btn-success" onclick="approvePayment('{{ $booking->booking_id }}', {{ $index }})" title="Approve Payment">
+                                                                        <i class="fas fa-check"></i>
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-sm btn-danger" onclick="declinePayment('{{ $booking->booking_id }}', {{ $index }})" title="Decline Payment">
+                                                                        <i class="fas fa-times"></i>
+                                                                    </button>
+                                                                </div>
+                                                            @else
+                                                                {{-- Sales roles can only view pending payments --}}
+                                                                <span class="badge bg-warning">⏳ Pending Verification</span>
+                                                            @endif
+                                                        @elseif($payment['status'] == 2 && isset($payment['decline_reason']))
+                                                            <small class="text-muted" title="{{ $payment['decline_reason'] }}">
+                                                                <i class="fas fa-info-circle"></i> Reason provided
+                                                            </small>
+                                                        @elseif($payment['status'] == 1)
+                                                            <span class="text-success">
+                                                                <i class="fas fa-check-circle"></i> Verified
+                                                            </span>
+                                                        @else
+                                                            <span class="text-muted">-</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Payment Summary -->
+                                <div class="row mt-4">
+                                    <div class="col-md-4">
+                                        <div class="card bg-primary text-white">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title">Total Amount</h6>
+                                                <h4 class="mb-0">${{ number_format($totalAmount, 2) }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card bg-success text-white">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title">Paid Amount</h6>
+                                                <h4 class="mb-0">${{ number_format($paidAmount, 2) }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card bg-warning text-white">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title">Remaining Amount</h6>
+                                                <h4 class="mb-0">${{ number_format($remainingAmount, 2) }}</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="text-center py-4">
+                                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Payment History</h5>
+                                    <p class="text-muted">No payments have been recorded for this booking yet.</p>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i>Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
     @endforeach
 @endif
 
@@ -961,5 +1178,112 @@ $(document).ready(function() {
         });
     });
 });
+
+// Payment History Modal Functions
+function approvePayment(bookingId, paymentIndex) {
+    Swal.fire({
+        title: 'Approve Payment',
+        text: 'Are you sure you want to approve this payment?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, approve it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `/package-booking/${bookingId}/approve-payment`,
+                method: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    payment_index: paymentIndex
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    const response = xhr.responseJSON;
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response?.message || 'Failed to approve payment',
+                        icon: 'error'
+                    });
+                }
+            });
+        }
+    });
+}
+
+function declinePayment(bookingId, paymentIndex) {
+    Swal.fire({
+        title: 'Decline Payment',
+        text: 'Please provide a reason for declining this payment:',
+        input: 'textarea',
+        inputPlaceholder: 'Enter decline reason...',
+        inputAttributes: {
+            maxlength: 500
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Decline Payment',
+        inputValidator: (value) => {
+            if (!value || value.trim().length < 10) {
+                return 'Please provide a reason (at least 10 characters)';
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `/package-booking/${bookingId}/decline-payment`,
+                method: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    payment_index: paymentIndex,
+                    decline_reason: result.value
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: response.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    const response = xhr.responseJSON;
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response?.message || 'Failed to decline payment',
+                        icon: 'error'
+                    });
+                }
+            });
+        }
+    });
+}
 </script>
 @endsection
