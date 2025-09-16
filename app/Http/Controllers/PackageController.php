@@ -678,7 +678,7 @@ class PackageController extends Controller
             }
 
             // Include the package and agent relationships to access package and agent details
-            $bookings = PackageBooking::with(['package', 'agent' => function($query) use ($dmc_id) {
+            $query = PackageBooking::with(['package', 'agent' => function($query) use ($dmc_id) {
                 $query->where(function($q) use ($dmc_id) {
                     $q->whereRaw("CASE 
                         WHEN dmc_id IS NOT NULL 
@@ -699,9 +699,14 @@ class PackageController extends Controller
                     ]);
                 });
             }])
-            ->where('dmc_id', $dmc_id)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->where('dmc_id', $dmc_id);
+            
+            // For finance roles, only show bookings with payment_details
+            if(in_array($user->role_id, [36, 129, 131, 133, 134, 136, 137, 138, 126, 127])) {
+                $query->whereNotNull('payment_details');
+            }
+            
+            $bookings = $query->orderBy('created_at', 'desc')->get();
         }else{
             $bookings = PackageBooking::with(['package', 'agent'])
             ->orderBy('created_at', 'desc')
@@ -733,13 +738,30 @@ class PackageController extends Controller
             // Find the booking by ID
             $booking = PackageBooking::where('booking_id', $booking_id)->first();
             
-            // Update booking with payment details
-            $booking->status = '3'; // Mark as paid
-            $booking->payment_amount = $request->payment_amount;
-            $booking->payment_date = $request->payment_date;
-            $booking->payment_mode = $request->payment_type; // Note: field name mismatch fixed
-            $booking->transaction_id = $request->transaction_id;
-
+            if (!$booking) {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'Booking not found.');
+            }
+            
+            // Prepare payment details for JSON storage
+            $paymentDetails = [
+                'payment_amount' => $request->payment_amount,
+                'payment_date' => $request->payment_date,
+                'payment_type' => $request->payment_type,
+                'transaction_id' => $request->transaction_id,
+                'status' => 0, // 0 = pending approval
+                'created_at' => now()->toDateTimeString(),
+                'updated_at' => now()->toDateTimeString()
+            ];
+            
+            // Get existing payment details or initialize empty array
+            $existingPaymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
+            
+            // Add new payment to existing payments (for multiple payments support)
+            $existingPaymentDetails[] = $paymentDetails;
+            
+            // Update booking with payment details in JSON format
+            $booking->payment_details = json_encode($existingPaymentDetails);
             $booking->save();
             
             return redirect()->route('predefined.package.booking.list')
@@ -748,6 +770,115 @@ class PackageController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('predefined.package.booking.list')
                 ->with('error', 'Failed to save payment details: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Approve a payment for a package booking
+     *
+     * @param Request $request
+     * @param string $booking_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function approvePayment(Request $request, $booking_id)
+    {
+        try {
+            $request->validate([
+                'payment_index' => 'required|integer|min:0',
+            ]);
+
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking not found.'
+                ], 404);
+            }
+
+            $paymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
+            
+            if (!isset($paymentDetails[$request->payment_index])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment not found.'
+                ], 404);
+            }
+
+            // Update payment status to approved (1)
+            $paymentDetails[$request->payment_index]['status'] = 1;
+            $paymentDetails[$request->payment_index]['approved_at'] = now()->toDateTimeString();
+            $paymentDetails[$request->payment_index]['approved_by'] = Auth::user()->userId;
+
+            $booking->payment_details = json_encode($paymentDetails);
+            $booking->status = 2;
+            $booking->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment approved successfully.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve payment: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Decline a payment for a package booking
+     *
+     * @param Request $request
+     * @param string $booking_id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function declinePayment(Request $request, $booking_id)
+    {
+        try {
+            $request->validate([
+                'payment_index' => 'required|integer|min:0',
+                'decline_reason' => 'required|string|max:500',
+            ]);
+
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking not found.'
+                ], 404);
+            }
+
+            $paymentDetails = $booking->payment_details ? json_decode($booking->payment_details, true) : [];
+            
+            if (!isset($paymentDetails[$request->payment_index])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment not found.'
+                ], 404);
+            }
+
+            // Update payment status to declined (2)
+            $paymentDetails[$request->payment_index]['status'] = 2;
+            $paymentDetails[$request->payment_index]['declined_at'] = now()->toDateTimeString();
+            $paymentDetails[$request->payment_index]['declined_by'] = Auth::user()->userId;
+            $paymentDetails[$request->payment_index]['decline_reason'] = $request->decline_reason;
+
+            $booking->payment_details = json_encode($paymentDetails);
+            $booking->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment declined successfully.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to decline payment: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -773,7 +904,7 @@ class PackageController extends Controller
             }
             
             // Update booking status to confirmed (2)
-            $booking->status = '2'; // Confirmed
+            $booking->status = '2'; // Definite
             $booking->save();
         
             
@@ -787,6 +918,154 @@ class PackageController extends Controller
                 'success' => false,
                 'message' => 'Failed to confirm payment: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Cancel a package booking
+     *
+     * @param Request $request
+     * @param string $booking_id Booking ID
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function cancelBooking(Request $request, $booking_id)
+    {
+        try {
+            // Validate the request
+            $request->validate([
+                'booking_id' => 'required',
+                'cancel_reason' => 'nullable|string|max:1000',
+            ]);
+
+            // Find the booking by ID
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            
+            if (!$booking) {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'Booking not found.');
+            }
+
+            // Check if user has permission to cancel (sales head roles)
+            $user = Auth::user();
+            if (!in_array($user->role_id, [33, 128, 129, 130, 134, 135, 136, 138])) {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'You do not have permission to cancel bookings.');
+            }
+
+            // Check if booking can be cancelled (only confirmed or definite status)
+            if (!in_array($booking->status, ['1', '2'])) {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'This booking cannot be cancelled. Only confirmed or definite bookings can be cancelled.');
+            }
+
+            // Update booking status based on current status
+            if ($booking->status == '1') {
+                // Confirmed -> Cancel - Confirmed
+                $booking->status = '7';
+            } elseif ($booking->status == '2') {
+                // Definite -> Refund - Pending
+                $booking->status = '5';
+            }
+
+            // Add cancellation details
+            $cancellationDetails = [
+                'cancelled_by' => $user->userId,
+                'cancelled_at' => now()->toDateTimeString(),
+                'cancel_reason' => $request->cancel_reason ?: 'Cancelled by sales head',
+                'previous_status' => $booking->status == '7' ? '1' : '2'
+            ];
+
+            // Store cancellation details in a separate field or extend existing data
+            $existingData = [];
+            if ($booking->booking_details) {
+                if (is_string($booking->booking_details)) {
+                    $existingData = json_decode($booking->booking_details, true) ?: [];
+                } elseif (is_array($booking->booking_details)) {
+                    $existingData = $booking->booking_details;
+                }
+            }
+            $existingData['cancellation_details'] = $cancellationDetails;
+            $booking->booking_details = json_encode($existingData);
+
+            $booking->save();
+
+            return redirect()->route('predefined.package.booking.list')
+                ->with('success', 'Booking cancelled successfully.');
+                
+        } catch (\Exception $e) {
+            return redirect()->route('predefined.package.booking.list')
+                ->with('error', 'Failed to cancel booking: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Process refund for a package booking
+     *
+     * @param Request $request
+     * @param string $booking_id Booking ID
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function processRefund(Request $request, $booking_id)
+    {
+        try {
+            // Validate the request
+            $request->validate([
+                'booking_id' => 'required',
+                'refund_reason' => 'nullable|string|max:1000',
+            ]);
+
+            // Find the booking by ID
+            $booking = PackageBooking::where('booking_id', $booking_id)->first();
+            
+            if (!$booking) {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'Booking not found.');
+            }
+
+            // Check if user has permission to process refund (sales and finance roles)
+            $user = Auth::user();
+            if (!in_array($user->role_id, [33, 36, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138])) {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'You do not have permission to process refunds.');
+            }
+
+            // Check if booking can be refunded (only refund-pending status)
+            if ($booking->status != '5') {
+                return redirect()->route('predefined.package.booking.list')
+                    ->with('error', 'This booking cannot be refunded. Only refund-pending bookings can be processed.');
+            }
+
+            // Update booking status to refunded
+            $booking->status = '6'; // Refunded
+
+            // Add refund details
+            $refundDetails = [
+                'refunded_by' => $user->userId,
+                'refunded_at' => now()->toDateTimeString(),
+                'refund_reason' => $request->refund_reason ?: 'Refund processed',
+                'previous_status' => '5'
+            ];
+
+            // Store refund details in booking_details
+            $existingData = [];
+            if ($booking->booking_details) {
+                if (is_string($booking->booking_details)) {
+                    $existingData = json_decode($booking->booking_details, true) ?: [];
+                } elseif (is_array($booking->booking_details)) {
+                    $existingData = $booking->booking_details;
+                }
+            }
+            $existingData['refund_details'] = $refundDetails;
+            $booking->booking_details = json_encode($existingData);
+
+            $booking->save();
+
+            return redirect()->route('predefined.package.booking.list')
+                ->with('success', 'Refund processed successfully.');
+                
+        } catch (\Exception $e) {
+            return redirect()->route('predefined.package.booking.list')
+                ->with('error', 'Failed to process refund: ' . $e->getMessage());
         }
     }
 }

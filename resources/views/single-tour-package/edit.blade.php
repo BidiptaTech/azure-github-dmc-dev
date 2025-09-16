@@ -132,7 +132,7 @@
                                 <i class="ri-user-line me-2"></i>Customer Information
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body mt-3">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Full Name</label>
@@ -190,7 +190,7 @@
                                 <i class="ri-settings-3-line me-2"></i>Tour Information (Read-Only)
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body mt-3">
                             <div class="row g-3">
                                 <!-- Tour ID Display -->
                                 <div class="col-md-2">
@@ -217,17 +217,8 @@
                                     <input type="hidden" name="user_country" id="user_country" value="{{ $tour->destination ?? '' }}">
                                 </div>
 
-                                <!-- City Display -->
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">
-                                        <i class="ri-building-line me-1"></i>City
-                                    </label>
-                                    <input type="text" class="form-control" value="{{ $tour->city ?? 'N/A' }}" readonly>
-                                    <input type="hidden" name="city" id="city" value="{{ $tour->city ?? '' }}">
-                                </div>
-
                                 <!-- Travel Dates Display -->
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-calendar-line me-1"></i>Travel Dates
                                     </label>
@@ -251,7 +242,7 @@
                                 </div>
 
                                 <!-- Guests Display -->
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
@@ -295,7 +286,7 @@
                                 <i class="ri-add-circle-line me-2"></i>Add New Services
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body mt-3">
                             <div class="row g-3">
                                 <div class="col-md-3">
                                     <button type="button" class="btn btn-warning btn-lg w-100 h-100 d-flex flex-column align-items-center justify-content-center" onclick="addTransportService(); return false;">
@@ -417,7 +408,7 @@
                                         }
                                     }
                                 @endphp
-                                <div class="col-md-6 mb-3">
+                                <div class="col-md-6 mb-3 mt-3">
                                     <div class="card border-warning">
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
@@ -504,7 +495,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['attraction'] as $index => $order)
                                             <div class="attraction-item mb-3 p-3 border rounded">
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -588,7 +579,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['guide'] as $index => $order)
                                             <div class="guide-item mb-3 p-3 border rounded">
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -659,7 +650,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['restaurant'] as $index => $order)
                                             <div class="restaurant-item mb-3 p-3 border rounded">
                                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -781,7 +772,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="card-body">
+                                        <div class="card-body mt-3">
                                             @if(isset($dayOrdersByType['travel_hourly']))
                                                 @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
                                                 <div class="transport-item mb-3 p-3 border rounded">
@@ -1254,41 +1245,72 @@
                         </div>
                     </div>
 
+                    <!-- City Selection -->
+                    <div class="mb-3">
+                        <label for="modal_city_select" class="form-label fw-semibold">
+                            <i class="ri-map-pin-line me-1"></i>City
+                        </label>
+                        <select class="form-select" id="modal_city_select" name="city" onchange="loadHotelsForSelectedCity(this.value)">
+                            <option value="">Select City</option>
+                            @foreach($cities as $city)
+                                @if($city->country == $tour->destination)
+                                    <option value="{{ $city->name }}" {{ $city->name == $tour->city ? 'selected' : '' }}>{{ $city->name }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <div class="form-text">
+                            <i class="ri-check-line text-success me-1"></i>
+                            <span id="hotel_count">0</span> hotels found in <span id="modal_city_display2">{{ $tour->city }}</span>
+                        </div>
+                    </div>
+
                     <!-- Hotel Selection -->
                     <div class="mb-3">
                         <label for="hotel_select" class="form-label fw-semibold">
                             <i class="ri-building-line me-1"></i>Select Hotel
                         </label>
-                        <select class="form-select" id="hotel_select" name="hotel_id" required>
-                            <option value="">Select a hotel in <span id="modal_city_display"></span></option>
+                        <select class="form-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
+                            <option value="">Select city first to load hotels</option>
                         </select>
-                        <div class="form-text">
-                            <i class="ri-check-line text-success me-1"></i>
-                            <span id="hotel_count">0</span> hotels found in <span id="modal_city_display2"></span>
-                        </div>
+                        <small class="text-muted" id="hotel_loading_status">
+                            <span id="hotel_count_display">0</span> hotels found
+                        </small>
                     </div>
 
                     <!-- Room Details -->
                     <div class="row mb-3">
                         <div class="col-md-3">
                             <label for="room_type" class="form-label fw-semibold">Room Type</label>
-                            <select class="form-select" id="room_type" name="room_type" required>
+                            <select class="form-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value)" disabled>
                                 <option value="">Select hotel first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <label for="bed_type" class="form-label fw-semibold">Bed Type</label>
-                            <select class="form-select" id="bed_type" name="bed_type" required>
-                                <option value="">Select hotel first</option>
+                            <select class="form-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans()" disabled>
+                                <option value="">Select room type first</option>
                             </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="meal_plan" class="form-label fw-semibold">Meal Plan</label>
-                            <select class="form-select" id="meal_plan" name="meal_plan" required>
-                                <option value="">Select hotel first</option>
-                            </select>
+                            <div class="small text-success mt-1">
+                                <span id="bed_occupancy_info">Max Occupancy: 2</span>
+                            </div>
                         </div>
                         
+                        <!-- Number of Persons -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Number of Persons</label>
+                            <select class="form-select" id="person_count_select" name="person_count" onchange="selectPersonCount(this.value)">
+                                <option value="1">1 Person</option>
+                                <option value="2">2 Persons</option>
+                            </select>
+                            <small class="text-muted">Max Occupancy: 2</small>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="meal_plan" class="form-label fw-semibold">Meal Plan</label>
+                            <select class="form-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled>
+                                <option value="">Select bed type first</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Date Range Selection -->
@@ -1300,20 +1322,20 @@
                         
                         <!-- Night Selection Guide -->
                         <div class="d-flex gap-3 mb-3">
-                            <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center">
                                 <div class="bg-success text-white rounded me-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
                                     <i class="ri-check-line fs-6"></i>
                                 </div>
-                                <small>Manually Selected</small>
-                            </div>
-                            <div class="d-flex align-items-center">
+                                    <small>Manually Selected</small>
+                                </div>
+                                <div class="d-flex align-items-center">
                                 <div class="bg-warning text-dark rounded me-2" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">
                                     <i class="ri-flashlight-line fs-6"></i>
                                 </div>
-                                <small>Auto-Required (for consecutive nights)</small>
+                                    <small>Auto-Required (for consecutive nights)</small>
                             </div>
                         </div>
-
+                        
                         <!-- Date Range Input -->
                         <div class="row">
                             <div class="col-md-6">
@@ -1348,8 +1370,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="proceed_hotel_btn" disabled>
-                    <i class="ri-arrow-right-line me-1"></i>Proceed to Hotel Selection
+                <button type="button" class="btn btn-success" id="proceed_hotel_btn" onclick="proceedWithHotelBooking()" disabled>
+                    <i class="ri-check-line me-1"></i>Let's Book Your Hotels!
                 </button>
             </div>
         </div>
@@ -2903,7 +2925,10 @@
     // Initialize on DOM content loaded
     document.addEventListener('DOMContentLoaded', function() {
         initializeModalAccessibility();
+        // Initialize person selector with default max occupancy of 2
+        generatePersonSelector(2);
     });
+    
 
     // Essential functions for edit page functionality
     // Show notification function
@@ -2934,7 +2959,7 @@
     function addHotelService() {
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -2951,20 +2976,12 @@
             // Populate modal with tour data - with null checks
             const modalTourId = document.getElementById('modal_tour_id');
             const modalUserCountry = document.getElementById('modal_user_country');
-            const modalCity = document.getElementById('modal_city');
             const modalTourDates = document.getElementById('modal_tour_dates');
             const modalDestination = document.getElementById('modal_destination');
-            const modalCityDisplay = document.getElementById('modal_city_display');
-            const modalCityDisplay2 = document.getElementById('modal_city_display2');
             
             if (modalTourId) modalTourId.value = tourId;
             if (modalUserCountry) modalUserCountry.value = country;
-            if (modalCity) modalCity.value = city;
             if (modalTourDates) modalTourDates.textContent = `${startDate} to ${endDate}`;
-            if (modalDestination) modalDestination.textContent = `${city}, ${country}`;
-            if (modalCityDisplay) modalCityDisplay.textContent = city;
-            if (modalCityDisplay2) modalCityDisplay2.textContent = city;
-            
             // Set date range constraints - with null checks
             const checkInDate = document.getElementById('check_in_date');
             const checkOutDate = document.getElementById('check_out_date');
@@ -2980,15 +2997,20 @@
                 checkOutDate.value = endDate;
             }
             
-            // Initialize modal functionality
-            initializeHotelModal();
-        }, 100); // Small delay to ensure modal is rendered
+        // Initialize modal functionality
+        initializeHotelModal();
+        
+            // Auto-load hotels for the tour destination
+        setTimeout(() => {
+                // Hotels will be loaded based on destination country
+            }, 300);
+    }, 100); // Small delay to ensure modal is rendered
     }
     
     function addGuideService() {
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -2998,17 +3020,17 @@
         }
         
         // Show guide selection modal
-        showGuideSelectionModal(tourId, country, city, startDate, endDate);
+        showGuideSelectionModal(tourId, country, startDate, endDate);
     }
     
     // Attraction Selection Modal Functions
-    function showAttractionSelectionModal(tourId, country, city, startDate, endDate) {
-        console.log('showAttractionSelectionModal called with:', { tourId, country, city, startDate, endDate });
+    function showAttractionSelectionModal(tourId, country, startDate, endDate) {
+        console.log('showAttractionSelectionModal called with:', { tourId, country, startDate, endDate });
         
         // Populate modal with tour data
         document.getElementById('modal_attraction_tour_dates').textContent = `${startDate} to ${endDate}`;
-        document.getElementById('modal_attraction_destination').textContent = `${city}, ${country}`;
-        document.getElementById('modal_attraction_city').textContent = city;
+        document.getElementById('modal_attraction_destination').textContent = `${country}`;
+        // City display removed
         
         // Show modal
         const modalElement = document.getElementById('attractionSelectionModal');
@@ -3456,13 +3478,13 @@
     }
     
     // Transport Modal Functions
-    function showTransportSelectionModal(tourId, country, city, startDate, endDate) {
-        console.log('Showing transport selection modal with data:', { tourId, country, city, startDate, endDate });
+    function showTransportSelectionModal(tourId, country, startDate, endDate) {
+        console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate });
         
         // Set hidden fields
         document.getElementById('modal_transport_tour_id').value = tourId;
         document.getElementById('modal_transport_country').value = country;
-        document.getElementById('modal_transport_city').value = city;
+        // City field removed
         document.getElementById('modal_transport_start_date').value = startDate;
         document.getElementById('modal_transport_end_date').value = endDate;
         // Pickup date is now hardcoded and readonly in the HTML
@@ -3477,8 +3499,11 @@
         }, 100);
     }
     
-    function showLocalTransferSelectionModal(tourId, country, city, startDate, endDate) {
-        console.log('Showing local transfer selection modal with data:', { tourId, country, city, startDate, endDate });
+    function showLocalTransferSelectionModal(tourId, country, startDate, endDate) {
+        console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate });
+        
+        // Get the city value from the form
+        const city = document.getElementById('modal_local_transfer_city').value;
         
         // Initialize the modal
         const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
@@ -3497,8 +3522,11 @@
         }, 100);
     }
 
-    function showDropoffTransportSelectionModal(tourId, country, city, startDate, endDate) {
-        console.log('Showing dropoff transport selection modal with data:', { tourId, country, city, startDate, endDate });
+    function showDropoffTransportSelectionModal(tourId, country, startDate, endDate) {
+        console.log('Showing dropoff transport selection modal with data:', { tourId, country, startDate, endDate });
+        
+        // Get the city value from the form
+        const city = document.getElementById('modal_exitport_transport_city').value;
         
         // Initialize the modal
         const dropoffTransportModal = new bootstrap.Modal(document.getElementById('dropoffTransportSelectionModal'));
@@ -3737,11 +3765,10 @@
         // No need to load zones as they are already populated from backend
         console.log('Pickup zones already populated from backend');
         
-        // We can filter the zones based on the selected country/city if needed
+        // We can filter the zones based on the selected country if needed
         const country = document.getElementById('modal_transport_country').value;
-        const city = document.getElementById('modal_transport_city').value;
         
-        console.log('Current country and city:', { country, city });
+        console.log('Current country:', { country });
         
         // If you want to filter the existing options based on country/city:
         // const pickupZoneSelect = document.getElementById('modal_transport_pickup_zone');
@@ -3828,14 +3855,8 @@
         
         console.log('Searching vehicles for point to point:', { pickupLocation, dropoffLocation, pickupTime, pickupDate });
         
-        // Get city from the city select
-        const citySelect = document.getElementById('city');
-        if (!citySelect || !citySelect.value) {
-            showNotification('Please select a city first', 'error');
-            return;
-        }
-        
-        const city = citySelect.value;
+        // Note: City selection removed, using destination country instead
+        const country = document.getElementById('user_country').value;
         const searchBtn = document.getElementById('local_transfer_point_to_point_search_btn');
         
         // Show loading state
@@ -3928,14 +3949,8 @@
         
         console.log('Searching vehicles for hourly:', { pickupLocation, pickupTime, pickupDate });
         
-        // Get city from the city select
-        const citySelect = document.getElementById('city');
-        if (!citySelect || !citySelect.value) {
-            showNotification('Please select a city first', 'error');
-            return;
-        }
-        
-        const city = citySelect.value;
+        // Note: City selection removed, using destination country instead
+        const country = document.getElementById('user_country').value;
         const searchBtn = document.getElementById('local_transfer_hourly_search_btn');
         
         // Show loading state
@@ -4176,20 +4191,14 @@
     function searchVehiclesForTransportModalPointToPoint() {
         console.log('Searching Point-to-Point vehicles for transport modal');
         
-        // Get city from the city select
-        const citySelect = document.getElementById('modal_entryport_transport_city');
-        if (!citySelect || !citySelect.value) {
-            alert('Please select a city first');
-            return;
-        }
-        
-        const city = citySelect.value;
+        // Note: City selection removed, using destination country instead
+        const country = document.getElementById('modal_transport_country').value;
         const searchBtn = document.getElementById('transport_search_btn');
         const vehicleResultsSection = document.getElementById('transport_vehicle_results');
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         
-        console.log('Using Point-to-Point city-based endpoint for city:', city);
+        console.log('Using Point-to-Point endpoint for country:', country);
 
         // Show loading state
         if (searchBtn) {
@@ -4573,7 +4582,7 @@
         // Check if Point-to-Point mode is enabled
         const isPointToPointElement = document.getElementById('is_point_to_point');
         const isPointToPoint = isPointToPointElement && isPointToPointElement.value === '1';
-        const city = document.getElementById('modal_exitport_transport_city').value;
+        // Note: City selection removed
 
         
         if (isPointToPoint) {
@@ -4622,7 +4631,7 @@
                 from_zone_type: 'zone',
                 to_zone_type: 'zone',
                 zone_status: zone_status,
-                city: city
+                // city parameter removed
             })
         })
         .then(response => response.json())
@@ -4697,19 +4706,15 @@
     // Function to search dropoff vehicles for Point-to-Point mode
     function searchDropoffVehiclesForPointToPoint() {
         console.log('Searching Point-to-Point vehicles for dropoff transport modal');
-        const citySelect = document.getElementById('modal_exitport_transport_city');        // Get city from the city select
-        if (!citySelect || !citySelect.value) {
-            alert('Please select a city first');
-            return;
-        }
         
-        const city = citySelect.value;
+        // Note: City selection removed, using destination country instead
+        const country = document.getElementById('modal_transport_country').value;
         const searchBtn = document.getElementById('dropoff_transport_search_btn');
         const vehicleResultsSection = document.getElementById('dropoff_vehicle_results');
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
         
-        console.log('Using Point-to-Point city-based endpoint for city:', city);
+        console.log('Using Point-to-Point endpoint for country:', country);
 
         // Show loading state
         if (searchBtn) {
@@ -5429,7 +5434,7 @@
             service_type: serviceType,
             passengers: passengers,
             country: country,
-            city: city,
+            // city parameter removed,
             transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
         };
         
@@ -5516,7 +5521,7 @@
             Tax: '7.00',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            city: city,
+            // city parameter removed,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -5602,7 +5607,7 @@
             Tax: '7.00',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            city: city,
+            // city parameter removed,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -5759,7 +5764,7 @@
             Tax: '0',
             Night_Start_Time: '22:00:00',
             Night_End_Time: '06:00:00',
-            city: city,
+            // city parameter removed,
             country: country,
             fullName: customer_info.fullName,
             email: customer_info.email,
@@ -5828,7 +5833,7 @@
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -5911,7 +5916,7 @@
             female_count: guestData.female_count,
             child_ages: guestData.child_ages,
             country: country,
-            city: city,
+            // city parameter removed,
             start_date: startDate,
             end_date: endDate
         };
@@ -5956,11 +5961,11 @@
         
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
-        console.log('Tour data:', { tourId, country, city, startDate, endDate });
+        console.log('Tour data:', { tourId, country, startDate, endDate });
         
         if (!tourId) {
             showNotification('Tour ID is required', 'error');
@@ -5968,7 +5973,7 @@
         }
         
         // Show attraction selection modal
-        showAttractionSelectionModal(tourId, country, city, startDate, endDate);
+        showAttractionSelectionModal(tourId, country, startDate, endDate);
         return false;
     }
     
@@ -5977,11 +5982,11 @@
         
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
-        console.log('Tour data for transport:', { tourId, country, city, startDate, endDate });
+        console.log('Tour data for transport:', { tourId, country, startDate, endDate });
         
         if (!tourId) {
             showNotification('Tour ID is required', 'error');
@@ -5989,7 +5994,7 @@
         }
         
         // Show transport selection modal
-        showTransportSelectionModal(tourId, country, city, startDate, endDate);
+        showTransportSelectionModal(tourId, country, startDate, endDate);
         return false;
     }
     
@@ -5998,11 +6003,11 @@
         
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
-        console.log('Tour data for local transfer:', { tourId, country, city, startDate, endDate });
+        console.log('Tour data for local transfer:', { tourId, country, startDate, endDate });
         
         if (!tourId) {
             showNotification('Tour ID is required', 'error');
@@ -6010,7 +6015,7 @@
         }
         
         // Show local transfer selection modal (using the same modal as transport)
-        showLocalTransferSelectionModal(tourId, country, city, startDate, endDate);
+        showLocalTransferSelectionModal(tourId, country, startDate, endDate);
         return false;
     }
 
@@ -6019,11 +6024,11 @@
         
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
-        console.log('Tour data for dropoff transport:', { tourId, country, city, startDate, endDate });
+        console.log('Tour data for dropoff transport:', { tourId, country, startDate, endDate });
         
         if (!tourId) {
             showNotification('Tour ID is required', 'error');
@@ -6031,14 +6036,14 @@
         }
         
         // Show dropoff transport selection modal
-        showDropoffTransportSelectionModal(tourId, country, city, startDate, endDate);
+        showDropoffTransportSelectionModal(tourId, country, startDate, endDate);
         return false;
     }
 
     function addRestaurantService() {
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -6048,13 +6053,12 @@
         }
         
         // Show restaurant selection modal
-        showRestaurantSelectionModal(tourId, country, city, startDate, endDate);
+        showRestaurantSelectionModal(tourId, country, startDate, endDate);
     }
     
     // Hotel Modal Functions
     function initializeHotelModal() {
-        // Load hotels for the city
-        loadHotelsForCity();
+        // Note: Hotels will be loaded via addHotelService function
         
         // Add event listeners with null checks
         const checkInDate = document.getElementById('check_in_date');
@@ -6076,47 +6080,637 @@
         }
     }
     
-    function loadHotelsForCity() {
-        const modalCity = document.getElementById('modal_city');
-        const modalCountry = document.getElementById('modal_user_country');
-        
-        if (!modalCity || !modalCountry) {
-            console.warn('Modal city or country elements not found');
-            return;
-        }
-        
-        const city = modalCity.value;
-        const country = modalCountry.value;
-        
-        // Get actual hotels data from the view
-        const actualHotels = @json($hotels);
+    // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php
+    function loadHotelsForSelectedCity(cityName) {
         const hotelSelect = document.getElementById('hotel_select');
         const hotelCount = document.getElementById('hotel_count');
+        const cityDisplay = document.getElementById('modal_city_display2');
+        const hotelLoadingStatus = document.getElementById('hotel_loading_status');
         
-        if (!hotelSelect || !hotelCount) {
-            console.warn('Hotel select or hotel count elements not found');
+        if (!cityName) {
+            // Reset to default state when no city selected
+            hotelSelect.disabled = true;
+            hotelSelect.innerHTML = '<option value="">Select city first to load hotels</option>';
+            hotelCount.textContent = '0';
+            if (cityDisplay) cityDisplay.textContent = 'No City';
+            resetHotelModalFields();
             return;
         }
         
-        // Clear existing options
-        hotelSelect.innerHTML = '<option value="">Select a hotel in ' + city + '</option>';
+        // Show loading state
+        hotelSelect.innerHTML = '<option value="">Loading hotels in ' + cityName + '...</option>';
+        hotelSelect.disabled = true;
+        if (hotelLoadingStatus) {
+            hotelLoadingStatus.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Loading hotels...';
+            hotelLoadingStatus.style.color = '#0d6efd';
+        }
         
-        if (actualHotels && actualHotels.length > 0) {
-            // Add actual hotels from database
-            actualHotels.forEach(hotel => {
+        // Reset dependent dropdowns
+        resetHotelModalFields();
+        
+        // Get current user's DMC ID for hotel filtering
+        const currentDmcId = document.getElementById('dmc_id').value;
+        console.log('Loading hotels for city:', cityName, 'DMC ID:', currentDmcId);
+        
+        // Fetch hotels from API using DMC-specific endpoint (same as create.blade.php)
+        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Hotel API Response:', response);
+                
+                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                hotelSelect.disabled = false;
+                
+                if (response.success && response.hotels && response.hotels.length > 0) {
+                    // Store hotel data globally for room fetching
+                    window.hotelData = response.hotels;
+                    
+                    response.hotels.forEach(hotel => {
+                        const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating}⭐)` : '';
                 const option = document.createElement('option');
                 option.value = hotel.hotel_unique_id;
-                option.textContent = hotel.name || hotel.hotel_name || 'Hotel ' + hotel.id;
+                        option.textContent = hotel.name + starInfo;
                 option.setAttribute('data-hotel', JSON.stringify(hotel));
                 hotelSelect.appendChild(option);
             });
             
-            hotelCount.textContent = actualHotels.length;
+                    hotelCount.textContent = response.hotels.length;
+                    if (hotelLoadingStatus) {
+                        hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${response.hotels.length} hotels found in ${cityName}`;
+                        hotelLoadingStatus.style.color = '#198754';
+                    }
+                    console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
+                    
+                    // Validate fields after hotels are loaded
+                    validateHotelModalFields();
         } else {
-            // Fallback if no hotels found
+                    window.hotelData = [];
+                    hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
             hotelCount.textContent = '0';
-            hotelSelect.innerHTML = '<option value="">No hotels found in ' + city + '</option>';
+                    if (hotelLoadingStatus) {
+                        hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
+                        hotelLoadingStatus.style.color = '#fd7e14';
+                    }
+                }
+                
+                if (cityDisplay) {
+                    cityDisplay.textContent = cityName;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading hotels:', error);
+                window.hotelData = [];
+                hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
+                hotelSelect.disabled = true;
+                hotelCount.textContent = '0';
+                if (hotelLoadingStatus) {
+                    hotelLoadingStatus.innerHTML = '<i class="ri-error-warning-line me-1 text-danger"></i>Error loading hotels';
+                    hotelLoadingStatus.style.color = '#dc3545';
+                }
+            });
+    }
+    
+    function loadHotelsForCity() {
+        // Legacy function for backward compatibility - now calls the new function
+        const modalCitySelect = document.getElementById('modal_city_select');
+        if (modalCitySelect && modalCitySelect.value) {
+            loadHotelsForSelectedCity(modalCitySelect.value);
         }
+    }
+    
+    function loadRoomsForSelectedHotel(hotelId) {
+        const roomTypeSelect = document.getElementById('room_type');
+        const bedTypeSelect = document.getElementById('bed_type');
+        const mealPlanSelect = document.getElementById('meal_plan');
+        
+        if (!hotelId) {
+            // Reset to default state when no hotel selected
+            resetHotelModalFields();
+            return;
+        }
+        
+        console.log('Loading rooms for hotel:', hotelId);
+        
+        // Show loading state
+        roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        roomTypeSelect.disabled = true;
+        bedTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        bedTypeSelect.disabled = true;
+        mealPlanSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        mealPlanSelect.disabled = true;
+        
+        // Get current user's DMC ID for room filtering
+        const currentDmcId = document.getElementById('dmc_id').value;
+        
+        // Fetch rooms for the selected hotel with DMC filtering (same as create.blade.php)
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(response => {
+                console.log('Rooms API Response:', response);
+                
+                // Clear dropdowns
+                roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+                mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                
+                if (response.success && response.rooms && response.rooms.length > 0) {
+                    // Filter rooms by DMC ID using created_by field
+                    let dmcFilteredRooms = response.rooms.filter(room => {
+                        const roomDmcId = room.created_by;
+                        return roomDmcId && roomDmcId == currentDmcId;
+                    });
+                    
+                    console.log('Rooms after DMC filtering:', dmcFilteredRooms.length);
+                    
+                    if (dmcFilteredRooms.length === 0) {
+                        console.warn(`No rooms found for DMC ${currentDmcId} in hotel ${hotelId}`);
+                        roomTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
+                        bedTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
+                        mealPlanSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
+                        return;
+                    }
+                    
+                    // Store room data globally for bed fetching
+                    window.roomData = dmcFilteredRooms;
+                    
+                    // Extract unique room types
+                    const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
+                    console.log('Available room types:', roomTypes);
+                    
+                    // Populate room types with pricing information
+                    roomTypes.forEach(roomType => {
+                        const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
+                        
+                        if (sampleRoom) {
+                            // Get guest count for pricing
+                            const adults = parseInt(document.getElementById('adults').value) || 0;
+                            const children = parseInt(document.getElementById('children').value) || 0;
+                            const totalGuests = adults + children;
+                            
+                            // Determine pricing based on occupancy
+                            const isSingleOccupancy = totalGuests <= 1;
+                            
+                            let price = 0;
+                            let priceText = '';
+                            
+                            if (isSingleOccupancy) {
+                                price = parseFloat(sampleRoom.weekday_price) || 0;
+                                priceText = ` - $${price}`;
+                            } else {
+                                price = parseFloat(sampleRoom.double_weekday_price) || 0;
+                                priceText = ` - $${price}`;
+                            }
+                            
+                            const option = document.createElement('option');
+                            option.value = roomType;
+                            option.textContent = `${roomType}${priceText}`;
+                            
+                            // Store room data in dataset for later use
+                            option.dataset.roomType = roomType;
+                            option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                            option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
+                            option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
+                            option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
+                            option.dataset.roomId = sampleRoom.room_id;
+                            option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
+                            option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
+                            option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
+                            option.dataset.breakfast = sampleRoom.breakfast || 0;
+                            option.dataset.lunch = sampleRoom.lunch || 0;
+                            option.dataset.dinner = sampleRoom.dinner || 0;
+                            
+                            roomTypeSelect.appendChild(option);
+                            console.log(`Added room type: ${roomType} with price $${price}`);
+                        }
+                    });
+                    
+                    roomTypeSelect.disabled = false;
+                    console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
+                    
+                    // Validate fields after rooms are loaded
+                    validateHotelModalFields();
+                } else {
+                    console.log('No rooms found for hotel:', hotelId);
+                    roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+                roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                mealPlanSelect.innerHTML = '<option value="">Error loading rooms</option>';
+            });
+    }
+    
+    function loadBedsForSelectedRoom(roomType) {
+        const bedTypeSelect = document.getElementById('bed_type');
+        const mealPlanSelect = document.getElementById('meal_plan');
+        if (!roomType) {
+            // Reset to default state when no room type selected
+            bedTypeSelect.disabled = true;
+            bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+            mealPlanSelect.disabled = true;
+            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+            return;
+        }
+        
+        console.log('Loading beds for room type:', roomType);
+        
+        // Show loading state
+        bedTypeSelect.innerHTML = '<option value="">Loading bed types...</option>';
+        bedTypeSelect.disabled = true;
+        mealPlanSelect.innerHTML = '<option value="">Loading meal plans...</option>';
+        mealPlanSelect.disabled = true;
+        
+        // Find rooms of the selected type from stored room data
+        if (!window.roomData) {
+            console.error('No room data available');
+            bedTypeSelect.innerHTML = '<option value="">No room data available</option>';
+            mealPlanSelect.innerHTML = '<option value="">No room data available</option>';
+            return;
+        }
+        
+        const selectedRooms = window.roomData.filter(room => room.room_type === roomType);
+        
+        if (selectedRooms.length === 0) {
+            bedTypeSelect.innerHTML = '<option value="">No rooms of this type</option>';
+            mealPlanSelect.innerHTML = '<option value="">No rooms of this type</option>';
+            return;
+        }
+        
+        // Get the first room ID to fetch beds from beds table
+        const firstRoom = selectedRooms[0];
+        const roomId = firstRoom.room_id;
+        
+        console.log('Fetching beds for room ID:', roomId);
+        
+        // Fetch beds from the beds table using API endpoint (same as create.blade.php)
+        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Beds API Response:', data);
+                
+                bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                
+                if (data.success && data.beds && data.beds.length > 0) {
+                    // Populate bed types from the beds table
+                    data.beds.forEach(bed => {
+                        let bedTypeText = bed.room_type || bed.bed_type || 'Standard Bed';
+                        
+                        // Add occupancy info if available
+                        if (bed.max_occupancy) {
+                            bedTypeText += ` - Max ${bed.max_occupancy} guests`;
+                        }
+                        
+                        // Add adult/child info if available
+                        if (bed.adult_count && bed.child_count) {
+                            bedTypeText += ` (${bed.adult_count}A+${bed.child_count}C)`;
+                        }
+                        
+                        // Add extra bed info if available
+                        if (bed.extra_bed) {
+                            bedTypeText += ` + Extra Bed`;
+                            if (bed.extra_bed_price) {
+                                bedTypeText += ` ($${bed.extra_bed_price})`;
+                            }
+                        }
+                        
+                        // Add baby cot info if available
+                        if (bed.baby_cot) {
+                            bedTypeText += ` + Baby Cot`;
+                            if (bed.baby_cot_price) {
+                                bedTypeText += ` ($${bed.baby_cot_price})`;
+                            }
+                        }
+                        
+                        const option = document.createElement('option');
+                        option.value = bed.bed_id;
+                        option.textContent = bedTypeText;
+                        option.setAttribute('data-bed', JSON.stringify(bed));
+                        option.setAttribute('data-bed-id', bed.bed_id);
+                        option.setAttribute('data-room-id', bed.room_id);
+                        option.setAttribute('data-bed-max-occupancy', bed.max_occupancy);
+                        option.setAttribute('data-bed-type', bed.room_type || bed.bed_type);
+                        bedTypeSelect.appendChild(option);
+                    });
+                    
+                    bedTypeSelect.disabled = false;
+                    console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
+                    
+                    // Validate fields after beds are loaded
+                    validateHotelModalFields();
+                    
+                    // Initialize meal plans if bed type is already selected
+                    initializeMealPlansForExistingData();
+                } else {
+                    console.log('No beds found for room type:', roomType);
+                    bedTypeSelect.innerHTML = '<option value="">No bed types available</option>';
+                }
+                
+                // Load meal plans based on room data
+                loadMealPlansForBed(selectedRooms[0]);
+            })
+            .catch(error => {
+                console.error('Error fetching beds:', error);
+                bedTypeSelect.innerHTML = '<option value="">Error loading bed types</option>';
+                mealPlanSelect.innerHTML = '<option value="">Error loading bed types</option>';
+            });
+    }
+    
+    function updateBedPricingAndMealPlans() {
+        const bedTypeSelect = document.getElementById('bed_type');
+        const mealPlanSelect = document.getElementById('meal_plan');
+        const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+        
+        if (!selectedOption || !selectedOption.value) {
+            mealPlanSelect.disabled = true;
+            mealPlanSelect.innerHTML = '<option value="">Select bed type first</option>';
+            return;
+        }
+        
+        // Update bed occupancy info
+        const bedData = JSON.parse(selectedOption.getAttribute('data-bed') || '{}');
+        const maxOccupancy = bedData.max_occupancy || 2;
+        
+        const occupancyInfo = document.getElementById('bed_occupancy_info');
+        if (occupancyInfo) {
+            occupancyInfo.textContent = `Max Occupancy: ${maxOccupancy}`;
+        }
+        
+        // Update person selector dynamically based on max occupancy
+        generatePersonSelector(maxOccupancy);
+        // Store selected bed info globally
+        window.selectedBedInfo = {
+            bedId: bedData.bed_id,
+            roomId: bedData.room_id,
+            maxOccupancy: maxOccupancy,
+            extraBedPrice: bedData.extra_bed_price || 0,
+            babyCotPrice: bedData.baby_cot_price || 0,
+            extraBedAvailable: bedData.extra_bed || false
+        };
+        
+        console.log('Bed selected:', bedData);
+        
+        // Validate fields after bed selection
+        validateHotelModalFields();
+    }
+    
+    function loadMealPlansForBed(bedData) {
+        const mealPlanSelect = document.getElementById('meal_plan');
+        
+        // Get room data to check meal availability
+        const roomData = window.roomData || [];
+        const roomId = bedData.room_id;
+        const room = roomData.find(r => r.room_id === roomId);
+        
+        if (!room) {
+            mealPlanSelect.innerHTML = '<option value="">No meal plans available</option>';
+            return;
+        }
+        
+        // Check meal availability for this specific room
+        const hasBreakfast = room.breakfast == 1 || room.breakfast === true;
+        const hasLunch = room.lunch == 1 || room.lunch === true;
+        const hasDinner = room.dinner == 1 || room.dinner === true;
+        
+        // Generate meal plan options in the format "1 x room with/only"
+        const mealPlans = [];
+        const roomText = "room";
+        
+        // Add "Room Only" option first
+        mealPlans.push(`${roomText} only`);
+        
+        // Add specific meal options based on availability
+        if (hasBreakfast) {
+            mealPlans.push(`${roomText} with breakfast`);
+        }
+        if (hasLunch) {
+            mealPlans.push(`${roomText} with lunch`);
+        }
+        if (hasDinner) {
+            mealPlans.push(`${roomText} with dinner`);
+        }
+        
+        // Add combination meal options
+        if (hasBreakfast && hasLunch) {
+            mealPlans.push(`${roomText} with breakfast + lunch`);
+        }
+        if (hasBreakfast && hasDinner) {
+            mealPlans.push(`${roomText} with breakfast + dinner`);
+        }
+        if (hasLunch && hasDinner) {
+            mealPlans.push(`${roomText} with lunch + dinner`);
+        }
+        if (hasBreakfast && hasLunch && hasDinner) {
+            mealPlans.push(`${roomText} with all meals (breakfast + lunch + dinner)`);
+        }
+        
+        // Populate meal plans
+        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+        mealPlans.forEach(plan => {
+            const option = document.createElement('option');
+            option.value = plan.toLowerCase().replace(/\s+/g, '_');
+            option.textContent = plan;
+            // Store meal prices in dataset
+            option.dataset.breakfastPrice = room.breakfast_price || 0;
+            option.dataset.lunchPrice = room.lunch_price || 0;
+            option.dataset.dinnerPrice = room.dinner_price || 0;
+            mealPlanSelect.appendChild(option);
+        });
+        
+        mealPlanSelect.disabled = false;
+        console.log('Meal plans loaded for selected bed');
+        
+        // Check if all required fields are selected to enable proceed button
+        validateHotelModalFields();
+    }
+    
+    function validateHotelModalFields() {
+        const citySelect = document.getElementById('modal_city_select');
+        const hotelSelect = document.getElementById('hotel_select');
+        const roomTypeSelect = document.getElementById('room_type');
+        const bedTypeSelect = document.getElementById('bed_type');
+        const mealPlanSelect = document.getElementById('meal_plan');
+        const proceedBtn = document.getElementById('proceed_hotel_btn');
+        
+        // Check if all required fields are selected
+        const isValid = citySelect && citySelect.value &&
+                        hotelSelect && hotelSelect.value &&
+                        roomTypeSelect && roomTypeSelect.value &&
+                        bedTypeSelect && bedTypeSelect.value &&
+                        mealPlanSelect && mealPlanSelect.value;
+        
+        if (proceedBtn) {
+            proceedBtn.disabled = !isValid;
+            if (isValid) {
+                proceedBtn.classList.remove('btn-secondary');
+                proceedBtn.classList.add('btn-success');
+            } else {
+                proceedBtn.classList.remove('btn-success');
+                proceedBtn.classList.add('btn-secondary');
+            }
+        }
+        
+        console.log('Hotel modal validation:', isValid);
+    }
+    
+    function generatePersonSelector(maxOccupancy) {
+        const personSelect = document.getElementById('person_count_select');
+        const maxOccupancyText = document.querySelector('#person_count_select').nextElementSibling;
+        
+        if (!personSelect) return;
+        
+        // Store current selected value
+        const currentValue = personSelect.value;
+        
+        // Clear existing options
+        personSelect.innerHTML = '';
+        
+        // Generate dropdown options based on max occupancy
+        for (let i = 1; i <= maxOccupancy; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = i === 1 ? '1 Person' : `${i} Persons`;
+            personSelect.appendChild(option);
+        }
+        
+        // Restore previous selection or set to 1 if not valid
+        if (currentValue && parseInt(currentValue) <= maxOccupancy) {
+            personSelect.value = currentValue;
+        } else {
+            personSelect.value = '1';
+        }
+        
+        // Update max occupancy text
+        if (maxOccupancyText) {
+            maxOccupancyText.textContent = `Max Occupancy: ${maxOccupancy}`;
+        }
+        
+        // Store max occupancy and selected count
+        window.maxOccupancy = maxOccupancy;
+        window.selectedPersonCount = parseInt(personSelect.value);
+    }
+    
+    function selectPersonCount(count) {
+        // Store the selected count in a global variable
+        window.selectedPersonCount = parseInt(count);
+        
+        // Update pricing if needed
+        updateMealPricing();
+    }
+    
+    
+    function initializeMealPlansForExistingData() {
+        const bedTypeSelect = document.getElementById('bed_type');
+        const mealPlanSelect = document.getElementById('meal_plan');
+        
+        // Check if bed type is already selected and meal plan needs initialization
+        if (bedTypeSelect && bedTypeSelect.value && mealPlanSelect) {
+            console.log('Initializing meal plans for existing bed selection');
+            
+            // Get the selected bed data
+            const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                const bedData = JSON.parse(selectedOption.getAttribute('data-bed') || '{}');
+                console.log('Loading meal plans for bed data:', bedData);
+                
+                // Initialize person count to 1 by default
+                if (!window.selectedPersonCount) {
+                    window.selectedPersonCount = 1;
+                    
+                    // Update dropdown to reflect selected person count
+                    const personSelect = document.getElementById('person_count_select');
+                    if (personSelect) {
+                        personSelect.value = window.selectedPersonCount;
+                    }
+                }
+                
+                // Load meal plans for the selected bed
+                loadMealPlansForBed(bedData);
+            }
+        }
+    }
+    
+    function updateMealPricing() {
+        // Get selected meal plan
+        const mealPlanSelect = document.getElementById('meal_plan');
+        const selectedOption = mealPlanSelect.options[mealPlanSelect.selectedIndex];
+        
+        if (!selectedOption || !selectedOption.value) {
+            return;
+        }
+        
+        // Get meal prices from the selected option's dataset
+        const breakfastPrice = parseFloat(selectedOption.dataset.breakfastPrice) || 0;
+        const lunchPrice = parseFloat(selectedOption.dataset.lunchPrice) || 0;
+        const dinnerPrice = parseFloat(selectedOption.dataset.dinnerPrice) || 0;
+        
+        // Get selected person count
+        const personCount = window.selectedPersonCount || 1;
+        
+        // Calculate total meal price based on selected meal plan and person count
+        let totalMealPrice = 0;
+        const mealPlan = selectedOption.value.toLowerCase();
+        
+        if (mealPlan.includes('breakfast')) {
+            totalMealPrice += breakfastPrice * personCount;
+        }
+        if (mealPlan.includes('lunch')) {
+            totalMealPrice += lunchPrice * personCount;
+        }
+        if (mealPlan.includes('dinner')) {
+            totalMealPrice += dinnerPrice * personCount;
+        }
+        
+        // Update the UI with the calculated price if needed
+        console.log(`Meal pricing for ${personCount} persons: $${totalMealPrice.toFixed(2)}`);
+        
+        // Validate fields after meal plan selection
+        validateHotelModalFields();
+    }
+    
+    function resetHotelModalFields() {
+        const roomTypeSelect = document.getElementById('room_type');
+        const bedTypeSelect = document.getElementById('bed_type');
+        const mealPlanSelect = document.getElementById('meal_plan');
+        const proceedBtn = document.getElementById('proceed_hotel_btn');
+        
+        if (roomTypeSelect) {
+            roomTypeSelect.disabled = true;
+            roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+        }
+        if (bedTypeSelect) {
+            bedTypeSelect.disabled = true;
+            bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+        }
+        if (mealPlanSelect) {
+            mealPlanSelect.disabled = true;
+            mealPlanSelect.innerHTML = '<option value="">Select bed type first</option>';
+        }
+        if (proceedBtn) {
+            proceedBtn.disabled = true;
+            proceedBtn.classList.remove('btn-success');
+            proceedBtn.classList.add('btn-secondary');
+        }
+        
+        // Clear stored data
+        window.roomData = null;
+        window.selectedBedInfo = null;
     }
     
     function onHotelSelection() {
@@ -6673,11 +7267,11 @@
     }
     
     // Guide Selection Modal Functions
-    function showGuideSelectionModal(tourId, country, city, startDate, endDate) {
+    function showGuideSelectionModal(tourId, country, startDate, endDate) {
         // Populate modal with tour data
         document.getElementById('modal_guide_tour_dates').textContent = `${startDate} to ${endDate}`;
-        document.getElementById('modal_guide_destination').textContent = `${city}, ${country}`;
-        document.getElementById('modal_guide_city').textContent = city;
+        document.getElementById('modal_guide_destination').textContent = `${country}`;
+        // City display removed
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('guideSelectionModal'));
@@ -6834,7 +7428,7 @@
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         const adults = document.getElementById('adults').value || '1';
@@ -6958,7 +7552,7 @@
             adults: adults,
             children: children,
             country: country,
-            city: city,
+            // city parameter removed,
             start_date: startDate,
             end_date: endDate
         };
@@ -7000,11 +7594,11 @@
     }
     
     // Restaurant Selection Modal Functions
-    function showRestaurantSelectionModal(tourId, country, city, startDate, endDate) {
+    function showRestaurantSelectionModal(tourId, country, startDate, endDate) {
         // Populate modal with tour data
         document.getElementById('modal_restaurant_tour_dates').textContent = `${startDate} to ${endDate}`;
-        document.getElementById('modal_restaurant_destination').textContent = `${city}, ${country}`;
-        document.getElementById('modal_restaurant_city').textContent = city;
+        document.getElementById('modal_restaurant_destination').textContent = `${country}`;
+        // City display removed
         
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('restaurantSelectionModal'));
@@ -7464,7 +8058,7 @@
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
-        const city = document.getElementById('city').value;
+        
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
@@ -7546,7 +8140,7 @@
             female_count: guestData.female_count,
             child_ages: guestData.child_ages,
             country: country,
-            city: city,
+            // city parameter removed,
             start_date: startDate,
             end_date: endDate
         };
@@ -7692,6 +8286,16 @@
         } else {
             console.log('Bootstrap version:', bootstrap.Modal.VERSION);
         }
+        
+        // Initialize meal plans when hotel modal is shown with existing data
+        document.addEventListener('shown.bs.modal', function(e) {
+            if (e.target.id === 'hotelSelectionModal') {
+                console.log('Hotel modal opened, checking for meal plan initialization');
+                setTimeout(() => {
+                    initializeMealPlansForExistingData();
+                }, 100);
+            }
+        });
         
         // Add passenger validation for local transfer
         const passengersInput = document.getElementById('local_transfer_passengers');
