@@ -117,15 +117,15 @@
                         @enderror
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="header_pdf" class="form-label"><strong>Upload Header PDF</strong><span class="text-danger">*</span></label>
-                        <input type="file" class="form-control @error('header_pdf') is-invalid @enderror" name="header_pdf" accept="application/pdf" required>
+                        <label for="header_pdf" class="form-label"><strong>Upload Header PDF</strong></label>
+                        <input type="file" class="form-control @error('header_pdf') is-invalid @enderror" name="header_pdf" accept="application/pdf">
                         @error('header_pdf')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="footer_pdf" class="form-label"><strong>Upload Footer PDF</strong><span class="text-danger">*</span></label>
-                        <input type="file" class="form-control @error('footer_pdf') is-invalid @enderror" name="footer_pdf" accept="application/pdf" required>
+                        <label for="footer_pdf" class="form-label"><strong>Upload Footer PDF</strong></label>
+                        <input type="file" class="form-control @error('footer_pdf') is-invalid @enderror" name="footer_pdf" accept="application/pdf">
                         @error('footer_pdf')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror

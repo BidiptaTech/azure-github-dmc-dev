@@ -11,12 +11,13 @@ class CityController extends Controller
     /**
     * Display a listing of the resource.
     */
-    public function index()
+    public function index(Request $request)
     {
-        $countries = [];
-        $countries = Country::all();
-        $cities = [];
-        $cities = City::all();
+        $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
+        
+        // Get all cities for DataTable pagination
+        $cities = City::orderBy('name', 'asc')->get();
+        
         return view('cities.index', compact('countries', 'cities'));
     }
 
@@ -25,8 +26,7 @@ class CityController extends Controller
      */
     public function create()
     {
-        $countries = [];
-        $countries = Country::where('is_active', 1)->get();
+        $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
         return view('cities.add-cities', compact('countries'));
     }
 
@@ -35,32 +35,96 @@ class CityController extends Controller
      */
     public function store(Request $request)
     {
-        //dd($request->all());
         // Validate the request
         $request->validate([
-            'name' => 'required|string',
-            'country_name' => 'required|string',
+            'name' => 'required|string|max:255',
+            'country' => 'required|string|exists:countries,id',
         ]);
 
-        // Check if city already exists with the same name and country
-        $existingCity = City::where('name', $request->city_name)
-        ->where('country', $request->country)
-        ->first();
-
-        if (!$existingCity) {
-        // Only add if the city doesn't already exist
-            $city = new City();
-            $city->name = $request->city_name;
-            $city->country = $request->country;
-            $city->save();
-
-            return redirect()->back()->with('success', 'City added successfully.');
-        } else {
-            return redirect()->back()->with('info', 'City already exists.');
+        // Get country name from country ID
+        $country = Country::find($request->country);
+        if (!$country) {
+            if ($request->ajax()) {
+                return response()->json(['error' => 'Selected country not found'], 400);
+            }
+            return redirect()->back()
+                ->withErrors(['country' => 'Selected country not found'])
+                ->withInput();
         }
 
-        // Redirect with success message
-        return redirect()->route('countries.index')->with('success', 'Country added successfully!');
+        $countryName = $country->name;
+        $cityName = trim($request->name);
+
+        // Check if city already exists (case-insensitive) - active cities
+        $existingCity = City::whereRaw('LOWER(name) = ?', [strtolower($cityName)])
+            ->where('country', $countryName)
+            ->first();
+
+        if ($existingCity) {
+            if ($request->ajax()) {
+                return response()->json(['error' => "City '{$cityName}' already exists in {$countryName}"], 400);
+            }
+            return redirect()->back()
+                ->withErrors(['name' => "City '{$cityName}' already exists in {$countryName}"])
+                ->withInput();
+        }
+
+        // Check if city exists in soft-deleted records
+        $deletedCity = City::onlyTrashed()
+            ->whereRaw('LOWER(name) = ?', [strtolower($cityName)])
+            ->where('country', $countryName)
+            ->first();
+
+        if ($deletedCity) {
+            // Restore the soft-deleted city
+            $deletedCity->restore();
+            
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "City '{$cityName}' restored successfully in {$countryName}",
+                    'city_id' => $deletedCity->city_id,
+                    'city_name' => $deletedCity->name
+                ]);
+            }
+            
+            return redirect()->route('cities.index')
+                ->with('success', "City '{$cityName}' restored successfully in {$countryName}");
+        }
+
+        // Generate new city_id
+        $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+        $lastCityId = $lastCity->city_id ?? 0;
+        $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
+
+        // Ensure uniqueness of city_id
+        while (City::where('city_id', $newCityId)->exists()) {
+            $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
+        }
+
+        // Generate new database ID
+        $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
+        $newId = $lastDbId + 1;
+
+        // Create city
+        $city = City::create([
+            'id' => $newId,
+            'name' => $cityName,
+            'country' => $countryName,
+            'city_id' => $newCityId,
+        ]);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "City '{$cityName}' added successfully to {$countryName}",
+                'city_id' => $city->city_id,
+                'city_name' => $city->name
+            ]);
+        }
+
+        return redirect()->route('cities.index')
+            ->with('success', "City '{$cityName}' added successfully to {$countryName}");
     }
 
     /**
@@ -76,25 +140,12 @@ class CityController extends Controller
      */
     public function edit(string $id)
     {
-        // $country = Country::find($id);
-
-        // if (!$country) {
-        //     return redirect()->route('countries.index')->with('error', 'Country not found.');
-        // }
-
-        // $countries = Country::all(); // Get all countries for dropdown
-
-        // return view('countries.edit-country', compact('country', 'countries'));
-        $id = Crypt::decrypt($id);
-        $city = City::where('city_id', $id)->first();
-        $countries = Country::where('is_active', 1)->get();
+        $city = City::where('city_id', Crypt::decrypt($id))->first();
+        $countries = Country::orderBy('name', 'asc')->where('is_active', 1)->get();
 
         if (!$city) {
-            return redirect()->route('ccities.index')->with('error', 'Country not found.');
+            return redirect()->route('cities.index')->with('error', 'City not found.');
         }
-
-        // Get the list of 195 countries from CountryHelper
-        $countries = CountryHelper::getAllCountries();
 
         return view('cities.edit-cities', compact('city', 'countries'));
     }
@@ -104,38 +155,96 @@ class CityController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        // dd($id, $request->all());
         // Validate the request
         $request->validate([
-            'name' => 'required|string|unique:countries,name,' . $id,
-            // 'country_code' => 'required|string|unique:countries,country_code,' . $id,
-            'tax_percentage' => 'required|numeric|min:0',
-            'gateway_percentage' => 'required|numeric|min:0',
-            'commission_percentage' => 'required|numeric|min:0',
+            'name' => 'required|string|max:255',
+            'country' => 'required|string|exists:countries,id',
         ]);
 
-        // Find the country by ID
-        $country = Country::findOrFail($id);
+        // Find the city by city_id
+        $city = City::where('city_id', $id)->first();
+        if (!$city) {
+            return redirect()->route('cities.index')->with('error', 'City not found.');
+        }
+        
+        // Get country name from country ID
+        $country = Country::find($request->country);
+        if (!$country) {
+            return redirect()->back()
+                ->withErrors(['country' => 'Selected country not found'])
+                ->withInput();
+        }
 
-        // Update the country data
-        $country->update([
-            'name' => $request->name,
-            'country_code' => $request->country_code,
-            'tax_percentage' => $request->tax_percentage,
-            'currency' => $request->currency,
-            'gateway_percentage' => $request->gateway_percentage,
-            'commission_percentage' => $request->commission_percentage,
+        $countryName = $country->name;
+        $cityName = trim($request->name);
+
+        // Check if city already exists (case-insensitive) excluding current city
+        $existingCity = City::whereRaw('LOWER(name) = ?', [strtolower($cityName)])
+            ->where('country', $countryName)
+            ->where('city_id', '!=', $id)
+            ->first();
+
+        if ($existingCity) {
+            return redirect()->back()
+                ->withErrors(['name' => "City '{$cityName}' already exists in {$countryName}"])
+                ->withInput();
+        }
+
+        // Update city
+        $city->update([
+            'name' => $cityName,
+            'country' => $countryName,
         ]);
 
-        // Redirect with success message
-        return redirect()->route('countries.index')->with('success', 'Country updated successfully!');
+        return redirect()->route('cities.index')
+            ->with('success', "City '{$cityName}' updated successfully in {$countryName}");
     }
 
     /**
-     * Remove the specified resource from storage.
-     */
+    * Remove the specified resource from storage.
+    */
     public function destroy(string $id)
     {
-        //
+        try {
+            $city = City::where('city_id', Crypt::decrypt($id))->first();
+            if (!$city) {
+                return redirect()->route('cities.index')->with('error', 'City not found.');
+            }
+            
+            $cityName = $city->name;
+            $countryName = $city->country;
+            
+            $city->delete();
+            
+            return redirect()->route('cities.index')
+                ->with('success', "City '{$cityName}' from {$countryName} deleted successfully");
+        } catch (\Exception $e) {
+            return redirect()->route('cities.index')
+                ->with('error', 'Failed to delete city: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get cities by country (AJAX)
+     */
+    public function getCitiesByCountry(Request $request)
+    {
+        $countryId = $request->country;
+        
+        if (!$countryId) {
+            return response()->json([]);
+        }
+
+        // Get country name from country ID
+        $country = Country::find($countryId);
+        if (!$country) {
+            return response()->json([]);
+        }
+
+        $cities = City::where('country', $country->name)
+            ->orderBy('name', 'asc')
+            ->get(['city_id', 'name']);
+
+        return response()->json($cities);
     }
 }
