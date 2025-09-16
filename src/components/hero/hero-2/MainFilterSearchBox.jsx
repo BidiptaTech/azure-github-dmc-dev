@@ -12,12 +12,6 @@ import {
   updateSearchState,
   settourdetails,
 } from "../../../slice/hotel/hotelSlice";
-import {
-  setTourId,
-  statusUpdate,
-  updateStepStatus,
-  setType,
-} from "../../../slice/common/stepsSlice";
 import { setBookingType } from "../../../slice/common/commonSlice";
 import moment from "moment";
 import { clearUserInfo } from "../../../slice/common/customerInfo";
@@ -59,6 +53,9 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
 
+  // Check if location is fully selected (both country and city)
+  const isLocationValid = locationData && locationData.country && locationData.city;
+
   const handleLocationSelect = (location) => {
     // Store the complete location data including country and city
     setLocationData(location);
@@ -68,7 +65,7 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     // It will be fetched only when the form is submitted
     dispatch(clearEnquiryList());
     
-    console.log("Location selected:", location);
+   // console.log("Location selected:", location);
   };
 
   const handleDateChange = (dates) => {
@@ -196,11 +193,11 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
         formattedCheckOut = selectedDates[1];
       }
       else {
-        console.error("Unknown date format:", selectedDates);
+        //console.error("Unknown date format:", selectedDates);
         return;
       }
     } else {
-      console.error("Invalid dates selected:", selectedDates);
+      //console.error("Invalid dates selected:", selectedDates);
       return;
     }
 
@@ -211,15 +208,15 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     // Get the properly formatted combined code directly from the location object
     const combinedCode = locationData.cityCode;
     
-    console.log("Setting search location with:", [countryCode, combinedCode]);
-    console.log("Location data:", locationData);
+    //console.log("Setting search location with:", [countryCode, combinedCode]);
+    //console.log("Location data:", locationData);
     
     // Set location data in the right format for EnquirySlice
     const locationPayload = {
       country: locationData.country,
       city: locationData.city
     };
-    console.log("Dispatching location data to EnquirySlice:", locationPayload);
+    //console.log("Dispatching location data to EnquirySlice:", locationPayload);
     
     // Dispatch the new location data
     dispatch(setSearchLocation(locationPayload));
@@ -254,29 +251,7 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     const genders = [
       ...Array(maleCount).fill("Male"),
       ...Array(femaleCount).fill("Female")
-    ];
-
-    // console.log("Guest data before dispatch:", {
-    //   adults: guestCounts.Adults,
-    //   children: guestCounts.Children,
-    //   infants: guestCounts.Infants,
-    //   maleCount,
-    //   femaleCount,
-    //   genders,
-    //   ages: guestCounts.ages
-    // });
-
-    // Dispatch guest details to EnquirySlice
-    // console.log("Dispatching guest details to EnquirySlice:", {
-    //   adults: guestCounts.Adults.toString(),
-    //   children: guestCounts.Children.toString(),
-    //   infant: guestCounts.Infants.toString(),
-    //   adultGenders: genders,
-    //   childrenAges: guestCounts.ages || [],
-    //   maleCount: maleCount,
-    //   femaleCount: femaleCount
-    // });
-    
+    ];  
     dispatch(
       setGuest({
         adults: guestCounts.Adults.toString(),
@@ -293,26 +268,17 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     setTimeout(() => {
       // Debug: Get current state from Redux to verify data
       const state = store.getState();
-      console.log("Redux state before API call:", {
-        searchLocation: state.enquiry.searchLocation,
-        guests: state.enquiry.guests,
-        checkIn: state.enquiry.checkIn,
-        checkOut: state.enquiry.checkOut
-      });
-      
       // Step 4: Fetch Enquiry ID using the EnquirySlice's fetchBookingid
       dispatch(fetchBookingid())
         .unwrap()
         .then((data) => {
-          console.log("Enquiry response:", data);
-          // EnquirySlice response should have enquiry_id instead of tour_id
           const id = data?.multi_enq_id 
           
           const country = data?.country || data?.data?.country;
           const city = data?.city || data?.data?.city;
 
           if (!id) {
-            console.error("Enquiry ID not found in response:", data);
+            //console.error("Enquiry ID not found in response:", data);
             throw new Error("Invalid response data.");
           }
 
@@ -325,17 +291,8 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           
           dispatch(settourdetails(data)); // Set full enquiry details
           dispatch(setId(id)); // Set the ID
-          dispatch(setTourId(id));
+          // dispatch(setTourId(id));
           dispatch(setBookingType("enquiry")); // Set booking type to enquiry
-
-   
-          
-          // Get the auth token to log
-          const authToken = localStorage.getItem("token");
-          console.log("Auth token available:", authToken ? "Yes" : "No");
-          
-        
-
           // Fetch the enquiry list data for hotels and other services
           // Use API response data if available, otherwise fall back to original locationData
           const fetchParams = {
@@ -343,21 +300,11 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
             city: city || locationData.city
           };
 
-          console.log("Fetching enquiry list with params:", fetchParams);
-          console.log("Data sources:", {
-            apiCountry: country,
-            apiCity: city,
-            locationDataCountry: locationData.country,
-            locationDataCity: locationData.city,
-            locationData: locationData
-          });
-
           // Validate fetchParams before making the API call
           if (!fetchParams.country || !fetchParams.city) {
-            console.error("Invalid fetchParams:", fetchParams);
-            console.error("LocationData available:", !!locationData);
+           
             if (locationData) {
-              console.error("LocationData structure:", locationData);
+              
             }
             setSnackbarMessage("Invalid location data. Please try again.");
             setSnackbarSeverity("error");
@@ -367,26 +314,19 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
 
           // Ensure we have string values
           if (typeof fetchParams.country !== 'string' || typeof fetchParams.city !== 'string') {
-            console.error("Country or city is not a string:", fetchParams);
+           
             setSnackbarMessage("Invalid location data format. Please try again.");
             setSnackbarSeverity("error");
             setOpenSnackbar(true);
             return;
           }
 
-        
-          
           dispatch(fetchEnquiryList(fetchParams));
 
-          dispatch(setType("enquiry"));
-          dispatch(updateStepStatus({ key: "hotel", status: 2 })); // Update step status
-          dispatch(statusUpdate()).unwrap();
-
-          // Move to next step instead of navigating
           onNext();
         })
         .catch((error) => {
-          console.error("Error fetching enquiry ID:", error);
+         
           setSnackbarMessage(
             "Failed to create enquiry. Please try again."
           );
@@ -407,26 +347,38 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
 
           <div className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
             <div>
-              <h4 className="text-15 fw-500 ls-2 lh-16">
+              <h4 className={`text-15 fw-500 ls-2 lh-16 ${!isLocationValid ? 'text-muted' : ''}`}>
                 Check in - Check out
               </h4>
-              <DateSearch onDateChange={handleDateChange} />
+              <DateSearch 
+                onDateChange={handleDateChange} 
+                disabled={!isLocationValid}
+              />
             </div>
           </div>
 
           <div className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters">
-            <GuestSearch
-              onGuestChange={handleGuestChange}
-              guestCounts={guestCounts}
-            />
+            <div>
+              <h4 className={`text-15 fw-500 ls-2 lh-16 ${!isLocationValid ? 'text-muted' : ''}`}>
+                Guests
+              </h4>
+              <GuestSearch
+                onGuestChange={handleGuestChange}
+                guestCounts={guestCounts}
+                disabled={!isLocationValid}
+              />
+            </div>
           </div>
 
           <div className="button-item">
             <button
-              className="mainSearch__submit button -dark-1 h-60 px-35 col-12 rounded-100 bg-blue-1 text-white"
+              className={`mainSearch__submit  h-60 px-35 col-12 rounded-100 ${
+                isLocationValid ? 'bg-blue-1 text-white button -dark-1' : 'bg-light-3 text-muted '
+              }`}
               onClick={handleSearch}
+              disabled={!isLocationValid}
             >
-              <i className="icon-search text-20 mr-10" />
+              <i className="icon-search text-20 mr-10" /> 
               Submit
             </button>
           </div>
