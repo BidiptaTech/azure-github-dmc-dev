@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -36,16 +36,19 @@ const Counter = ({
   maleCount = 0,
   femaleCount = 0,
   totalAdults = 1,
+  disabled = false,
 }) => {
   const [count, setCount] = useState(defaultValue);
 
   const incrementCount = () => {
+    if (disabled) return;
     const newCount = count + 1;
     setCount(newCount);
     onCounterChange(name, newCount);
   };
 
   const decrementCount = () => {
+    if (disabled) return;
     // For Adults, prevent going below 1
     if (name === "Adults" && count <= 1) {
       return;
@@ -99,7 +102,7 @@ const Counter = ({
               color="primary" 
               size="small"
               onClick={decrementCount}
-              disabled={(name === "Adults" && count <= 1) || (name !== "Adults" && count <= 0)}
+              disabled={disabled || (name === "Adults" && count <= 1) || (name !== "Adults" && count <= 0)}
               sx={{ minWidth: '36px', width: '36px', height: '36px', p: 0 }}
             >
               <RemoveIcon fontSize="small" />
@@ -112,6 +115,7 @@ const Counter = ({
               color="primary" 
               size="small"
               onClick={incrementCount}
+              disabled={disabled}
               sx={{ minWidth: '36px', width: '36px', height: '36px', p: 0 }}
             >
               <AddIcon fontSize="small" />
@@ -282,7 +286,60 @@ const Counter = ({
   );
 };
 
-const GuestSearch = ({ onGuestChange, guestCounts }) => {
+const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when location becomes invalid
+  useEffect(() => {
+    if (disabled && dropdownRef.current) {
+      // Force close Bootstrap dropdown
+      const dropdownElement = dropdownRef.current.querySelector('[data-bs-toggle="dropdown"]');
+      if (dropdownElement) {
+        // Remove show class and reset aria-expanded
+        dropdownElement.classList.remove('show');
+        dropdownElement.setAttribute('aria-expanded', 'false');
+        
+        // Hide the dropdown menu
+        const dropdownMenu = dropdownRef.current.querySelector('.dropdown-menu');
+        if (dropdownMenu) {
+          dropdownMenu.classList.remove('show');
+        }
+      }
+      
+      // Also try to close any Bootstrap dropdown instances
+      try {
+        // Get Bootstrap dropdown instance and hide it
+        const bootstrap = window.bootstrap;
+        if (bootstrap && bootstrap.Dropdown) {
+          const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
+          if (dropdownInstance) {
+            dropdownInstance.hide();
+          }
+        }
+      } catch (error) {
+        console.log('Bootstrap dropdown close error:', error);
+      }
+      
+      // Additional fallback: Force close all dropdowns
+      setTimeout(() => {
+        const allDropdowns = document.querySelectorAll('.dropdown-menu.show');
+        allDropdowns.forEach(menu => {
+          if (dropdownRef.current && dropdownRef.current.contains(menu)) {
+            menu.classList.remove('show');
+          }
+        });
+        
+        const allDropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"].show');
+        allDropdownToggles.forEach(toggle => {
+          if (dropdownRef.current && dropdownRef.current.contains(toggle)) {
+            toggle.classList.remove('show');
+            toggle.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }, 10);
+    }
+  }, [disabled]);
+
   const handleCounterChange = (name, value) => {
     const updatedGuestCounts = { ...guestCounts, [name]: value };
                  
@@ -374,16 +431,37 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
     onGuestChange({ ...guestCounts, infantAges: updatedInfantAges });
   };
 
+  const handleDropdownClick = (e) => {
+    if (disabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  };
+
   return (
-    <Box className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative" sx={{ zIndex: 1000 }}>
+    <Box 
+      ref={dropdownRef}
+      className="searchMenu-guests px-30 lg:py-20 lg:px-0 js-form-dd js-form-counters position-relative" 
+      sx={{ zIndex: 1000 }}
+    >
       <Box
-        data-bs-toggle="dropdown"
+        data-bs-toggle={disabled ? "" : "dropdown"}
         data-bs-auto-close="outside"
         aria-expanded="false"
         data-bs-offset="0,22"
+        onClick={handleDropdownClick}
+        sx={{
+          opacity: disabled ? 0.6 : 1,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          pointerEvents: disabled ? 'none' : 'auto'
+        }}
       >
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Guest</Typography>
-        <Typography variant="body2" color="text.secondary">
+        
+        <Typography 
+          variant="body2" 
+          color={disabled ? "text.disabled" : "text.secondary"}
+        >
           {guestCounts.Adults} adults
           ({guestCounts.maleCount || 0} male, {guestCounts.femaleCount || 0} female) -
           {guestCounts.Children} children -
@@ -432,6 +510,7 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
               defaultValue={guestCounts[counter.name] || counter.defaultValue}
               onCounterChange={handleCounterChange}
               onGenderCountChange={handleGenderCountChange}
+              disabled={disabled}
               maleCount={guestCounts.maleCount || 0}
               femaleCount={guestCounts.femaleCount || 0}
               totalAdults={guestCounts.Adults || 1}

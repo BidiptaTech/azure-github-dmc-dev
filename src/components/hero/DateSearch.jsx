@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
@@ -8,13 +8,43 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-const DateSearch = ({ onDateChange }) => {
+const DateSearch = ({ onDateChange, disabled = false }) => {
   const today = new DateObject(); // Current date
   const tomorrow = new DateObject().add(1, "day"); // Tomorrow's date
 
   const [dates, setDates] = useState([today, tomorrow]); // Default selection: today and tomorrow
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const datePickerRef = useRef(null);
+
+  // Close date picker when disabled
+  useEffect(() => {
+    if (disabled) {
+      // Force close all date picker calendars
+      const calendarElements = document.querySelectorAll('.rmdp-calendar');
+      calendarElements.forEach(calendar => {
+        calendar.style.display = 'none';
+        calendar.classList.remove('rmdp-calendar-open');
+      });
+      
+      // Remove focus from any date picker inputs
+      const datePickerInputs = document.querySelectorAll('.rmdp-input');
+      datePickerInputs.forEach(input => {
+        input.blur();
+      });
+      
+      // Additional fallback: Force close any open date pickers
+      setTimeout(() => {
+        const allCalendars = document.querySelectorAll('.rmdp-calendar');
+        allCalendars.forEach(calendar => {
+          if (calendar.style.display !== 'none') {
+            calendar.style.display = 'none';
+            calendar.classList.remove('rmdp-calendar-open');
+          }
+        });
+      }, 10);
+    }
+  }, [disabled]);
 
   // Handle date changes
   const handleDateChange = (newDates) => {
@@ -46,8 +76,9 @@ const DateSearch = ({ onDateChange }) => {
   return (
     <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker">
       <DatePicker
-        inputClass="custom_input-picker"
-        containerClassName="custom_container-picker"
+        ref={datePickerRef}
+        inputClass={`custom_input-picker ${disabled ? 'disabled' : ''}`}
+        containerClassName={`custom_container-picker ${disabled ? 'disabled' : ''}`}
         value={dates}
         onChange={handleDateChange}
         numberOfMonths={2}
@@ -57,7 +88,13 @@ const DateSearch = ({ onDateChange }) => {
         format="MMM DD"
         minDate={today}     // Keep minimum date as today
         editable={false}    // Prevent manual typing while still allowing calendar selection
-        style={{ position: 'relative', zIndex: 40 }}
+        disabled={disabled}  // Disable the date picker
+        style={{ 
+          position: 'relative', 
+          zIndex: 40,
+          opacity: disabled ? 0.6 : 1,
+          pointerEvents: disabled ? 'none' : 'auto'
+        }}
         calendarStyle={{ 
           position: 'absolute', 
           zIndex: 9999,
