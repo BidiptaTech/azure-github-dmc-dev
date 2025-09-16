@@ -50,6 +50,24 @@
         box-shadow: 0px 0px 10px rgba(220, 53, 69, 0.5);
     }
 
+    .status-refund-pending {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+        box-shadow: 0px 0px 10px rgba(255, 193, 7, 0.5);
+    }
+
+    .status-cancel-confirmed {
+        background-color: #dc3545 !important;
+        color: #fff !important;
+        box-shadow: 0px 0px 10px rgba(220, 53, 69, 0.5);
+    }
+
+    .status-refunded {
+        background-color: #81d334 !important;
+        color: #141414 !important;
+        box-shadow: 0px 0px 10px rgba(108, 117, 125, 0.5);
+    }
+
     .itinerary-day {
         background-color: #f8f9fa;
         border-radius: 8px;
@@ -245,6 +263,15 @@
                                             case '3':
                                                 $statusClass = 'status-on-hold';
                                                 break;
+                                            case '5':
+                                                $statusClass = 'status-refund-pending';
+                                                break;
+                                            case '7':
+                                                $statusClass = 'status-cancel-confirmed';
+                                                break;
+                                            case '6':
+                                                $statusClass = 'status-refunded';
+                                                break;
                                             default:
                                                 $statusClass = 'status-pending';
                                         }
@@ -258,6 +285,12 @@
                                             Actual
                                         @elseif($booking->status == '4')
                                             Cancelled
+                                        @elseif($booking->status == '5')
+                                            Refund - Pending
+                                        @elseif($booking->status == '7')
+                                            Cancel - Confirmed
+                                        @elseif($booking->status == '6')
+                                            Refunded
                                         @endif
                                     </span>
                                 </td>
@@ -269,10 +302,22 @@
                                     @endif
                                 </td>
                                 
-                                <td>
+                                <td style="display: inline-block; white-space: nowrap;">
                                     <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewBookingModal{{ $booking->id }}">
                                         <i class="fas fa-eye"></i> View
                                     </button>
+                                    
+                                    @if(in_array(auth()->user()->role_id, [33, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
+                                        <button type="button" class="btn btn-sm btn-danger ms-1" data-booking-id="{{ $booking->booking_id }}">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                    @endif
+                                    
+                                    @if(in_array(auth()->user()->role_id, [33, 36, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138]) && $booking->status == '5')
+                                        <button type="button" class="btn btn-sm btn-warning ms-1" data-booking-id="{{ $booking->booking_id }}">
+                                            <i class="fas fa-money-bill-wave"></i> Refund
+                                        </button>
+                                    @endif
                                 </td>
 
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 138)
@@ -306,23 +351,35 @@
                                     
                                     <td>
                                         <div style="margin-top: 5px;">
-                                            @if($isPaymentComplete || ($packageTotal - $paidAmount) <= 0)
-                                                <span class="badge bg-success">Payment Complete</span>
-                                            @elseif($hasPendingPayment)
-                                                <span class="badge bg-warning">Pending Verification</span>
-                                            @else
-                                                <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
-                                                    <i class="fas fa-plus"></i> Add Payment
-                                                </button>
-                                                @if($packageTotal > 0)
-                                                    <small class="text-muted d-block">Due: ${{ number_format($packageTotal - $paidAmount, 2) }}</small>
+                                            @if(in_array($booking->status, ['7', '5', '6']))
+                                                {{-- For cancelled/refunded bookings, only show payment history --}}
+                                                @if($booking->payment_details)
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
+                                                        <i class="fas fa-history"></i> Payment History
+                                                    </button>
+                                                @else
+                                                    <span class="text-muted">No payment history</span>
                                                 @endif
-                                            @endif
-                                            
-                                            @if($booking->payment_details)
-                                                <button type="button" class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
-                                                    <i class="fas fa-history"></i> History
-                                                </button>
+                                            @else
+                                                {{-- For active bookings, show normal payment options --}}
+                                                @if($isPaymentComplete || ($packageTotal - $paidAmount) <= 0)
+                                                    <span class="badge bg-success">Payment Complete</span>
+                                                @elseif($hasPendingPayment)
+                                                    <span class="badge bg-warning">Pending Verification</span>
+                                                @else
+                                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $booking->id }}">
+                                                        <i class="fas fa-plus"></i> Add Payment
+                                                    </button>
+                                                    @if($packageTotal > 0)
+                                                        <small class="text-muted d-block">Due: ${{ number_format($packageTotal - $paidAmount, 2) }}</small>
+                                                    @endif
+                                                @endif
+                                                
+                                                @if($booking->payment_details)
+                                                    <button type="button" class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
+                                                        <i class="fas fa-history"></i> History
+                                                    </button>
+                                                @endif
                                             @endif
                                         </div>
                                     </td>
@@ -428,19 +485,34 @@
                                                         case '4':
                                                             $statusClass = 'bg-danger';
                                                             break;
+                                                        case '5':
+                                                            $statusClass = 'bg-warning text-dark';
+                                                            break;
+                                                        case '7':
+                                                            $statusClass = 'bg-danger';
+                                                            break;
+                                                        case '6':
+                                                            $statusClass = 'bg-secondary';
+                                                            break;
                                                         default:
                                                             $statusClass = 'bg-warning text-dark';
                                                     }
                                                 @endphp
                                                 <span class="badge {{ $statusClass }}">
                                                     @if($booking->status == '1')
-                                                        Pending
-                                                    @elseif($booking->status == '2')
                                                         Confirmed
+                                                    @elseif($booking->status == '2')
+                                                        Definite
                                                     @elseif($booking->status == '3')
                                                         On Hold
                                                     @elseif($booking->status == '4')
                                                         Cancelled
+                                                    @elseif($booking->status == '5')
+                                                        Refund - Pending
+                                                    @elseif($booking->status == '7')
+                                                        Cancel - Confirmed
+                                                    @elseif($booking->status == '6')
+                                                        Refunded
                                                     @endif
                                                 </span>
                                             </td>
@@ -797,6 +869,27 @@
     @endforeach
 @endif
 
+<!-- Cancel Booking Modals - Simplified -->
+@if(isset($bookings) && count($bookings) > 0)
+    @foreach($bookings as $booking)
+        @if(in_array(auth()->user()->role_id, [33, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
+        <form id="cancelBookingForm{{ $booking->booking_id }}" action="{{ route('package.cancel-booking', $booking->booking_id) }}" method="POST" style="display: none;">
+            @csrf
+            <input type="hidden" name="booking_id" value="{{ $booking->booking_id }}">
+            <input type="hidden" name="cancel_reason" value="Cancelled by sales head">
+        </form>
+        @endif
+        
+        @if(in_array(auth()->user()->role_id, [33, 36, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138]) && $booking->status == '5')
+        <form id="processRefundForm{{ $booking->booking_id }}" action="{{ route('package.process-refund', $booking->booking_id) }}" method="POST" style="display: none;">
+            @csrf
+            <input type="hidden" name="booking_id" value="{{ $booking->booking_id }}">
+            <input type="hidden" name="refund_reason" value="Refund processed">
+        </form>
+        @endif
+    @endforeach
+@endif
+
 <!-- Payment History Modals -->
 @if(isset($bookings))
     @foreach($bookings as $booking)
@@ -1117,6 +1210,93 @@ $(document).on('click', '[id^="savePaymentBtn"]', function() {
             confirmButtonText: 'OK'
         });
     }
+});
+
+// Handle cancel booking button click
+$(document).ready(function() {
+    // Use event delegation to handle clicks on cancel booking buttons
+    $(document).on('click', '[data-booking-id]', function(e) {
+        e.preventDefault();
+        const bookingId = $(this).data('booking-id');
+        const buttonText = $(this).text().trim();
+        
+        // Check if it's a cancel or refund button
+        if (buttonText.includes('Cancel')) {
+            Swal.fire({
+                title: 'Cancel Booking',
+                text: 'Are you sure you want to cancel this booking?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, cancel it!',
+                cancelButtonText: 'No, keep it'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading state
+                    Swal.fire({
+                        title: 'Processing...',
+                        html: 'Please wait while we cancel the booking.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    // Submit the cancel form
+                    const form = document.getElementById(`cancelBookingForm${bookingId}`);
+                    
+                    if (form) {
+                        form.submit();
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Form not found. Please refresh the page and try again.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+            });
+        } else if (buttonText.includes('Refund')) {
+            Swal.fire({
+                title: 'Refund',
+                text: 'Are you sure you want to process the refund for this booking?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, process refund!',
+                cancelButtonText: 'No, cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading state
+                    Swal.fire({
+                        title: 'Processing...',
+                        html: 'Please wait while we process the refund.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    // Submit the refund form
+                    const form = document.getElementById(`processRefundForm${bookingId}`);
+                    
+                    if (form) {
+                        form.submit();
+                    } else {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Form not found. Please refresh the page and try again.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+            });
+        }
+    });
 });
 
 // Handle confirm payment button click using event delegation
