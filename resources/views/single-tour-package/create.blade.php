@@ -5666,7 +5666,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const hasDinner = roomsToUse.some(room => room.dinner == 1 || room.dinner === true);
                     
                     // Generate meal plan options - only show "1 room" options based on database values
-                    const roomText = "1 * room";
+                    const roomText = "room";
                     
                     // Add "Room Only" option first
                     mealPlans.add(`${roomText} only`);
