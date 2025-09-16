@@ -660,6 +660,7 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
               '& .MuiInputBase-input': {
                 fontSize: '0.75rem',
                 height: '12px',
+                marginBottom: '10px',
                 paddingBottom: '10px',
                 paddingTop: '0px',
               },
@@ -1223,24 +1224,6 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
         </DialogActions>
       </Dialog>
       
-      {/* Success Alert */}
-      <Zoom in={bookingSuccess}>
-        <Alert 
-          severity="success" 
-          sx={{ 
-            position: 'fixed', 
-            bottom: 20, 
-            right: 20, 
-            zIndex: 1500,
-            borderRadius: 2,
-            boxShadow: `0 8px 24px ${alpha(theme.palette.success.main, 0.3)}`,
-            fontWeight: 600
-          }}
-          icon={<CheckCircleIcon />}
-        >
-          Booking information saved successfully to the tour package data!
-        </Alert>
-      </Zoom>
     </Box>
   );
 };

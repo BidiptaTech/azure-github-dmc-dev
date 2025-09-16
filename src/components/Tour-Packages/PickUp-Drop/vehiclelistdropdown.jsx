@@ -876,6 +876,26 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       handleVehicleSelect(selectedVehicleObj, 0);
     }
   }, [selectedVehicleObj, validEntryPorts]);
+
+  // Track if this is the first render
+  const isFirstRender = useRef(true);
+  
+  // Automatically call handleAddMoreBooking when vehicles are loaded from fresh search
+  useEffect(() => {
+    // Check if vehicles are loaded and we have valid vehicles
+    if (vehicles && Array.isArray(vehicles) && vehicles.length > 0) {
+      const currentBookings = getBookings();
+      
+      // Only call for fresh search (not initial render)
+      if (!isFirstRender.current || validEntryPorts.length > 0) {
+        console.log("Entry Vehicle - Fresh search detected, automatically calling handleAddMoreBooking");
+        handleAddMoreBooking();
+      }
+      
+      // Mark first render as complete
+      isFirstRender.current = false;
+    }
+  }, [vehicles]);
   
   // Update completion status when relevant data changes - simplified
   const completionCheckValues = React.useMemo(() => ({
@@ -1452,7 +1472,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
                       />
                       {booking.isComplete && (
                         <Chip
-                          label="Ready for Booking"
+                          label="Booking Successfully Added"
                           color="success"
                           size="small"
                           variant="outlined"
