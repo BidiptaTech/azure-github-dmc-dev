@@ -1192,7 +1192,7 @@ function approvePayment(bookingId, paymentIndex) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `/package-booking/${bookingId}/approve-payment`,
+                url: `{{ url('/package-booking') }}/${bookingId}/approve-payment`,
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
@@ -1249,7 +1249,7 @@ function declinePayment(bookingId, paymentIndex) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `/package-booking/${bookingId}/decline-payment`,
+                url: `{{ url('/package-booking') }}/${bookingId}/decline-payment`,
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
