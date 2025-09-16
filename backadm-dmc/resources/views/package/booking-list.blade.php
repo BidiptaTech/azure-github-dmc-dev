@@ -122,6 +122,15 @@
     .text-warning small {
         font-weight: 500;
     }
+    
+    /* SweetAlert z-index fix to appear above modals */
+    .swal-z-index {
+        z-index: 9999 !important;
+    }
+    
+    .swal2-container {
+        z-index: 9999 !important;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -830,13 +839,10 @@
                                                 <th>PAYMENT DATE</th>
                                                 <th>RECORD DATE</th>
                                                 <th>PAID AMOUNT</th>
-                                                <th>CURRENCY</th>
-                                                <th>EXCHANGE RATE</th>
                                                 <th>PAYMENT MODE</th>
-                                                <th>TRANSACTION ID</th>
-                                                <th>REMARKS</th>
                                                 <th>STATUS</th>
                                                 <th>ACTIONS</th>
+                                                <th>TRANSACTION ID</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -845,13 +851,9 @@
                                                     <td>{{ \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') }}</td>
                                                     <td>{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
                                                     <td class="text-success fw-bold">${{ number_format($payment['payment_amount'], 2) }}</td>
-                                                    <td>SGD</td>
-                                                    <td>1.0000</td>
                                                     <td>
                                                         <span class="badge bg-info">{{ $payment['payment_type'] }}</span>
                                                     </td>
-                                                    <td>{{ $payment['transaction_id'] }}</td>
-                                                    <td>{{ $payment['transaction_id'] }}</td>
                                                     <td>
                                                         @if(isset($payment['status']))
                                                             @if($payment['status'] == 1)
@@ -895,6 +897,7 @@
                                                             <span class="text-muted">-</span>
                                                         @endif
                                                     </td>
+                                                    <td>{{ $payment['transaction_id'] }}</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
@@ -1188,7 +1191,10 @@ function approvePayment(bookingId, paymentIndex) {
         showCancelButton: true,
         confirmButtonColor: '#28a745',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, approve it!'
+        confirmButtonText: 'Yes, approve it!',
+        customClass: {
+            popup: 'swal-z-index'
+        }
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
@@ -1241,6 +1247,9 @@ function declinePayment(bookingId, paymentIndex) {
         confirmButtonColor: '#dc3545',
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Decline Payment',
+        customClass: {
+            popup: 'swal-z-index'
+        },
         inputValidator: (value) => {
             if (!value || value.trim().length < 10) {
                 return 'Please provide a reason (at least 10 characters)';
