@@ -1844,9 +1844,16 @@
                         <li class="menu-item @if(Request::is('country')) active @endif">
                             @if(hasPermission('view country'))
                             <a href="{{ route('country.index') }}" class="menu-link">
-                                <div data-i18n="List City">List City</div>
+                                <div data-i18n="City Charges">City Charges</div>
                             </a>
                             @endif
+                        </li>
+
+                        <!-- Cities -->
+                        <li class="menu-item @if(Request::is('cities*')) active @endif">
+                            <a href="{{ route('cities.index') }}" class="menu-link">
+                                <div data-i18n="Cities">Cities</div>
+                            </a>
                         </li>
 
                         <!-- Countries -->

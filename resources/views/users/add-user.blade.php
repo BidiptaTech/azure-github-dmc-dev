@@ -129,7 +129,7 @@
                                         @endforeach
                                     </select>
                                     @error('country_names')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                        <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
@@ -160,7 +160,6 @@
                                     <input type="file" class="form-control" id="master_logo"
                                         name="master_logo" placeholder="Enter Your Name">
                                 </div>
-                                
                             </div>
                         @endif
                             <div class="col-md-3" id="company_name" style="display: none;">
@@ -182,6 +181,7 @@
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <select class="form-select" id="country_name" name="country_name">
+                                        <option selected value>Choose a country...</option>
                                         @if(count($country) > 0)
                                             @foreach($country as $c)
                                             <option value="{{ $c->name }}">{{ $c->name }}</option>
@@ -199,7 +199,7 @@
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <select class="form-select" id="user_country" name="user_country">
-                                        <option disabled value>Choose a country...</option>
+                                        <option value>Choose a country...</option>
                                         @foreach($country as $c)
                                             <option value="{{ $c->name }}">{{ $c->name }}</option>
                                         @endforeach

@@ -201,7 +201,7 @@ Route::get('/clear', function () {
                 Route::get('reports/export-transaction/{id}', [FinanceReportController::class, 'exportTransaction'])->name('reports.export-transaction');
                 Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
                 
-                Route::get('/cities/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
+                Route::get('/cities-by-country/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
                 // City → Hotel
                 // City → Attraction
                 Route::get('/attractions/{city}', [PackageController::class, 'getAttractionsByCity'])->name('attractions-by-city');
@@ -399,7 +399,10 @@ Route::get('/clear', function () {
 
         //Country
         Route::resource('countries', CountryController::class);
+        
+        // Cities Management
         Route::resource('cities', CityController::class);
+        // Route::get('/get-cities-by-country', [CityController::class, 'getCitiesByCountry'])->name('cities.getCitiesByCountry');
 
 
         // Mail Routes
