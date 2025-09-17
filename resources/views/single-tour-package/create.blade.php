@@ -2019,7 +2019,7 @@
                                         bookingDate: dateInput?.value || getTourDateForDay(day),
                                         vehicles_id: parseInt(vehicleSelect.value) || 0,
                                         image: vehicle.dataset.image || "",
-                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                        dmc_id: parseInt(document.getElementById('dmc_id')?.value || ""),
                                         vehicles_name: vehicle.text,
                                         Mode: "dmc",
                                         type: serviceTypeSelect.value || "",
@@ -4389,7 +4389,7 @@ function saveCustomerInfo() {
     };
 
     // Validate required fields
-    const requiredFields = ['fullName', 'email', 'phone', 'countryCode', 'address1'];
+    const requiredFields = [''];
     const missingFields = requiredFields.filter(field => !customerData[field]);
 
     if (missingFields.length > 0) {
@@ -7325,7 +7325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_entry_pickup_time" style="padding-left: 45px;">
+                                                 <select class="form-select border-2" name="day${day}_entry_pickup_time" style="padding-left: 45px;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
                                                      <option value="">Select The Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -7393,9 +7393,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <label class="form-label fw-semibold">Vehicle</label>
-                                                <select class="form-select vehicle-select" 
-                                                        name="day${day}_entry_vehicle_id" 
-                                                        onchange="updateVehicleDetails(${day}, 'entry'); validatePassengerCapacity(${day}, 'entry')">
+                                                <select class="form-select vehicle-select"
+                                                        name="day${day}_entry_vehicle_id" id="day${day}_entry_0_vehicle_id"
+                                                        onchange="updateVehicleDetails(${day}, 'entry_0'); validatePassengerCapacity(${day}, 'entry_0'); updateTypeSelect(event, ${day}, 'entry_0')">
                                                         
                                                     <option value="">Choose vehicle</option>
                                                 </select>
@@ -7404,8 +7404,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <label class="form-label fw-semibold">Service Type</label>
                                                 <select class="form-select service-type-select" 
                                                         name="day${day}_entry_service_type" 
-                                                        id="day${day}_entry_service_type"
-                                                        onchange="updatePricing(${day}, 'entry')">
+                                                        id="day${day}_entry_0_service_type"
+                                                        onchange="updatePricing(${day}, 'entry_0')">
                                                     <option value="">Select service type</option>
                                                     <option value="Shared">Shared</option>
                                                     <option value="Private">Private</option>
@@ -7420,7 +7420,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_entry_passengers" name="day${day}_entry_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'entry'); updatePricing(${day}, 'entry')">
+                                                        <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter number of passengers for this service
@@ -7431,7 +7431,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         
                                         <!-- Price Display for Entry Port -->
                                         <div class="col-12 mt-3">
-                                            <div id="day${day}_entry_price_display" class="alert alert-success" style="display: none;">
+                                            <div id="day${day}_entry_0_price_display" class="alert alert-success" style="display: none;">
                                                 <div class="d-flex align-items-center">
                                                     <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
                                                     <div>
@@ -7442,10 +7442,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                             
                                             <!-- Hidden fields for entry port pricing -->
-                                            <input type="hidden" name="day${day}_entry_base_price" id="day${day}_entry_base_price" value="0">
-                                            <input type="hidden" name="day${day}_entry_total_price" id="day${day}_entry_total_price" value="0">
-                                            <input type="hidden" name="day${day}_entry_service_type" id="day${day}_entry_service_type" value="">
-                                            <input type="hidden" name="day${day}_entry_guest_count" id="day${day}_entry_guest_count" value="0">
+                                            <input type="hidden" name="day${day}_entry_0_base_price" id="day${day}_entry_0_base_price" value="0">
+                                            <input type="hidden" name="day${day}_entry_0_total_price" id="day${day}_entry_0_total_price" value="0">
+                                            <input type="hidden" name="day${day}_entry_0_service_type" id="day${day}_entry_0_service_type" value="">
+                                            <input type="hidden" name="day${day}_entry_0_guest_count" id="day${day}_entry_0_guest_count" value="0">
                                         </div>
                                         
                                         
@@ -7467,7 +7467,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  `;
              }
              
-                           // Exit Port Services (Only on last day and only if more than 1 day)
+                // Exit Port Services (Only on last day and only if more than 1 day)
               if (day === totalDays && totalDays > 1) {
                                    servicesHTML += `
                       <div class="service-card mb-4">
@@ -7609,7 +7609,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                         name="day${day}_exit_vehicle_id" 
                                                         id="day${day}_exit_vehicle_id"
                                                         
-                                                        onchange="updateVehicleDetails(${day}, 'exit')">
+                                                        onchange="updateVehicleDetails(${day}, 'exit'); validatePassengerCapacity(${day}, 'exit'); updateTypeSelect(event, ${day}, 'exit')">
                                                     <option value="">Choose vehicle</option>
                                                 </select>
                                             </div>
@@ -8309,7 +8309,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" 
                                                         name="day${day}_transport_vehicle_id" 
-                                                        onchange="updateVehicleDetails(${day}, 'transport')">
+                                                        onchange="updateVehicleDetails(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport');">
                                                     <option value="">Choose vehicle</option>
                                                 </select>
                                             </div>
@@ -10917,13 +10917,13 @@ document.addEventListener('DOMContentLoaded', function() {
                              <div class="row g-3">
                                  <div class="col-md-8">
                              <label class="form-label fw-semibold">Vehicle</label>
-                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}')">
+                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport');">
                                  <option value="">Choose vehicle</option>
                              </select>
                          </div>
                                  <div class="col-md-4">
                              <label class="form-label fw-semibold">Service Type</label>
-                             <select class="form-select" name="day${day}_transport_${newIndex}_service_type" onchange="updatePricing(${day}, 'transport')">
+                             <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
                                  <option value="">Select service type</option>
                                  <option value="Shared">Shared</option>
                                  <option value="Private">Private</option>
@@ -11271,13 +11271,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="row">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Vehicle</label>
-                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}')">
+                            <select class="form-select vehicle-select" name="day${day}_entry_${newIndex}_vehicle_id" id="day${day}_entry_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'entry_${newIndex}'); validatePassengerCapacity(${day}, 'entry_${newIndex}'); updateTypeSelect(event, ${day}, 'entry_${newIndex}')" data-newFieldType="added_entry_${newIndex}">
                                 <option value="">Choose vehicle</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Service Type</label>
-                            <select class="form-select service-type-select" name="day${day}_entry_${newIndex}_service_type" onchange="updatePricing(${day}, 'entry')">
+                            <select class="form-select service-type-select" name="day${day}_entry_${newIndex}_service_type" id="day${day}_entry_${newIndex}_service_type" onchange="updatePricing(${day}, 'entry_${newIndex}')">
                                 <option value="">Select service type</option>
                                 <option value="Shared">Shared</option>
                                 <option value="Private">Private</option>
@@ -11288,7 +11288,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                    <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'entry'); updatePricing(${day}, 'entry')">
+                                    <input type="number" class="form-control" id="day${day}_entry_${newIndex}_passengers" name="day${day}_entry_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'entry_${newIndex}'); updatePricing(${day}, 'entry_${newIndex}')">
                                 </div>
                                 <small class="form-text text-muted">
                                     Enter number of passengers for this service
@@ -11310,7 +11310,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             <!-- Hidden fields for pricing -->
                             <input type="hidden" name="day${day}_entry_${newIndex}_base_price" id="day${day}_entry_${newIndex}_base_price" value="0">
                             <input type="hidden" name="day${day}_entry_${newIndex}_total_price" id="day${day}_entry_${newIndex}_total_price" value="0">
-                            <input type="hidden" name="day${day}_entry_${newIndex}_service_type" id="day${day}_entry_${newIndex}_service_type" value="">
                             <input type="hidden" name="day${day}_entry_${newIndex}_guest_count" id="day${day}_entry_${newIndex}_guest_count" value="0">
                         </div>
                     </div>
@@ -11443,13 +11442,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="row">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Vehicle</label>
-                            <select class="form-select vehicle-select" name="day${day}_exit_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit_${newIndex}')">
+                            <select class="form-select vehicle-select" name="day${day}_exit_${newIndex}_vehicle_id" id="day${day}_exit_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'exit_${newIndex}'); validatePassengerCapacity(${day}, 'exit_${newIndex}'); updateTypeSelect(event, ${day}, 'exit_${newIndex}')" data-newFieldType="added_exit_${newIndex}">
                                 <option value="">Choose vehicle</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Service Type</label>
-                            <select class="form-select service-type-select" name="day${day}_exit_${newIndex}_service_type" id="day${day}_exit_service_type" onchange="updatePricing(${day}, 'exit')">
+                            <select class="form-select service-type-select" name="day${day}_exit_${newIndex}_service_type" id="day${day}_exit_${newIndex}_service_type" onchange="updatePricing(${day}, 'exit')">
                                 <option value="">Select service type</option>
                                 <option value="Shared">Shared</option>
                                 <option value="Private">Private</option>
@@ -11460,7 +11459,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                    <input type="number" class="form-control" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit'); updatePricing(${day}, 'exit')">
+                                    <input type="number" class="form-control" id="day${day}_exit_${newIndex}_passengers" name="day${day}_exit_${newIndex}_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit_${newIndex}'); updatePricing(${day}, 'exit_${newIndex}')">
                                 </div>
                                 <small class="form-text text-muted">
                                     Enter number of passengers for this service
@@ -11482,7 +11481,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             <!-- Hidden fields for pricing -->
                             <input type="hidden" name="day${day}_exit_${newIndex}_base_price" id="day${day}_exit_${newIndex}_base_price" value="0">
                             <input type="hidden" name="day${day}_exit_${newIndex}_total_price" id="day${day}_exit_${newIndex}_total_price" value="0">
-                            <input type="hidden" name="day${day}_exit_${newIndex}_service_type" id="day${day}_exit_${newIndex}_service_type" value="">
                             <input type="hidden" name="day${day}_exit_${newIndex}_guest_count" id="day${day}_exit_${newIndex}_guest_count" value="0">
                         </div>
                     </div>
@@ -11947,7 +11945,8 @@ function enableSearchButton(day, section) {
     // For entry/exit ports in Point-to-Point mode, only need city
     if (isPointToPoint==1 && (section === 'entry' || section === 'exit')) {
         console.log(`Taking Point-to-Point path for ${section} port`);
-        const citySelect = document.getElementById('city');
+        const citySelectId = section === 'entry' ? 'modal_local_transfer_city' : 'modal_exit_city';
+        const citySelect = document.getElementById(citySelectId);
         
         if (citySelect && citySelect.value) {
             searchBtn.disabled = false;
@@ -13637,7 +13636,7 @@ function loadDropoffZones(day, section) {
                              data-shared-price="${vehicle.shared_price}"
                              data-service-type="${vehicle.service_type}"
                              data-mapping-id="${vehicle.mapping_id}"
-                             data-seatingCapacity="${vehicle.seating_capacity}">
+                             data-seatingCapacity="${vehicle.seating_capacity}" data-sharable="${vehicle.sharable}">
                              ${vehicleInfo}
                          </option>`;
                      });
@@ -13674,19 +13673,19 @@ function loadDropoffZones(day, section) {
      }
  }
 
-     window.updateVehicleDetails = function(day, section) {
-     const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
-     const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
-     const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
-     
-     if (!vehicleSelect || !serviceTypeSelect) return;
-     
+    window.updateVehicleDetails = function(day, section) {
+     const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
      const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+     const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
+     const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
+
+
+
+     if (!vehicleSelect){ 
+        console.log('Vehicle select not found');
+        return;}
      
      if (selectedOption.value) {
-         // Enable the service type select
-         serviceTypeSelect.disabled = false;
-         
          // Show price display section with initial message
          if (priceDisplay) {
              priceDisplay.style.display = 'block';
@@ -13702,11 +13701,8 @@ function loadDropoffZones(day, section) {
          }
          
          // Reset service type selection to trigger pricing update
-         serviceTypeSelect.value = "";
      } else {
          // Reset to default state
-         serviceTypeSelect.disabled = true;
-         serviceTypeSelect.value = "";
          
          // Hide price display
          if (priceDisplay) {
@@ -13714,201 +13710,249 @@ function loadDropoffZones(day, section) {
          }
      }
  }
+    window.updateTypeSelect = function(event,day, section){
+        const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
+        const vehicleSelect = event.target;
+        const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+        serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
 
-     window.updatePricing = function(day, section) {
+        if(selectedOption.dataset.sharable == 1){
+            const privateOption = document.createElement('option');
+            privateOption.value = 'Private';
+            privateOption.textContent = 'Private';
+            serviceTypeSelect.appendChild(privateOption);
+        }
+        else if(selectedOption.dataset.sharable == 2){
+            const sharedOption = document.createElement('option');
+            sharedOption.value = 'Shared';
+            sharedOption.textContent = 'Shared';
+            serviceTypeSelect.appendChild(sharedOption);
+        }
+        else{
+            const privateOption = document.createElement('option');
+            privateOption.value = 'Private';
+            privateOption.textContent = 'Private';
+            serviceTypeSelect.appendChild(privateOption);
 
+            const sharedOption = document.createElement('option');
+            sharedOption.value = 'Shared';
+            sharedOption.textContent = 'Shared';
+            serviceTypeSelect.appendChild(sharedOption);
+        }
+        
+        serviceTypeSelect.disabled = false;
+    }
+
+    window.updatePricing = function(day, section) {
+
+        console.log('Updating pricing for day', day, 'section', section);
         const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
         const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
     
-    const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
-    
-    if (!serviceTypeSelect || !vehicleSelect || !priceDisplay) {
-        console.log('Required elements not found for pricing update');
-        return;
-    }
-    
-    const selectedServiceType = serviceTypeSelect.value;
-    console.log('Selected service type:', selectedServiceType);
-    const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-
-    if (!selectedServiceType || !selectedVehicleOption.value) {
-        priceDisplay.style.display = 'none';
-        return;
-    }
-    
-    // Get pricing data from the selected vehicle option
-    const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
-    const sharedPrice = parseFloat(selectedVehicleOption.dataset.sharedPrice) || 0;
-    const costPerHour = parseFloat(selectedVehicleOption.dataset.costPerHour) || 0;
-    const sharableCostPerHour = parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
-    
-    // Debug logging to verify prices
-    console.log('=== PRICING DEBUG ===');
-    console.log('Selected vehicle option:', selectedVehicleOption);
-    console.log('Vehicle dataset:', selectedVehicleOption.dataset);
-    console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
-    console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
-    console.log('Parsed privatePrice:', privatePrice);
-    console.log('Parsed sharedPrice:', sharedPrice);
-    console.log('Selected service type:', selectedServiceType);
-    
-    let displayPrice = 0;
-    let priceType = '';
-    
-    if (selectedServiceType === 'Private') {
-        displayPrice = privatePrice;
-        priceType = 'Private';
-        console.log('Private service selected, price:', displayPrice);
-    } else if (selectedServiceType === 'Shared') {
-        displayPrice = sharedPrice;
-        priceType = 'Shared';
-        console.log('Shared service selected, price:', displayPrice);
-    }
-    
-    if (displayPrice > 0) {
-        // Get guest count for total price calculation
-        let totalGuests = 0;
+        const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
+        if(!serviceTypeSelect){
+            console.log('Service type select not found');
+        }
+        else if(!vehicleSelect){
+            console.log('Vehicle select not found');
+        }
+        else if(!priceDisplay){
+            console.log('Price display not found');
+        }
         
-        // For entry port services, use the passenger input field if available
-        if (section === 'entry') {
-            const passengersInput = document.getElementById(`day${day}_entry_passengers`);
-            if (passengersInput && passengersInput.value) {
-                totalGuests = parseInt(passengersInput.value) || 0;
+        if (!serviceTypeSelect || !vehicleSelect || !priceDisplay) {
+            console.log('Required elements not found for pricing update');
+            return;
+        }
+        
+        const selectedServiceType = serviceTypeSelect.value;
+        console.log('Selected service type:', selectedServiceType);
+        const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+
+        if (!selectedServiceType || !selectedVehicleOption.value) {
+            priceDisplay.style.display = 'none';
+            return;
+        }
+        
+        // Get pricing data from the selected vehicle option
+        const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
+        const sharedPrice = parseFloat(selectedVehicleOption.dataset.sharedPrice) || parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
+        const costPerHour = parseFloat(selectedVehicleOption.dataset.costPerHour) || 0;
+        const sharableCostPerHour = parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
+        
+        // Debug logging to verify prices
+        console.log('=== PRICING DEBUG ===');
+        console.log('Selected vehicle option:', selectedVehicleOption);
+        console.log('Vehicle dataset:', selectedVehicleOption.dataset);
+        console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
+        console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
+        console.log('Parsed privatePrice:', privatePrice);
+        console.log('Parsed sharedPrice:', sharedPrice);
+        console.log('Selected service type:', selectedServiceType);
+        
+        let displayPrice = 0;
+        let priceType = '';
+        
+        if (selectedServiceType === 'Private') {
+            displayPrice = privatePrice;
+            priceType = 'Private';
+            console.log('Private service selected, price:', displayPrice);
+        } else if (selectedServiceType === 'Shared') {
+            displayPrice = sharedPrice;
+            priceType = 'Shared';
+            console.log('Shared service selected, price:', displayPrice);
+        }
+        
+        if (displayPrice > 0) {
+            // Get guest count for total price calculation
+            let totalGuests = 0;
+            
+            // For entry port services, use the passenger input field if available
+            if (section.startsWith('entry')) {
+                const passengersInput = document.getElementById(`day${day}_${section}_passengers`);
+                if (passengersInput && passengersInput.value) {
+                    totalGuests = parseInt(passengersInput.value) || 0;
+                } else {
+                    // Fallback to total guests from main form
+                const adults = parseInt(document.getElementById('adults').value) || 0;
+                const children = parseInt(document.getElementById('children').value) || 0;
+                    totalGuests = adults + children;
+                }
+            } else if (section.startsWith('exit')) {
+                // For exit port services, use the passenger input field if available
+                const passengersInput = document.getElementById(`day${day}_${section}_passengers`);
+                if (passengersInput && passengersInput.value) {
+                    totalGuests = parseInt(passengersInput.value) || 0;
+                } else {
+                    // Fallback to total guests from main form
+                    const adults = parseInt(document.getElementById('adults').value) || 0;
+                    const children = parseInt(document.getElementById('children').value) || 0;
+                    totalGuests = adults + children;
+                }
+            } else if (section === 'transport') {
+                // For transport services, use the passenger input field if available
+                const passengersInput = document.getElementById(`day${day}_transport_passengers`);
+                if (passengersInput && passengersInput.value) {
+                    totalGuests = parseInt(passengersInput.value) || 0;
+                } else {
+                    // Fallback to total guests from main form
+                    const adults = parseInt(document.getElementById('adults').value) || 0;
+                    const children = parseInt(document.getElementById('children').value) || 0;
+                    totalGuests = adults + children;
+                }
             } else {
-                // Fallback to total guests from main form
-            const adults = parseInt(document.getElementById('adults').value) || 0;
-            const children = parseInt(document.getElementById('children').value) || 0;
-                totalGuests = adults + children;
-            }
-        } else if (section === 'transport') {
-            // For transport services, use the passenger input field if available
-            const passengersInput = document.getElementById(`day${day}_transport_passengers`);
-            if (passengersInput && passengersInput.value) {
-                totalGuests = parseInt(passengersInput.value) || 0;
-            } else {
-                // Fallback to total guests from main form
+                // For other sections, use total guests from main form
                 const adults = parseInt(document.getElementById('adults').value) || 0;
                 const children = parseInt(document.getElementById('children').value) || 0;
                 totalGuests = adults + children;
             }
-        } else {
-            // For other sections, use total guests from main form
-            const adults = parseInt(document.getElementById('adults').value) || 0;
-            const children = parseInt(document.getElementById('children').value) || 0;
-            totalGuests = adults + children;
-        }
-        
-        let totalPrice = 0;
-        let pricingDescription = '';
-        
-        // Check if this is an hourly service (has hourly pricing)
-        const isHourlyService = costPerHour > 0 || sharableCostPerHour > 0;
-        
-        if (selectedServiceType === 'Private') {
-            // For private service: price is per vehicle (not per person)
-            totalPrice = displayPrice;
             
-            if (isHourlyService) {
-                // Get adults and children values for display
-                const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                const children = parseInt(document.getElementById('children')?.value) || 0;
+            let totalPrice = 0;
+            let pricingDescription = '';
+            
+            // Check if this is an hourly service (has hourly pricing)
+            const isHourlyService = costPerHour > 0 || sharableCostPerHour > 0;
+            
+            if (selectedServiceType === 'Private') {
+                // For private service: price is per vehicle (not per person)
+                totalPrice = displayPrice;
                 
+                if (isHourlyService) {
+                    // Get adults and children values for display
+                    const adults = parseInt(document.getElementById('adults')?.value) || 0;
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    
+                    pricingDescription = `
+                        <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (base price)<br>
+                        <strong>Hourly Rate:</strong> $${costPerHour.toFixed(2)} per hour<br>
+                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                        <strong>Base Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                        <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
+                    `;
+                } else {
+                    // Get adults and children values for display
+                    const adults = parseInt(document.getElementById('adults')?.value) || 0;
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    
                 pricingDescription = `
-                    <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (base price)<br>
-                    <strong>Hourly Rate:</strong> $${costPerHour.toFixed(2)} per hour<br>
+                    <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
                     <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Base Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                    <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
+                    <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                    <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
                 `;
-            } else {
-                // Get adults and children values for display
-                const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                const children = parseInt(document.getElementById('children')?.value) || 0;
+                }
+            } else if (selectedServiceType === 'Shared') {
+                // For shared service: price is per person
+                totalPrice = displayPrice * totalGuests;
                 
-            pricingDescription = `
-                <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
-                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
-            `;
-            }
-        } else if (selectedServiceType === 'Shared') {
-            // For shared service: price is per person
-            totalPrice = displayPrice * totalGuests;
-            
-            if (isHourlyService) {
-                // Get adults and children values for display
-                const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                const children = parseInt(document.getElementById('children')?.value) || 0;
-                
+                if (isHourlyService) {
+                    // Get adults and children values for display
+                    const adults = parseInt(document.getElementById('adults')?.value) || 0;
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    
+                    pricingDescription = `
+                        <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                        <strong>Hourly Rate:</strong> $${sharableCostPerHour.toFixed(2)} per person per hour<br>
+                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                        <strong>Base Total:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                        <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
+                    `;
+                } else {
+                    // Get adults and children values for display
+                    const adults = parseInt(document.getElementById('adults')?.value) || 0;
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    
                 pricingDescription = `
                     <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
-                    <strong>Hourly Rate:</strong> $${sharableCostPerHour.toFixed(2)} per person per hour<br>
                     <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Base Total:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                    <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
+                    <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
                 `;
-            } else {
-                // Get adults and children values for display
-                const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                const children = parseInt(document.getElementById('children')?.value) || 0;
-                
-            pricingDescription = `
-                <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
-                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
-            `;
-        }
-        }
-        
-        priceDisplay.style.display = 'block';
-        priceDisplay.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                <div>
-                    <strong>${priceType} Service Pricing</strong>
-                    <div class="small">
-                        ${pricingDescription}
+            }
+            }
+            
+            priceDisplay.style.display = 'block';
+            priceDisplay.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                    <div>
+                        <strong>${priceType} Service Pricing</strong>
+                        <div class="small">
+                            ${pricingDescription}
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
-        
-        // Store pricing data in hidden fields
-        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-        const serviceTypeField = document.getElementById(`day${day}_${section}_service_type`);
-        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-        
-        if (basePriceField) basePriceField.value = displayPrice.toFixed(2);
-        if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
-        if (serviceTypeField) serviceTypeField.value = selectedServiceType;
-        if (guestCountField) guestCountField.value = totalGuests;
-        
-        console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
-        console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
-        console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
-        console.log(`- Service Type: ${selectedServiceType}`);
-        console.log(`- Guest Count: ${totalGuests}`);
-        
-    } else {
-        priceDisplay.style.display = 'none';
-        console.log('No pricing information available for the selected vehicle and service type');
-        
-        // Clear hidden fields when no pricing
-        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-        const serviceTypeField = document.getElementById(`day${day}_${section}_service_type`);
-        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-        
-        if (basePriceField) basePriceField.value = '0';
-        if (totalPriceField) totalPriceField.value = '0';
-        if (serviceTypeField) serviceTypeField.value = '';
-        if (guestCountField) guestCountField.value = '0';
+            `;
+            
+            console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+            
+            // Store pricing data in hidden fields
+            const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+            const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+            const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+            
+            if (basePriceField) basePriceField.value = displayPrice.toFixed(2);
+            if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
+            if (guestCountField) guestCountField.value = totalGuests;
+            
+            console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
+            console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
+            console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
+            console.log(`- Guest Count: ${totalGuests}`);
+            
+        } else {
+            priceDisplay.style.display = 'none';
+            console.log('No pricing information available for the selected vehicle and service type');
+            
+            // Clear hidden fields when no pricing
+            const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+            const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+            const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+            
+            if (basePriceField) basePriceField.value = '0';
+            if (totalPriceField) totalPriceField.value = '0';
+            if (guestCountField) guestCountField.value = '0';
+        }
     }
-}
 
 // Save service data to the backend
 window.saveService = function(day, type) {
@@ -14554,7 +14598,8 @@ window.saveService = function(day, type) {
                                  data-shared-price="${vehicle.shared_price || ''}"
                                  data-service-type="${vehicle.service_type || ''}"
                                  data-cost-per-hour="${vehicle.cost_per_hour || ''}"
-                                 data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}">
+                                 data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
+                                 data-sharable="${vehicle.sharable || ''}">
                                  ${vehicleInfo}
                                  data-seatingCapacity="${vehicle.seating_capacity || ''}"
                              </option>`;
@@ -14705,7 +14750,8 @@ window.saveService = function(day, type) {
                              data-shared-price="${vehicle.shared_price || ''}"
                              data-service-type="${vehicle.service_type || ''}"
                              data-mapping-id="${vehicle.mapping_id || ''}"
-                             data-seatingCapacity="${vehicle.seating_capacity || ''}">
+                             data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                             data-sharable="${vehicle.sharable || ''}">
                              ${vehicleInfo}
                          </option>`;
                      });
@@ -16564,16 +16610,20 @@ window.saveService = function(day, type) {
                     // Get city from the transport city select for this day
                     const transportCitySelect = document.getElementById(`day${day}_transport_city_1`);
                     const exitport_city = document.getElementById("modal_exit_city");
+                    const entryport_city = document.getElementById("modal_local_transfer_city");
 
                     const transportCity = transportCitySelect?.value?.trim() || "";
                     const exitportCity = exitport_city?.value?.trim() || "";
-                    if ((!transportCitySelect || !transportCity) && (!exitport_city || !exitportCity)) {
+                    const entryportCity = entryport_city?.value?.trim() || "";
+                    if ((!transportCitySelect || !transportCity) && (!exitport_city || !exitportCity ) && (!entryport_city || !entryportCity)) {
                         alert('Please select a city in the transport section first');
                         return;
                     }
                     let city = "";
                     if(section === 'exit'){
                         city = exitportCity;
+                    }else if(section === 'entry'){
+                        city = entryportCity;
                     }else{
                         city = transportCity;
                     }
@@ -16963,7 +17013,8 @@ function populateVehicleDropdown(day, section, vehicles) {
                 data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                 data-vehicle-name="${vehicle.vehicle_name || ''}"
                 data-vehicle-type="${vehicle.vehicle_type || ''}"
-                data-seatingCapacity="${vehicle.seating_capacity || ''}">
+                data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                data-sharable="${vehicle.sharable || ''}">
                 ${vehicleInfo}
             </option>`;
         });
@@ -16984,16 +17035,13 @@ function populateVehicleDropdown(day, section, vehicles) {
 // Function to validate passenger capacity against vehicle seating capacity
 function validatePassengerCapacity(day, section) {
     const passengerInput = document.getElementById(`day${day}_${section}_passengers`);
-    const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
-    console.log(passengerInput, vehicleSelect);
-    if (!passengerInput || !vehicleSelect || !vehicleSelect.value) {
-        return true; // Skip validation if elements not found or no vehicle selected
-    }
+    const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
+
     
     const passengerCount = parseInt(passengerInput.value) || 0;
     const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-    const vehicleCapacity = parseInt(selectedOption.dataset.seatingcapacity) || 0;
-    
+    const vehicleCapacity = parseInt(selectedOption.dataset.seatingCapacity) || 0;
+    console.log(passengerCount, vehicleCapacity);
     if (passengerCount > vehicleCapacity) {
         // Show error and reset to max capacity
         showNotification(`Passenger count (${passengerCount}) exceeds vehicle capacity (${vehicleCapacity} seats). Please select a larger vehicle or reduce passenger count.`, 'error');
