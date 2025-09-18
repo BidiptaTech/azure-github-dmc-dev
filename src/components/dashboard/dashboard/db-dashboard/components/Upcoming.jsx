@@ -230,6 +230,13 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
+  
+  // Debug logging
+  console.log("priceHideFromBookings:", priceHideFromBookings);
+  console.log("bookings.tour:", bookings?.tour);
   const [enquiryAmount, setEnquiryAmount] = useState(() => {
     // Initialize with current total price if data is available
     if (bookings && Object.keys(bookings).length > 0) {
@@ -267,6 +274,7 @@ export default function Pending() {
   const [modifiedPriceData, setModifiedPriceData] = useState(null);
   const [bookingType1, setBookingType1] = useState(null);
   const [displayId, setDisplayId] = useState(null);
+  const [pricehide, setPricehide] = useState(null);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
   // Add these state declarations at the top of the component where other state variables are defined
   const [enquiryHistory, setEnquiryHistory] = useState([]);
@@ -3075,6 +3083,7 @@ export default function Pending() {
           discountAmount={discountAmount}
           totalPrice={totalPrice}
           tourId={tourId}
+          pricehide={priceHideFromBookings}
         />
         {/* </Box> */}
       </div>

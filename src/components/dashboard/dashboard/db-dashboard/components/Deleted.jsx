@@ -214,6 +214,9 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
 
   const contentRef = useRef(null);
 
@@ -222,6 +225,7 @@ export default function Pending() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [bookingType1, setBookingType1] = useState(null);
   const [displayId, setDisplayId] = useState(null);
+  const [pricehide, setPricehide] = useState(null);
   const [modifiedPriceData, setModifiedPriceData] = useState(null);
   //const { currentStep } = useSelector((state) => state.steps);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
@@ -2359,6 +2363,7 @@ export default function Pending() {
         discountAmount={discountAmount}
         totalPrice={totalPrice}
         tourId={tourId}
+        pricehide={priceHideFromBookings}
       />
       {/* </Box> */}
     </>
