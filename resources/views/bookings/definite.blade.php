@@ -898,12 +898,12 @@
                                        style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
-                                    
-                                    <a href="{{ route('tour.editpackage', $tour->tour_id) }}" 
+                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11)
+                                    <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-warning btn-sm rounded-pill">
                                         <i class="ri-settings-3-line"></i> Edit Tour
                                     </a>
-                                    
+                                    @endif
                                     <button type="button" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 
                                             onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')">
