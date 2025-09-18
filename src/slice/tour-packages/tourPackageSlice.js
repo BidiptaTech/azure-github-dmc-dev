@@ -213,6 +213,34 @@ const tourPackageSlice = createSlice({
         console.log("New services count:", action.payload.length);
         console.log("New services:", action.payload);
     
+        // Check if this is a removal operation (fewer services than before)
+        const isRemovalOperation = action.payload.length < state.AllServices.length;
+        console.log("%c Is removal operation:", isRemovalOperation, "background: #e67e22; color: #ffffff; padding: 2px;");
+        
+        if (isRemovalOperation) {
+          // For removal operations, preserve search form data but replace other services
+          console.log("%c Removal operation - preserving search form data", "background: #e74c3c; color: #ffffff; padding: 2px;");
+          
+          // Preserve search form data from existing services
+          const preservedSearchFormData = [...state.AllServices].filter(service =>
+            'tour_id' in service &&
+            'country' in service &&
+            'city' in service &&
+            'check_in_time' in service &&
+            'check_out_time' in service &&
+            !service.type // optional: only preserve if no type
+          );
+          
+          console.log('Preserved search form data for removal:', preservedSearchFormData);
+          
+          // Set new state: preserved search form data + new services (removed services are excluded)
+          state.AllServices = [...preservedSearchFormData, ...action.payload];
+          console.log('Final AllServices state (removal):', state.AllServices);
+          console.log("%c Final AllServices state updated (removal)", "background: #2ecc71; color: #ffffff; padding: 2px;");
+          console.log("Final services count:", state.AllServices.length);
+          return;
+        }
+    
         // Preserve search form data from existing services
         const preservedSearchFormData = [...state.AllServices].filter(service =>
           'tour_id' in service &&
@@ -223,13 +251,13 @@ const tourPackageSlice = createSlice({
           !service.type // optional: only preserve if no type
         );
 
-        // Preserve existing services with id and type (that won't be updated)
-        const preservedExistingServices = [...state.AllServices].filter(service =>
-          'id' in service && 'type' in service
+        // Get all existing services with booking_id and type (excluding search form data)
+        const existingServices = [...state.AllServices].filter(service =>
+          'booking_id' in service && 'type' in service
         );
     
-        const newServices = [];
-        const updatedServices = [];
+        const finalServices = [];
+        const processedBookingIds = new Set();
     
         action.payload.forEach(newService => {
           // Skip CustomerInfo
@@ -266,33 +294,53 @@ const tourPackageSlice = createSlice({
           }
     
           // Normal service with id and type
-          if ('id' in newService && 'type' in newService) {
-            const existingServiceIndex = preservedExistingServices.findIndex(service =>
-              service.id === newService.id && service.type === newService.type
+          if ('booking_id' in newService && 'type' in newService) {
+            console.log(`%c Processing service: ${newService.type} with booking_id: ${newService.booking_id}`, "background: #2c3e50; color: #ffffff; padding: 2px;");
+            
+            // Mark this booking_id as processed
+            processedBookingIds.add(newService.booking_id);
+            
+            // Check if this service already exists
+            const existingServiceIndex = existingServices.findIndex(service =>
+              service.booking_id === newService.booking_id && service.type === newService.type
             );
     
             if (existingServiceIndex >= 0) {
               // Update existing service
-              preservedExistingServices[existingServiceIndex] = newService;
-              console.log("%c Updated existing service with id/type", "background: #3498db; color: #ffffff; padding: 2px;");
+              console.log(`%c UPDATING existing ${newService.type} service with booking_id: ${newService.booking_id}`, "background: #e74c3c; color: #ffffff; padding: 2px; font-weight: bold;");
+              finalServices.push(newService);
             } else {
               // Add new service
-              newServices.push(newService);
-              console.log("%c Standard service added from array", "background: #27ae60; color: #ffffff; padding: 2px;");
+              console.log(`%c ADDING new ${newService.type} service with booking_id: ${newService.booking_id}`, "background: #27ae60; color: #ffffff; padding: 2px; font-weight: bold;");
+              finalServices.push(newService);
             }
           } else {
             // Service without id/type, just add it
-            newServices.push(newService);
-            console.log("%c Service without id/type added", "background: #9b59b6; color: #ffffff; padding: 2px;");
+            console.log(`%c Adding service without booking_id/type: ${newService.type || 'unknown'}`, "background: #9b59b6; color: #ffffff; padding: 2px;");
+            finalServices.push(newService);
+          }
+        });
+        
+        // Add existing services that weren't processed (preserve them)
+        console.log(`%c Checking ${existingServices.length} existing services for preservation`, "background: #f39c12; color: #ffffff; padding: 2px; font-weight: bold;");
+        console.log("Processed booking IDs:", Array.from(processedBookingIds));
+        
+        existingServices.forEach(existingService => {
+          console.log(`%c Checking existing ${existingService.type} service with booking_id: ${existingService.booking_id}`, "background: #f39c12; color: #ffffff; padding: 2px;");
+          
+          if (!processedBookingIds.has(existingService.booking_id)) {
+            finalServices.push(existingService);
+            console.log(`%c PRESERVED existing ${existingService.type} service with booking_id: ${existingService.booking_id}`, "background: #f39c12; color: #ffffff; padding: 2px; font-weight: bold;");
+          } else {
+            console.log(`%c SKIPPED existing ${existingService.type} service with booking_id: ${existingService.booking_id} (already processed)`, "background: #e67e22; color: #ffffff; padding: 2px;");
           }
         });
         
         console.log('Preserved search form data:', preservedSearchFormData);
-        console.log('Preserved existing services:', preservedExistingServices);
-        console.log('New services added:', newServices);
+        console.log('Final services:', finalServices);
     
-        // Set new state: preserved search form data + preserved/updated existing services + new services
-        state.AllServices = [...preservedSearchFormData, ...preservedExistingServices, ...newServices];
+        // Set new state: preserved search form data + final services
+        state.AllServices = [...preservedSearchFormData, ...finalServices];
         console.log('Final AllServices state:', state.AllServices);
         console.log("%c Final AllServices state updated (array)", "background: #2ecc71; color: #ffffff; padding: 2px;");
         console.log("Final services count:", state.AllServices.length);
@@ -313,9 +361,9 @@ const tourPackageSlice = createSlice({
         let exists = false;
     
         // Check for standard service
-        if ('id' in newService && 'type' in newService) {
+        if ('booking_id' in newService && 'type' in newService) {
           exists = state.AllServices.some(service =>
-            service.id === newService.id && service.type === newService.type
+            service.booking_id === newService.booking_id && service.type === newService.type
           );
         }
         // Check for search form data

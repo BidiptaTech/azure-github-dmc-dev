@@ -420,63 +420,58 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     // Remove from Redux state if the section has restaurant data (either has an original ID or restaurant selection)
     const hasOriginalId = sectionToRemove?.originalData?.restaurantId;
     const hasRestaurantId = sectionToRemove?.restaurant;
+    console.log("Restaurant - Has original ID:", hasOriginalId);
+    console.log("Restaurant - Section to remove:", sectionToRemove);
     
     if (hasOriginalId || hasRestaurantId) {
       // Clone the existing services array
       const currentServices = [...existingServices];
+      console.log("Restaurant - Current services before removal:", currentServices);
       
-      // Filter out restaurant services that contain this booking
-      const filteredServices = currentServices.map(service => {
+      // Filter out the specific restaurant service
+      const filteredServices = currentServices.filter(service => {
         // Check if this is a restaurant service
         if (service.type === "restaurant") {
-          // Check if this service contains data that matches our booking
+          // For existing services with booking_id, match by booking_id
+          if (sectionToRemove.originalData?.booking_id && service.booking_id) {
+            const shouldRemove = service.booking_id === sectionToRemove.originalData.booking_id;
+            console.log(`Restaurant - Checking booking_id match: ${service.booking_id} === ${sectionToRemove.originalData.booking_id} = ${shouldRemove}`);
+            return !shouldRemove;
+          }
+          
+          // For new services without booking_id, match by restaurant data
           if (service.data && Array.isArray(service.data)) {
-            // Remove the specific booking with matching ID and booking_id (if available)
-            const filteredData = service.data.filter(dataItem => {
-              // Match by booking_id first (most reliable)
-              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
-                return !(dataItem.restaurantId === sectionToRemove.originalData.restaurantId && 
-                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+            const hasMatchingData = service.data.some(dataItem => {
+              // Match by restaurantId and bookingDate
+              if (sectionToRemove.restaurant && dataItem.restaurantId) {
+                const matchesRestaurant = dataItem.restaurantId === sectionToRemove.restaurant;
+                const matchesDate = dataItem.bookingDate === sectionToRemove.bookingDate;
+                console.log(`Restaurant - Checking data match: restaurantId ${dataItem.restaurantId} === ${sectionToRemove.restaurant} && bookingDate ${dataItem.bookingDate} === ${sectionToRemove.bookingDate} = ${matchesRestaurant && matchesDate}`);
+                return matchesRestaurant && matchesDate;
               }
-              
-              // Match by restaurant ID as fallback
-              if (sectionToRemove.originalData?.restaurantId && dataItem.restaurantId === sectionToRemove.originalData.restaurantId) {
-                return false;
-              }
-              
-              // Match by restaurant ID and booking date as final fallback for new bookings
-              if (sectionToRemove.restaurant && 
-                  dataItem.restaurantId === sectionToRemove.restaurant &&
-                  dataItem.bookingDate === sectionToRemove.bookingDate) {
-                return false;
-              }
-              
-              return true;
+              return false;
             });
             
-            if (filteredData.length === 0) {
-              // If no data left, mark for removal
-              return null;
-            } else {
-              // Create a new service with filtered data (immutable update)
-              return {
-                ...service,
-                data: filteredData
-              };
+            if (hasMatchingData) {
+              console.log("Restaurant - Found matching data, removing service");
+              return false; // Remove this service
             }
           }
         }
         
-        // Keep all other services as-is
-        return service;
-      }).filter(service => service !== null); // Remove services marked as null
+        // Keep all other services
+        return true;
+      });
+      
+      console.log("Restaurant - Filtered services after removal:", filteredServices);
       
       // Only dispatch if there's an actual change
-      if (filteredServices.length !== currentServices.length || 
-          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
-        console.log("Restaurant - Removing booking from Redux:", sectionToRemove);
-        console.log("Restaurant - Updated services:", filteredServices);
+      if (filteredServices.length !== currentServices.length) {
+        console.log("Restaurant - Removing restaurant service from Redux");
+        console.log(`Restaurant - Services count: ${currentServices.length} -> ${filteredServices.length}`);
         dispatch(setAllServices(filteredServices));
+      } else {
+        console.log("Restaurant - No matching service found to remove");
       }
     }
     
