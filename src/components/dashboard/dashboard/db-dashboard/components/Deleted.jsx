@@ -510,13 +510,13 @@ export default function Pending() {
     setIsModalVisible(true);
 
     // Store the current tour ID
-    setTId(tourId);
+    //setTId(tourId);
 
     // Log the booking data for debugging
     console.log("Fetching tour details for:", tourId);
 
     // Reset enquiry processed state when viewing a new tour
-    setEnquiryProcessed(false);
+    //setEnquiryProcessed(false);
 
     // Check if this tour has a status of 2 or 3
     const isProcessed = await checkEnquiryStatus(tourId);
@@ -2362,7 +2362,7 @@ export default function Pending() {
         markupAmount={markupAmount}
         discountAmount={discountAmount}
         totalPrice={totalPrice}
-        tourId={tourId}
+        //tourId={tourId}
         pricehide={priceHideFromBookings}
       />
       {/* </Box> */}
