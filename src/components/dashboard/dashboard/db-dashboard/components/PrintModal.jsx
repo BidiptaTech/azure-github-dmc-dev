@@ -102,6 +102,7 @@ import AutoStoriesIcon from "@mui/icons-material/AutoStories";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import DoneIcon from "@mui/icons-material/Done";
 import api, { endpoints } from "../../../../../services/api";
+import { useSelector } from "react-redux";
 
 // Helper function to format dates in "Month DD, YYYY" format
 const formatDate = (dateString) => {
@@ -172,7 +173,7 @@ const generateMainPdfBlob = async (element) => {
           "Invalid DOM element provided. Make sure contentRef.current is a valid HTML element."
         );
       }
-
+      
       // Add CSS class to improve PDF rendering - this forces sections to avoid page breaks
       const sections = element.querySelectorAll('.StyledCard');
       sections.forEach(section => {
@@ -482,6 +483,7 @@ const PrintModal = ({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ status: '', progress: 0 });
   const [pdfError, setPdfError] = useState(null);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
 
   // Update local state when props change
   useEffect(() => {
@@ -906,6 +908,7 @@ const PrintModal = ({
 
   // Extract the data we'll be displaying
   const displayData = getDataSafely();
+
 
   return (
     <Modal
@@ -1517,6 +1520,7 @@ const PrintModal = ({
                                   >
                                     Total Price
                                   </Typography>
+                                  {PriceHide === "0" && (
                                   <Typography
                                     variant="body1"
                                     sx={{
@@ -1526,6 +1530,8 @@ const PrintModal = ({
                                   >
                                     SGD {hotel.totalPrice || "N/A"}
                                   </Typography>
+                                  )}
+                                
                                 </Box>
                               </Grid>
                             </Grid>
@@ -2437,9 +2443,12 @@ const PrintModal = ({
                                               >
                                                 <strong>Price:</strong>
                                               </Typography>
+                                              {PriceHide === "0" && (
                                               <Typography variant="body1">
                                                 SGD {port.totalPrice || "N/A"}
                                               </Typography>
+                                              )}
+                                            
                                             </Box>
                                           </Box>
                                         </Grid>
@@ -2900,9 +2909,11 @@ const PrintModal = ({
                                               >
                                                 <strong>Price:</strong>
                                               </Typography>
+                                              {PriceHide === "0" && (
                                               <Typography variant="body1">
                                                 SGD {port.totalPrice || "N/A"}
                                               </Typography>
+                                              )}
                                             </Box>
                                           </Box>
                                         </Grid>
@@ -3182,12 +3193,14 @@ const PrintModal = ({
                                           >
                                             <strong>Total Price:</strong>
                                           </Typography>
+                                          {PriceHide === "0" && (
                                           <Typography
                                             variant="body1"
                                             sx={{ fontWeight: "medium" }}
                                           >
                                             SGD {attraction.totalPrice || "N/A"}
                                           </Typography>
+                                          )}
                                         </Box>
                                       </Box>
                                     </Grid>
@@ -3843,12 +3856,14 @@ const PrintModal = ({
                                         >
                                           <strong>Price:</strong>
                                         </Typography>
+                                        {PriceHide === "0" && (
                                         <Typography
                                           variant="body1"
                                           sx={{ fontWeight: "medium" }}
                                         >
                                           SGD {guide.totalPrice || "N/A"}
                                         </Typography>
+                                        )}
                                       </Box>
                                     </Box>
                                   </Grid>
@@ -4127,6 +4142,7 @@ const PrintModal = ({
                                           >
                                             <strong>Price:</strong>
                                           </Typography>
+                                          {PriceHide === "0" && (
                                           <Typography
                                             variant="body1"
                                             sx={{ fontWeight: "medium" }}
@@ -4136,6 +4152,7 @@ const PrintModal = ({
                                               restaurant.mealPrice ||
                                               "N/A"}
                                           </Typography>
+                                          )}
                                         </Box>
                                       </Box>
                                     </Grid>
@@ -4925,6 +4942,7 @@ const PrintModal = ({
                                         >
                                           Total Price
                                         </Typography>
+                                        {PriceHide === "0" && (
                                         <Typography
                                           variant="h6"
                                           sx={{
@@ -4934,6 +4952,7 @@ const PrintModal = ({
                                         >
                                           SGD {transfer.totalPrice || "N/A"}
                                         </Typography>
+                                        )}
                                       </Box>
                                     </Grid>
                                   </Grid>
@@ -5161,7 +5180,7 @@ const PrintModal = ({
                                 <strong>Discount:</strong>
                               </Typography>
                               <Typography color="error">
-                                -SGD {localDiscountAmount || discountAmount}
+                                SGD {localDiscountAmount || discountAmount}
                               </Typography>
                             </Box>
                           )}
