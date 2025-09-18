@@ -514,6 +514,7 @@ class SingleTourPackageController extends Controller
      */
     public function store(Request $request)
     {
+        try{
         $request->validate([
             'user_country' => 'required|string', // Country name
             'start_date' => 'required|date|after_or_equal:today',
@@ -529,18 +530,27 @@ class SingleTourPackageController extends Controller
             'package_description' => 'nullable|string',
             'is_premium' => 'nullable|boolean',
         ]);
+        }catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 422);
+        }
 
-        // Additional validation: male + female should equal adults
-        if (($request->male + $request->female) != $request->adults) {
-            return back()->withErrors(['adults' => 'Total male and female count must equal total adults.'])->withInput();
+
+        // Parse the dates
+        $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
+        $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
+        $today = Carbon::today();
+        if($today > $checkInTime){
+            dd('hello');
+            $error = 'Start date cannot be in the past';
+            return back()->withErrors(['start_date' => $error])->withInput();
         }
 
         try {
             
 
-            // Parse the dates
-            $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
-            $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
+            
 
             // Generate tour ID and save the tour
             $max_tour_id = Tour::max('tour_id') ?? 0;
