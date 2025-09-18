@@ -566,7 +566,7 @@ class PackageController extends Controller
         $start = $request->start ?? 0;
         $limit = $request->limit ?? 10;
         $type = $request->type ?? 'all';
-        $status = $request->status;
+        $status = 1;
         $currentDate = now()->toDateString();
         $booking = [];
         $booking_query = collect();
