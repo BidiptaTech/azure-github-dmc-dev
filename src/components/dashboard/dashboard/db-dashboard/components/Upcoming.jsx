@@ -230,6 +230,13 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
+  
+  // Debug logging
+  // console.log("priceHideFromBookings:", priceHideFromBookings);
+  // console.log("bookings.tour:", bookings?.tour);
   const [enquiryAmount, setEnquiryAmount] = useState(() => {
     // Initialize with current total price if data is available
     if (bookings && Object.keys(bookings).length > 0) {
@@ -267,6 +274,7 @@ export default function Pending() {
   const [modifiedPriceData, setModifiedPriceData] = useState(null);
   const [bookingType1, setBookingType1] = useState(null);
   const [displayId, setDisplayId] = useState(null);
+  const [pricehide, setPricehide] = useState(null);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
   // Add these state declarations at the top of the component where other state variables are defined
   const [enquiryHistory, setEnquiryHistory] = useState([]);
@@ -335,7 +343,7 @@ export default function Pending() {
 
       return false;
     } catch (error) {
-      console.error("Error checking enquiry status:", error);
+      //console.error("Error checking enquiry status:", error);
       return false;
     }
   };
@@ -359,7 +367,7 @@ export default function Pending() {
       dispatch(setTourType("ongoing"));
       dispatch(fetchLists({ reset: true, type: "ongoing" }));
       
-      console.log('Initial data fetch with type: ongoing');
+      //console.log('Initial data fetch with type: ongoing');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
@@ -372,11 +380,11 @@ export default function Pending() {
     const newLists = Array.isArray(upcomingTours) ? upcomingTours : [];
     setSortedLists(newLists);
     
-    console.log('Lists updated in Upcoming.jsx:', {
-      listsLength: newLists.length,
-      totalPages: Math.ceil(newLists.length / rowsPerPage),
-      currentPage: page + 1
-    });
+    // console.log('Lists updated in Upcoming.jsx:', {
+    //   listsLength: newLists.length,
+    //   totalPages: Math.ceil(newLists.length / rowsPerPage),
+    //   currentPage: page + 1
+    // });
   }, [upcomingTours, rowsPerPage, page]);
   
   // Auto-fetch more data when reaching the last page
@@ -389,13 +397,13 @@ export default function Pending() {
       if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
         const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
         
-        console.log('Auto-fetching more data in Upcoming:', {
-          currentPage: page + 1,
-          totalPages,
-          dataAvailable,
-          nextStart,
-          type: "ongoing"
-        });
+        // console.log('Auto-fetching more data in Upcoming:', {
+        //   currentPage: page + 1,
+        //   totalPages,
+        //   dataAvailable,
+        //   nextStart,
+        //   type: "ongoing"
+        // });
         
         // Make sure we're using the correct type
         const currentType = "ongoing"; // For Upcoming.jsx, we always use "ongoing"
@@ -441,7 +449,7 @@ export default function Pending() {
     [tourId] // Recalculate only when tourId changes
   );
 
-  const handleSort = () => {
+  const handleSort = () => {  
     const sortedData = [...sortedLists].sort((a, b) => {
       const numA = parseInt(a.display_id.match(/\d+$/)[0], 10);
       const numB = parseInt(b.display_id.match(/\d+$/)[0], 10);
@@ -456,7 +464,7 @@ export default function Pending() {
   // New function to handle enquiry directly from the list
   const handleDirectEnquiry = async (list) => {
     try {
-      console.log("Direct enquiry started for tour:", list.id);
+      //console.log("Direct enquiry started for tour:", list.id);
 
       // Set necessary state variables
       setBookingType1(list.booking_type);
@@ -550,10 +558,10 @@ export default function Pending() {
       }
 
       // Finally, open the enquiry modal
-      console.log("Opening enquiry modal directly");
+    //  console.log("Opening enquiry modal directly");
       setIsEnquiryModalVisible(true);
     } catch (error) {
-      console.error("Error preparing enquiry:", error);
+      //console.error("Error preparing enquiry:", error);
       setSnackbarMessage("Could not prepare the enquiry. Please try again.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -684,7 +692,7 @@ export default function Pending() {
     dispatch(fetchEditid())
       .unwrap()
       .then((response) => {
-        console.log("Full Response Data:", response);
+        //console.log("Full Response Data:", response);
 
         // Extract data from the nested structure
         const data = response.data;
@@ -694,7 +702,7 @@ export default function Pending() {
         // Handle customer info if it exists
         // FIX: Check if customerInfo is an object (not an array)
         if (data.customerInfo && typeof data.customerInfo === "object") {
-          console.log("Processing customer info:", data.customerInfo);
+          //console.log("Processing customer info:", data.customerInfo);
 
           // Directly use the customerInfo object
           dispatch(
@@ -721,23 +729,23 @@ export default function Pending() {
         const destination = data.destination;
 
         if (!id || !destination) {
-          console.error("Tour ID or destination not found in response.");
+          //console.error("Tour ID or destination not found in response.");
           throw new Error("Invalid response data.");
         }
 
-        console.log("date service", data.service?.date_service);
+        //console.log("date service", data.service?.date_service);
         if (data.service?.date_service) {
           dispatch(setDateService(data.service.date_service));
         }
 
-        console.log("Step:", data.step);
+        //console.log("Step:", data.step);
         if (data.step) {
           dispatch(updateStepStatus({ key: data.step, status: 2 }));
           dispatch(setType(null));
 
           const matchedStep = steps.find((step) => step.key === data.step);
           if (matchedStep) {
-            console.log("Navigating to:", matchedStep.path);
+            //console.log("Navigating to:", matchedStep.path);
             navigate(matchedStep.path, { state: { tourDetails: data } });
             dispatch(statusUpdate()).unwrap();
           } else {
@@ -745,12 +753,12 @@ export default function Pending() {
           }
         }
 
-        console.log(
-          "CheckInTime:",
-          data.CheckInTime,
-          "CheckOutTime:",
-          data.CheckOutTime
-        );
+        // console.log(
+        //   "CheckInTime:",
+        //   data.CheckInTime,
+        //   "CheckOutTime:",
+        //   data.CheckOutTime
+        // );
         if (data.CheckInTime && data.CheckOutTime) {
           dispatch(setCheckIn(formatDate1(data.CheckInTime)));
           dispatch(setCheckOut(formatDate1(data.CheckOutTime)));
@@ -761,19 +769,19 @@ export default function Pending() {
         dispatch(setTourId(id));
 
         if (destination) {
-          console.log("Destination (Raw):", destination);
+          //console.log("Destination (Raw):", destination);
 
           const destinationArray = Array.isArray(destination)
             ? destination
             : destination.split(",").map((code) => code.trim());
 
-          console.log("Formatted destination array:", destinationArray);
+          //console.log("Formatted destination array:", destinationArray);
 
           const countryCodeArray = destinationArray
             .map((name) => reverseCountryMap[name])
             .filter(Boolean);
 
-          console.log("Country code array:", countryCodeArray);
+          //console.log("Country code array:", countryCodeArray);
 
           dispatch(setSearchLocation(countryCodeArray));
 
@@ -797,14 +805,14 @@ export default function Pending() {
           console.warn("Destination is missing");
         }
 
-        console.log("Setting tour details:", {
-          ...data,
-          country: destination,
-          service_details: {
-            ...data.service,
-            country: destination,
-          },
-        });
+        //   console.log("Setting tour details:", {
+        //   ...data,
+        //   country: destination,
+        //   service_details: {
+        //     ...data.service,
+        //     country: destination,
+        //   },
+        // });
 
         dispatch(
           settourdetails({
@@ -822,7 +830,7 @@ export default function Pending() {
         setOpenSnackbar(true);
       })
       .catch((error) => {
-        console.error("Error fetching booking:", error);
+        //console.error("Error fetching booking:", error);
         setSnackbarMessage(
           error?.message || "Something went wrong. Please try again."
         );
@@ -844,7 +852,7 @@ export default function Pending() {
     setTId(tourId);
 
     // Log the booking data for debugging
-    console.log("Fetching tour details for:", tourId);
+    //console.log("Fetching tour details for:", tourId);
 
     // Reset enquiry processed state when viewing a new tour
     setEnquiryProcessed(false);
@@ -854,15 +862,15 @@ export default function Pending() {
     setEnquiryStatusProcessed(isProcessed);
     // Add a timeout to log bookings data after it's loaded
     setTimeout(() => {
-      console.log("BOOKINGS DATA:", bookings);
+      //console.log("BOOKINGS DATA:", bookings);
     }, 2000);
   };
 
   const handleDelete = async (tourId) => {
-    console.log("Received tourId:", tourId); // ✅ Should print actual ID
+    //console.log("Received tourId:", tourId); // ✅ Should print actual ID
 
     if (!tourId) {
-      console.error("❌ tourId is missing!");
+      //console.error("❌ tourId is missing!");
       return;
     }
 
@@ -878,7 +886,7 @@ export default function Pending() {
         await dispatch(deleteTour(tourId)).unwrap(); // Pass tourId here ✅
         swal("Deleted!", "Your tour has been deleted!", "success");
       } catch (err) {
-        console.error("❌ Error deleting tour:", err);
+        //console.error("❌ Error deleting tour:", err);
         swal("Error!", "Failed to delete the tour.", "error");
       }
     } else {
@@ -1462,7 +1470,7 @@ export default function Pending() {
 
   const handleOpenEnquiryModal = async () => {
     // Add debug logging
-    console.log("handleOpenEnquiryModal called with tourId:", tourId);
+    //    console.log("handleOpenEnquiryModal called with tourId:", tourId);
 
     // Calculate total original price to set as default enquiry amount
     let totalOriginalPrice = 0;
@@ -1498,8 +1506,8 @@ export default function Pending() {
     setEnquiryAmount(Math.ceil(totalOriginalPrice));
 
     // Log current state for debugging
-    console.log("Current tourId state:", tourId);
-    console.log("Current bookings data:", bookings);
+    //console.log("Current tourId state:", tourId);
+    //console.log("Current bookings data:", bookings);
 
     // Fetch enquiry history data
     try {
@@ -1529,10 +1537,10 @@ export default function Pending() {
         }
       }
 
-      console.log("Using tour_id for enquiry:", currentTourId);
+      //console.log("Using tour_id for enquiry:", currentTourId);
 
       if (!currentTourId) {
-        console.error("No tour_id available for fetching enquiry history");
+        //console.error("No tour_id available for fetching enquiry history");
         setEnquiryHistory([]);
         setLoadingEnquiryHistory(false);
         return;
@@ -1549,7 +1557,7 @@ export default function Pending() {
         },
       });
 
-      console.log("Enquiry history response:", response.data);
+      //console.log("Enquiry history response:", response.data);
 
       if (response.data && response.data.data) {
         // For single object response, convert to array
@@ -1558,7 +1566,7 @@ export default function Pending() {
           : [response.data.data];
         setEnquiryHistory(historyData);
         setEnquiryAmount(historyData[0].current_price);
-        console.log("History data:", historyData[0].current_price);
+        //console.log("History data:", historyData[0].current_price);
 
         // Check if there's an entry with status 2 (Booked) or 3 (Cancel)
         const hasStatusBookedOrCancel = historyData.some(
@@ -1569,7 +1577,7 @@ export default function Pending() {
             item.status === 3
         );
 
-        console.log("Has status booked or cancel?", hasStatusBookedOrCancel);
+        //console.log("Has status booked or cancel?", hasStatusBookedOrCancel);
 
         // If the status is 2 or 3, close the modal and don't show it
         if (hasStatusBookedOrCancel) {
@@ -1584,13 +1592,13 @@ export default function Pending() {
         const isAssignedToAgent = historyData.some(
           (item) => item.assigned && item.assigned === "Agent"
         );
-        console.log("Enquiry history data:", historyData);
+        //console.log("Enquiry history data:", historyData);
         console.log("Is assigned to agent?", isAssignedToAgent);
 
         // Check if any entry has assigned as "OM" or other value
         const assignedValue =
           historyData.length > 0 ? historyData[0].assigned : "none";
-        console.log("Assigned value found:", assignedValue);
+        //console.log("Assigned value found:", assignedValue);
         console.log("Is assigned OM?", assignedValue === "OM");
 
         // Set assigned state based on what we found
@@ -1598,7 +1606,7 @@ export default function Pending() {
           assignedValue === "OM" ||
           (assignedValue && assignedValue !== "Agent")
         ) {
-          console.log("Setting assigned to a non-Agent value:", assignedValue);
+          //console.log("Setting assigned to a non-Agent value:", assignedValue);
           setAssigned(assignedValue);
         } else {
           setAssigned(isAssignedToAgent ? "Agent" : null);
@@ -1612,7 +1620,7 @@ export default function Pending() {
         setIsEnquiryModalVisible(true);
       }
     } catch (error) {
-      console.error("Error fetching enquiry history:", error);
+      //console.error("Error fetching enquiry history:", error);
       setEnquiryHistory([]);
       setIsEnquiryModalVisible(true);
     } finally {
@@ -1737,7 +1745,7 @@ export default function Pending() {
         type: type, // Dynamic type based on action
       };
 
-      console.log(`Submitting ${type} with data:`, requestData);
+      //console.log(`Submitting ${type} with data:`, requestData);
 
       // Make API call to the new endpoint, explicitly sending data in the request body
       const response = await axios({
@@ -1785,7 +1793,7 @@ export default function Pending() {
         setOpenSnackbar(true);
       }
     } catch (error) {
-      console.error(`Error during ${type} operation:`, error);
+      //    console.error(`Error during ${type} operation:`, error);
       setSnackbarMessage("Something went wrong. Please try again later.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -3073,6 +3081,9 @@ export default function Pending() {
           modifiedPriceData={modifiedPriceData}
           markupAmount={markupAmount}
           discountAmount={discountAmount}
+          totalPrice={totalPrice}
+          tourId={tourId}
+          pricehide={priceHideFromBookings}
         />
         {/* </Box> */}
       </div>

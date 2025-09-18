@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import PersonIcon from '@mui/icons-material/Person';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import BabyChangingStationIcon from '@mui/icons-material/BabyChangingStation';
+import * as commonActions from "../../../slice/common/commonSlice";
 
 const counters = [
   { name: "Adults", defaultValue: 1 },
@@ -298,14 +300,17 @@ const Counter = ({
 };
 
 const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
+  const dispatch = useDispatch();
+  const reduxGuestCounts = useSelector(commonActions.selectGuestCounts);
+  
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [guestCounts, setGuestCounts] = useState({
-    Adults: propGuestCounts?.Adults || 1,
-    Children: propGuestCounts?.Children || 0,
-    Infants: propGuestCounts?.Infants || 0,
-    maleCount: propGuestCounts?.maleCount || 0,
-    femaleCount: propGuestCounts?.femaleCount || 0,
-    ages: propGuestCounts?.ages || []
+    Adults: propGuestCounts?.Adults || reduxGuestCounts?.Adults || 1,
+    Children: propGuestCounts?.Children || reduxGuestCounts?.Children || 0,
+    Infants: propGuestCounts?.Infants || reduxGuestCounts?.Infants || 0,
+    maleCount: propGuestCounts?.maleCount || reduxGuestCounts?.maleCount || 0,
+    femaleCount: propGuestCounts?.femaleCount || reduxGuestCounts?.femaleCount || 0,
+    ages: propGuestCounts?.ages || reduxGuestCounts?.ages || []
   });
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -323,6 +328,18 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
       });
     }
   }, [propGuestCounts]);
+
+  // Sync with Redux state changes
+  useEffect(() => {
+    if (reduxGuestCounts) {
+      setGuestCounts(reduxGuestCounts);
+      
+      // Notify parent component of the change
+      if (onGuestChange) {
+        onGuestChange(reduxGuestCounts);
+      }
+    }
+  }, [reduxGuestCounts, onGuestChange]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -368,6 +385,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -387,7 +407,7 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
         // Female is always the remainder to make exactly totalAdults
         newFemaleCount = totalAdults - newMaleCount;
       } else {
-        // Set the new female count
+       
         newFemaleCount = Math.min(Math.max(0, count), totalAdults);
         // Male is always the remainder to make exactly totalAdults
         newMaleCount = totalAdults - newFemaleCount;
@@ -410,6 +430,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -426,6 +449,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
     };
 
     setGuestCounts(updatedGuestCounts);
+    
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
     
     // Call the onGuestChange prop function
     if (onGuestChange) {

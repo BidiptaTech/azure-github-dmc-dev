@@ -243,7 +243,7 @@ const formatDate1 = (dateString) => {
   const formattedDay = String(day).padStart(2, "0");
   const formattedMonth = String(month).padStart(2, "0");
   const formattedYear = String(year);
-  console.log("formattedDay", formattedDay);
+  //console.log("formattedDay", formattedDay);
   // Return the formatted date in the same format
   return `${formattedDay}/${formattedMonth}/${formattedYear}`;
 };
@@ -271,12 +271,15 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
   const { pendingTours = [], status, start, limit } = useSelector((state) => state.lists);
 
   // Get user_country from auth slice
   const user_country = useSelector((state) => {
     const countryData = state.auth.user_country;
-    console.log("Raw user_country data:", countryData);
+    //console.log("Raw user_country data:", countryData);
 
     // If it's already an array, return it
     if (Array.isArray(countryData)) {
@@ -304,7 +307,7 @@ export default function Pending() {
     return [];
   });
 
-  console.log("Processed user_country:", user_country);
+  //console.log("Processed user_country:", user_country);
 
   // Create bidirectional mapping for country names and codes
   const countryMappings = useMemo(() => {
@@ -323,7 +326,7 @@ export default function Pending() {
         }
       });
     }
-    console.log("Created country mappings:", { nameToCode, codeToName });
+    //console.log("Created country mappings:", { nameToCode, codeToName });
     return { nameToCode, codeToName };
   }, [user_country]);
 
@@ -451,7 +454,7 @@ export default function Pending() {
 
       return false;
     } catch (error) {
-      console.error("Error checking enquiry status:", error);
+      //console.error("Error checking enquiry status:", error);
       return false;
     }
   };
@@ -463,7 +466,7 @@ export default function Pending() {
       dispatch(setTourType("upcoming"));
       dispatch(fetchLists({ reset: true, type: "upcoming" }));
       
-      console.log('Initial data fetch with type: upcoming');
+      //console.log('Initial data fetch with type: upcoming');
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
 
@@ -476,11 +479,11 @@ export default function Pending() {
     const newLists = Array.isArray(pendingTours) ? pendingTours : [];
     setSortedLists(newLists);
     
-    console.log('Lists updated in Pending.jsx:', {
-      listsLength: newLists.length,
-      totalPages: Math.ceil(newLists.length / rowsPerPage),
-      currentPage: page + 1
-    });
+    // console.log('Lists updated in Pending.jsx:', {
+    //   listsLength: newLists.length,
+    //   totalPages: Math.ceil(newLists.length / rowsPerPage),
+    //   currentPage: page + 1
+    // });
   }, [pendingTours, rowsPerPage, page]);
   
   // Auto-fetch more data when reaching the last page
@@ -493,13 +496,13 @@ export default function Pending() {
       if (page + 1 === totalPages || currentPageEnd >= dataAvailable - rowsPerPage) {
         const nextStart = Math.ceil(dataAvailable / 30) * 30; // Align to the next 30-item chunk
         
-        console.log('Auto-fetching more data in Pending:', {
-          currentPage: page + 1,
-          totalPages,
-          dataAvailable,
-          nextStart,
-          type: "upcoming"
-        });
+        // console.log('Auto-fetching more data in Pending:', {
+        //   currentPage: page + 1,
+        //   totalPages,
+        //   dataAvailable,
+        //   nextStart,
+        //   type: "upcoming"
+        // });
         
         // Make sure we're using the correct type
         const currentType = "upcoming"; // For Pending.jsx, we always use "upcoming"
@@ -694,7 +697,7 @@ export default function Pending() {
     dispatch(fetchEditid())
       .unwrap()
       .then((response) => {
-        console.log("Full Response Data:", response);
+        //console.log("Full Response Data:", response);
 
         // Extract data from the nested structure
         const data = response.data;
@@ -703,7 +706,7 @@ export default function Pending() {
 
         // Handle customer info if it exists
         if (data.customerInfo && typeof data.customerInfo === "object") {
-          console.log("Processing customer info:", data.customerInfo);
+          //console.log("Processing customer info:", data.customerInfo);
 
           // Directly use the customerInfo object
           dispatch(
@@ -719,10 +722,10 @@ export default function Pending() {
             })
           );
         } else {
-          console.warn(
-            "Customer info not found or has incorrect format:",
-            data.customerInfo
-          );
+          // console.warn(
+          //   "Customer info not found or has incorrect format:",
+          //   data.customerInfo
+          // );
         }
 
         const id = data.tour_id;
@@ -730,41 +733,41 @@ export default function Pending() {
         const destination = data.destination;
 
         if (!id || !destination) {
-          console.error("Tour ID or destination not found in response.");
+          //console.error("Tour ID or destination not found in response.");
           throw new Error("Invalid response data.");
         }
 
-        console.log("date service", data.service?.date_service);
+        //console.log("date service", data.service?.date_service);
         if (data.service?.date_service) {
           dispatch(setDateService(data.service.date_service));
         }
 
-        console.log("Step:", data.step);
+        //console.log("Step:", data.step);
         if (data.step) {
           dispatch(updateStepStatus({ key: data.step, status: 2 }));
           dispatch(setType(null));
 
           const matchedStep = steps.find((step) => step.key === data.step);
           if (matchedStep) {
-            console.log("Navigating to:", matchedStep.path);
+            //console.log("Navigating to:", matchedStep.path);
             navigate(matchedStep.path, { state: { tourDetails: data } });
             dispatch(statusUpdate()).unwrap();
           } else {
-            console.warn(`No step found for key: ${data.step}`);
+            //console.warn(`No step found for key: ${data.step}`);
           }
         }
 
         dispatch(setTourId(id));
 
         if (destination) {
-          console.log("Destination (Raw):", destination);
+          //console.log("Destination (Raw):", destination);
 
           // Convert destination names to country codes using the mapping
           const destinationArray = Array.isArray(destination)
             ? destination
             : destination.split(",").map((name) => name.trim());
 
-          console.log("Formatted destination array:", destinationArray);
+          //console.log("Formatted destination array:", destinationArray);
 
           // Map destinations to country codes for search
           const countryCodeArray = destinationArray
@@ -780,12 +783,12 @@ export default function Pending() {
                 }
               }
 
-              console.log(`Mapping ${item} to code:`, code);
+              //console.log(`Mapping ${item} to code:`, code);
               return code;
             })
             .filter(Boolean);
 
-          console.log("Country code array:", countryCodeArray);
+          //console.log("Country code array:", countryCodeArray);
 
           // Use country codes for search
           dispatch(setSearchLocation(countryCodeArray));
@@ -818,17 +821,17 @@ export default function Pending() {
 
           dispatch(resetHotels());
         } else {
-          console.warn("Destination is missing");
+          //console.warn("Destination is missing");
         }
 
-        console.log("Setting tour details:", {
-          ...data,
-          country: destination,
-          service_details: {
-            ...data.service,
-            country: destination,
-          },
-        });
+        // console.log("Setting tour details:", {
+        //   ...data,
+        //   country: destination,
+        //   service_details: {
+        //     ...data.service,
+        //     country: destination,
+        //   },
+        // });
 
         dispatch(
           settourdetails({
@@ -846,7 +849,7 @@ export default function Pending() {
         setOpenSnackbar(true);
       })
       .catch((error) => {
-        console.error("Error fetching booking:", error);
+        //console.error("Error fetching booking:", error);
         setSnackbarMessage(
           error?.message || "Something went wrong. Please try again."
         );
@@ -871,11 +874,11 @@ export default function Pending() {
         dispatch(setSelectedDmcId({ dmcId: response.dmc_id , dmcData: {originalData: {price_hide: response.price_hide, zone_on: response.zone_on}}}));
         dispatch(resetPackages());
         navigate("/dashboard/tour-packages");
-        console.log("Full Response Data:", response);
+        //console.log("Full Response Data:", response);
         
       })
       .catch((error) => {
-        console.error("Error fetching booking:", error);
+        //console.error("Error fetching booking:", error);
       });
   };
 
@@ -886,8 +889,8 @@ export default function Pending() {
     display_id,
   }) => {
     // Fetch tour details
-    console.log("booking_type", booking_type);
-    console.log("display_id", display_id);
+    //console.log("booking_type", booking_type);
+    //console.log("display_id", display_id);
     setBookingType1(booking_type);
     setDisplayId(display_id);
 
@@ -919,7 +922,7 @@ export default function Pending() {
     setTId(tourId);
 
     // Log the booking data for debugging
-    console.log("Fetching tour details for:", tourId);
+    //console.log("Fetching tour details for:", tourId);
 
     // Reset enquiry processed state when viewing a new tour
     setEnquiryProcessed(false);
@@ -930,7 +933,7 @@ export default function Pending() {
 
     // Add a timeout to log bookings data after it's loaded
     setTimeout(() => {
-      console.log("BOOKINGS DATA:", bookings);
+      //console.log("BOOKINGS DATA:", bookings);
 
       // If we have valid bookings data and no modifiedPriceData yet, update prices
       if (
@@ -938,17 +941,17 @@ export default function Pending() {
         Object.keys(bookings).length > 0 &&
         (!modifiedPriceData || !isForSameTour)
       ) {
-        console.log("Initializing modifiedPriceData from bookings");
+        //console.log("Initializing modifiedPriceData from bookings");
         updatePrices(markupAmount, discountAmount);
       }
     }, 1000);
   };
 
   const handleDelete = async (tourId) => {
-    console.log("Received tourId:", tourId); // ✅ Should print actual ID
+    //console.log("Received tourId:", tourId); // ✅ Should print actual ID
 
     if (!tourId) {
-      console.error("❌ tourId is missing!");
+      //console.error("❌ tourId is missing!");
       return;
     }
 
@@ -964,7 +967,7 @@ export default function Pending() {
         await dispatch(deleteTour(tourId)).unwrap(); // Pass tourId here ✅
         swal("Deleted!", "Your tour has been deleted!", "success");
       } catch (err) {
-        console.error("❌ Error deleting tour:", err);
+        //console.error("❌ Error deleting tour:", err);
         swal("Error!", "Failed to delete the tour.", "error");
       }
     } else {
@@ -982,10 +985,10 @@ export default function Pending() {
     if (bookings && Object.keys(bookings).length > 0) {
       // Make sure modifiedPriceData is updated with current markup/discount
       updatePrices(markupAmount, discountAmount);
-      console.log(
-        "Updated modifiedPriceData before showing PrintModal:",
-        modifiedPriceData
-      );
+      // console.log(
+      //   "Updated modifiedPriceData before showing PrintModal:",
+      //   modifiedPriceData
+      // );
     }
 
     // Show the modal
@@ -1357,7 +1360,7 @@ export default function Pending() {
       modifiedData.tour_id = tourId;
     }
 
-    console.log("Setting modifiedPriceData:", modifiedData);
+   // console.log("Setting modifiedPriceData:", modifiedData);
 
     // Update the state with modified data
     setModifiedPriceData(modifiedData);
@@ -1709,7 +1712,7 @@ export default function Pending() {
         setIsEnquiryModalVisible(true);
       }
     } catch (error) {
-      console.error("Error fetching enquiry history:", error);
+      //console.error("Error fetching enquiry history:", error);
       setEnquiryHistory([]);
       setSnackbarMessage("Error fetching enquiry history");
       setSnackbarSeverity("error");
@@ -1838,7 +1841,7 @@ export default function Pending() {
         type: type, // Dynamic type based on action
       };
 
-      console.log(`Submitting ${type} with data:`, requestData);
+      //console.log(`Submitting ${type} with data:`, requestData);
 
       // Make API call to the new endpoint, explicitly sending data in the request body
       const response = await axios({
@@ -1886,7 +1889,7 @@ export default function Pending() {
         setOpenSnackbar(true);
       }
     } catch (error) {
-      console.error(`Error during ${type} operation:`, error);
+      //console.error(`Error during ${type} operation:`, error);
       setSnackbarMessage("Something went wrong. Please try again later.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -1963,10 +1966,12 @@ export default function Pending() {
     }
   }, [bookings]);
 
+  
+
   // New function to handle enquiry directly from the list
   const handleDirectEnquiry = async (list) => {
     try {
-      console.log("Direct enquiry started for tour:", list.id);
+      //console.log("Direct enquiry started for tour:", list.id);
 
       // Set necessary state variables
       setBookingType1(list.booking_type);
@@ -2060,10 +2065,10 @@ export default function Pending() {
       }
 
       // Finally, open the enquiry modal
-      console.log("Opening enquiry modal directly");
+      //console.log("Opening enquiry modal directly");
       setIsEnquiryModalVisible(true);
     } catch (error) {
-      console.error("Error preparing enquiry:", error);
+     // console.error("Error preparing enquiry:", error);
       setSnackbarMessage("Could not prepare the enquiry. Please try again.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -3457,6 +3462,7 @@ export default function Pending() {
         discountAmount={discountAmount}
         totalPrice={totalPrice}
         tourId={tourId}
+        pricehide={priceHideFromBookings}
       />
 
       {/* Action Menu */}

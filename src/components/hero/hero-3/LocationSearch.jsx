@@ -191,7 +191,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
               onKeyDown={handleKeyDown}
               readOnly={false}
             />
-            {selectedItem && (
+            {/* {selectedItem && (
               <button 
                 className="position-absolute end-0 top-50 translate-middle-y pe-3 border-0 bg-transparent cursor-pointer" 
                 onClick={handleClearSelection}
@@ -199,7 +199,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
               >
                 <i className="icon-close text-10" />
               </button>
-            )}
+            )} */}
           </div>
         </div>
       </div>
