@@ -355,6 +355,41 @@ const dmcSlice = createSlice({
         state.dmcs = action.payload;
         state.error = null;
         state.lastFetchedCountries = state.selectedCountries;
+        
+        // Check if there's only 1 DMC available and auto-select it
+        const dmcData = action.payload;
+        if (dmcData && dmcData.data && dmcData.data.length === 1) {
+          const singleDMC = dmcData.data[0];
+          
+          // Auto-select the single DMC
+          state.dmcId = singleDMC.userId;
+          // Get the country from selected countries or from the DMC data
+          const selectedCountry = state.selectedCountries && state.selectedCountries.length > 0 
+            ? state.selectedCountries[0].name 
+            : (singleDMC.country || 'Unknown Location');
+          
+          state.selectedDmcData = {
+            id: `dmc-auto-${singleDMC.userId}`,
+            dmcId: singleDMC.userId,
+            name: singleDMC.company_name || singleDMC.name || `DMC ${singleDMC.userId}`,
+            location: selectedCountry,
+            logo: singleDMC.logo || '',
+            description: 'Automatically selected DMC',
+            originalData: singleDMC
+          };
+          state.selectedDmcLogo = singleDMC.logo || null;
+          state.selectedDmcCompanyName = singleDMC.company_name || null;
+          
+          // Store in localStorage for persistence
+          try {
+            localStorage.setItem('selectedDmcId', singleDMC.userId.toString());
+            localStorage.setItem('selectedDmcData', JSON.stringify(state.selectedDmcData));
+            localStorage.setItem('selectedDmcLogo', singleDMC.logo || '');
+            localStorage.setItem('selectedDmcCompanyName', singleDMC.company_name || '');
+          } catch (error) {
+            // Error handling silently
+          }
+        }
       })
       // Fetch DMCs by country - rejected
       .addCase(fetchDMCsByCountry.rejected, (state, action) => {
@@ -378,11 +413,16 @@ const dmcSlice = createSlice({
           state.dmcId = action.payload.dmc_id;
           state.selectedDmcLogo = action.payload.dmc_logo || null;
           state.selectedDmcCompanyName = action.payload.dmc_company_name || null;
+          // Get the country from selected countries or use a default
+          const selectedCountry = state.selectedCountries && state.selectedCountries.length > 0 
+            ? state.selectedCountries[0].name 
+            : (action.payload.dmc_country || 'Unknown Location');
+          
           state.selectedDmcData = {
             id: `dmc-auto-${action.payload.dmc_id}`,
             dmcId: action.payload.dmc_id,
             name: action.payload.dmc_company_name || action.payload.dmc_name || `DMC ${action.payload.dmc_id}`,
-            location: 'Auto-selected',
+            location: selectedCountry,
             logo: action.payload.dmc_logo || '',
             rating: 4.5,
             description: 'Automatically selected DMC',
@@ -390,7 +430,8 @@ const dmcSlice = createSlice({
               dmcId: action.payload.dmc_id,
               logo: action.payload.dmc_logo,
               company_name: action.payload.dmc_company_name,
-              dmc_name: action.payload.dmc_name
+              dmc_name: action.payload.dmc_name,
+              country: selectedCountry
             }
           };
           

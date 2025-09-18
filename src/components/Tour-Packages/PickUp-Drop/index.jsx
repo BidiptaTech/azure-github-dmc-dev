@@ -183,7 +183,7 @@ export default function PickupDropComponent({portType, setPortType, portType1, s
         </Box>
       ) : null}
       
-      {/* Show second vehicle dropdown for Exit Port */}
+      {/* Show first vehicle dropdown for Exit Port */}
       {showExitPort && ((hasVehicles1) || (exitPorts && exitPorts.length > 0)) ? (
         <Box sx={{ mt: 1 }}>
           <VehicleListDropdown1

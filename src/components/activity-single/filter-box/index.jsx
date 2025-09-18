@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import GuestSearch from "./GuestSearch";
 import { Link, Navigate } from "react-router-dom";
 import HourPackage from "./HourlyPackage";
@@ -95,16 +95,16 @@ const Index = () => {
   const [isNight, setIsNight] = useState(false);
 
   // Function to update hour and price from HourPackage
-  const handleHourChange = (selectedHour, price) => {
+  const handleHourChange = useCallback((selectedHour, price) => {
     sethours(selectedHour);
     setHourlyPrice(price);
     // setMappedData((prevData) => ({
     //   ...prevData,
     //   hour: { label: selectedHour, price: price },
     // }));
-  };
+  }, []);
 
-  const handleGuestChange = (updatedAdults, updatedChildren) => {
+  const handleGuestChange = useCallback((updatedAdults, updatedChildren) => {
     setAdults(updatedAdults);
     setChildren(updatedChildren);
     // setMappedData((prevData) => ({
@@ -112,7 +112,7 @@ const Index = () => {
     //   adultsMax: updatedAdults,
     //   childrenMax: updatedChildren,
     // }));
-  };
+  }, []);
 
   const calculateTotalBill = () => {
     if (!entryytime || !hour || !guide)

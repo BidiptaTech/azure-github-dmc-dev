@@ -60,25 +60,9 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
   const totalAdultPrice = adultPrice * adultCount;
   const totalChildPrice = childPrice * childCount;
   const totalPrice = totalAdultPrice + totalChildPrice;
-  
-  // Debug logging for pricing calculation
-  console.log('Package Pricing Calculation:', {
-    adultPrice,
-    childPrice,
-    adultCount,
-    childCount,
-    totalAdultPrice,
-    totalChildPrice,
-    totalPrice
-  });
-
 
   // Check if child price is available
   const hasChildPrice = packageData.price_child && parseFloat(packageData.price_child) > 0;
-
-
-
-
 
   // Helper functions to check transfer availability
   const hasEntryPortTransfer = () => {

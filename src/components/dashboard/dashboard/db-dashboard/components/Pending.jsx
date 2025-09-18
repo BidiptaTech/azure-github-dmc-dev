@@ -3080,7 +3080,12 @@ export default function Pending() {
                               </Tooltip>
                             </div>
                           </td>
-                        <td className="status-column">
+                        <td className="status-column"
+                        style={{
+                          minWidth: "200px",
+                          maxWidth: "200px",
+                        }}
+                        >
                           <div
                             style={{
                               display: "flex",

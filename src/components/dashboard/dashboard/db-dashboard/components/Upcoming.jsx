@@ -2707,16 +2707,23 @@ export default function Pending() {
                               </Tooltip>
                             </div>
                           </td>
-                          <td className="booking-id-column">
+                          <td className="booking-id-column"
+                          style={{
+                            minWidth: "200px",
+                            maxWidth: "200px",
+                          }}
+                          >
                             <div
                               style={{
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                gap: "6px",
+                                gap: "0px",
                                 backgroundColor: getBackgroundColor(list.tour_status),
                                 padding: "4px 8px",
                                 borderRadius: "16px",
+                                whiteSpace: "nowrap",
+                                width: "",
                               }}
                             >
                               <i
