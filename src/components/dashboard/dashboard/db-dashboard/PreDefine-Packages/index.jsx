@@ -559,19 +559,7 @@ const PreDefinePackages = () => {
                 // 5. Default fallback
                 return '0001';
             })(),
-            status: (() => {
-                // Handle numeric status codes
-                if (booking.status) {
-                    switch (Number(booking.status)) {
-                        case 1: return 'Pending';
-                        case 2: return 'Confirmed';
-                        case 3: return 'On Hold';
-                        case 4: return 'Cancelled';
-                        default: return 'Unknown'; // Return Unknown for any other status code
-                    }
-                }
-                return 'Pending'; // Default status
-            })(),
+            status: booking.status || 0, // Pass raw numeric status to StatusChip component
             payment: (() => {
                 // Priority order for payment extraction
                 // 1. From parsed booking_details

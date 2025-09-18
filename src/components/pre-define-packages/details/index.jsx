@@ -335,34 +335,7 @@ const PackageDetailsContainer = () => {
     }
   }, [dispatch, id]);
 
-  // Auto-dismiss booking success notification after 5 seconds
-  const [countdown, setCountdown] = useState(5);
-
-  useEffect(() => {
-    if (bookingSuccess) {
-      setCountdown(5);
-
-      const timer = setTimeout(() => {
-        dispatch(resetBookingStatus());
-      }, 5000);
-
-      // Countdown timer for visual feedback
-      const countdownTimer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownTimer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => {
-        clearTimeout(timer);
-        clearInterval(countdownTimer);
-      };
-    }
-  }, [bookingSuccess, dispatch]);
+  // Remove auto-dismiss functionality - notification will only be dismissed by user action
 
 
 
@@ -716,9 +689,6 @@ const PackageDetailsContainer = () => {
                 </Typography>
               )}
             </Box>
-            <Typography variant="body2" sx={{ ml: 2, opacity: 0.8 }}>
-              (Auto-dismiss in {countdown}s)
-            </Typography>
           </Box>
           <IconButton
             onClick={() => dispatch(resetBookingStatus())}
