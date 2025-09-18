@@ -839,7 +839,7 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     
-                                    @if(auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="btn btn-outline-warning btn-sm rounded-pill">
                                             <i class="ri-settings-3-line"></i> Edit Tour
