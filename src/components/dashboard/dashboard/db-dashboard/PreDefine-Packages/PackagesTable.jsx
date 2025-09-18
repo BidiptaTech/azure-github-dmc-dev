@@ -109,11 +109,11 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
   
   // Handle opening cancel confirmation dialog
   const handleCancelClick = (booking) => {
-    // Don't allow cancellation of already cancelled bookings
-    if (booking.status && String(booking.status).toLowerCase() === 'cancelled') {
+    // Only allow cancellation for status 1 (Confirm) and 2 (Definite)
+    if (booking.status !== 1 && booking.status !== 2) {
       setSnackbar({
         open: true,
-        message: 'This booking is already cancelled',
+        message: 'This booking cannot be cancelled',
         severity: 'info'
       });
       return;
@@ -356,21 +356,21 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                         <Visibility fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Cancel Booking">
-                      <IconButton 
-                        size="small" 
-                        color="error" 
-                        sx={{ 
-                          bgcolor: row.status && String(row.status).toLowerCase() === 'cancelled' 
-                            ? 'rgba(158, 158, 158, 0.1)' 
-                            : 'rgba(244, 67, 54, 0.1)'
-                        }}
-                        onClick={() => handleCancelClick(row)}
-                        disabled={row.status && String(row.status).toLowerCase() === 'cancelled'}
-                      >
-                        <Cancel fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    {/* Only show cancel button for status 1 (Confirm) and 2 (Definite) */}
+                    {(row.status === 1 || row.status === 2) && (
+                      <Tooltip title="Cancel Booking">
+                        <IconButton 
+                          size="small" 
+                          color="error" 
+                          sx={{ 
+                            bgcolor: 'rgba(244, 67, 54, 0.1)'
+                          }}
+                          onClick={() => handleCancelClick(row)}
+                        >
+                          <Cancel fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                    
                   </Box>
                 </TableCell>

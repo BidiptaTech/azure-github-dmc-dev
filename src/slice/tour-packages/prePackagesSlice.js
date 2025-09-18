@@ -472,7 +472,7 @@ const prePackagesSlice = createSlice({
           state.bookingLists = state.bookingLists.map(booking => {
             if ((booking.booking_id && booking.booking_id === action.payload.booking_id) || 
                 (booking.id && booking.id === action.payload.booking_id)) {
-              return { ...booking, status: 4 };
+              return { ...booking, status: 7 };
             }
             return booking;
           });
