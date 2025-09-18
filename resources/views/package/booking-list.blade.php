@@ -32,16 +32,22 @@
         box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.15);
     }
 
-    .status-pending {
-        background-color: #fff3cd !important;
-        color: #856404 !important;
-        box-shadow: 0px 0px 10px rgba(255, 193, 7, 0.5);
-    }
-
     .status-confirmed {
         background-color: #a3eea3 !important;
         color: #1b5e20 !important;
         box-shadow: 0px 0px 10px rgba(76, 175, 80, 0.5);
+    }
+
+    .status-definite {
+        background-color: #4caf50 !important;
+        color: #ffffff !important;
+        box-shadow: 0px 0px 10px rgba(76, 175, 80, 0.5);
+    }
+
+    .status-actual {
+        background-color: #2196f3 !important;
+        color: #ffffff !important;
+        box-shadow: 0px 0px 10px rgba(33, 150, 243, 0.5);
     }
 
     .status-cancelled {
@@ -66,6 +72,12 @@
         background-color: #81d334 !important;
         color: #141414 !important;
         box-shadow: 0px 0px 10px rgba(108, 117, 125, 0.5);
+    }
+
+    .status-complete {
+        background-color: #28a745 !important;
+        color: #ffffff !important;
+        box-shadow: 0px 0px 10px rgba(40, 167, 69, 0.5);
     }
 
     .itinerary-day {
@@ -252,28 +264,31 @@
                                         $statusClass = '';
                                         switch($booking->status) {
                                             case '1':
-                                                $statusClass = 'status-pending';
+                                                $statusClass = 'status-confirmed';
                                                 break;
                                             case '2':
-                                                $statusClass = 'status-confirmed';
+                                                $statusClass = 'status-definite';
+                                                break;
+                                            case '3':
+                                                $statusClass = 'status-actual';
                                                 break;
                                             case '4':
                                                 $statusClass = 'status-cancelled';
                                                 break;
-                                            case '3':
-                                                $statusClass = 'status-on-hold';
-                                                break;
                                             case '5':
                                                 $statusClass = 'status-refund-pending';
-                                                break;
-                                            case '7':
-                                                $statusClass = 'status-cancel-confirmed';
                                                 break;
                                             case '6':
                                                 $statusClass = 'status-refunded';
                                                 break;
+                                            case '7':
+                                                $statusClass = 'status-cancel-confirmed';
+                                                break;
+                                            case '8':
+                                                $statusClass = 'status-complete';
+                                                break;
                                             default:
-                                                $statusClass = 'status-pending';
+                                                $statusClass = 'status-confirmed';
                                         }
                                     @endphp
                                     <span class="booking-status {{ $statusClass }}">
@@ -287,10 +302,12 @@
                                             Cancelled
                                         @elseif($booking->status == '5')
                                             Refund - Pending
-                                        @elseif($booking->status == '7')
-                                            Cancel - Confirmed
                                         @elseif($booking->status == '6')
                                             Refunded
+                                        @elseif($booking->status == '7')
+                                            Cancel - Confirmed
+                                        @elseif($booking->status == '8')
+                                            Complete
                                         @endif
                                     </span>
                                 </td>
@@ -477,10 +494,13 @@
                                                     $statusClass = '';
                                                     switch($booking->status) {
                                                         case '1':
-                                                            $statusClass = 'bg-warning text-dark';
+                                                            $statusClass = 'bg-success';
                                                             break;
                                                         case '2':
-                                                            $statusClass = 'bg-success';
+                                                            $statusClass = 'bg-primary';
+                                                            break;
+                                                        case '3':
+                                                            $statusClass = 'bg-info';
                                                             break;
                                                         case '4':
                                                             $statusClass = 'bg-danger';
@@ -488,14 +508,17 @@
                                                         case '5':
                                                             $statusClass = 'bg-warning text-dark';
                                                             break;
-                                                        case '7':
-                                                            $statusClass = 'bg-danger';
-                                                            break;
                                                         case '6':
                                                             $statusClass = 'bg-secondary';
                                                             break;
+                                                        case '7':
+                                                            $statusClass = 'bg-danger';
+                                                            break;
+                                                        case '8':
+                                                            $statusClass = 'bg-success';
+                                                            break;
                                                         default:
-                                                            $statusClass = 'bg-warning text-dark';
+                                                            $statusClass = 'bg-success';
                                                     }
                                                 @endphp
                                                 <span class="badge {{ $statusClass }}">
@@ -504,15 +527,17 @@
                                                     @elseif($booking->status == '2')
                                                         Definite
                                                     @elseif($booking->status == '3')
-                                                        On Hold
+                                                        Actual
                                                     @elseif($booking->status == '4')
                                                         Cancelled
                                                     @elseif($booking->status == '5')
                                                         Refund - Pending
-                                                    @elseif($booking->status == '7')
-                                                        Cancel - Confirmed
                                                     @elseif($booking->status == '6')
                                                         Refunded
+                                                    @elseif($booking->status == '7')
+                                                        Cancel - Confirmed
+                                                    @elseif($booking->status == '8')
+                                                        Complete
                                                     @endif
                                                 </span>
                                             </td>
@@ -1415,63 +1440,105 @@ function approvePayment(bookingId, paymentIndex) {
 }
 
 function declinePayment(bookingId, paymentIndex) {
-    Swal.fire({
-        title: 'Decline Payment',
-        text: 'Please provide a reason for declining this payment:',
-        input: 'textarea',
-        inputPlaceholder: 'Enter decline reason...',
-        inputAttributes: {
-            maxlength: 500
-        },
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Decline Payment',
-        customClass: {
-            popup: 'swal-z-index'
-        },
-        inputValidator: (value) => {
-            if (!value || value.trim().length < 10) {
-                return 'Please provide a reason (at least 10 characters)';
-            }
+    // Create custom modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="declineModal" tabindex="-1" aria-labelledby="declineModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="declineModalLabel">Decline Payment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="declineReason" class="form-label">Please provide a reason for declining this payment:</label>
+                            <textarea class="form-control" id="declineReason" rows="4" maxlength="500" 
+                                      placeholder="Enter decline reason..." required></textarea>
+                            <div class="form-text">Minimum 10 characters required</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmDecline">Decline Payment</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#declineModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('declineModal'));
+    modal.show();
+    
+    // Focus on textarea when modal is shown
+    $('#declineModal').on('shown.bs.modal', function () {
+        $('#declineReason').focus();
+    });
+    
+    // Handle confirm button click
+    $('#confirmDecline').on('click', function() {
+        const reason = $('#declineReason').val().trim();
+        
+        if (!reason || reason.length < 10) {
+            alert('Please provide a reason (at least 10 characters)');
+            $('#declineReason').focus();
+            return;
         }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: `{{ url('/package-booking') }}/${bookingId}/decline-payment`,
-                method: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    payment_index: paymentIndex,
-                    decline_reason: result.value
-                },
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message,
-                            icon: 'success'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    const response = xhr.responseJSON;
+        
+        // Disable button to prevent double submission
+        $(this).prop('disabled', true).text('Processing...');
+        
+        $.ajax({
+            url: `{{ url('/package-booking') }}/${bookingId}/decline-payment`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                payment_index: paymentIndex,
+                decline_reason: reason
+            },
+            success: function(response) {
+                modal.hide();
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: response?.message || 'Failed to decline payment',
+                        text: response.message,
                         icon: 'error'
                     });
                 }
-            });
-        }
+            },
+            error: function(xhr) {
+                modal.hide();
+                const response = xhr.responseJSON;
+                Swal.fire({
+                    title: 'Error!',
+                    text: response?.message || 'Failed to decline payment',
+                    icon: 'error'
+                });
+            },
+            complete: function() {
+                // Re-enable button
+                $('#confirmDecline').prop('disabled', false).text('Decline Payment');
+            }
+        });
+    });
+    
+    // Clean up modal when hidden
+    $('#declineModal').on('hidden.bs.modal', function () {
+        $(this).remove();
     });
 }
 </script>
