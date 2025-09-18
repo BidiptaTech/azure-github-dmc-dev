@@ -501,6 +501,12 @@
                                    class="btn btn-outline-primary btn-sm rounded-pill">
                                     <i class="ri-eye-line"></i> View
                                 </a>
+                                @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
+                                    class="btn btn-outline-warning btn-sm rounded-pill">
+                                    <i class="ri-settings-3-line"></i> Edit
+                                </a>
+                                @endif
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -3409,7 +3415,6 @@ function openServiceModal(serviceType, tourId, event) {
     
     if (event) {
         event.preventDefault();
-        event.stopPropagation();
     }
     
     // Construct modal ID
