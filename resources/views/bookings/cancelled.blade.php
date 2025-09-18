@@ -49,11 +49,28 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1" id="statPendingCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Pending')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statPendingLabel">{{ date('F') }} Pending</p>
+                            <h5 class="card-title mb-1" id="statProspectCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Prospect')->count() }}</h5>
+                            <p class="text-muted mb-0" id="statProspectLabel">{{ date('F') }} Prospect</p>
                         </div>
                         <div class="avatar">
-                            <div class="avatar-initial bg-warning rounded">
+                            <div class="avatar-initial bg-primary rounded">
+                                <i class="ri-eye-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1" id="statTentativeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Tentative')->count() }}</h5>
+                            <p class="text-muted mb-0" id="statTentativeLabel">{{ date('F') }} Tentative</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-secondary rounded">
                                 <i class="ri-time-line ri-24px"></i>
                             </div>
                         </div>
@@ -66,28 +83,11 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h5 class="card-title mb-1" id="statOnHoldCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - On Hold')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statOnHoldLabel">{{ date('F') }} On Hold</p>
+                            <h5 class="card-title mb-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Confirmed')->count() }}</h5>
+                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Confirmed</p>
                         </div>
                         <div class="avatar">
-                            <div class="avatar-initial bg-info rounded">
-                                <i class="ri-pause-circle-line ri-24px"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statDefiniteCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->where('tour_status', 'LIKE', 'Cancel - Definite')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statDefiniteLabel">{{ date('F') }} Definite</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-secondary rounded">
+                            <div class="avatar-initial bg-success rounded">
                                 <i class="ri-checkbox-circle-line ri-24px"></i>
                             </div>
                         </div>
@@ -115,12 +115,11 @@
                     <label class="form-label">Cancellation Status</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">All Status</option>
-                        {{-- <option value="Pending">Cancel - Pending</option> --}}
-                        {{-- <option value="On Hold">Cancel - On Hold</option> --}}
                         <option value="Prospect">Cancel - Prospect</option>
                         <option value="Tentative">Cancel - Tentative</option>
                         <option value="New Enquiry">Cancel - New Enquiry</option>
-                        {{-- <option value="Definite">Cancel - Definite</option> --}}
+                        <option value="Confirmed">Cancel - Confirmed</option>
+                        <option value="Definite">Cancel - Definite</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -206,12 +205,11 @@
                             data-adult="{{ $tour->adult ?? 0 }}"
                             data-child="{{ $tour->child ?? 0 }}"
                             data-cancellation-status="{{ 
-                                str_contains($tour->tour_status, 'Cancel - Pending') ? 'Pending' : 
-                                (str_contains($tour->tour_status, 'Cancel - On Hold') ? 'On Hold' : 
-                                (str_contains($tour->tour_status, 'Cancel - Definite') ? 'Definite' : 
+                                str_contains($tour->tour_status, 'Cancel - Definite') ? 'Definite' : 
                                 (str_contains($tour->tour_status, 'Cancel - Prospect') ? 'Prospect' : 
                                 (str_contains($tour->tour_status, 'Cancel - Tentative') ? 'Tentative' : 
-                                (str_contains($tour->tour_status, 'Cancel - New Enquiry') ? 'New Enquiry' : 'Other')))))
+                                (str_contains($tour->tour_status, 'Cancel - New Enquiry') ? 'New Enquiry' : 
+                                (str_contains($tour->tour_status, 'Cancel - Confirmed') ? 'Confirmed' : 'Other'))))
                             }}"
                         >
                             <td>{{ $key + 1 }}</td>
@@ -251,27 +249,23 @@
                                 </div>
                             </td>
                             <td>
-                                @if(str_contains($tour->tour_status, 'Cancel - Pending'))
-                                    <span class="badge bg-warning">
-                                        <i class="ri-time-line me-1"></i>Pending
-                                    </span>
-                                @elseif(str_contains($tour->tour_status, 'Cancel - On Hold'))
-                                    <span class="badge bg-info">
-                                        <i class="ri-pause-circle-line me-1"></i>On Hold
-                                    </span>
-                                @elseif(str_contains($tour->tour_status, 'Cancel - Prospect'))
+                                @if(str_contains($tour->tour_status, 'Cancel - Prospect') || str_contains($tour->tour_status, 'Cancel-Prospect'))
                                     <span class="badge bg-primary">
-                                        <i class="ri-user-line me-1"></i>Prospect
+                                        <i class="ri-eye-line me-1"></i>Prospect
                                     </span>
-                                @elseif(str_contains($tour->tour_status, 'Cancel - Tentative'))
+                                @elseif(str_contains($tour->tour_status, 'Cancel - Tentative') || str_contains($tour->tour_status, 'Cancel-Tentative'))
                                     <span class="badge bg-secondary">
-                                        <i class="ri-question-line me-1"></i>Tentative
+                                        <i class="ri-time-line me-1"></i>Tentative
                                     </span>
-                                @elseif(str_contains($tour->tour_status, 'Cancel - New Enquiry'))
+                                @elseif(str_contains($tour->tour_status, 'Cancel - New Enquiry') || str_contains($tour->tour_status, 'Cancel-New Enquiry'))
                                     <span class="badge bg-dark">
                                         <i class="ri-file-list-line me-1"></i>New Enquiry
                                     </span>
-                                @elseif(str_contains($tour->tour_status, 'Cancel - Definite'))
+                                @elseif(str_contains($tour->tour_status, 'Cancel - Confirmed') || str_contains($tour->tour_status, 'Cancel-Confirmed'))
+                                    <span class="badge bg-success">
+                                        <i class="ri-checkbox-circle-line me-1"></i>Confirmed
+                                    </span>
+                                @elseif(str_contains($tour->tour_status, 'Cancel - Definite') || str_contains($tour->tour_status, 'Cancel-Definite'))
                                     <span class="badge bg-danger">
                                         <i class="ri-checkbox-circle-line me-1"></i>Definite
                                     </span>
@@ -412,8 +406,10 @@ function filterTable() {
     // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
     const rangeCount = visibleRows.length;
-    const pendingCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Pending').length;
-    const onHoldCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'On Hold').length;
+    const prospectCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Prospect').length;
+    const tentativeCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Tentative').length;
+    const newEnquiryCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'New Enquiry').length;
+    const confirmedCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Confirmed').length;
     const definiteCount = visibleRows.filter(r => r.getAttribute('data-cancellation-status') === 'Definite').length;
 
     // Update counts and labels
@@ -421,17 +417,23 @@ function filterTable() {
     const labelEl = document.getElementById('rangeLabel');
     const statCancelled = document.getElementById('statCancelledCount');
     const statCancelledLabel = document.getElementById('statCancelledLabel');
-    const statPending = document.getElementById('statPendingCount');
-    const statPendingLabel = document.getElementById('statPendingLabel');
-    const statOnHold = document.getElementById('statOnHoldCount');
-    const statOnHoldLabel = document.getElementById('statOnHoldLabel');
+    const statProspect = document.getElementById('statProspectCount');
+    const statProspectLabel = document.getElementById('statProspectLabel');
+    const statTentative = document.getElementById('statTentativeCount');
+    const statTentativeLabel = document.getElementById('statTentativeLabel');
+    const statNewEnquiry = document.getElementById('statNewEnquiryCount');
+    const statNewEnquiryLabel = document.getElementById('statNewEnquiryLabel');
+    const statConfirmed = document.getElementById('statConfirmedCount');
+    const statConfirmedLabel = document.getElementById('statConfirmedLabel');
     const statDefinite = document.getElementById('statDefiniteCount');
     const statDefiniteLabel = document.getElementById('statDefiniteLabel');
 
     if (countEl) countEl.textContent = rangeCount;
     if (statCancelled) statCancelled.textContent = rangeCount;
-    if (statPending) statPending.textContent = pendingCount;
-    if (statOnHold) statOnHold.textContent = onHoldCount;
+    if (statProspect) statProspect.textContent = prospectCount;
+    if (statTentative) statTentative.textContent = tentativeCount;
+    if (statNewEnquiry) statNewEnquiry.textContent = newEnquiryCount;
+    if (statConfirmed) statConfirmed.textContent = confirmedCount;
     if (statDefinite) statDefinite.textContent = definiteCount;
 
     if (dateStart && dateEnd) {
@@ -454,15 +456,19 @@ function filterTable() {
         
         if (labelEl) labelEl.textContent = label;
         if (statCancelledLabel) statCancelledLabel.textContent = `Cancelled - ${label}`;
-        if (statPendingLabel) statPendingLabel.textContent = `Pending - ${label}`;
-        if (statOnHoldLabel) statOnHoldLabel.textContent = `On Hold - ${label}`;
+        if (statProspectLabel) statProspectLabel.textContent = `Prospect - ${label}`;
+        if (statTentativeLabel) statTentativeLabel.textContent = `Tentative - ${label}`;
+        if (statNewEnquiryLabel) statNewEnquiryLabel.textContent = `New Enquiry - ${label}`;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `Confirmed - ${label}`;
         if (statDefiniteLabel) statDefiniteLabel.textContent = `Definite - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
         if (statCancelledLabel) statCancelledLabel.textContent = `${month} Cancelled`;
-        if (statPendingLabel) statPendingLabel.textContent = `${month} Pending`;
-        if (statOnHoldLabel) statOnHoldLabel.textContent = `${month} On Hold`;
+        if (statProspectLabel) statProspectLabel.textContent = `${month} Prospect`;
+        if (statTentativeLabel) statTentativeLabel.textContent = `${month} Tentative`;
+        if (statNewEnquiryLabel) statNewEnquiryLabel.textContent = `${month} New Enquiry`;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Confirmed`;
         if (statDefiniteLabel) statDefiniteLabel.textContent = `${month} Definite`;
     }
 }
