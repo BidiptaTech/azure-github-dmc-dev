@@ -302,7 +302,6 @@ const Counter = ({
 const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
   const dispatch = useDispatch();
   const reduxGuestCounts = useSelector(commonActions.selectGuestCounts);
-  const shouldReset = useSelector(commonActions.selectShouldResetGuestSearch);
   
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [guestCounts, setGuestCounts] = useState({
@@ -330,27 +329,17 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
     }
   }, [propGuestCounts]);
 
-  // Handle reset from Redux
+  // Sync with Redux state changes
   useEffect(() => {
-    if (shouldReset) {
-      const defaultCounts = {
-        Adults: 1,
-        Children: 0,
-        Infants: 0,
-        maleCount: 0,
-        femaleCount: 0,
-        ages: []
-      };
-      setGuestCounts(defaultCounts);
-      dispatch(commonActions.setGuestCounts(defaultCounts));
-      dispatch(commonActions.clearGuestSearchReset());
+    if (reduxGuestCounts) {
+      setGuestCounts(reduxGuestCounts);
       
-      // Notify parent component of the reset
+      // Notify parent component of the change
       if (onGuestChange) {
-        onGuestChange(defaultCounts);
+        onGuestChange(reduxGuestCounts);
       }
     }
-  }, [shouldReset, dispatch, onGuestChange]);
+  }, [reduxGuestCounts, onGuestChange]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -396,6 +385,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -438,6 +430,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
 
     setGuestCounts(updatedGuestCounts);
     
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
+    
     // Call the onGuestChange prop function
     if (onGuestChange) {
       onGuestChange(updatedGuestCounts);
@@ -454,6 +449,9 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
     };
 
     setGuestCounts(updatedGuestCounts);
+    
+    // Update Redux state
+    dispatch(commonActions.setGuestCounts(updatedGuestCounts));
     
     // Call the onGuestChange prop function
     if (onGuestChange) {

@@ -192,8 +192,16 @@ const MainMenu = ({ style = "" }) => {
     // Clear packages listing when Packages button is clicked
     dispatch(resetPackages());
     
-    // Reset guest search to default values
-    dispatch(commonActions.resetGuestSearch());
+    // Reset guest search to default values immediately
+    const defaultGuestCounts = {
+      Adults: 1,
+      Children: 0,
+      Infants: 0,
+      maleCount: 0,
+      femaleCount: 0,
+      ages: []
+    };
+    dispatch(commonActions.setGuestCounts(defaultGuestCounts));
     
     // Wait for DMC count to load
     if (dmcCountLoading) {
