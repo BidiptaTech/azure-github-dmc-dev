@@ -38,11 +38,36 @@ const MainMenu = ({ style = "" }) => {
   const dmcCountLoading = useSelector((state) => state.dmc.dmcCountLoading);
   const selectedDmcId = useSelector((state) => state.dmc.dmcId);
   const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
+  const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
 
   // Automatically fetch DMC count when component mounts
   useEffect(() => {
     dispatch(fetchDMCCount());
   }, [dispatch]);
+
+  // Auto-open search modal if no country/DMC is selected
+  useEffect(() => {
+    // Check if we have DMC data or selected countries
+    const hasDmcData = selectedDmcData && selectedDmcData.location && selectedDmcData.location !== 'Auto-selected';
+    const hasSelectedCountries = selectedCountries && selectedCountries.length > 0;
+    
+    // If no DMC data and no selected countries, auto-open the appropriate search modal
+    if (!hasDmcData && !hasSelectedCountries && !dmcCountLoading) {
+      // Only auto-open for Agent users, and only if we're on a relevant page
+      if (userRole === "Agent") {
+        if (pathname.includes("/dashboard/db-dashboard/home_1")) {
+          console.log('🌍 Auto-opening Book Tour search modal - no country selected');
+          setIsSearchModalOpen(true);
+        } else if (pathname.includes("/dashboard/db-dashboard/home_2")) {
+          console.log('🌍 Auto-opening Enquiry search modal - no country selected');
+          setIsEnquirySearchModalOpen(true);
+        } else if (pathname.includes("/dashboard/pre-define-packages")) {
+          console.log('🌍 Auto-opening Packages search modal - no country selected');
+          setIsPackagesSearchModalOpen(true);
+        }
+      }
+    }
+  }, [selectedDmcData, selectedCountries, dmcCountLoading, userRole, pathname]);
 
   const isManagerOrSalesHead =
     userRole === "Sales Head(DMC)" ||
@@ -70,24 +95,26 @@ const MainMenu = ({ style = "" }) => {
       return;
     }
     
-    // Check if DMC count is 1 - if so, skip modal and go directly to booking
-    if (dmcCount && dmcCount.dmc_count === 1) {
-      // Navigate directly to the booking page without showing modal
-      navigate("/dashboard/db-dashboard/home_1", { 
-        state: { 
-          selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
-          searchCriteria: null 
-        } 
-      });
-    } else {
-      setIsSearchModalOpen(true);
-    }
+    // Always show search modal
+    setIsSearchModalOpen(true);
   };
 
   const handleSearchSubmit = (searchData) => {
-    setSearchCriteria({ country: searchData });
-    setIsSearchModalOpen(false);
-    setIsDMCModalOpen(true);
+    // Check if this is a single DMC auto-selection (skipDMCModal: true)
+    if (searchData.skipDMCModal && searchData.selectedDMC) {
+      // Single DMC auto-selected - navigate directly to booking page
+      navigate("/dashboard/db-dashboard/home_1", { 
+        state: { 
+          selectedDMC: searchData.selectedDMC,
+          searchCriteria: { country: searchData.country }
+        } 
+      });
+    } else {
+      // Multiple DMCs - proceed with normal DMC selection modal
+      setSearchCriteria({ country: searchData });
+      setIsSearchModalOpen(false);
+      setIsDMCModalOpen(true);
+    }
   };
 
   const handleDMCSelect = (selectedDMC) => {
@@ -116,23 +143,26 @@ const MainMenu = ({ style = "" }) => {
       return;
     }
 
-      if(dmcCount && dmcCount.dmc_count === 1){ 
-      navigate("/dashboard/db-dashboard/home_2", { 
-        state: { 
-          selectedDMCs: [selectedDmcData] ||{ dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
-          searchCriteria: null 
-        } 
-      });
-    }else{
-      setIsEnquirySearchModalOpen(true);
-    
-    }
+    // Always show search modal
+    setIsEnquirySearchModalOpen(true);
   };
 
   const handleEnquirySearchSubmit = (searchData) => {
-    setEnquirySearchCriteria({ country: searchData });
-    setIsEnquirySearchModalOpen(false);
-    setIsEnquiryDMCModalOpen(true);
+    // Check if this is a single DMC auto-selection (skipDMCModal: true)
+    if (searchData.skipDMCModal && searchData.selectedDMC) {
+      // Single DMC auto-selected - navigate directly to enquiry page
+      navigate("/dashboard/db-dashboard/home_2", { 
+        state: { 
+          selectedDMCs: [searchData.selectedDMC],
+          searchCriteria: { country: searchData.country }
+        } 
+      });
+    } else {
+      // Multiple DMCs - proceed with normal DMC selection modal
+      setEnquirySearchCriteria({ country: searchData });
+      setIsEnquirySearchModalOpen(false);
+      setIsEnquiryDMCModalOpen(true);
+    }
   };
 
   const handleEnquiryDMCSelect = (selectedDMCs) => {
@@ -177,24 +207,26 @@ const MainMenu = ({ style = "" }) => {
       return;
     }
     
-    // For Agent users, check DMC count
-    if (dmcCount && dmcCount.dmc_count === 1) {
-      // Navigate directly to the packages page without showing modal
-      navigate(packagesPath, { 
-        state: { 
-          selectedDMC: selectedDmcData || { dmcId: selectedDmcId, name: `DMC ${selectedDmcId}` },
-          searchCriteria: null 
-        } 
-      });
-    } else {
-      setIsPackagesSearchModalOpen(true);
-    }
+    // For Agent users, always show search modal
+    setIsPackagesSearchModalOpen(true);
   };
 
   const handlePackagesSearchSubmit = (searchData) => {
-    setPackagesSearchCriteria({ country: searchData });
-    setIsPackagesSearchModalOpen(false);
-    setIsPackagesDMCModalOpen(true);
+    // Check if this is a single DMC auto-selection (skipDMCModal: true)
+    if (searchData.skipDMCModal && searchData.selectedDMC) {
+      // Single DMC auto-selected - navigate directly to packages page
+      navigate(packagesPath, { 
+        state: { 
+          selectedDMC: searchData.selectedDMC,
+          searchCriteria: { country: searchData.country }
+        } 
+      });
+    } else {
+      // Multiple DMCs - proceed with normal DMC selection modal
+      setPackagesSearchCriteria({ country: searchData });
+      setIsPackagesSearchModalOpen(false);
+      setIsPackagesDMCModalOpen(true);
+    }
   };
 
   const handlePackagesDMCSelect = (selectedDMC) => {
@@ -238,7 +270,7 @@ const MainMenu = ({ style = "" }) => {
              
               
                  
-                           <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
                 <FaChartLine 
                   className="text-28 text-green-1" 
                   style={{ marginRight: "12px" }} 
@@ -271,7 +303,7 @@ const MainMenu = ({ style = "" }) => {
                style={{ flexDirection: "column", alignItems: "flex-start" }}
               
              >
-                               <div style={{ display: "flex", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
                   <FaCompass 
                     className="text-28 text-green-1" 
                     style={{ marginRight: "12px" }} 

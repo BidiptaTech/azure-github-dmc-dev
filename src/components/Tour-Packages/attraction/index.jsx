@@ -114,7 +114,15 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const lastDispatchRef = useRef(null);
   const hasDispatchedAllAttractionsRef = useRef(false);
   const currentServicesRef = useRef([]);
+  const isInitializingRef = useRef(false);
 
+  console.log("formsection", formSections);
+  
+  // Debug effect to track formSections changes
+  useEffect(() => {
+    console.log('formSections state changed:', formSections);
+  }, [formSections]);
+  
   // Update the current services ref when existingServices changes
   useEffect(() => {
     currentServicesRef.current = existingServices;
@@ -140,47 +148,44 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
 
     console.log('Initializing form sections from attractionspack:', attractionspack);
+    isInitializingRef.current = true;
 
-    // Filter attractions based on bookingDate instead of dayIndex
+    // Filter attractions that match the current bookingDate (following restaurant pattern)
     const dayAttractions = attractionspack.filter(attractionService => {
       const attractionData = attractionService.data?.[0];
-      // Include all attractions if bookingDate matches or is not specified
-      if (!attractionData) return false;
-      
-      const attractionBookingDate = attractionData.bookingDate || '';
-      // If no booking date specified, include it
-      if (!attractionBookingDate) return true;
-      
-      // If date is provided, check if it matches
-      if (date && date._isAMomentObject) {
-        return attractionBookingDate === date.format('YYYY-MM-DD');
-      }
-      
-      // Otherwise, include all attractions
-      return true;
+      console.log('Attraction data:', attractionData);
+
+      // Match by bookingDate since attractionspack uses bookingDate
+      return attractionData && attractionData.bookingDate === bookingDate;
     });
 
     if (dayAttractions.length === 0) {
-      console.log(`No attractions found for date ${bookingDate}`);
+      console.log(`No attractions found for bookingDate ${bookingDate}`);
       return;
     }
 
     // Convert attraction data to form sections for current day
     const newFormSections = dayAttractions.map((attractionService, index) => {
-      const originalAttractionData = attractionService.data[0];
+      const attractionData = attractionService.data[0];
       
-      // Create a copy of the data instead of modifying the original
-      const attractionData = { ...originalAttractionData };
+      console.log('Processing attraction data for form section:', {
+        AttractionId: attractionData.AttractionId,
+        ticketId: attractionData.ticketId,
+        visitTime: attractionData.visitTime,
+        adultCount: attractionData.adultCount,
+        childCount: attractionData.childCount,
+        seniorCount: attractionData.seniorCount
+      });
       
-      return {
-        attraction: attractionData.AttractionId,
+      const formSection = {
+        attraction: String(attractionData.AttractionId), // Convert to string
         pax: {
           Adults: Number(attractionData.adultCount) || 0,
           Children: Number(attractionData.childCount) || 0,
           Seniors: Number(attractionData.seniorCount) || 0
         },
         timeSlot: attractionData.visitTime || '',
-        ticketType: attractionData.ticketId || '',
+        ticketType: String(attractionData.ticketId), // Convert to string
         priceType: attractionData.nri || 'residential',
         type: attractionService.type || 'attraction', // Include service type
         bookingDate: attractionData.bookingDate || bookingDate,
@@ -192,6 +197,9 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           dayIndex: dayIndex // Set dayIndex in the copy, not the original
         }
       };
+      
+      console.log('Created form section:', formSection);
+      return formSection;
     });
 
     console.log('Initialized form sections for current day:', newFormSections);
@@ -199,9 +207,16 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       attractions: newFormSections.filter(s => s.type === 'attraction').length,
       packages: newFormSections.filter(s => s.type === 'attraction_package').length
     });
+    console.log('Setting form sections with data:', newFormSections);
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [attractionspack, dayIndex, bookingDate, date]);
+    
+    // Clear initialization flag after a short delay to allow components to render
+    setTimeout(() => {
+      isInitializingRef.current = false;
+      console.log('Initialization complete, allowing component updates');
+    }, 100);
+  }, [attractionspack, dayIndex, bookingDate]);
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {
@@ -211,7 +226,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
 
     // Create a unique key for this dispatch to prevent duplicates
-    const dispatchKey = JSON.stringify(attractionspack.map(service => service.data?.[0]?.id));
+    const dispatchKey = JSON.stringify(attractionspack.map(service => service.data?.[0]?.AttractionId));
     
     if (lastDispatchRef.current === dispatchKey) {
       console.log('Skipping duplicate dispatch for all attractions');
@@ -225,7 +240,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       Array.isArray(service.data) &&
       service.data.some(booking => booking.dayIndex === dayIndex)
     );
-
+    console.log('Existing attraction services:', existingAttractionServices);
     if (existingAttractionServices.length > 0) {
       console.log('Attraction services already exist for this day, skipping dispatch to prevent duplicates');
       return;
@@ -241,7 +256,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Create new attraction service entries for ALL attractions, preserving booking_id
     const newAttractionServices = attractionspack.map(attractionService => {
       const originalAttractionData = attractionService.data[0];
-      
+      console.log('Original attraction data:', originalAttractionData);
       if (!originalAttractionData) {
         console.log('No attraction data found in service:', attractionService);
         return null;
@@ -306,6 +321,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       return serviceObject;
     }).filter(Boolean); // Remove null entries
 
+    console.log('New attraction services:', newAttractionServices);
     if (newAttractionServices.length === 0) {
       console.log('No valid attractions to dispatch to Redux');
       return;
@@ -332,6 +348,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     lastDispatchRef.current = null;
     hasDispatchedAllAttractionsRef.current = false;
     currentServicesRef.current = [];
+    isInitializingRef.current = false;
   }, [dayIndex]);
 
   // Cleanup effect
@@ -341,6 +358,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       lastDispatchRef.current = null;
       hasDispatchedAllAttractionsRef.current = false;
       currentServicesRef.current = [];
+      isInitializingRef.current = false;
     };
   }, []);
 
@@ -686,6 +704,14 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   }, [attractions, attractionDetails, currentMode, agentId, tourId, dayIndex, existingServices, dispatch]);
 
   const handleInputChange = (sectionIndex, field, value) => {
+    console.log('handleInputChange called:', { sectionIndex, field, value, currentFormSections: formSections, isInitializing: isInitializingRef.current });
+    
+    // Skip updates during initialization to prevent overwriting initialized data
+    if (isInitializingRef.current) {
+      console.log('Skipping handleInputChange during initialization');
+      return;
+    }
+    
     const newFormSections = [...formSections];
     
     // Generate old signature before changes
