@@ -271,6 +271,9 @@ export default function Pending() {
   const { bookings = {}, status: viewDetailsStatus } = useSelector(
     (state) => state.viewDetails
   );
+  
+  // Extract price_hide from the fetched bookings data
+  const priceHideFromBookings = bookings?.tour?.price_hide;
   const { pendingTours = [], status, start, limit } = useSelector((state) => state.lists);
 
   // Get user_country from auth slice
@@ -3459,6 +3462,7 @@ export default function Pending() {
         discountAmount={discountAmount}
         totalPrice={totalPrice}
         tourId={tourId}
+        pricehide={priceHideFromBookings}
       />
 
       {/* Action Menu */}

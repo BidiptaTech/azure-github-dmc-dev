@@ -227,6 +227,9 @@ const generateMainPdfBlob = async (element) => {
       const imgWidth = pageWidth - 10; // Add small margin
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
+      // Calculate how many pages we need based on the image height
+      const pagesCount = Math.ceil(imgHeight / (pageHeight - 10)); // 10mm margin for top and bottom
+
       // If it's a single page document
       if (pagesCount <= 1) {
         pdf.addImage(
@@ -467,6 +470,7 @@ const PrintModal = ({
   discountAmount,
   totalPrice,
   tourId,
+  pricehide,
 }) => {
   // Store the data in local state to ensure it persists through re-renders
   const [localBookings, setLocalBookings] = useState(bookings || {});
@@ -478,12 +482,12 @@ const PrintModal = ({
   );
   const [localDisplayId, setLocalDisplayId] = useState(displayId);
   const [localTotalPrice, setLocalTotalPrice] = useState(totalPrice || 0);
-  
+  const [localPricehide, setLocalPricehide] = useState(pricehide);
   // Add loading state for PDF generation
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ status: '', progress: 0 });
   const [pdfError, setPdfError] = useState(null);
-  const PriceHide = useSelector((state) => state.auth.PriceHide);
+
 
   // Update local state when props change
   useEffect(() => {
@@ -505,6 +509,9 @@ const PrintModal = ({
     if (totalPrice !== undefined) {
       setLocalTotalPrice(totalPrice);
     }
+    if (pricehide !== undefined) {
+      setLocalPricehide(pricehide);
+    }
   }, [
     bookings,
     modifiedPriceData,
@@ -512,6 +519,8 @@ const PrintModal = ({
     discountAmount,
     displayId,
     totalPrice,
+    pricehide,
+   
   ]);
 
   // When modal becomes visible, ensure we have the most recent data
@@ -536,6 +545,7 @@ const PrintModal = ({
       if (discountAmount !== undefined) setLocalDiscountAmount(discountAmount);
       if (displayId) setLocalDisplayId(displayId);
       if (totalPrice !== undefined) setLocalTotalPrice(totalPrice);
+      if (pricehide !== undefined) setLocalPricehide(pricehide);
     }
   }, [
     isPrintModalVisible,
@@ -545,13 +555,18 @@ const PrintModal = ({
     discountAmount,
     displayId,
     totalPrice,
+    pricehide,
+   
   ]);
 
   // Add a new useEffect to log state changes for debugging
   useEffect(() => {
     console.log("localBookings updated:", localBookings);
     console.log("localModifiedPriceData updated:", localModifiedPriceData);
-  }, [localBookings, localModifiedPriceData]);
+    console.log("localPricehide updated:", localPricehide);
+    console.log("pricehide prop received:", pricehide);
+    console.log("pricehide type:", typeof pricehide);
+      }, [localBookings, localModifiedPriceData, localPricehide, pricehide]);
 
   // Create an internal reference to the content
   const internalContentRef = useRef(null);
@@ -1494,6 +1509,7 @@ const PrintModal = ({
                                 </Box>
                               </Grid>
                               <Grid item xs={12} sm={6} md={3}>
+                                    {localPricehide === "0" && (
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -1520,7 +1536,7 @@ const PrintModal = ({
                                   >
                                     Total Price
                                   </Typography>
-                                  {PriceHide === "0" && (
+                              
                                   <Typography
                                     variant="body1"
                                     sx={{
@@ -1530,9 +1546,10 @@ const PrintModal = ({
                                   >
                                     SGD {hotel.totalPrice || "N/A"}
                                   </Typography>
-                                  )}
                                 
                                 </Box>
+                                  )}
+
                               </Grid>
                             </Grid>
                           </Paper>
@@ -2426,6 +2443,8 @@ const PrintModal = ({
                                         </Grid>
 
                                         <Grid item xs={12} sm={6}>
+                                        {localPricehide === "0" && (
+
                                           <Box
                                             sx={{
                                               display: "flex",
@@ -2443,14 +2462,15 @@ const PrintModal = ({
                                               >
                                                 <strong>Price:</strong>
                                               </Typography>
-                                              {PriceHide === "0" && (
                                               <Typography variant="body1">
                                                 SGD {port.totalPrice || "N/A"}
                                               </Typography>
-                                              )}
                                             
                                             </Box>
+
                                           </Box>
+                                          )}
+
                                         </Grid>
                                       </Grid>
                                     </Paper>
@@ -2892,6 +2912,8 @@ const PrintModal = ({
                                         </Grid>
 
                                         <Grid item xs={12} sm={6}>
+                                        {localPricehide === "0" && (
+
                                           <Box
                                             sx={{
                                               display: "flex",
@@ -2909,13 +2931,13 @@ const PrintModal = ({
                                               >
                                                 <strong>Price:</strong>
                                               </Typography>
-                                              {PriceHide === "0" && (
                                               <Typography variant="body1">
                                                 SGD {port.totalPrice || "N/A"}
                                               </Typography>
-                                              )}
                                             </Box>
                                           </Box>
+                                          )}
+
                                         </Grid>
                                       </Grid>
                                     </Paper>
@@ -3176,6 +3198,8 @@ const PrintModal = ({
                                     )}
 
                                     <Grid item xs={12} sm={6}>
+                                    {localPricehide === "0" && (
+
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -3193,16 +3217,16 @@ const PrintModal = ({
                                           >
                                             <strong>Total Price:</strong>
                                           </Typography>
-                                          {PriceHide === "0" && (
                                           <Typography
                                             variant="body1"
                                             sx={{ fontWeight: "medium" }}
                                           >
                                             SGD {attraction.totalPrice || "N/A"}
                                           </Typography>
-                                          )}
                                         </Box>
                                       </Box>
+                                          )}
+
                                     </Grid>
                                   </Grid>
                                 </Paper>
@@ -3839,6 +3863,8 @@ const PrintModal = ({
                                   </Grid>
 
                                   <Grid item xs={12} sm={6}>
+                                  {localPricehide === "0" && (
+
                                     <Box
                                       sx={{
                                         display: "flex",
@@ -3856,16 +3882,16 @@ const PrintModal = ({
                                         >
                                           <strong>Price:</strong>
                                         </Typography>
-                                        {PriceHide === "0" && (
                                         <Typography
                                           variant="body1"
                                           sx={{ fontWeight: "medium" }}
                                         >
                                           SGD {guide.totalPrice || "N/A"}
                                         </Typography>
-                                        )}
                                       </Box>
                                     </Box>
+                                        )}
+
                                   </Grid>
 
                                   {/* {guide.Tax && parseFloat(guide.Tax) > 0 && (
@@ -4125,6 +4151,8 @@ const PrintModal = ({
                                     </Grid>
 
                                     <Grid item xs={12} sm={6}>
+                                    {localPricehide === "0" && (
+
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -4142,7 +4170,6 @@ const PrintModal = ({
                                           >
                                             <strong>Price:</strong>
                                           </Typography>
-                                          {PriceHide === "0" && (
                                           <Typography
                                             variant="body1"
                                             sx={{ fontWeight: "medium" }}
@@ -4152,9 +4179,10 @@ const PrintModal = ({
                                               restaurant.mealPrice ||
                                               "N/A"}
                                           </Typography>
-                                          )}
                                         </Box>
                                       </Box>
+                                          )}
+
                                     </Grid>
                                   </Grid>
                                 </Paper>
@@ -4927,6 +4955,8 @@ const PrintModal = ({
                                     )} */}
 
                                     <Grid item xs={12} sm={6} md={3}>
+                                    {localPricehide === "0" && (
+
                                       <Box
                                         sx={{
                                           p: 1.5,
@@ -4942,7 +4972,6 @@ const PrintModal = ({
                                         >
                                           Total Price
                                         </Typography>
-                                        {PriceHide === "0" && (
                                         <Typography
                                           variant="h6"
                                           sx={{
@@ -4952,8 +4981,9 @@ const PrintModal = ({
                                         >
                                           SGD {transfer.totalPrice || "N/A"}
                                         </Typography>
-                                        )}
                                       </Box>
+                                        )}
+
                                     </Grid>
                                   </Grid>
                                 </Paper>
