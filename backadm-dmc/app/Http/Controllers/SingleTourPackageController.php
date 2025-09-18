@@ -307,9 +307,18 @@ class SingleTourPackageController extends Controller
         }
         $guides = Guide::with(['languages'])->where('dmc_id', $userDmcId)->get();
 
-        $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
+        $restaurants = Restaurant::with(['meals' => function($query) use ($userDmcId) {
+            $query->where('dmc_id', $userDmcId);
+        }])
+        ->whereJsonContains('dmc_id', $userDmcId)
+        ->get();
 
-        $attractions = Attraction::with('tickets')->whereJsonContains('dmc_id', $userDmcId)->get();
+        $attractions = Attraction::with(['tickets' => function($query) use ($userDmcId) {
+            $query->where('dmc_id', $userDmcId);
+        }])
+        ->whereJsonContains('dmc_id', $userDmcId)
+        ->get();
+
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
         $dmc_id = CommonHelper::getDmcId(Auth::user());
 
