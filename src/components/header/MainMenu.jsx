@@ -11,6 +11,7 @@ import DMCSelectionModal from "../common/DMCSelectionModal";
 import SearchLocationModal from "../common/SearchLocationModal";
 import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
 import { resetPackages } from "../../slice/tour-packages/prePackagesSlice";
+import * as commonActions from "../../slice/common/commonSlice";
 
 const MainMenu = ({ style = "" }) => {
   const { pathname } = useLocation();
@@ -190,6 +191,9 @@ const MainMenu = ({ style = "" }) => {
     
     // Clear packages listing when Packages button is clicked
     dispatch(resetPackages());
+    
+    // Reset guest search to default values
+    dispatch(commonActions.resetGuestSearch());
     
     // Wait for DMC count to load
     if (dmcCountLoading) {

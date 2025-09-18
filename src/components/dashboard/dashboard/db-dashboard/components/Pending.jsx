@@ -1963,6 +1963,8 @@ export default function Pending() {
     }
   }, [bookings]);
 
+  
+
   // New function to handle enquiry directly from the list
   const handleDirectEnquiry = async (list) => {
     try {
@@ -3078,7 +3080,12 @@ export default function Pending() {
                               </Tooltip>
                             </div>
                           </td>
-                        <td className="status-column">
+                        <td className="status-column"
+                        style={{
+                          minWidth: "200px",
+                          maxWidth: "200px",
+                        }}
+                        >
                           <div
                             style={{
                               display: "flex",

@@ -286,9 +286,14 @@ const tourPackageSlice = createSlice({
             console.log("%c Service without id/type added", "background: #9b59b6; color: #ffffff; padding: 2px;");
           }
         });
+        
+        console.log('Preserved search form data:', preservedSearchFormData);
+        console.log('Preserved existing services:', preservedExistingServices);
+        console.log('New services added:', newServices);
     
         // Set new state: preserved search form data + preserved/updated existing services + new services
         state.AllServices = [...preservedSearchFormData, ...preservedExistingServices, ...newServices];
+        console.log('Final AllServices state:', state.AllServices);
         console.log("%c Final AllServices state updated (array)", "background: #2ecc71; color: #ffffff; padding: 2px;");
         console.log("Final services count:", state.AllServices.length);
       }

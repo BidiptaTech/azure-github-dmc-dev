@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import PersonIcon from '@mui/icons-material/Person';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
 import BabyChangingStationIcon from '@mui/icons-material/BabyChangingStation';
+import * as commonActions from "../../../slice/common/commonSlice";
 
 const counters = [
   { name: "Adults", defaultValue: 1 },
@@ -298,14 +300,18 @@ const Counter = ({
 };
 
 const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
+  const dispatch = useDispatch();
+  const reduxGuestCounts = useSelector(commonActions.selectGuestCounts);
+  const shouldReset = useSelector(commonActions.selectShouldResetGuestSearch);
+  
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [guestCounts, setGuestCounts] = useState({
-    Adults: propGuestCounts?.Adults || 1,
-    Children: propGuestCounts?.Children || 0,
-    Infants: propGuestCounts?.Infants || 0,
-    maleCount: propGuestCounts?.maleCount || 0,
-    femaleCount: propGuestCounts?.femaleCount || 0,
-    ages: propGuestCounts?.ages || []
+    Adults: propGuestCounts?.Adults || reduxGuestCounts?.Adults || 1,
+    Children: propGuestCounts?.Children || reduxGuestCounts?.Children || 0,
+    Infants: propGuestCounts?.Infants || reduxGuestCounts?.Infants || 0,
+    maleCount: propGuestCounts?.maleCount || reduxGuestCounts?.maleCount || 0,
+    femaleCount: propGuestCounts?.femaleCount || reduxGuestCounts?.femaleCount || 0,
+    ages: propGuestCounts?.ages || reduxGuestCounts?.ages || []
   });
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -323,6 +329,28 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
       });
     }
   }, [propGuestCounts]);
+
+  // Handle reset from Redux
+  useEffect(() => {
+    if (shouldReset) {
+      const defaultCounts = {
+        Adults: 1,
+        Children: 0,
+        Infants: 0,
+        maleCount: 0,
+        femaleCount: 0,
+        ages: []
+      };
+      setGuestCounts(defaultCounts);
+      dispatch(commonActions.setGuestCounts(defaultCounts));
+      dispatch(commonActions.clearGuestSearchReset());
+      
+      // Notify parent component of the reset
+      if (onGuestChange) {
+        onGuestChange(defaultCounts);
+      }
+    }
+  }, [shouldReset, dispatch, onGuestChange]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

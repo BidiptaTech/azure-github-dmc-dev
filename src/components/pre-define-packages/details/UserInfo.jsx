@@ -84,6 +84,9 @@ const selectedDate = searchParams?.date ?
     severity: 'success'
   });
   
+  // State for submit button disable functionality
+  const [isSubmitDisabled, setIsSubmitDisabled] = useState(false);
+  
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -251,6 +254,9 @@ const selectedDate = searchParams?.date ?
 
   const handleSubmit = () => {
     if (validateForm()) {
+      // Disable the submit button for 6 seconds
+      setIsSubmitDisabled(true);
+      
       // Determine the correct agent_id to use
       // If the user is an Agent, use their own agentId; otherwise use the one from searchParams
       const effectiveAgentId = userRole === 'Agent' ? agentId : searchParams?.agent_id || null;
@@ -274,6 +280,11 @@ const selectedDate = searchParams?.date ?
       
       // Log the complete booking data to console for debugging
       console.log('Complete booking data with agent_id:', finalBookingData);
+      
+      // Re-enable the button after 6 seconds
+      setTimeout(() => {
+        setIsSubmitDisabled(false);
+      }, 6000);
     }
   };
   
@@ -652,7 +663,7 @@ const selectedDate = searchParams?.date ?
             onClick={handleSubmit} 
             variant="contained" 
             color={bookingError ? "error" : "primary"}
-            disabled={bookingLoading}
+            disabled={bookingLoading || isSubmitDisabled}
             sx={{ 
               px: 4, 
               py: 1.2,

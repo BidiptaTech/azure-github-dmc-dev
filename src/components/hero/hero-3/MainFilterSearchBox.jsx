@@ -4,11 +4,12 @@ import DateSearch from "./DateSearch";
 import GuestSearch from "./GuestSearch";
 import LocationSearch from "./LocationSearch";
 import { useNavigate } from "react-router-dom";
-import { setSelectedCity } from "../../../slice/common/commonSlice";
+import * as commonActions from "../../../slice/common/commonSlice";
 import { useState } from "react";
 
 const MainFilterSearchBox = ({ onSearch }) => {
   const { tabs, currentTab } = useSelector((state) => state.hero) || {};
+  const guestCounts = useSelector(commonActions.selectGuestCounts);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -26,7 +27,7 @@ const MainFilterSearchBox = ({ onSearch }) => {
     // Set the selected city in Redux
     if (selectedLocation) {
       console.log("MainFilterSearchBox: Setting selected city:", selectedLocation);
-      dispatch(setSelectedCity(selectedLocation));
+      dispatch(commonActions.setSelectedCity(selectedLocation));
     }
 
     if (onSearch && typeof onSearch === 'function') {
@@ -73,7 +74,7 @@ const MainFilterSearchBox = ({ onSearch }) => {
             </div>
             {/* End check-in-out */}
 
-            <GuestSearch guestCounts={{Adults: 1, Children: 0, Infants: 0, maleCount: 0, femaleCount: 0, ages: []}} />
+            <GuestSearch guestCounts={guestCounts} />
             {/* End guest */}
 
             <div className="button-item">

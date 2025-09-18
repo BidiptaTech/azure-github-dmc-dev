@@ -2357,6 +2357,8 @@ export default function Pending() {
         modifiedPriceData={modifiedPriceData}
         markupAmount={markupAmount}
         discountAmount={discountAmount}
+        totalPrice={totalPrice}
+        tourId={tourId}
       />
       {/* </Box> */}
     </>
