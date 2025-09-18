@@ -415,7 +415,7 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
         // Female is always the remainder to make exactly totalAdults
         newFemaleCount = totalAdults - newMaleCount;
       } else {
-        // Set the new female count
+       
         newFemaleCount = Math.min(Math.max(0, count), totalAdults);
         // Male is always the remainder to make exactly totalAdults
         newMaleCount = totalAdults - newFemaleCount;
