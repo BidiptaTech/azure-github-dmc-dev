@@ -1963,6 +1963,8 @@ export default function Pending() {
     }
   }, [bookings]);
 
+  
+
   // New function to handle enquiry directly from the list
   const handleDirectEnquiry = async (list) => {
     try {
