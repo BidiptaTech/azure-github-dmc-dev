@@ -1954,7 +1954,7 @@
 
                 // Function to collect transport data (including entry/exit ports)
                 function updateTransportDataField() {
-                    console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
+                        console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
                     
                     // Get customer information from the Customer Information form
                     const customerData = getCustomerData();
@@ -2655,16 +2655,16 @@
                                                 lat: dropoffZone.dataset.lat || "",
                                                 lng: dropoffZone.dataset.lng || ""
                                             },
-                                        exitpickupdate: dateInput?.value || getTourDateForDay(day),
-                                        entrytime: timeSelect?.value || "",
+                                            exitpickupdate: dateInput?.value || getTourDateForDay(day),
+                                            entrytime: timeSelect?.value || "",
                                         adults: parseInt(passengerCount) || 0,
-                                        children: parseInt(childCount) || 0,
-                                        totalPrice: parseFloat(totalPrice) || 0,
+                                            children: parseInt(childCount) || 0,
+                                            totalPrice: parseFloat(totalPrice) || 0,
                                         Tax: parseFloat(document.getElementById(`day${day}_${section}_0_tax`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
                                         distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
-                                        Night_Start_Time: null,
-                                        Night_End_Time: null,
-                                        city: pickupZone.dataset.city || "Singapore",
+                                            Night_Start_Time: null,
+                                            Night_End_Time: null,
+                                            city: pickupZone.dataset.city || "Singapore",
                                             country: pickupZone.dataset.country || "Singapore",
                                             fullName: customerData.fullName,
                                             email: customerData.email,
@@ -2740,67 +2740,67 @@
                                                     const lngField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_lng"]`);
                                                     const dropoffLatField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_lat"]`);
                                                     const dropoffLngField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_lng"]`);
-                                                    
-                                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
-                                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                    
+                                    if (vehicleSelect?.value && serviceTypeSelect?.value) {
+                                        const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                                         // Get passenger count for this specific vehicle
                                                         const passengerCount = parseInt(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_passengers`)?.value || document.getElementById('adult_count')?.value || 0);
-                                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
+                                        const childCount = parseInt(document.getElementById('child_count')?.value || 0);
                                                         const totalPrice = parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_total_price`)?.value || 0);
                                                         
                                                         // Get pickup and dropoff locations (shared for all vehicles)
                                                         const pickupField = document.querySelector(`input[name="day${vehicleDay}_entry_pickup_location"]`);
                                                         const dropoffField = document.querySelector(`input[name="day${vehicleDay}_entry_dropoff_location"]`);
-                                                        
-                                                        if (pickupField?.value && dropoffField?.value) {
-                                                            const transportData = {
+                                        
+                                        if (pickupField?.value && dropoffField?.value) {
+                                            const transportData = {
                                                                 id: `entry-${vehicleIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                                                fullName: customerData.fullName,
-                                                                email: customerData.email,
-                                                                phone: customerData.phone,
-                                                                countryCode: customerData.countryCode,
-                                                                address1: customerData.address1,
-                                                                address2: customerData.address2,
-                                                                state: customerData.state,
-                                                                zip: customerData.zip,
-                                                                specialRequests: customerData.specialRequests,
-                                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
-                                                                image: vehicle.dataset.image || "",
-                                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
-                                                                vehicles_name: vehicle.text,
-                                                                Mode: "dmc",
-                                                                type: serviceTypeSelect.value || "",
-                                                                vehicle_type: vehicle.dataset.vehicle_type || "",
-                                                                vehicle_model: vehicle.dataset.vehicle_model || "",
-                                                                model_year: vehicle.dataset.model_year || "",
-                                                                seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
-                                                                travel_type: "entry_port",
-                                                                entrypickup: pickupField.value,
-                                                                entrydropoff: dropoffField.value,
-                                                                PickupPlaceid: {
-                                                                    lat: latField?.value || "",
-                                                                    lng: lngField?.value || ""
-                                                                },
-                                                                DropoffPlaceid: {
+                                                fullName: customerData.fullName,
+                                                email: customerData.email,
+                                                phone: customerData.phone,
+                                                countryCode: customerData.countryCode,
+                                                address1: customerData.address1,
+                                                address2: customerData.address2,
+                                                state: customerData.state,
+                                                zip: customerData.zip,
+                                                specialRequests: customerData.specialRequests,
+                                                vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                                image: vehicle.dataset.image || "",
+                                                dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                                vehicles_name: vehicle.text,
+                                                Mode: "dmc",
+                                                type: serviceTypeSelect.value || "",
+                                                vehicle_type: vehicle.dataset.vehicle_type || "",
+                                                vehicle_model: vehicle.dataset.vehicle_model || "",
+                                                model_year: vehicle.dataset.model_year || "",
+                                                seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
+                                                travel_type: "entry_port",
+                                                entrypickup: pickupField.value,
+                                                entrydropoff: dropoffField.value,
+                                                PickupPlaceid: {
+                                                    lat: latField?.value || "",
+                                                    lng: lngField?.value || ""
+                                                },
+                                                DropoffPlaceid: {
                                                                     lat: dropoffLatField?.value || "",
                                                                     lng: dropoffLngField?.value || ""
-                                                                },
+                                                },
                                                                 pickupdate: dateInput?.value || getTourDateForDay(vehicleDay),
-                                                                entrytime: timeSelect?.value || "12:00 PM",
+                                                entrytime: timeSelect?.value || "12:00 PM",
                                                                 adults: passengerCount,
-                                                                children: childCount,
-                                                                totalPrice: totalPrice,
+                                                children: childCount,
+                                                totalPrice: totalPrice,
                                                                 Tax: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_tax`)?.value || "7.00"),
                                                                 distance: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_distance`)?.value || "0"),
-                                                                Night_Start_Time: "10:00:00",
-                                                                Night_End_Time: "20:00:00",
-                                                                city: "Singapore", // Default city - will be updated when city-specific logic is implemented
-                                                                country: "Singapore", // Default country
+                                                Night_Start_Time: "10:00:00",
+                                                Night_End_Time: "20:00:00",
+                                                city: "Singapore", // Default city - will be updated when city-specific logic is implemented
+                                                country: "Singapore", // Default country
                                                                 bookingType: "enquiry",
                                                                 vehicleIndex: vehicleIndex // Add index to identify which vehicle this is
-                                                            };
-                                                            
-                                                            entryPortArray.push(transportData);
+                                            };
+                                            
+                                            entryPortArray.push(transportData);
                                                             console.log(`✅ Added Google Maps entry port transport #${vehicleIndex}: ${transportData.vehicles_name}`, transportData);
                                                         } else {
                                                             console.log(`❌ Missing pickup or dropoff location for entry vehicle #${vehicleIndex}`);
@@ -4128,6 +4128,9 @@
         document.getElementById('mainModalChildren').textContent = children;
         document.getElementById('mainModalInfants').textContent = infants;
         
+        // Update child age dropdowns (will auto-populate existing ages)
+        updateChildAgeDropdowns(children);
+        
         // Show modal
         const modal = document.getElementById('mainGuestSelectorModal');
         const modalInstance = new bootstrap.Modal(modal);
@@ -4313,22 +4316,37 @@
         // Clear existing dropdowns
         childAgeDropdowns.innerHTML = '';
         
-        // Create age options (1-17 years)
-        const ageOptions = [];
-        for (let i = 1; i <= 17; i++) {
-            ageOptions.push(`<option  value="${i}">${i} year${i > 1 ? 's' : ''}</option>`);
-        }
+        // Get enquiry data and existing child ages
         const enquiry = @json($enquiry);
         console.log('Enquiry:', enquiry);
-        const childAges = enquiry.child_ages;
+        
+        let existingChildAges = [];
+        if (enquiry && enquiry.child_ages) {
+            if (typeof enquiry.child_ages === 'string') {
+                // Handle comma-separated string format
+                existingChildAges = enquiry.child_ages.split(',').map(age => parseInt(age.trim())).filter(age => !isNaN(age));
+            } else if (Array.isArray(enquiry.child_ages)) {
+                // Handle array format
+                existingChildAges = enquiry.child_ages;
+            }
+        }
+        console.log('Existing child ages:', existingChildAges);
+        
         // Create dropdowns for each child
         for (let i = 1; i <= childCount; i++) {
+            let ageOptions = '<option value="">Select age</option>';
+            
+            // Generate age options (1-17) with auto-selection
+            for (let age = 1; age <= 17; age++) {
+                const selected = existingChildAges[i-1] == age ? 'selected' : '';
+                ageOptions += `<option value="${age}" ${selected}>${age} year${age > 1 ? 's' : ''}</option>`;
+            }
+            
             const dropdownHTML = `
                 <div class="d-flex align-items-center mb-2">
                     <label class="me-2 text-success fw-semibold" style="min-width: 80px;">Child ${i}:</label>
                     <select class="form-select form-select-sm child-age-select" data-child-index="${i}">
-                        <option value="">Select age</option>
-                            ${ageOptions.join('')}
+                        ${ageOptions}
                     </select>
                 </div>
             `;
@@ -5549,29 +5567,56 @@ document.addEventListener('DOMContentLoaded', function() {
         const female = parseInt(document.getElementById('female').value) || 0;
         let children = parseInt(document.getElementById('children').value) || 0;
         console.log('Children:', children);
-        console.log('Enquiry:', enquiry.child_ages);
+        console.log('Enquiry:', enquiry ? enquiry.child_ages : 'No enquiry data');
         const infants = parseInt(document.getElementById('infants').value) || 0;
         const childAgesData = document.getElementById('child_ages').value;
         let childAges = [];
 
-        if(enquiry){
+        // Handle child ages validation for both scenarios
+        if(enquiry && enquiry.child_ages){
+            // Scenario 1: Enquiry exists with child ages data
+            console.log('Validating child ages from enquiry data');
+            console.log('Enquiry child count:', enquiry.child);
+            console.log('Enquiry child ages:', enquiry.child_ages);
             
-            console.log('Hello', enquiry.child);
-            if(enquiry.child_ages){
-                childAges = enquiry.child_ages
-                .split(',')
-                .map(age => age.trim())
-                .filter(age => age !== "");
-
-                children = enquiry.child
-                console.log('Children:', children);
-                console.log('Child ages:', childAges.length);
-                if(childAges.length !== children){
-                    console.log('Child ages:', childAges.length);
-                    console.log('Children:', children);
+            if (typeof enquiry.child_ages === 'string') {
+                childAges = enquiry.child_ages.split(',')
+                    .map(age => age.trim())
+                    .filter(age => age !== "");
+            } else if (Array.isArray(enquiry.child_ages)) {
+                childAges = enquiry.child_ages;
+            }
+            
+            children = enquiry.child || children; // Use enquiry child count if available
+            
+            if(childAges.length !== children){
+                console.log('Child ages mismatch - Expected:', children, 'Found:', childAges.length);
+                alert('Please select ages for all children in the guest selector.');
+            return;
+        }
+        } else if (children > 0) {
+            // Scenario 2: No enquiry, validate from guest selector modal
+            console.log('Validating child ages from guest selector (no enquiry)');
+            console.log('Children count:', children);
+            console.log('Child ages data:', childAgesData);
+            
+            try {
+                if (childAgesData) {
+                    childAges = JSON.parse(childAgesData);
+                    console.log('Parsed child ages:', childAges);
+                } else {
+                    childAges = [];
+                }
+                
+                if (childAges.length !== children) {
+                    console.log('Child ages mismatch - Expected:', children, 'Found:', childAges.length);
                     alert('Please select ages for all children in the guest selector.');
                     return;
                 }
+            } catch (e) {
+                console.error('Error parsing child ages data:', e);
+                alert('Invalid child ages data. Please reselect children ages.');
+                return;
             }
         }
         if (adults < 1) {
@@ -5584,18 +5629,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Validate child ages if children are selected
-        if (children > 0) {
-            try {
-                if (childAges.length !== children) {
-                    alert('Please select ages for all children in the guest selector.');
-                    return;
-                }
-            } catch (e) {
-                alert('Invalid child ages data. Please reselect children ages.');
-                return;
-            }
-        }
+       
         
         // Show loading state
         const createButton = event.target;
@@ -5645,35 +5679,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Set tour dates for hotel section
             tourStartDate = startDate;
-            tourEndDate = endDate; 
+        tourEndDate = endDate; 
                 
                 // Store tour info globally
                 window.currentTourId = data.tour_id;
                 window.currentDisplayId = data.display_id;
         
-            // Show hotel selection section
-            document.getElementById('hotelSection').style.display = 'block';
+        // Show hotel selection section
+        document.getElementById('hotelSection').style.display = 'block';
         
-            // Show transport section with day-wise itinerary
-            document.getElementById('transportSection').style.display = 'block';
+        // Show transport section with day-wise itinerary
+        document.getElementById('transportSection').style.display = 'block';
         
-            // Generate daily services based on tour dates
-            generateDailyServices();
+        // Generate daily services based on tour dates
+        generateDailyServices();
                 
                 // Populate cities dropdown if cities are provided in response
                 if (data.cities && Array.isArray(data.cities)) {
                     populateCitiesDropdown(data.cities);
                 }
         
-            // Populate ports for the newly created transport sections
-            populatePortsDropdowns();
+        // Populate ports for the newly created transport sections
+        populatePortsDropdowns();
         
-            // Scroll to hotel section
-            document.getElementById('hotelSection').scrollIntoView({ 
-                behavior: 'smooth' 
-            });
+        // Scroll to hotel section
+        document.getElementById('hotelSection').scrollIntoView({ 
+            behavior: 'smooth' 
+        });
         
-            // Note: Cities must now be selected individually in each service section
+        // Note: Cities must now be selected individually in each service section
                 
                 // Disable the create button since tour is created
                 createButton.innerHTML = '<i class="ri-check-line me-1"></i>Tour Created (' + data.display_id + ')';
@@ -7476,7 +7510,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <label class="form-label fw-semibold">Vehicle</label>
-                                                <select class="form-select vehicle-select"
+                                                <select class="form-select vehicle-select" 
                                                         name="day${day}_entry_vehicle_id" id="day${day}_entry_0_vehicle_id"
                                                         onchange="updateVehicleDetails(${day}, 'entry_0'); validatePassengerCapacity(${day}, 'entry_0'); updateTypeSelect(event, ${day}, 'entry_0')">
                                                         
@@ -7550,7 +7584,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  `;
              }
              
-                // Exit Port Services (Only on last day and only if more than 1 day)
+                           // Exit Port Services (Only on last day and only if more than 1 day)
               if (day === totalDays && totalDays > 1) {
                                    servicesHTML += `
                       <div class="service-card mb-4">
@@ -14012,7 +14046,7 @@ function loadDropoffZones(day, section) {
      }
  }
 
-    window.updateVehicleDetails = function(day, section) {
+     window.updateVehicleDetails = function(day, section) {
      console.log(`updateVehicleDetails called with day: ${day}, section: ${section}`);
      
      const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
@@ -14090,15 +14124,15 @@ function loadDropoffZones(day, section) {
         }
         
         serviceTypeSelect.disabled = false;
-    }
+ }
 
-    window.updatePricing = function(day, section) {
+     window.updatePricing = function(day, section) {
 
         console.log('Updating pricing for day', day, 'section', section);
         const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
         const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
     
-        const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
+    const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
         if(!serviceTypeSelect){
             console.log('Service type select not found');
         }
@@ -14108,52 +14142,52 @@ function loadDropoffZones(day, section) {
         else if(!priceDisplay){
             console.log('Price display not found');
         }
-        
-        if (!serviceTypeSelect || !vehicleSelect || !priceDisplay) {
-            console.log('Required elements not found for pricing update');
-            return;
-        }
-        
-        const selectedServiceType = serviceTypeSelect.value;
+    
+    if (!serviceTypeSelect || !vehicleSelect || !priceDisplay) {
+        console.log('Required elements not found for pricing update');
+        return;
+    }
+    
+    const selectedServiceType = serviceTypeSelect.value;
         console.log('Selected service type:', selectedServiceType);
-        const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-
-        if (!selectedServiceType || !selectedVehicleOption.value) {
-            priceDisplay.style.display = 'none';
-            return;
-        }
-        
-        // Get pricing data from the selected vehicle option
-        const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
+    const selectedVehicleOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+    
+    if (!selectedServiceType || !selectedVehicleOption.value) {
+        priceDisplay.style.display = 'none';
+        return;
+    }
+    
+    // Get pricing data from the selected vehicle option
+    const privatePrice = parseFloat(selectedVehicleOption.dataset.privatePrice) || 0;
         const sharedPrice = parseFloat(selectedVehicleOption.dataset.sharedPrice) || parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
-        const costPerHour = parseFloat(selectedVehicleOption.dataset.costPerHour) || 0;
-        const sharableCostPerHour = parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
-        
-        // Debug logging to verify prices
-        console.log('=== PRICING DEBUG ===');
-        console.log('Selected vehicle option:', selectedVehicleOption);
-        console.log('Vehicle dataset:', selectedVehicleOption.dataset);
-        console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
-        console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
-        console.log('Parsed privatePrice:', privatePrice);
-        console.log('Parsed sharedPrice:', sharedPrice);
-        console.log('Selected service type:', selectedServiceType);
-        
-        let displayPrice = 0;
-        let priceType = '';
-        
-        if (selectedServiceType === 'Private') {
-            displayPrice = privatePrice;
-            priceType = 'Private';
-            console.log('Private service selected, price:', displayPrice);
-        } else if (selectedServiceType === 'Shared') {
-            displayPrice = sharedPrice;
-            priceType = 'Shared';
-            console.log('Shared service selected, price:', displayPrice);
-        }
-        
-        if (displayPrice > 0) {
-            // Get guest count for total price calculation
+    const costPerHour = parseFloat(selectedVehicleOption.dataset.costPerHour) || 0;
+    const sharableCostPerHour = parseFloat(selectedVehicleOption.dataset.sharableCostPerHour) || 0;
+    
+    // Debug logging to verify prices
+    console.log('=== PRICING DEBUG ===');
+    console.log('Selected vehicle option:', selectedVehicleOption);
+    console.log('Vehicle dataset:', selectedVehicleOption.dataset);
+    console.log('Raw private_price:', selectedVehicleOption.dataset.privatePrice);
+    console.log('Raw shared_price:', selectedVehicleOption.dataset.sharedPrice);
+    console.log('Parsed privatePrice:', privatePrice);
+    console.log('Parsed sharedPrice:', sharedPrice);
+    console.log('Selected service type:', selectedServiceType);
+    
+    let displayPrice = 0;
+    let priceType = '';
+    
+    if (selectedServiceType === 'Private') {
+        displayPrice = privatePrice;
+        priceType = 'Private';
+        console.log('Private service selected, price:', displayPrice);
+    } else if (selectedServiceType === 'Shared') {
+        displayPrice = sharedPrice;
+        priceType = 'Shared';
+        console.log('Shared service selected, price:', displayPrice);
+    }
+    
+    if (displayPrice > 0) {
+        // Get guest count for total price calculation
             let totalGuests = 0;
             
             // For entry port services, use the passenger input field if available
@@ -14163,8 +14197,8 @@ function loadDropoffZones(day, section) {
                     totalGuests = parseInt(passengersInput.value) || 0;
                 } else {
                     // Fallback to total guests from main form
-                const adults = parseInt(document.getElementById('adults').value) || 0;
-                const children = parseInt(document.getElementById('children').value) || 0;
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
                     totalGuests = adults + children;
                 }
             } else if (section.startsWith('exit')) {
@@ -14195,113 +14229,113 @@ function loadDropoffZones(day, section) {
                 const children = parseInt(document.getElementById('children').value) || 0;
                 totalGuests = adults + children;
             }
+        
+        let totalPrice = 0;
+        let pricingDescription = '';
+        
+        // Check if this is an hourly service (has hourly pricing)
+        const isHourlyService = costPerHour > 0 || sharableCostPerHour > 0;
+        
+        if (selectedServiceType === 'Private') {
+            // For private service: price is per vehicle (not per person)
+            totalPrice = displayPrice;
             
-            let totalPrice = 0;
-            let pricingDescription = '';
-            
-            // Check if this is an hourly service (has hourly pricing)
-            const isHourlyService = costPerHour > 0 || sharableCostPerHour > 0;
-            
-            if (selectedServiceType === 'Private') {
-                // For private service: price is per vehicle (not per person)
-                totalPrice = displayPrice;
-                
-                if (isHourlyService) {
-                    // Get adults and children values for display
-                    const adults = parseInt(document.getElementById('adults')?.value) || 0;
-                    const children = parseInt(document.getElementById('children')?.value) || 0;
-                    
-                    pricingDescription = `
-                        <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (base price)<br>
-                        <strong>Hourly Rate:</strong> $${costPerHour.toFixed(2)} per hour<br>
-                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                        <strong>Base Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                        <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
-                    `;
-                } else {
+            if (isHourlyService) {
                     // Get adults and children values for display
                     const adults = parseInt(document.getElementById('adults')?.value) || 0;
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
                 pricingDescription = `
-                    <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
+                    <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (base price)<br>
+                    <strong>Hourly Rate:</strong> $${costPerHour.toFixed(2)} per hour<br>
                     <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                    <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
+                    <strong>Base Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                    <small class="text-info">Private vehicle price is fixed. Hourly rate applies for extended services.</small>
                 `;
-                }
-            } else if (selectedServiceType === 'Shared') {
-                // For shared service: price is per person
-                totalPrice = displayPrice * totalGuests;
-                
-                if (isHourlyService) {
+            } else {
                     // Get adults and children values for display
                     const adults = parseInt(document.getElementById('adults')?.value) || 0;
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
-                    pricingDescription = `
-                        <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
-                        <strong>Hourly Rate:</strong> $${sharableCostPerHour.toFixed(2)} per person per hour<br>
-                        <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                        <strong>Base Total:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
-                        <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
-                    `;
-                } else {
+            pricingDescription = `
+                <strong>Vehicle Price:</strong> $${displayPrice.toFixed(2)} (per vehicle)<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                <small class="text-info">Private vehicle price is fixed regardless of guest count</small>
+            `;
+            }
+        } else if (selectedServiceType === 'Shared') {
+            // For shared service: price is per person
+            totalPrice = displayPrice * totalGuests;
+            
+            if (isHourlyService) {
                     // Get adults and children values for display
                     const adults = parseInt(document.getElementById('adults')?.value) || 0;
                     const children = parseInt(document.getElementById('children')?.value) || 0;
                     
                 pricingDescription = `
                     <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                    <strong>Hourly Rate:</strong> $${sharableCostPerHour.toFixed(2)} per person per hour<br>
                     <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                    <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
+                    <strong>Base Total:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span><br>
+                    <small class="text-info">Shared service pricing per person. Hourly rate applies for extended services.</small>
                 `;
-            }
-            }
-            
-            priceDisplay.style.display = 'block';
-            priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>${priceType} Service Pricing</strong>
-                        <div class="small">
-                            ${pricingDescription}
-                        </div>
+            } else {
+                    // Get adults and children values for display
+                    const adults = parseInt(document.getElementById('adults')?.value) || 0;
+                    const children = parseInt(document.getElementById('children')?.value) || 0;
+                    
+            pricingDescription = `
+                <strong>Base Price:</strong> $${displayPrice.toFixed(2)} per person<br>
+                <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
+                <strong>Total Price:</strong> <span class="text-success fw-bold">$${totalPrice.toFixed(2)}</span>
+            `;
+        }
+        }
+        
+        priceDisplay.style.display = 'block';
+        priceDisplay.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                <div>
+                    <strong>${priceType} Service Pricing</strong>
+                    <div class="small">
+                        ${pricingDescription}
                     </div>
                 </div>
-            `;
-            
-            console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
-            
-            // Store pricing data in hidden fields
-            const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-            const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-            const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
-            if (basePriceField) basePriceField.value = displayPrice.toFixed(2);
-            if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
-            if (guestCountField) guestCountField.value = totalGuests;
-            
-            console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
-            console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
-            console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
-            console.log(`- Guest Count: ${totalGuests}`);
-            
-        } else {
-            priceDisplay.style.display = 'none';
-            console.log('No pricing information available for the selected vehicle and service type');
-            
-            // Clear hidden fields when no pricing
-            const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-            const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-            const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
-            if (basePriceField) basePriceField.value = '0';
-            if (totalPriceField) totalPriceField.value = '0';
-            if (guestCountField) guestCountField.value = '0';
-        }
+            </div>
+        `;
+        
+        console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+        
+        // Store pricing data in hidden fields
+        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        
+        if (basePriceField) basePriceField.value = displayPrice.toFixed(2);
+        if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
+        if (guestCountField) guestCountField.value = totalGuests;
+        
+        console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
+        console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
+        console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
+        console.log(`- Guest Count: ${totalGuests}`);
+        
+    } else {
+        priceDisplay.style.display = 'none';
+        console.log('No pricing information available for the selected vehicle and service type');
+        
+        // Clear hidden fields when no pricing
+        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        
+        if (basePriceField) basePriceField.value = '0';
+        if (totalPriceField) totalPriceField.value = '0';
+        if (guestCountField) guestCountField.value = '0';
     }
+}
 
 // Save service data to the backend
 window.saveService = function(day, type) {
@@ -14963,15 +14997,15 @@ window.saveService = function(day, type) {
                                 data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                                 data-seatingCapacity="${vehicle.seating_capacity || ''}"
                                 data-sharable="${vehicle.sharable || ''}">
-                                ${vehicleInfo}
-                            </option>`;
+                                 ${vehicleInfo}
+                             </option>`;
                          });
                          
-                        // Enable the vehicle select
-                        vehicleSelect.disabled = false;
-                        console.log('Vehicle dropdown populated successfully (city-based)');
-                        
-                        // Reset service type select and price display when vehicles are loaded
+                         // Enable the vehicle select
+                         vehicleSelect.disabled = false;
+                         console.log('Vehicle dropdown populated successfully (city-based)');
+                         
+                         // Reset service type select and price display when vehicles are loaded
                         // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
                         let sectionForUpdate;
                         if (section === 'entry') {
@@ -15127,11 +15161,11 @@ window.saveService = function(day, type) {
                          </option>`;
                      });
                      
-                    // Enable the vehicle select
-                    vehicleSelect.disabled = false;
-                       console.log('Vehicle dropdown populated successfully (zone-based)');
-                    
-                    // Reset service type select and price display when vehicles are loaded
+                     // Enable the vehicle select
+                     vehicleSelect.disabled = false;
+                        console.log('Vehicle dropdown populated successfully (zone-based)');
+                     
+                     // Reset service type select and price display when vehicles are loaded
                        // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
                        let sectionForUpdate;
                        if (section === 'entry') {
@@ -17650,5 +17684,94 @@ function saveTransportService(day, section, type) {
     });
 }
 
+// Debug function to test child age dropdowns
+window.testChildAgeDropdowns = function() {
+    console.log('=== TESTING CHILD AGE DROPDOWNS ===');
+    
+    const childAgeSelects = document.querySelectorAll('.child-age-select');
+    console.log(`Found ${childAgeSelects.length} child age dropdowns`);
+    
+    childAgeSelects.forEach((select, index) => {
+        console.log(`Child ${index + 1} dropdown:`, {
+            value: select.value || 'NO VALUE',
+            selectedText: select.options[select.selectedIndex]?.text || 'NO SELECTED TEXT',
+            totalOptions: select.options.length
+        });
+    });
+    
+    // Test the validation logic
+    const children = parseInt(document.getElementById('children')?.value) || 0;
+    const childAges = [];
+    childAgeSelects.forEach(select => {
+        if (select.value) {
+            childAges.push(parseInt(select.value));
+        }
+    });
+    
+    console.log('Validation check:', {
+        expectedChildren: children,
+        selectedAges: childAges,
+        selectedCount: childAges.length,
+        validationPasses: children === 0 || childAges.length === children
+    });
+};
+
+// Debug function to test create tour validation
+window.debugCreateTourValidation = function() {
+    console.log('=== DEBUGGING CREATE TOUR VALIDATION ===');
+    
+    const children = parseInt(document.getElementById('children')?.value) || 0;
+    const childAgesData = document.getElementById('child_ages')?.value;
+    const enquiry = @json($enquiry);
+    
+    console.log('Current state:', {
+        children: children,
+        childAgesData: childAgesData,
+        enquiryExists: !!enquiry,
+        enquiryChildAges: enquiry?.child_ages || 'N/A'
+    });
+    
+    // Test child age selects in modal
+    const childAgeSelects = document.querySelectorAll('.child-age-select');
+    const selectedAges = [];
+    childAgeSelects.forEach(select => {
+        if (select.value) {
+            selectedAges.push(parseInt(select.value));
+        }
+    });
+    
+    console.log('Modal child age selects:', {
+        totalDropdowns: childAgeSelects.length,
+        selectedAges: selectedAges,
+        selectedCount: selectedAges.length
+    });
+    
+    // Parse child ages data
+    let parsedChildAges = [];
+    if (childAgesData) {
+        try {
+            parsedChildAges = JSON.parse(childAgesData);
+        } catch (e) {
+            console.error('Error parsing child ages data:', e);
+        }
+    }
+    
+    console.log('Hidden field child ages:', {
+        rawData: childAgesData,
+        parsedData: parsedChildAges,
+        parsedCount: parsedChildAges.length
+    });
+    
+    console.log('Validation would:', {
+        scenario: enquiry && enquiry.child_ages ? 'Use enquiry data' : 'Use guest selector data',
+        expectedChildren: children,
+        actualAgesCount: enquiry && enquiry.child_ages ? 
+            (typeof enquiry.child_ages === 'string' ? enquiry.child_ages.split(',').length : enquiry.child_ages.length) :
+            parsedChildAges.length,
+        wouldPass: enquiry && enquiry.child_ages ? 
+            (typeof enquiry.child_ages === 'string' ? enquiry.child_ages.split(',').length === children : enquiry.child_ages.length === children) :
+            (parsedChildAges.length === children)
+    });
+};
 
 </script>
