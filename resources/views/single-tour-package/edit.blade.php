@@ -480,6 +480,255 @@
                                         }
                                     @endphp
                                     
+                                    <!-- Arrival Transport Services Section -->
+                                    @if(isset($dayOrdersByType['entry_port']))
+                                <div class="service-section mb-3">
+                                    <div class="card border-success shadow-sm">
+                                        <div class="card-header bg-success text-white">
+                                            <div class="d-flex align-items-center">
+                                                <span class="service-icon me-3">
+                                                    <i class="ri-login-circle-line fs-4"></i>
+                                                </span>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold">Arrival Transport Services</h6>
+                                                    <small class="opacity-75">Entry port transfers and arrival transport</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body mt-3">
+                                            @if(isset($dayOrdersByType['travel_hourly']))
+                                                @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
+                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
+                                                                                                                                                                             <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @php
+                                                        $transportData = $order->processed_data;
+                                                        $pickupLocation = '';
+                                                        $dropoffLocation = '';
+                                                        $pickupTime = '';
+                                                        $vehicleType = '';
+                                                        if (is_array($transportData)) {
+                                                            if (isset($transportData[0])) {
+                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
+                                                            } else {
+                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
+                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
+                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup Location</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup Time</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endforeach
+                                            @endif
+
+                                            @if(isset($dayOrdersByType['travel_point']))
+                                                @foreach($dayOrdersByType['travel_point'] as $index => $order)
+                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
+                                                                                                                                                                 <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @php
+                                                        $transportData = $order->processed_data;
+                                                        $pickupLocation = '';
+                                                        $dropoffLocation = '';
+                                                        $pickupTime = '';
+                                                        $vehicleType = '';
+                                                        
+                                                        if (is_array($transportData)) {
+                                                            if (isset($transportData[0])) {
+                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
+                                                            } else {
+                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
+                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
+                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup Location</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup Time</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endforeach
+                                            @endif
+
+                                            @if(isset($dayOrdersByType['entry_port']))
+                                                @foreach($dayOrdersByType['entry_port'] as $index => $order)
+                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h6 class="mb-0">Entry Port Transfer #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @php
+                                                        $transportData = $order->processed_data;
+                                                        $pickupLocation = '';
+                                                        $dropoffLocation = '';
+                                                        $pickupTime = '';
+                                                        $vehicleName = '';
+                                                        $vehicleType = '';
+                                                        
+                                                        if (is_array($transportData)) {
+                                                            if (isset($transportData[0])) {
+                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
+                                                                $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
+                                                            } else {
+                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
+                                                                $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
+                                                                $vehicleType = $transportData['type'] ?? 'N/A';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Dropoff</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Time</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Vehicle</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Type</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endforeach
+                                            @endif
+
+                                            @if(isset($dayOrdersByType['exit_port']))
+                                                @foreach($dayOrdersByType['exit_port'] as $index => $order)
+                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @php
+                                                        $transportData = $order->processed_data;
+                                                        $pickupLocation = '';
+                                                        $dropoffLocation = '';
+                                                        $pickupTime = '';
+                                                        $vehicleName = '';
+                                                        $vehicleType = '';
+                                                        
+                                                        if (is_array($transportData)) {
+                                                            if (isset($transportData[0])) {
+                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
+                                                                $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
+                                                            } else {
+                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
+                                                                $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
+                                                                $vehicleType = $transportData['type'] ?? 'N/A';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Dropoff</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Time</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Vehicle</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Type</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endforeach
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                    @endif
+                                    
                                     <!-- Attractions Section -->
                                     @if(isset($dayOrdersByType['attraction']))
                                 <div class="service-section mb-3">
@@ -757,8 +1006,89 @@
                                 </div>
                                 @endif
 
-                                    <!-- Transport Services Section -->
-                                    @if(isset($dayOrdersByType['travel_hourly']) || isset($dayOrdersByType['travel_point']) || isset($dayOrdersByType['local_transport']) || isset($dayOrdersByType['entry_port']) || isset($dayOrdersByType['exit_port']))
+                                    <!-- Departure Transport Services Section -->
+                                    @if(isset($dayOrdersByType['exit_port']))
+                                <div class="service-section mb-3">
+                                    <div class="card border-danger shadow-sm">
+                                        <div class="card-header bg-danger text-white">
+                                            <div class="d-flex align-items-center">
+                                                <span class="service-icon me-3">
+                                                    <i class="ri-logout-circle-line fs-4"></i>
+                                                </span>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold">Departure Transport Services</h6>
+                                                    <small class="opacity-75">Exit port transfers and departure transport</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body mt-3">
+                                            @if(isset($dayOrdersByType['exit_port']))
+                                                @foreach($dayOrdersByType['exit_port'] as $index => $order)
+                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    @php
+                                                        $transportData = $order->processed_data;
+                                                        $pickupLocation = '';
+                                                        $dropoffLocation = '';
+                                                        $pickupTime = '';
+                                                        $vehicleName = '';
+                                                        $vehicleType = '';
+                                                        
+                                                        if (is_array($transportData)) {
+                                                            if (isset($transportData[0])) {
+                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
+                                                                $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
+                                                            } else {
+                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
+                                                                $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
+                                                                $vehicleType = $transportData['type'] ?? 'N/A';
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Pickup</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small fw-semibold">Dropoff</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Time</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Vehicle</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label small fw-semibold">Type</label>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endforeach
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                    @endif
+
+                                    <!-- Other Transport Services Section -->
+                                    @if(isset($dayOrdersByType['travel_hourly']) || isset($dayOrdersByType['travel_point']) || isset($dayOrdersByType['local_transport']))
                                 <div class="service-section mb-3">
                                     <div class="card border-warning shadow-sm">
                                         <div class="card-header bg-warning text-dark">
@@ -767,8 +1097,8 @@
                                                     <i class="ri-car-line fs-4"></i>
                                                 </span>
                                                 <div>
-                                                    <h6 class="mb-0 fw-bold">Book Transport Services</h6>
-                                                    <small class="opacity-75">Select professional transport and configure your tour package</small>
+                                                    <h6 class="mb-0 fw-bold">Other Transport Services</h6>
+                                                    <small class="opacity-75">Local transfers and other transport services</small>
                                                 </div>
                                             </div>
                                         </div>
@@ -778,7 +1108,7 @@
                                                 <div class="transport-item mb-3 p-3 border rounded">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
-                                                                                                                                                                             <div class="d-flex gap-2">
+                                                        <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
@@ -790,17 +1120,18 @@
                                                         $dropoffLocation = '';
                                                         $pickupTime = '';
                                                         $vehicleType = '';
+                                                        
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
+                                                                $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
+                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
+                                                                $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
@@ -831,7 +1162,7 @@
                                                 <div class="transport-item mb-3 p-3 border rounded">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
-                                                                                                                                                                 <div class="d-flex gap-2">
+                                                        <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
@@ -846,15 +1177,15 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
+                                                                $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
+                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
+                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
+                                                                $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
@@ -927,128 +1258,6 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @endif
-
-                                            @if(isset($dayOrdersByType['entry_port']))
-                                                @foreach($dayOrdersByType['entry_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Entry Port Transfer #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleName = '';
-                                                        $vehicleType = '';
-                                                        
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
-                                                                $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
-                                                            } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
-                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
-                                                                $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
-                                                                $vehicleType = $transportData['type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @endif
-
-                                            @if(isset($dayOrdersByType['exit_port']))
-                                                @foreach($dayOrdersByType['exit_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleName = '';
-                                                        $vehicleType = '';
-                                                        
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
-                                                                $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
-                                                            } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
-                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
-                                                                $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
-                                                                $vehicleType = $transportData['type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
                                                             <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
                                                         </div>
                                                     </div>
@@ -4191,14 +4400,21 @@
     function searchVehiclesForTransportModalPointToPoint() {
         console.log('Searching Point-to-Point vehicles for transport modal');
         
-        // Note: City selection removed, using destination country instead
+        // Get the selected city from the dropdown
+        const city = document.getElementById('modal_entryport_transport_city').value;
         const country = document.getElementById('modal_transport_country').value;
         const searchBtn = document.getElementById('transport_search_btn');
         const vehicleResultsSection = document.getElementById('transport_vehicle_results');
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         
-        console.log('Using Point-to-Point endpoint for country:', country);
+        console.log('Using Point-to-Point endpoint for city:', city, 'country:', country);
+        
+        // Check if city is selected
+        if (!city || city.trim() === '') {
+            showNotification('Please select a city first', 'warning');
+            return;
+        }
 
         // Show loading state
         if (searchBtn) {
@@ -4707,14 +4923,21 @@
     function searchDropoffVehiclesForPointToPoint() {
         console.log('Searching Point-to-Point vehicles for dropoff transport modal');
         
-        // Note: City selection removed, using destination country instead
-        const country = document.getElementById('modal_transport_country').value;
+        // Get the selected city from the dropdown
+        const city = document.getElementById('modal_exitport_transport_city').value;
+        const country = document.getElementById('modal_dropoff_transport_country').value;
         const searchBtn = document.getElementById('dropoff_transport_search_btn');
         const vehicleResultsSection = document.getElementById('dropoff_vehicle_results');
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
         
-        console.log('Using Point-to-Point endpoint for country:', country);
+        console.log('Using Point-to-Point endpoint for city:', city, 'country:', country);
+        
+        // Check if city is selected
+        if (!city || city.trim() === '') {
+            showNotification('Please select a city first', 'warning');
+            return;
+        }
 
         // Show loading state
         if (searchBtn) {
@@ -5434,7 +5657,7 @@
             service_type: serviceType,
             passengers: passengers,
             country: country,
-            // city parameter removed,
+            city: city,
             transport_type: serviceTypeLabel // Add transport type to differentiate between transport and local transfer
         };
         
@@ -7428,6 +7651,7 @@
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
         const country = document.getElementById('user_country').value;
+        const city = '{{ $tour->city ?? "" }}';
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
