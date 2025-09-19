@@ -152,8 +152,18 @@
                                 id="auto_cancel_{{ $user->userId }}"
                                 style="width: 65px; height: 25px; font-size: 14px; padding: 2px;">
                                 <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : ''  }}>D-1</option>
+                                <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
                                 <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
+                                <option value="4" {{ $user->auto_cancel_date == 4 ? 'selected' : '' }}>D-4</option>
+                                <option value="5" {{ $user->auto_cancel_date == 5 ? 'selected' : '' }}>D-5</option>
+                                <option value="6" {{ $user->auto_cancel_date == 6 ? 'selected' : '' }}>D-6</option>
                                 <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
+                                <option value="8" {{ $user->auto_cancel_date == 8 ? 'selected' : '' }}>D-8</option>
+                                <option value="9" {{ $user->auto_cancel_date == 9 ? 'selected' : '' }}>D-9</option>
+                                <option value="10" {{ $user->auto_cancel_date == 10 ? 'selected' : '' }}>D-10</option>
+                                <option value="11" {{ $user->auto_cancel_date == 11 ? 'selected' : '' }}>D-11</option>
+                                <option value="12" {{ $user->auto_cancel_date == 12 ? 'selected' : '' }}>D-12</option>
+                                <option value="13" {{ $user->auto_cancel_date == 13 ? 'selected' : '' }}>D-13</option>
                                 <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
                             </select>
                         </div>
