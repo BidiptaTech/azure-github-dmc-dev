@@ -2226,7 +2226,7 @@
                                                 </div>
                                                 <div class="mb-3">
                                                     <small class="text-muted">Departure Date</small>
-                                                    <div class="fw-bold text-danger fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    <div class="fw-bold text-danger fs-5">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') : 'Date not specified' }}</div>
                                                 </div>
                                                 <div class="mb-3">
                                                     <small class="text-muted">Pickup Time</small>

@@ -2,6 +2,51 @@
 @section('title', 'Hotel Listing')
 @extends('layouts.datatablecss')
 
+@section('css')
+<style>
+/* Ensure user profile dropdown is visible on hotels page */
+.topbar-item {
+    display: block !important;
+    visibility: visible !important;
+}
+
+.topbar-link {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+.navbar-nav {
+    display: flex !important;
+}
+
+/* Force show the dropdown arrow */
+.topbar-link .ri-arrow-down-s-line {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+/* Ensure ONLY the user profile dropdown menu is properly positioned */
+.topbar-item .dropdown-menu {
+    z-index: 9999 !important;
+    display: none;
+}
+
+.topbar-item .dropdown-menu.show {
+    display: block !important;
+}
+
+/* Ensure Export dropdown works normally */
+#exportDropdown + .dropdown-menu {
+    z-index: 1000 !important;
+    display: none;
+}
+
+#exportDropdown + .dropdown-menu.show {
+    display: block !important;
+}
+</style>
+@endsection
+
 @section('content')
 
 <div class="content-wrapper">
@@ -406,6 +451,55 @@
             });
         });
     });
+</script>
+
+<!-- Hotels Page Specific Dropdown Fix -->
+<script>
+$(document).ready(function() {
+    // Ensure user profile dropdown works on hotels page
+    setTimeout(function() {
+        // Target only the user profile dropdown, not the export dropdown
+        const dropdownToggle = $('.topbar-item .topbar-link.dropdown-toggle');
+        const dropdownMenu = $('.topbar-item .dropdown-menu');
+        
+        if (dropdownToggle.length && dropdownMenu.length) {
+            // Remove any existing event handlers to avoid conflicts
+            dropdownToggle.off('click.profile-dropdown-fix');
+            
+            // Add click event handler
+            dropdownToggle.on('click.profile-dropdown-fix', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Close any open export dropdowns first
+                $('#exportDropdown').attr('aria-expanded', 'false');
+                $('#exportDropdown').next('.dropdown-menu').removeClass('show');
+                
+                // Toggle user profile dropdown
+                if (dropdownMenu.hasClass('show')) {
+                    dropdownMenu.removeClass('show');
+                    dropdownToggle.attr('aria-expanded', 'false');
+                } else {
+                    dropdownMenu.addClass('show');
+                    dropdownToggle.attr('aria-expanded', 'true');
+                }
+            });
+            
+            // Close user profile dropdown when clicking outside
+            $(document).on('click.profile-dropdown-fix', function(e) {
+                if (!dropdownToggle.is(e.target) && dropdownToggle.has(e.target).length === 0 && 
+                    !dropdownMenu.is(e.target) && dropdownMenu.has(e.target).length === 0) {
+                    dropdownMenu.removeClass('show');
+                    dropdownToggle.attr('aria-expanded', 'false');
+                }
+            });
+            
+            console.log('Hotels page user profile dropdown fix applied');
+        } else {
+            console.log('User profile dropdown elements not found on hotels page');
+        }
+    }, 1000); // Wait 1 second for all scripts to load
+});
 </script>
 
 @endsection
