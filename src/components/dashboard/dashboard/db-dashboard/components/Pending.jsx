@@ -2836,7 +2836,7 @@ export default function Pending() {
                             <Tooltip
                               title={list.dmc_company_name}
                               arrow
-                              placement="top"
+                              placement="bottom"
                             >
                               <div
                                 style={{
