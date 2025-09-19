@@ -2495,6 +2495,33 @@ class UserController extends Controller
         return response()->json(['success' => true, 'message' => 'Zone status updated successfully', 'user_id' => $request->user_id, 'zone_on' => $request->zone_on]);
     }
 
+    public function updateAutoCancel(Request $request){
+        $user = User::where('userId', $request->user_id)->first();
+        
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found']);
+        }
+
+        // Store previous value for potential rollback
+        $previousValue = $user->auto_cancel_date;
+        
+        // Update the auto_cancel_date field
+        $user->auto_cancel_date = $request->auto_cancel_date ?: null;
+        $user->save();
+        
+        $message = $request->auto_cancel_date ? 
+            "Auto cancel date updated to D-{$request->auto_cancel_date} successfully" : 
+            "Auto cancel date cleared successfully";
+        
+        return response()->json([
+            'success' => true, 
+            'message' => $message, 
+            'user_id' => $request->user_id, 
+            'auto_cancel_date' => $request->auto_cancel_date,
+            'previous_value' => $previousValue
+        ]);
+    }
+
     public function updateEmail(Request $request)
     {            
         try {
