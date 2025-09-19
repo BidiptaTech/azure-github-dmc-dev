@@ -7895,6 +7895,137 @@
         };
     }
     
+    // Function to populate time slots based on meal period and restaurant timing
+    function populateTimeSlotsBasedOnMealPeriod(mealPeriod, restaurantData) {
+        const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+        if (!timeSlotSelect) return;
+        
+        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        
+        let openTime, closeTime;
+        
+        // Get opening and closing times based on meal period
+        switch(mealPeriod) {
+            case 1: // Breakfast
+                openTime = restaurantData.opening_time_bf;
+                closeTime = restaurantData.closing_time_bf;
+                break;
+            case 2: // Lunch
+                openTime = restaurantData.opening_time_lunch;
+                closeTime = restaurantData.closing_time_lunch;
+                break;
+            case 3: // Dinner
+                openTime = restaurantData.opening_time_dinner;
+                closeTime = restaurantData.closing_time_dinner;
+                break;
+            default:
+                console.log('Unknown meal period:', mealPeriod);
+                return;
+        }
+        
+        if (!openTime || !closeTime) {
+            console.log('No timing data available for meal period:', mealPeriod);
+            // Fallback to default time slots
+            const defaultTimeSlots = ['07:00', '08:00', '09:00', '12:00', '13:00', '14:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
+            defaultTimeSlots.forEach(time => {
+                const timeOption = document.createElement('option');
+                timeOption.value = time;
+                timeOption.textContent = time;
+                timeSlotSelect.appendChild(timeOption);
+            });
+            return;
+        }
+        
+        console.log('Generating time slots for meal period:', mealPeriod, 'from', openTime, 'to', closeTime);
+        
+        // Parse open and close times
+        const startTime = parseTime(openTime);
+        const endTime = parseTime(closeTime);
+        
+        if (!startTime || !endTime) {
+            console.log('Failed to parse times:', openTime, closeTime);
+            return;
+        }
+        
+        // Generate 30-minute intervals
+        let currentTime = new Date(startTime);
+        
+        while (currentTime <= endTime) {
+            const timeValue = formatTime24(currentTime);
+            const timeDisplay = formatTime12(currentTime);
+            
+            const option = document.createElement('option');
+            option.value = timeValue;
+            option.textContent = timeDisplay;
+            timeSlotSelect.appendChild(option);
+            
+            // Add 30 minutes
+            currentTime.setMinutes(currentTime.getMinutes() + 30);
+        }
+    }
+    
+    // Parse time string (handles various formats)
+    function parseTime(timeStr) {
+        if (!timeStr) return null;
+        
+        try {
+            console.log('Parsing time string:', timeStr);
+            
+            // Handle "HH:MM AM/PM" format
+            if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                const today = new Date();
+                const [time, period] = timeStr.split(' ');
+                const [hours, minutes] = time.split(':');
+                let hour = parseInt(hours);
+                
+                if (period === 'PM' && hour !== 12) hour += 12;
+                if (period === 'AM' && hour === 12) hour = 0;
+                
+                today.setHours(hour, parseInt(minutes) || 0, 0, 0);
+                console.log('Parsed 12-hour time:', today);
+                return today;
+            }
+            
+            // Handle "HH:MM:SS" or "HH:MM" format (24-hour)
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (timeMatch) {
+                const today = new Date();
+                const hour = parseInt(timeMatch[1]);
+                const minute = parseInt(timeMatch[2]);
+                const second = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
+                
+                today.setHours(hour, minute, second, 0);
+                console.log('Parsed 24-hour time:', today);
+                return today;
+            }
+            
+            console.log('Failed to parse time:', timeStr);
+            return null;
+        } catch (error) {
+            console.error('Error parsing time:', timeStr, error);
+            return null;
+        }
+    }
+    
+    // Format time to 24-hour format (HH:MM)
+    function formatTime24(date) {
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+    
+    // Format time to 12-hour format (HH:MM AM/PM)
+    function formatTime12(date) {
+        let hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const period = hours >= 12 ? 'PM' : 'AM';
+        
+        if (hours === 0) hours = 12;
+        else if (hours > 12) hours -= 12;
+        
+        return `${hours}:${minutes} ${period}`;
+    }
+
     function loadRestaurantsForCity(city, country) {
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         const restaurantCount = document.getElementById('restaurant_count');
@@ -8026,15 +8157,8 @@
                     dishOption.setAttribute('data-dish', JSON.stringify(mealData));
                     dishSelect.appendChild(dishOption);
                     
-                    // Set time slots (you can customize this based on your business logic)
-                    timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-                    const timeSlots = ['07:00', '08:00', '09:00', '12:00', '13:00', '14:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
-                    timeSlots.forEach(time => {
-                        const timeOption = document.createElement('option');
-                        timeOption.value = time;
-                        timeOption.textContent = time;
-                        timeSlotSelect.appendChild(timeOption);
-                    });
+                    // Set time slots based on restaurant's opening/closing times for the selected meal period
+                    populateTimeSlotsBasedOnMealPeriod(mealData.meal_period, restaurantData);
                 }
             });
             

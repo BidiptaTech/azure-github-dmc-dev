@@ -8163,9 +8163,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_transport_date">
-                                     </div>
                                  </div>
                                  
                                  <div class="row g-4 align-items-end">
@@ -8447,7 +8444,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="row mt-3">
                                             <div class="col-md-12">
                                                 <div class="form-group">
-                                                    <label class="form-label fw-semibold">Number of Passengers</label>
+                                                    <label class="form-label fw-semibold">Number of Passengers3</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
                                                         <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="10" value="" onchange="updatePricing(${day}, 'transport')">
