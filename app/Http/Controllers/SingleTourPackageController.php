@@ -771,13 +771,6 @@ class SingleTourPackageController extends Controller
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
             
-            // Debug logging
-            \Log::info('FetchZoneAssignedLocations Debug', [
-                'user_id' => Auth::user()->userId,
-                'user_created_by' => $user->created_by,
-                'dmc_id' => $dmcId
-            ]);
-            
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
@@ -1411,7 +1404,6 @@ class SingleTourPackageController extends Controller
                     'message' => 'DMC ID is required'
                 ], 400);
             }
-
             // Log the query parameters for debugging
             \Log::info('Fetching rooms for hotel', [
                 'hotel_id' => $hotelId,
@@ -1428,7 +1420,6 @@ class SingleTourPackageController extends Controller
                         'breakfast_included', 'dimension', 'features', 'master_image', 'created_by')
                 ->orderBy('room_type')
                 ->get();
-
             // If no rooms found with created_by, try alternative field names
             if ($rooms->count() == 0) {
                 \Log::info('No rooms found with created_by, trying alternative fields');
@@ -1438,13 +1429,11 @@ class SingleTourPackageController extends Controller
                     ->where('status', 1)
                     ->where(function($query) use ($dmcId) {
                         $query->where('created_by', $dmcId)
-                              ->orWhere('dmc_id', $dmcId)
-                              ->orWhere('company_id', $dmcId)
-                              ->orWhere('user_id', $dmcId);
+                              ->orWhere('dmc_id', $dmcId);
                     })
                     ->select('room_id', 'room_type', 'weekday_price', 'weekend_price', 'double_weekday_price', 'double_weekend_price', 
                             'breakfast', 'breakfast_type','breakfast_price','lunch', 'lunch_type', 'lunch_price', 'dinner', 'dinner_type', 'dinner_price',
-                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id', 'company_id', 'user_id')
+                            'breakfast_included', 'dimension', 'features', 'master_image', 'created_by', 'dmc_id',)
                     ->orderBy('room_type')
                     ->get();
                 
