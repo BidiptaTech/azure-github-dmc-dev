@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FaRegFileAlt, FaStickyNote, FaGavel } from "react-icons/fa";
 
-const MAX_WORDS = 200;
+const MAX_WORDS = 100;
 
 const Section = ({ title, icon: Icon, content, color }) => {
   const [expanded, setExpanded] = useState(false);
@@ -32,7 +32,7 @@ const Section = ({ title, icon: Icon, content, color }) => {
         />
         {shouldTruncate && (
           <button
-            className="text-blue-600 text-sm mt-2 underline"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2 transition-colors duration-200 focus:outline-none focus:underline"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? "See less" : "See more"}
