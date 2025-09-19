@@ -519,8 +519,8 @@ export default function Pending() {
     //setEnquiryProcessed(false);
 
     // Check if this tour has a status of 2 or 3
-    const isProcessed = await checkEnquiryStatus(tourId);
-    setEnquiryStatusProcessed(isProcessed);
+    //const isProcessed = await checkEnquiryStatus(tourId);
+    //setEnquiryStatusProcessed(isProcessed);
 
     // Add a timeout to log bookings data after it's loaded
     setTimeout(() => {
@@ -1842,6 +1842,34 @@ export default function Pending() {
                               </IconButton>
                             </Tooltip> */}
                           </div>
+                          {list.dmc_company_name && (
+                            <Tooltip
+                              title={list.dmc_company_name}
+                              arrow
+                              placement="bottom"
+                            >
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: "600",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "80px",
+                                  marginTop: "10px",
+                                  textAlign: "center",
+                                  backgroundColor: "#3554D1",
+                                  color: "#fff",
+                                  padding: "5px 10px",
+                                  borderRadius: "50px",
+                                  cursor: "pointer",
+                                  display: "inline-block",
+                                }}
+                              >
+                                {list.dmc_company_name}
+                              </div>
+                            </Tooltip>
+                          )}
                         </td>
                     <td style={{ padding: "16px 20px" }}>
   <div

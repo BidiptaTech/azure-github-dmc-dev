@@ -2474,7 +2474,7 @@ export default function Pending() {
                               </Tooltip>
 
                               {/* Show other buttons only if status doesn't start with "Cancel" */}
-                              {!list.tour_status?.toLowerCase().startsWith("cancel") && (
+                              {(!list.tour_status?.toLowerCase().startsWith("cancel") && !list.tour_status?.toLowerCase().startsWith("refund") && !list.tour_status?.toLowerCase().startsWith("refunded")) && (
                                 <>
                                   {/* Only render Edit button if editOff is not 1 */}
                                 
@@ -2520,6 +2520,34 @@ export default function Pending() {
                                 </>
                               )}
                             </div>
+                            {list.dmc_company_name && (
+                              <Tooltip
+                                title={list.dmc_company_name}
+                                arrow
+                                placement="bottom"
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: "600",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    maxWidth: "80px",
+                                    marginTop: "10px",
+                                    textAlign: "center",
+                                    backgroundColor: "#3554D1",
+                                    color: "#fff",
+                                    padding: "5px 10px",
+                                    borderRadius: "50px",
+                                    cursor: "pointer",
+                                    display: "inline-block",
+                                  }}
+                                >
+                                  {list.dmc_company_name}
+                                </div>
+                              </Tooltip>
+                            )}
                           </td>
                           <td className="booking-id-column">
                             <div

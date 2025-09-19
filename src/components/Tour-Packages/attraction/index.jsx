@@ -144,6 +144,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const initializeFormSectionsFromAttractionPack = useCallback(() => {
     if (!attractionspack || !Array.isArray(attractionspack) || attractionspack.length === 0) {
       console.log('No attractionspack data to initialize from');
+      isInitializingRef.current = false; // Ensure flag is reset even when no data
       return;
     }
 
@@ -161,6 +162,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     if (dayAttractions.length === 0) {
       console.log(`No attractions found for bookingDate ${bookingDate}`);
+      isInitializingRef.current = false; // Ensure flag is reset when no attractions found
       return;
     }
 
@@ -267,7 +269,6 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       
       // Create a copy of the data instead of modifying the original
       const processedAttractionData = {
-        id: originalAttractionData.id || `attraction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         AttractionId: originalAttractionData.AttractionId,
         AttractionName: originalAttractionData.AttractionName,
         location: originalAttractionData.location || originalAttractionData.city || '',
@@ -437,63 +438,58 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     // Remove from Redux state if the section has attraction data (either has an original ID or attraction selection)
     const hasOriginalId = sectionToRemove?.originalData?.id;
     const hasAttractionId = sectionToRemove?.attraction;
+    console.log("Attraction - Has original ID:", hasOriginalId);
+    console.log("Attraction - Section to remove:", sectionToRemove);
     
     if (hasOriginalId || hasAttractionId) {
       // Clone the existing services array
       const currentServices = [...existingServices];
+      console.log("Attraction - Current services before removal:", currentServices);
       
-      // Filter out attraction services that contain this booking
-      const filteredServices = currentServices.map(service => {
-        // Check if this is an attraction service (including attraction packages)
+      // Filter out the specific attraction service
+      const filteredServices = currentServices.filter(service => {
+        // Check if this is an attraction service
         if (service.type === "attraction" || service.type === "attraction_package") {
-          // Check if this service contains data that matches our booking
+          // For existing services with booking_id, match by booking_id
+          if (sectionToRemove.originalData?.booking_id && service.booking_id) {
+            const shouldRemove = service.booking_id === sectionToRemove.originalData.booking_id;
+            console.log(`Attraction - Checking booking_id match: ${service.booking_id} === ${sectionToRemove.originalData.booking_id} = ${shouldRemove}`);
+            return !shouldRemove;
+          }
+          
+          // For new services without booking_id, match by attraction data
           if (service.data && Array.isArray(service.data)) {
-            // Remove the specific booking with matching ID and booking_id (if available)
-            const filteredData = service.data.filter(dataItem => {
-              // Match by booking_id first (most reliable)
-              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
-                return !(dataItem.id === sectionToRemove.originalData.id && 
-                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+            const hasMatchingData = service.data.some(dataItem => {
+              // Match by AttractionId and dayIndex
+              if (sectionToRemove.attraction && dataItem.AttractionId) {
+                const matchesAttraction = dataItem.AttractionId === sectionToRemove.attraction;
+                const matchesDay = dataItem.dayIndex === dayIndex;
+                console.log(`Attraction - Checking data match: AttractionId ${dataItem.AttractionId} === ${sectionToRemove.attraction} && dayIndex ${dataItem.dayIndex} === ${dayIndex} = ${matchesAttraction && matchesDay}`);
+                return matchesAttraction && matchesDay;
               }
-              
-              // Match by ID as fallback
-              if (sectionToRemove.originalData?.id && dataItem.id === sectionToRemove.originalData.id) {
-                return false;
-              }
-              
-              // Match by attraction ID and dayIndex as final fallback for new bookings
-              if (sectionToRemove.attraction && 
-                  dataItem.AttractionId === sectionToRemove.attraction &&
-                  dataItem.dayIndex === dayIndex) {
-                return false;
-              }
-              
-              return true;
+              return false;
             });
             
-            if (filteredData.length === 0) {
-              // If no data left, mark for removal
-              return null;
-            } else {
-              // Create a new service with filtered data (immutable update)
-              return {
-                ...service,
-                data: filteredData
-              };
+            if (hasMatchingData) {
+              console.log("Attraction - Found matching data, removing service");
+              return false; // Remove this service
             }
           }
         }
         
-        // Keep all other services as-is
-        return service;
-      }).filter(service => service !== null); // Remove services marked as null
+        // Keep all other services
+        return true;
+      });
+      
+      console.log("Attraction - Filtered services after removal:", filteredServices);
       
       // Only dispatch if there's an actual change
-      if (filteredServices.length !== currentServices.length || 
-          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
-        console.log("Attraction - Removing booking from Redux:", sectionToRemove);
-        console.log("Attraction - Updated services:", filteredServices);
+      if (filteredServices.length !== currentServices.length) {
+        console.log("Attraction - Removing attraction service from Redux");
+        console.log(`Attraction - Services count: ${currentServices.length} -> ${filteredServices.length}`);
         dispatch(setAllServices(filteredServices));
+      } else {
+        console.log("Attraction - No matching service found to remove");
       }
     }
   };
@@ -535,7 +531,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         ...customerDetails,
         
         // Core booking details
-        id: updatedSection.originalData.id,
+        
         AttractionId: updatedSection.originalData.AttractionId,
         AttractionName: updatedSection.originalData.AttractionName,
         location: updatedSection.originalData.location,
@@ -628,7 +624,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       specialRequests: "",
       
       // Core booking details
-      id: updatedSection.originalData?.id || `attraction-${Date.now()}-${sectionIndex}`,
+      
       AttractionId: updatedSection.attraction,
       AttractionName: summaryData.attraction,
       location: summaryData.location,
@@ -1071,7 +1067,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           ...customerDetails,
           
           // Core booking details
-          id: section.originalData.id,
+         
           AttractionId: section.originalData.AttractionId,
           AttractionName: section.originalData.AttractionName,
           location: section.originalData.location,
@@ -1120,7 +1116,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
         specialRequests: "",
         
         // Core booking details
-        id: section.originalData?.id || `attraction-${Date.now()}-${index}`,
+       
         AttractionId: section.attraction,
         AttractionName: summaryData.attraction,
         location: summaryData.location,
