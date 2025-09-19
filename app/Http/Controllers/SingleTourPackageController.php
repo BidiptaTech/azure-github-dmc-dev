@@ -1380,8 +1380,24 @@ class SingleTourPackageController extends Controller
     {
         try {
             $hotelId = $request->input('hotel_id');
-            $dmcId = $request->input('dmc_id');
-            
+            if(Auth::user()->role_id == 11){
+                $dmcId = Auth::user()->userId;
+            }elseif(in_array(Auth::user()->role_id, [33, 34])){
+                $user = User::where('userId', Auth::user()->userId)->first();
+                $dmcId = $user->created_by;
+            }elseif(in_array(Auth::user()->role_id, [37, 124])){
+                $dmcIds = Auth::user()->created_by;
+                $user = User::where('userId', $dmcIds)->first();
+                $dmcId = $user->created_by;
+            }elseif(in_array(Auth::user()->role_id, [38, 125])){
+                $dmcIds = Auth::user()->created_by;
+                $user = User::where('userId', $dmcIds)->first();
+                $dmcIdss = $user->created_by;
+                $user = User::where('userId', $dmcIdss)->first();
+                $dmcId = $user->created_by;
+            }else{
+                $dmcId = null;
+            }
             if (!$hotelId) {
                 return response()->json([
                     'success' => false,
