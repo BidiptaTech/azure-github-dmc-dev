@@ -272,6 +272,7 @@ Route::get('/clear', function () {
         Route::post('users/update-travclicks', [UserController::class, 'updateTravclicks'])->name('users.update.travclicks');
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
+        Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         
         // Country and City API routes
