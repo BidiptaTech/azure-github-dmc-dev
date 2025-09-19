@@ -55,6 +55,7 @@
                       <span class="fw-bold">Zone On</span>
                       <span class="fw-bold">Price Hide</span>
                       <span class="fw-bold">Email On</span>
+                      <span class="fw-bold">Auto Cancel</span>
                     </div>
                   </div>
                 </th>
@@ -142,6 +143,30 @@
                                 value="1" 
                                 style="width: 25px; height: 15px;">
                         </div>
+                        
+                        <!-- Auto Cancel Dropdown -->
+                        <div class="form-group">
+                  
+                            <select class="form-select auto-cancel-dropdown" 
+                                data-user-id="{{ $user->userId }}"
+                                id="auto_cancel_{{ $user->userId }}"
+                                style="width: 65px; height: 25px; font-size: 14px; padding: 2px;">
+                                <option value="1" {{ ($user->auto_cancel_date == 1 || is_null($user->auto_cancel_date)) ? 'selected' : ''  }}>D-1</option>
+                                <option value="2" {{ $user->auto_cancel_date == 2 ? 'selected' : '' }}>D-2</option>
+                                <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
+                                <option value="4" {{ $user->auto_cancel_date == 4 ? 'selected' : '' }}>D-4</option>
+                                <option value="5" {{ $user->auto_cancel_date == 5 ? 'selected' : '' }}>D-5</option>
+                                <option value="6" {{ $user->auto_cancel_date == 6 ? 'selected' : '' }}>D-6</option>
+                                <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
+                                <option value="8" {{ $user->auto_cancel_date == 8 ? 'selected' : '' }}>D-8</option>
+                                <option value="9" {{ $user->auto_cancel_date == 9 ? 'selected' : '' }}>D-9</option>
+                                <option value="10" {{ $user->auto_cancel_date == 10 ? 'selected' : '' }}>D-10</option>
+                                <option value="11" {{ $user->auto_cancel_date == 11 ? 'selected' : '' }}>D-11</option>
+                                <option value="12" {{ $user->auto_cancel_date == 12 ? 'selected' : '' }}>D-12</option>
+                                <option value="13" {{ $user->auto_cancel_date == 13 ? 'selected' : '' }}>D-13</option>
+                                <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
+                            </select>
+                        </div>
                       @else
                         <!-- Zone On Toggle (Disabled) -->
                         <div class="form-check form-switch">
@@ -180,6 +205,19 @@
                                 value="1" 
                                 style="width: 25px; height: 15px;" 
                                 disabled>
+                        </div>
+                        
+                        <!-- Auto Cancel Dropdown (Disabled) -->
+                        <div class="form-group">
+                            <select class="form-select" 
+                                id="auto_cancel_disabled"
+                                style="width: 50px; height: 25px; font-size: 10px; padding: 2px;" 
+                                disabled>
+                                <option value="">--</option>
+                                <option value="3" {{ $user->auto_cancel_date == 3 ? 'selected' : '' }}>D-3</option>
+                                <option value="7" {{ $user->auto_cancel_date == 7 ? 'selected' : '' }}>D-7</option>
+                                <option value="14" {{ $user->auto_cancel_date == 14 ? 'selected' : '' }}>D-14</option>
+                            </select>
                         </div>
                       @endif
                     </div>
@@ -545,6 +583,46 @@ $(document).ready(function() {
                 // Revert the toggle
                 $('.email-toggle[data-user-id="' + userId + '"]').prop('checked', !isChecked);
                 
+                console.error(xhr.responseText);
+            }
+        });
+    });
+});
+</script>
+
+<script>
+$(document).ready(function() {
+    // Auto Cancel Dropdown AJAX handler
+    $('.auto-cancel-dropdown').on('change', function() {
+        const userId = $(this).data('user-id');
+        const selectedValue = $(this).val();
+        console.log("Auto Cancel dropdown changed for user:", userId, "Value:", selectedValue);
+
+        $(this).prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('update.autocancel') }}",
+            type: "POST",
+            data: {
+                user_id: userId,
+                auto_cancel_date: selectedValue,
+                _token: "{{ csrf_token() }}"
+            },
+            success: function(response) {
+                $('.auto-cancel-dropdown[data-user-id="' + userId + '"]').prop('disabled', false);
+                if (response.success) {
+                    toastr.success(response.message || 'Auto cancel date updated successfully');
+                } else {
+                    toastr.error(response.message || 'Error updating auto cancel date');
+                    // Revert the dropdown to previous value
+                    $('.auto-cancel-dropdown[data-user-id="' + userId + '"]').val(response.previous_value || '');
+                }
+            },
+            error: function(xhr) {
+                $('.auto-cancel-dropdown[data-user-id="' + userId + '"]').prop('disabled', false);
+                toastr.error('Error updating auto cancel date');
+                // Revert the dropdown to previous value
+                $('.auto-cancel-dropdown[data-user-id="' + userId + '"]').val('');
                 console.error(xhr.responseText);
             }
         });

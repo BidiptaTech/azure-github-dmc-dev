@@ -129,13 +129,18 @@ class SingleTourPackageController extends Controller
                     // Get restaurants as meals
                     if($enquiry->restaurant_ids){
                         $restaurant_ids = json_decode($enquiry->restaurant_ids, true);
-                        $meals = Restaurant::whereIn('restaurant_id', $restaurant_ids)->get();
+                        $meals = Restaurant::with('meals')->whereIn('restaurant_id', $restaurant_ids)->get();
                     }
                 }
             }
         }
+
+        $userDmcId = CommonHelper::getDmcId(Auth::user());
+
+        $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
+        $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
         
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency'));
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc'));
     }
     
     /**
@@ -518,6 +523,7 @@ class SingleTourPackageController extends Controller
      */
     public function store(Request $request)
     {
+        try{
         $request->validate([
             'user_country' => 'required|string', // Country name
             'start_date' => 'required|date|after_or_equal:today',
@@ -533,18 +539,27 @@ class SingleTourPackageController extends Controller
             'package_description' => 'nullable|string',
             'is_premium' => 'nullable|boolean',
         ]);
+        }catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 422);
+        }
 
-        // Additional validation: male + female should equal adults
-        if (($request->male + $request->female) != $request->adults) {
-            return back()->withErrors(['adults' => 'Total male and female count must equal total adults.'])->withInput();
+
+        // Parse the dates
+        $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
+        $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
+        $today = Carbon::today();
+        if($today > $checkInTime){
+            dd('hello');
+            $error = 'Start date cannot be in the past';
+            return back()->withErrors(['start_date' => $error])->withInput();
         }
 
         try {
             
 
-            // Parse the dates
-            $checkInTime = Carbon::createFromFormat('Y-m-d', $request->start_date);
-            $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
+            
 
             // Generate tour ID and save the tour
             $max_tour_id = Tour::max('tour_id') ?? 0;
@@ -575,6 +590,7 @@ class SingleTourPackageController extends Controller
             if($request->enquiry_id){
                 EnquiryForm::where('enquiry_id', $request->enquiry_id)->update(['unique_tour_id' => $thisTour->unique_tour_id]);
             }
+            $cities = City::where('country', $request->user_country)->get();
             // Return JSON response for AJAX
             if ($request->ajax()) {
                 return response()->json([
@@ -582,12 +598,14 @@ class SingleTourPackageController extends Controller
                     'message' => 'Tour package created successfully!',
                     'tour_id' => $tourId,
                     'display_id' => $display_id,
-                    'tour' => $tour
+                    'tour' => $tour,
+                    'cities' => $cities
                 ]);
             }
 
             return redirect()->route('single-tour-package.create')
-                ->with('success', 'Tour package created successfully! Tour ID: ' . $display_id);
+                ->with('success', 'Tour package created successfully! Tour ID: ' . $display_id)
+                ->with('cities', $cities);
 
         } catch (\Exception $e) {
             

@@ -883,7 +883,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-attraction-count="{{ $attractionCount }}">
-                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -942,7 +942,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-restaurant-count="{{ $restaurantCount }}">
-                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1001,7 +1001,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-hotel-count="{{ $hotelCount }}">
-                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1038,7 +1038,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-hotel-count="{{ $hotelCount }}">
-                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ $zone->description ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1063,7 +1063,7 @@
                                             data-type="{{ $zone->zone_type }}" 
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}">
-                                        {{ $zone->zone_name }} - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1100,7 +1100,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-hotel-count="{{ $hotelCount }}">
-                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $hotelCount }} hotels) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1136,7 +1136,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-restaurant-count="{{ $restaurantCount }}">
-                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1173,7 +1173,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-attraction-count="{{ $attractionCount }}">
-                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $attractionCount }} attractions) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
@@ -1210,7 +1210,7 @@
                                             data-description="{{ $zone->description ?? 'No description available' }}"
                                             data-zone-name="{{ $zone->zone_name }}"
                                             data-restaurant-count="{{ $restaurantCount }}">
-                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ strip_tags($zone->description) ?? 'Unknown Description' }}
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
                                     </option>
                                 @endif
                             @endforeach
