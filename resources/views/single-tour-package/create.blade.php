@@ -7714,9 +7714,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_transport_date">
-                                     </div>
                                  </div>
                                  
                                  <div class="row g-4 align-items-end">
