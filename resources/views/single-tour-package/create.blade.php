@@ -8444,7 +8444,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="row mt-3">
                                             <div class="col-md-12">
                                                 <div class="form-group">
-                                                    <label class="form-label fw-semibold">Number of Passengers</label>
+                                                    <label class="form-label fw-semibold">Number of Passengers3</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
                                                         <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="10" value="" onchange="updatePricing(${day}, 'transport')">
