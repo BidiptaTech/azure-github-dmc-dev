@@ -6,22 +6,48 @@
         $currentUserId = $currentUser->userId;
         $currentUserRole = $currentUser->role_id;
         
-        // Determine created_by based on role hierarchy
-        $createdBy = null;
+        // Determine DMC ID based on role hierarchy (same as controller logic)
+        $dmcId = null;
         $dmcUser = null;
         $isPointToPoint = false;
         
-        if ($currentUserRole == 34) { // Operation Head
-            $createdBy = $currentUser->created_by; // DMC
-        } elseif ($currentUserRole == 124) { // OM (Operation Manager)
-            $createdBy = $currentUserId; // Operation Head is the current user
-        } elseif ($currentUserRole == 125) { // AOM (Assistant Operation Manager)
-            $createdBy = $currentUserId; // Operation Manager is the current user
+        if($currentUserRole == 11){
+            $dmcId = $currentUser->userId;
+        }elseif(in_array($currentUserRole, [33, 34])){
+            $user = \App\Models\User::where('userId', $currentUser->userId)->first();
+            $dmcId = $user->created_by;
+        }elseif(in_array($currentUserRole, [37, 124])){
+            $dmcIds = $currentUser->created_by;
+            $user = \App\Models\User::where('userId', $dmcIds)->first();
+            if($user) {
+                $dmcId = $user->created_by;
+            } else {
+                // Fallback: if user not found, try direct created_by
+                $dmcId = $currentUser->created_by;
+            }
+        }elseif(in_array($currentUserRole, [38, 125])){
+            $dmcIds = $currentUser->created_by;
+            $user = \App\Models\User::where('userId', $dmcIds)->first();
+            if($user) {
+                $dmcIdss = $user->created_by;
+                $user = \App\Models\User::where('userId', $dmcIdss)->first();
+                if($user) {
+                    $dmcId = $user->created_by;
+                } else {
+                    // Fallback: if second user not found, use first user's created_by
+                    $dmcId = $dmcIds;
+                }
+            } else {
+                // Fallback: if first user not found, use direct created_by
+                $dmcId = $currentUser->created_by;
+            }
+        }else{
+            $dmcId = null;
         }
         
         // Get DMC user information
-        if ($createdBy) {
-            $dmcUser = \App\Models\User::where('userId', $createdBy)->first();
+        if ($dmcId) {
+            $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
             if ($dmcUser) {
                 // Check if zone_id = 0 for Point-to-Point functionality
                 if (isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
@@ -31,7 +57,17 @@
         }
         
         // Final DMC ID for the form
-        $finalDmcId = $dmcUser ? $dmcUser->userId : $currentUser->created_by;
+        $finalDmcId = $dmcId;
+        
+        // Determine created_by based on role hierarchy (for backward compatibility)
+        $createdBy = null;
+        if ($currentUserRole == 34) { // Operation Head
+            $createdBy = $currentUser->created_by; // DMC
+        } elseif ($currentUserRole == 124) { // OM (Operation Manager)
+            $createdBy = $currentUserId; // Operation Head is the current user
+        } elseif ($currentUserRole == 125) { // AOM (Assistant Operation Manager)
+            $createdBy = $currentUserId; // Operation Manager is the current user
+        }
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -206,6 +242,17 @@
                                     <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
                                     <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
                                     <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
+                                    
+                                    <!-- Debug Information -->
+                                    <script>
+                                        console.log('DMC ID Determination Debug:', {
+                                            currentUserRole: {{ $currentUserRole }},
+                                            currentUserId: {{ $currentUserId }},
+                                            finalDmcId: {{ $finalDmcId }},
+                                            createdBy: {{ $createdBy ?? 'null' }},
+                                            isPointToPoint: {{ $isPointToPoint ? 'true' : 'false' }}
+                                        });
+                                    </script>
                                 </div>
 
                                 <!-- Country Display -->
@@ -1463,13 +1510,13 @@
                             <option value="">Select City</option>
                             @foreach($cities as $city)
                                 @if($city->country == $tour->destination)
-                                    <option value="{{ $city->name }}" {{ $city->name == $tour->city ? 'selected' : '' }}>{{ $city->name }}</option>
+                                    <option value="{{ $city->name }}">{{ $city->name }}</option>
                                 @endif
                             @endforeach
                         </select>
                         <div class="form-text">
                             <i class="ri-check-line text-success me-1"></i>
-                            <span id="hotel_count">0</span> hotels found in <span id="modal_city_display2">{{ $tour->city }}</span>
+                            <span id="hotel_count">0</span> hotels found in <span id="modal_city_display2">No City</span>
                         </div>
                     </div>
 
