@@ -315,6 +315,7 @@ const prePackagesSlice = createSlice({
     resetPackages: (state) => {
       state.packages = [];
       state.error = null;
+      state.searchParams = null;
     },
     resetPackageDetails: (state) => {
       state.packageDetails = null;
