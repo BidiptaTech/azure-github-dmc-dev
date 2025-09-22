@@ -187,6 +187,7 @@
                             <th>Cancelled Date</th>
                             <th>Actions</th>
                             <th>Created At</th>
+                            <th>Updated At</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -291,6 +292,12 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ optional($tour->created_at)->format('D, M d, Y') }}</span>
                                     <small class="text-muted">{{ optional($tour->created_at)->format('h:i A') }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-medium">{{ optional($tour->updated_at)->format('D, M d, Y') }}</span>
+                                    <small class="text-muted">{{ optional($tour->updated_at)->format('h:i A') }}</small>
                                 </div>
                             </td>
                         </tr>
