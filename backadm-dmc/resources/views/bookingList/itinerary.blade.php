@@ -1192,9 +1192,9 @@
                         @endif
                     </div>
                     <div class="header-actions">
-                        <a href="{{ route('bookinglist.index') }}" class="btn-modern btn-secondary-modern">
+                        {{-- <a href="{{ route('bookinglist.index') }}" class="btn-modern btn-secondary-modern">
                             <i class="fas fa-arrow-left"></i> Back to Bookings
-                        </a>
+                        </a> --}}
                         <button id="printItinerary" class="btn-modern btn-primary-modern">
                             <i class="fas fa-print"></i> Print Itinerary
                         </button>
