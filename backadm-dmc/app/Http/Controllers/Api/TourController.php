@@ -77,12 +77,17 @@ class TourController extends Controller
             $display_id = 'DMC-ORD'. $tourId;
             $formEnquiry = null;
             if($enquiryId){
-            $formEnquiry = EnquiryForm::where('enquiry_id', $enquiryId)
+                $formEnquiry = EnquiryForm::where('enquiry_id', $enquiryId)
                                     //   ->where('agent_id', $agent_id)
                                     //   ->whereNull('unique_tour_id')
                                       ->first();
-            $multi_enq_id = $formEnquiry->multi_enq_id ?? '';
+                $multi_enq_id = $formEnquiry->multi_enq_id ?? '';
             }
+            
+            $userDMC = User::where('userId', $request->dmc_id)->first();
+            $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+            $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
+
             $tour = new Tour();
             $tour->destination = $validatedData['destination'];
             $tour->adult = $validatedData['adult'];
@@ -100,6 +105,7 @@ class TourController extends Controller
             $tour->dmc_id = $request->dmc_id;
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
+            $tour->auto_cancel_date = $auto_cancel_date;
             $tour->save();
             $tour->refresh();
             if($formEnquiry){

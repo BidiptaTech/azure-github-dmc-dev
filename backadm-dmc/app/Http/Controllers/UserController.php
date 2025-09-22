@@ -1512,7 +1512,7 @@ class UserController extends Controller
             'role_id' => (int) $request->input('role'), // Ensure integer
             'master_dmc_id' => isset($masterDmcId) ? (int) $masterDmcId : (int) ($request->master_dmc ?? 0), // Convert to integer
             'country' => is_array($request->country_names) ? implode(',', $request->country_names) : ($get_country_name ?? null),
-            'dmcId' => (int) ($dmc_id ?? 0), // Ensure integer
+            'dmcId' => $request->input('role') == 11 ? (int) $usersId : (int) ($dmc_id ?? 0), // Ensure integer
             'country_code' => (string) ($request->input('code') ?? ''), // Ensure string
             'phone' => (string) $request->input('phone'),
             'city' => $request->input('city'),
