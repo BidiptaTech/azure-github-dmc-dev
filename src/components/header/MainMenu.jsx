@@ -265,7 +265,7 @@ const MainMenu = ({ style = "" }) => {
 
   return (
     <>
-    <nav className="menu js-navList">
+    <nav className="menu js-navList  lg:d-block">
       <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex" }}>
         <li
           className={`menu-item ${

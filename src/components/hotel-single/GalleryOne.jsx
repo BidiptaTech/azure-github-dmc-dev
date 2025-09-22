@@ -83,14 +83,16 @@ export default function GalleryOne({ hotel }) {
         <button
           className="button px-15 py-8 bg-blue-1 text-white rounded absolute"
           style={{
-           
-            left: "20px",
-            zIndex: "10",
+            left: "80px",
+            // zIndex: "10",
             minHeight: "40px",
+            marginBottom: "40px",
+            marginTop: "-30px",
+            //position: "absolute",
           }}
           onClick={() => navigate("/dashboard/db-dashboard/view-hotel-search/:id")}
         >
-          ← 
+          ← Back To Listing
         </button>
           <div className="row y-gap-20 justify-between items-end">
             <div className="col-auto">
