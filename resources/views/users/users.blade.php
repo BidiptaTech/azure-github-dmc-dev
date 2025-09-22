@@ -459,7 +459,8 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    $('.price-hide_toggle').on('change', function() {
+    // Use event delegation for price-hide toggle to work with pagination
+    $(document).on('change', '.price-hide_toggle', function() {
         const userId = $(this).data('user-id');
         console.log("userId price-hide = ", userId);
         const isChecked = $(this).is(':checked') ? 1 : 0;
@@ -508,12 +509,13 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    $('.zone-toggle').on('change', function() {
+    // Use event delegation for zone toggle to work with pagination
+    $(document).on('change', '.zone-toggle', function() {
         const userId = $(this).data('user-id');
         const isChecked = $(this).is(':checked') ? 1 : 0;
         console.log("this in zone-on");
 
-        $(this).prop('disabled', true);
+        $(this).prop('disabled', true);  
 
         $.ajax({
             url: "{{ route('update.zoneon') }}",
@@ -545,7 +547,8 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    $('.email-toggle').on('change', function() {
+    // Use event delegation for email toggle to work with pagination
+    $(document).on('change', '.email-toggle', function() {
         const userId = $(this).data('user-id');
         const isChecked = $(this).is(':checked') ? 1 : 0;
         
@@ -592,8 +595,8 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    // Auto Cancel Dropdown AJAX handler
-    $('.auto-cancel-dropdown').on('change', function() {
+    // Use event delegation for auto cancel dropdown to work with pagination
+    $(document).on('change', '.auto-cancel-dropdown', function() {
         const userId = $(this).data('user-id');
         const selectedValue = $(this).val();
         console.log("Auto Cancel dropdown changed for user:", userId, "Value:", selectedValue);
