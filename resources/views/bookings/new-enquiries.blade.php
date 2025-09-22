@@ -2226,7 +2226,17 @@
                                                 </div>
                                                 <div class="mb-3">
                                                     <small class="text-muted">Departure Date</small>
-                                                    <div class="fw-bold text-danger fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div>
+                                                    @if(isset($booking['bookingDate']) && $booking['bookingDate'])
+                                                        <div class="fw-bold text-danger fs-5">
+                                                            {{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}
+                                                        </div>
+                                                    @else
+                                                        <div class="fw-bold text-secondary fs-6">
+                                                            Not Available
+                                                        </div>
+                                                        {{-- Uncomment this if you want to debug --}}
+                                                    @endif
+                                                    {{-- <div class="fw-bold text-danger fs-5">{{ \Carbon\Carbon::parse($booking['bookingDate'])->format('D, M d, Y') }}</div> --}}
                                                 </div>
                                                 <div class="mb-3">
                                                     <small class="text-muted">Pickup Time</small>

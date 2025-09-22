@@ -551,21 +551,23 @@ class SingleTourPackageController extends Controller
         $checkOutTime = Carbon::createFromFormat('Y-m-d', $request->end_date);
         $today = Carbon::today();
         if($today > $checkInTime){
-            dd('hello');
+            
             $error = 'Start date cannot be in the past';
             return back()->withErrors(['start_date' => $error])->withInput();
         }
 
         try {
-            
-
-            
 
             // Generate tour ID and save the tour
             $max_tour_id = Tour::max('tour_id') ?? 0;
             $tourId = CommonHelper::createId($max_tour_id);
 
             $display_id = 'DMC-ORD' . $tourId;
+
+            $userDmcId = CommonHelper::getDmcId(Auth::user());
+            $userDMC = User::where('userId', $userDmcId)->first();
+            $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+            $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
             // Create new tour record following TourController pattern
             $tour = new Tour();
@@ -584,6 +586,7 @@ class SingleTourPackageController extends Controller
             $tour->city = $request->city;
             $tour->dmc_id = Auth::user()->created_by;
             $tour->child_ages = $request->child_ages ?? null;
+            $tour->auto_cancel_date = $auto_cancel_date;
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();

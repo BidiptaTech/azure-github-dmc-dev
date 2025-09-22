@@ -68,6 +68,10 @@ class EnquiryController extends Controller
                 $enquiryId = CommonHelper::createId($max_tour_id);
                 $display_id = 'DMC-ENQ' . $enquiryId;
 
+                $userDMC = User::where('userId', $dmc_id)->first();
+                $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+                $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
+
                 $enquiry = new EnquiryForm();
                 $enquiry->adult = $request->adult ?? 0;
                 $enquiry->child = $request->child ?? 0;
@@ -84,6 +88,7 @@ class EnquiryController extends Controller
                 $enquiry->child_ages = $request->children_ages ?? null;
                 $enquiry->dmc_id = $dmc_id;  // Set individual DMC ID
                 $enquiry->multi_enq_id = $multi_enq_id;  // Set common multi enquiry ID
+                $enquiry->auto_cancel_date = $auto_cancel_date;
                 $enquiry->save();
                 $enquiry->refresh();
 
@@ -101,6 +106,7 @@ class EnquiryController extends Controller
                     'CheckOutTime' => CommonHelper::DateFormat($checkOutTime),
                     'adult' => $enquiry->adult,
                     'total_pax' => $enquiry->adult + $enquiry->child,
+                    'auto_cancel_date' => $enquiry->auto_cancel_date,
                 ];
             }
 
@@ -900,6 +906,7 @@ class EnquiryController extends Controller
                 'exit_port_address' => $enquiry->exit_port_address,
                 'exit_pickup_type' => $enquiry->exit_pickup_type,
                 'exit_pickup_location' => $exit_pickup_location,
+                'auto_cancel_date' => $enquiry->auto_cancel_date,
             ];
         }
             
