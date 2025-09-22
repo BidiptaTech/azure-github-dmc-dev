@@ -2749,7 +2749,7 @@ export default function Pending() {
                             </Tooltip>
 
                             {/* Show other buttons only if status doesn't start with "Cancel" */}
-                            {!list.tour_status?.toLowerCase().startsWith("cancel") && (
+                            {(!list.tour_status?.toLowerCase().startsWith("cancel") && !list.tour_status?.toLowerCase().startsWith("refund") && !list.tour_status?.toLowerCase().startsWith("refunded")) && (
                               <>
                                 {/* Only render Edit button if editOff is not 1 */}
                                 
@@ -2836,7 +2836,7 @@ export default function Pending() {
                             <Tooltip
                               title={list.dmc_company_name}
                               arrow
-                              placement="top"
+                              placement="bottom"
                             >
                               <div
                                 style={{

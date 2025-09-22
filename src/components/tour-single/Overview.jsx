@@ -1,74 +1,9 @@
 
-
-// import React from "react";
-// import { useSelector } from "react-redux";
-// import { FaRegFileAlt, FaStickyNote, FaGavel } from "react-icons/fa";
-
-// const Overview = () => {
-//   const attractionDetails = useSelector(
-//     (state) => state.attractions.attractionDetails
-//   );
-
-//   return (
-//     <div className="bg-white shadow-md rounded-2xl p-6">
-//       <h3 className="text-2xl font-semibold mb-6 border-b pb-3">Overview</h3>
-
-//       {/* Description */}
-//       <div className="flex items-start gap-4 mb-6">
-//         <FaRegFileAlt className="text-blue-600 text-xl mt-1" />
-//         <div>
-//           <h4 className="text-lg font-medium text-gray-800">Description</h4>
-//           <p
-//             className="text-gray-700 text-sm mt-1"
-//             dangerouslySetInnerHTML={{
-//               __html:
-//                 attractionDetails?.description || "<i>No description available.</i>",
-//             }}
-//           />
-//         </div>
-//       </div>
-
-//       {/* Remarks */}
-//       <div className="flex items-start gap-4 mb-6">
-//         <FaStickyNote className="text-yellow-600 text-xl mt-1" />
-//         <div>
-//           <h4 className="text-lg font-medium text-gray-800">Remarks</h4>
-//           <p
-//             className="text-gray-700 text-sm mt-1"
-//             dangerouslySetInnerHTML={{
-//               __html: attractionDetails?.remarks || "<i>No remarks available.</i>",
-//             }}
-//           />
-//         </div>
-//       </div>
-
-//       {/* Terms & Conditions */}
-//       <div className="flex items-start gap-4">
-//         <FaGavel className="text-red-600 text-xl mt-1" />
-//         <div>
-//           <h4 className="text-lg font-medium text-gray-800">Terms & Conditions</h4>
-//           <p
-//             className="text-gray-700 text-sm mt-1"
-//             dangerouslySetInnerHTML={{
-//               __html:
-//                 attractionDetails?.terms_conditions ||
-//                 "<i>No terms & conditions available.</i>",
-//             }}
-//           />
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Overview;
-
-
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { FaRegFileAlt, FaStickyNote, FaGavel } from "react-icons/fa";
 
-const MAX_WORDS = 200;
+const MAX_WORDS = 100;
 
 const Section = ({ title, icon: Icon, content, color }) => {
   const [expanded, setExpanded] = useState(false);
@@ -97,7 +32,7 @@ const Section = ({ title, icon: Icon, content, color }) => {
         />
         {shouldTruncate && (
           <button
-            className="text-blue-600 text-sm mt-2 underline"
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2 transition-colors duration-200 focus:outline-none focus:underline"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? "See less" : "See more"}
