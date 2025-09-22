@@ -2477,7 +2477,13 @@ class TourController extends Controller
     {
         $unique_tour_id = $request->tour_id;
         $tour = Tour::where('tour_id', $unique_tour_id)->first();
-
+        $dmc_id = $tour->dmc_id;
+        if($dmc_id){
+            $dmc = User::where('userId', $dmc_id)->first();
+            $price_hide = $dmc->price_hide;
+        }else{
+            $price_hide = 0;
+        }
         if (!$tour) {
             return response()->json([
                 'message' => 'Tour not found',
@@ -2564,7 +2570,8 @@ class TourController extends Controller
             'child_ages' => $tour->child_ages,
             'total_pax' => $tour->adult + $tour->child,
             'checkin_date' => $tour->check_in_time,
-            'checkout_date' => $tour->check_out_time
+            'checkout_date' => $tour->check_out_time,
+            'price_hide' => $price_hide
         ];
 
         return response()->json($formattedData);

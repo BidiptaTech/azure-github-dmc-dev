@@ -324,7 +324,7 @@
                                         <i class="fas fa-eye"></i> View
                                     </button>
                                     
-                                    @if(in_array(auth()->user()->role_id, [33, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
+                                    @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
                                         <button type="button" class="btn btn-sm btn-danger ms-1" data-booking-id="{{ $booking->booking_id }}">
                                             <i class="fas fa-times"></i> Cancel
                                         </button>
@@ -767,7 +767,7 @@
     </div>
 
     <!-- Add Payment Modal -->
-    @if(in_array(auth()->user()->role_id, [11, 33, 128, 131, 132, 134, 135, 137, 138]))
+    @if(in_array(auth()->user()->role_id, [11, 33, 37, 38, 128, 131, 132, 134, 135, 137, 138]))
     <div class="modal fade" id="addPaymentModal{{ $booking->id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $booking->id }}" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content shadow-lg rounded">
@@ -897,7 +897,7 @@
 <!-- Cancel Booking Modals - Simplified -->
 @if(isset($bookings) && count($bookings) > 0)
     @foreach($bookings as $booking)
-        @if(in_array(auth()->user()->role_id, [33, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
+        @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
         <form id="cancelBookingForm{{ $booking->booking_id }}" action="{{ route('package.cancel-booking', $booking->booking_id) }}" method="POST" style="display: none;">
             @csrf
             <input type="hidden" name="booking_id" value="{{ $booking->booking_id }}">
@@ -1440,63 +1440,105 @@ function approvePayment(bookingId, paymentIndex) {
 }
 
 function declinePayment(bookingId, paymentIndex) {
-    Swal.fire({
-        title: 'Decline Payment',
-        text: 'Please provide a reason for declining this payment:',
-        input: 'textarea',
-        inputPlaceholder: 'Enter decline reason...',
-        inputAttributes: {
-            maxlength: 500
-        },
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Decline Payment',
-        customClass: {
-            popup: 'swal-z-index'
-        },
-        inputValidator: (value) => {
-            if (!value || value.trim().length < 10) {
-                return 'Please provide a reason (at least 10 characters)';
-            }
+    // Create custom modal HTML
+    const modalHtml = `
+        <div class="modal fade" id="declineModal" tabindex="-1" aria-labelledby="declineModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="declineModalLabel">Decline Payment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="declineReason" class="form-label">Please provide a reason for declining this payment:</label>
+                            <textarea class="form-control" id="declineReason" rows="4" maxlength="500" 
+                                      placeholder="Enter decline reason..." required></textarea>
+                            <div class="form-text">Minimum 10 characters required</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmDecline">Decline Payment</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#declineModal').remove();
+    
+    // Add modal to body
+    $('body').append(modalHtml);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('declineModal'));
+    modal.show();
+    
+    // Focus on textarea when modal is shown
+    $('#declineModal').on('shown.bs.modal', function () {
+        $('#declineReason').focus();
+    });
+    
+    // Handle confirm button click
+    $('#confirmDecline').on('click', function() {
+        const reason = $('#declineReason').val().trim();
+        
+        if (!reason || reason.length < 10) {
+            alert('Please provide a reason (at least 10 characters)');
+            $('#declineReason').focus();
+            return;
         }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: `{{ url('/package-booking') }}/${bookingId}/decline-payment`,
-                method: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    payment_index: paymentIndex,
-                    decline_reason: result.value
-                },
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message,
-                            icon: 'success'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            title: 'Error!',
-                            text: response.message,
-                            icon: 'error'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    const response = xhr.responseJSON;
+        
+        // Disable button to prevent double submission
+        $(this).prop('disabled', true).text('Processing...');
+        
+        $.ajax({
+            url: `{{ url('/package-booking') }}/${bookingId}/decline-payment`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                payment_index: paymentIndex,
+                decline_reason: reason
+            },
+            success: function(response) {
+                modal.hide();
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         title: 'Error!',
-                        text: response?.message || 'Failed to decline payment',
+                        text: response.message,
                         icon: 'error'
                     });
                 }
-            });
-        }
+            },
+            error: function(xhr) {
+                modal.hide();
+                const response = xhr.responseJSON;
+                Swal.fire({
+                    title: 'Error!',
+                    text: response?.message || 'Failed to decline payment',
+                    icon: 'error'
+                });
+            },
+            complete: function() {
+                // Re-enable button
+                $('#confirmDecline').prop('disabled', false).text('Decline Payment');
+            }
+        });
+    });
+    
+    // Clean up modal when hidden
+    $('#declineModal').on('hidden.bs.modal', function () {
+        $(this).remove();
     });
 }
 </script>

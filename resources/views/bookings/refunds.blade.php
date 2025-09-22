@@ -91,7 +91,7 @@
                             <p class="text-muted mb-0" id="statCompletedLabel">Completed Refunds</p>
                         </div>
                         <div class="avatar">
-                            <div class="avatar-initial bg-success rounded">
+                            <div class="avatar-initial bg-success rounded ri-arrow-go-back-line">
                                 <i class="ri-check-circle-line ri-24px"></i>
                             </div>
                         </div>
