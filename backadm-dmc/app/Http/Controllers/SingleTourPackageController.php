@@ -228,7 +228,7 @@ class SingleTourPackageController extends Controller
         $guides = Guide::where('dmc_id', $dmc_id)
             ->where('status', 1)
             ->select('guide_id', 'name', 'night_start_time', 'night_end_time', 
-                    'day_rate', 'night_surcharge', 'hourly_price', 
+                    'night_surcharge', 'hourly_price', 
                     'two_hour_price', 'four_hour_price', 'six_hour_price', 
                     'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
             ->get();
@@ -1561,7 +1561,7 @@ class SingleTourPackageController extends Controller
             }
             
             $guides = $query->select('guide_id', 'name', 'city', 'night_start_time', 'night_end_time', 
-                        'day_rate', 'night_surcharge', 'hourly_price', 
+                        'night_surcharge', 'hourly_price', 
                         'two_hour_price', 'four_hour_price', 'six_hour_price', 
                         'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
                 ->get();
@@ -1573,7 +1573,7 @@ class SingleTourPackageController extends Controller
                     'city' => $guide->city,
                     'night_start_time' => $guide->night_start_time,
                     'night_end_time' => $guide->night_end_time,
-                    'day_rate' => $guide->day_rate,
+                    'day_rate' => 0,
                     'night_surcharge' => $guide->night_surcharge,
                     'hourly_price' => $guide->hourly_price,
                     'two_hour_price' => $guide->two_hour_price,
@@ -1627,12 +1627,13 @@ class SingleTourPackageController extends Controller
                 ], 400);
             }
 
-            // Fetch guides for the specific city and DMC
+            // Fetch guides for the specific city and DMC with languages
             $guides = Guide::where('dmc_id', $dmcId)
                 ->where('status', 1)
                 ->where('city', $city)
+                ->with('languages')
                 ->select('guide_id', 'name', 'city', 'night_start_time', 'night_end_time', 
-                        'day_rate', 'night_surcharge', 'hourly_price', 
+                        'night_surcharge', 'hourly_price', 
                         'two_hour_price', 'four_hour_price', 'six_hour_price', 
                         'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
                 ->get();
@@ -1868,6 +1869,17 @@ class SingleTourPackageController extends Controller
             $restaurantId = $request->input('restaurant_id');
             $mealPeriod = $request->input('meal_period'); // 1=Breakfast, 2=Lunch, 3=Dinner
             
+            // Get DMC ID from authenticated user
+            $user = User::where('userId', Auth::user()->userId)->first();
+            $dmcId = $user->created_by;
+            
+            if (!$dmcId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine DMC ID'
+                ], 403);
+            }
+            
             // Check if restaurant ID is valid (not empty, null, or 'undefined')
             if (!$restaurantId || $restaurantId === 'undefined' || $restaurantId === '') {
                 return response()->json([
@@ -1893,6 +1905,15 @@ class SingleTourPackageController extends Controller
 
             $meals = $query->select('meal_id', 'name', 'type', 'price', 'adult_price', 'child_price', 'meal_period')
                 ->get();
+
+            // Debug logging
+            \Log::info('Meals query result:', [
+                'restaurant_id' => $restaurantId,
+                'dmc_id' => $dmcId,
+                'meal_period' => $mealPeriod,
+                'meals_count' => $meals->count(),
+                'meals_data' => $meals->toArray()
+            ]);
 
             $mealsData = $meals->map(function ($meal) {
                 $dishType = '';
@@ -1934,10 +1955,15 @@ class SingleTourPackageController extends Controller
                 ];
             });
 
-            return response()->json([
+            $response = [
                 'success' => true,
                 'meals' => $mealsData
-            ]);
+            ];
+            
+            // Debug logging
+            \Log::info('Meals API response:', $response);
+            
+            return response()->json($response);
 
         } catch (\Exception $e) {
             return response()->json([
