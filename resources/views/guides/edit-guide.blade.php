@@ -136,6 +136,29 @@
         border-color: #dfe3e7 !important;
     }
 
+    /* Auto-update animation for zero value fields */
+    .zero-value-updated {
+        animation: zeroValueUpdate 1s ease-in-out;
+        border-left: 3px solid #28a745 !important;
+    }
+
+    @keyframes zeroValueUpdate {
+        0% { 
+            background-color: #d4edda; 
+            border-left-color: #28a745;
+            transform: scale(1.02);
+        }
+        50% { 
+            background-color: #f8f9fa; 
+            border-left-color: #17a2b8;
+        }
+        100% { 
+            background-color: #fff; 
+            border-left-color: #ced4da;
+            transform: scale(1);
+        }
+    }
+
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -522,8 +545,9 @@
                                                 class="text-danger">*</span></label>
                                         <input value="{{$guide->day_rate}}" type="text" id="day_rate"
                                             class="form-control" name="day_rate" placeholder="Enter Day Rate" required
-                                            oninput="validateNumericPrice(this)">
+                                            oninput="validateNumericPrice(this); calculateEditHourlyRates();">
                                         <small class="validation-message text-danger" id="day_rate-validation-message"></small>
+                                        <small class="text-muted">This is the hourly rate - will auto-calculate multi-hour prices below</small>
                                         @error('day_rate')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                         @enderror
@@ -1621,6 +1645,71 @@
         </style>
     `);
     
+    // Function to calculate hourly rates (simplified - always updates all fields)
+    function calculateEditHourlyRates() {
+        const basePriceInput = document.getElementById('day_rate');
+        const basePrice = parseFloat(basePriceInput.value) || 0;
+        
+        if (basePrice <= 0) {
+            // If base price is 0 or empty, clear all fields
+            clearAllHourlyFields();
+            return;
+        }
+        
+        // The base price IS the hourly rate (no division needed)
+        const hourlyRate = basePrice;
+        
+        // Define the hour multipliers
+        const hourMultipliers = {
+            'hourly_price': 1,     // 1 hour = base price × 1
+            'two_hour_price': 2,   // 2 hours = base price × 2
+            'four_hour_price': 4,  // 4 hours = base price × 4
+            'six_hour_price': 6,   // 6 hours = base price × 6
+            'eight_hour_price': 8, // 8 hours = base price × 8
+            'ten_hour_price': 10,  // 10 hours = base price × 10
+            'twelve_hour_price': 12 // 12 hours = base price × 12
+        };
+        
+        // Calculate and update ALL hourly rate fields
+        Object.keys(hourMultipliers).forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                const calculatedValue = Math.round((hourlyRate * hourMultipliers[fieldId]) * 100) / 100;
+                field.value = calculatedValue.toFixed(2);
+                
+                // Add visual feedback animation
+                field.classList.add('zero-value-updated');
+                setTimeout(() => {
+                    field.classList.remove('zero-value-updated');
+                }, 1000);
+                
+                // Trigger validation for the updated field
+                validateNumericPrice(field);
+            }
+        });
+    }
+    
+    // Function to clear all hourly rate fields
+    function clearAllHourlyFields() {
+        const hourlyFields = [
+            'hourly_price', 'two_hour_price', 'four_hour_price', 
+            'six_hour_price', 'eight_hour_price', 'ten_hour_price', 'twelve_hour_price'
+        ];
+        
+        hourlyFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.value = '';
+                // Clear any validation states
+                field.classList.remove('is-valid', 'is-invalid', 'zero-value-updated');
+                const messageElement = document.getElementById(`${fieldId}-validation-message`);
+                if (messageElement) {
+                    messageElement.innerHTML = '';
+                }
+            }
+        });
+    }
+
     // Removed the auto-validation on page load so validation only happens when user interacts with fields
     </script>
     

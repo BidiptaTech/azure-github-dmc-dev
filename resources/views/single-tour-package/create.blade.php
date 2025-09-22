@@ -3504,10 +3504,6 @@
                 }
 
                 async function saveAllBookings() {
-                    // Validate customer information
-                    if (!validateCustomerInfo()) {
-                        return false;
-                    }
                     
                     // Validate service selections (time slots, meal types)
                     if (!validateServiceSelections()) {
@@ -4609,24 +4605,6 @@ function getCustomerData() {
     };
 }
 
-// Function to validate customer information
-function validateCustomerInfo() {
-    const requiredFields = ['customerFullName', 'customerEmail', 'customerPhone', 'customerCountryCode', 'customerAddress1'];
-    const missingFields = requiredFields.filter(field => !document.getElementById(field).value);
-    
-    if (missingFields.length > 0) {
-        alert('Please fill in all required customer information fields');
-        return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(document.getElementById('customerEmail').value)) {
-        alert('Please enter a valid email address');
-        return false;
-    }
-
-    return true;
-}
 
 // Function to validate service selections (time slots, meal types, etc.)
 function validateServiceSelections() {
@@ -5116,9 +5094,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.success && data.guides) {
                         data.guides.forEach(guide => {
                             const option = document.createElement('option');
-                            option.value = guide.guide_unique_id || guide.id;
-                            option.textContent = `${guide.name} - ${guide.languages?.join(', ') || 'Languages not specified'}`;
+                            option.value = guide.guide_id;
+                            // Extract language names from the languages relationship
+                            const languageNames = guide.languages ? guide.languages.map(lang => lang.language).join(', ') : 'Languages not specified';
+                            option.textContent = `${guide.name} - ${languageNames}`;
                             option.dataset.city = guide.city;
+                            
+                            // Add pricing data attributes
+                            option.dataset.nightStartTime = guide.night_start_time;
+                            option.dataset.nightEndTime = guide.night_end_time;
+                            option.dataset.dayRate = 0;
+                            option.dataset.nightSurcharge = guide.night_surcharge;
+                            option.dataset.hourlyPrice = guide.hourly_price;
+                            option.dataset.twoHourPrice = guide.two_hour_price;
+                            option.dataset.fourHourPrice = guide.four_hour_price;
+                            option.dataset.sixHourPrice = guide.six_hour_price;
+                            option.dataset.eightHourPrice = guide.eight_hour_price;
+                            option.dataset.tenHourPrice = guide.ten_hour_price;
+                            option.dataset.twelveHourPrice = guide.twelve_hour_price;
+                            
                             guideSelect.appendChild(option);
                         });
                         console.log(`Loaded ${data.guides.length} guides for ${cityName}`);
@@ -7472,17 +7466,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      <div class="col-md-2">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                             </label>
-                                             <div class="position-relative">
-                                                 <input type="date" class="form-control border-2" name="day${day}_entry_pickup_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;" disabled>
-                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <div class="col-md-2">
                                          <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'entry')" id="day${day}_entry_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search Vehicles
                                          </button>
@@ -7684,17 +7667,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      <div class="col-md-2">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-calendar-line text-primary me-2"></i>Exit Date
-                                             </label>
-                                             <div class="position-relative">
-                                                 <input type="date" class="form-control border-2" name="day${day}_exit_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;" disabled>
-                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                             </div>
-                                         </div>
-                                     </div>
-                                     <div class="col-md-2">
                                          <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'exit')" id="day${day}_exit_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search Vehicles
                                          </button>
@@ -7883,7 +7855,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  
                                  <!-- Attraction Price Display -->
                                  <div class="col-12 mt-3">
-                                     <div id="day${day}_attraction_1_price_display" class="alert alert-info" style="display: none;">
+                                     <div id="day${day}_attraction_1_price_display" class="alert alert-info">
                                          <div class="d-flex align-items-center justify-content-between">
                                              <div class="d-flex align-items-center">
                                                  <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
@@ -7989,9 +7961,50 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Package</label>
-                                         <select class="form-select" name="day${day}_guide_1_package" id="day${day}_guide_1_package">
+                                         <select class="form-select" name="day${day}_guide_1_package" id="day${day}_guide_1_package" onchange="updateGuidePricing(${day}, 1)">
                                              <option value="">Select Duration</option>
                                          </select>
+                                         
+                                         <!-- Guide Price Display Section -->
+                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none; width: 1307px;" >
+                                             <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
+                                                 <h6 class="text-primary mb-3 fw-bold">
+                                                     <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_1_guide_name">Guide Name</span>
+                                                 </h6>
+                                                 
+                                                 <div class="row">
+                                                     <div class="col-12">
+                                                         <div class="d-flex justify-content-between align-items-center mb-2">
+                                                             <span class="text-primary">Package Price:</span>
+                                                             <span class="fw-semibold text-primary" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                                         </div>
+                                                         
+                                                         <div class="d-flex justify-content-between align-items-center mb-2">
+                                                             <span class="text-primary">Duration:</span>
+                                                             <span class="fw-semibold text-primary" id="day${day}_guide_1_hours_display">0 hours</span>
+                                                         </div>
+                                                         
+                                                         <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_guide_1_surcharge_row" style="display: none;">
+                                                             <span class="text-primary">Night Surcharge:</span>
+                                                             <span class="fw-semibold text-warning" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                         </div>
+                                                         
+                                                         <hr class="my-3" style="border-color: #bbdefb;">
+                                                         
+                                                         <div class="d-flex justify-content-between align-items-center">
+                                                             <span class="fw-bold text-primary">Total Price:</span>
+                                                             <span class="fw-bold text-success fs-5" id="day${day}_guide_1_total_price_display">$0.00</span>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         
+                                         <!-- Hidden fields for pricing -->
+                                         <input type="hidden" id="day${day}_guide_1_base_price" name="day${day}_guide_1_base_price" value="0">
+                                         <input type="hidden" id="day${day}_guide_1_hours" name="day${day}_guide_1_hours" value="0">
+                                         <input type="hidden" id="day${day}_guide_1_surcharge" name="day${day}_guide_1_surcharge" value="0">
+                                         <input type="hidden" id="day${day}_guide_1_total_price" name="day${day}_guide_1_total_price" value="0">
                                      </div>
                                  </div>
                                  
@@ -8048,7 +8061,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-3">
                                          <label class="form-label fw-semibold">Select Restaurant</label>
-                                         <select class="form-select restaurant-select" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) loadRestaurantDetails(${day}, this.value, 1)" disabled>
+                                         <select class="form-select restaurant-select" name="day${day}_restaurant_1" id="day${day}_restaurant_1" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, 1); updateRestaurantPricing(${day}, 1); }" disabled>
                                              <option value="">Select city first</option>
                                          </select>
                                      </div>
@@ -8088,7 +8101,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      <div class="col-md-2" id="day${day}_dish_container_1" style="display: none;">
                                          <label class="form-label fw-semibold">Select Dish</label>
-                                         <select class="form-select" name="day${day}_dish_1" id="day${day}_dish_1">
+                                         <select class="form-select" name="day${day}_dish_1" id="day${day}_dish_1" onchange="updateRestaurantPricing(${day}, 1)">
                                              <option value="">Select Dish</option>
                                          </select>
                                          <small class="text-muted">Buffet or Set Menu options</small>
@@ -8099,6 +8112,21 @@ document.addEventListener('DOMContentLoaded', function() {
                                              <option value="">Select Time Slot</option>
                                          </select>
                                          <small class="text-muted">Available time slots</small>
+                                     </div>
+                                 </div>
+                                 
+                                 <!-- Restaurant Pricing Section -->
+                                 <div id="day${day}_restaurant_1_price_display" class="mt-3" style="display: none;">
+                                     <div class="alert alert-success">
+                                         <div class="d-flex align-items-center">
+                                             <i class="ri-restaurant-line me-2 fs-4"></i>
+                                             <div>
+                                                 <strong>Restaurant Pricing: <span id="day${day}_restaurant_1_restaurant_name">Restaurant Name</span></strong>
+                                                 <div class="small" id="day${day}_restaurant_1_pricing_details">
+                                                     Select a restaurant and configure guests to see pricing
+                                                 </div>
+                                             </div>
+                                         </div>
                                      </div>
                                  </div>
                                  
@@ -8161,9 +8189,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                         <input type="date" class="form-control" value="${currentDate.format('YYYY-MM-DD')}" name="day${day}_transport_date">
-                                     </div>
                                  </div>
                                  
                                  <div class="row g-4 align-items-end">
@@ -8232,17 +8257,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                              </div>
                                          </div>
-                                     </div>
-                                     <div class="col-md-2 local-transfer-field">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold text-muted mb-2">
-                                                <i class="ri-calendar-line text-primary me-2"></i>Transport Date
-                                            </label>
-                                            <div class="position-relative">
-                                                <input type="date" class="form-control border-2" name="day${day}_transport_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
-                                                <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                            </div>
-                                        </div>
                                      </div>
                                      <div class="col-md-2 local-transfer-field">
                                          <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport')" id="day${day}_transport_search_btn" disabled>
@@ -8316,17 +8330,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-2 point-to-point-field" id="day${day}_transport_additional_date_field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                             </label>
-                                             <div class="position-relative">
-                                                 <input type="date" class="form-control border-2" name="day${day}_transport_additional_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
-                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                             </div>
-                                         </div>
-                                     </div>
+                                     
                                      <div class="col-md-2 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
                                          <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_additional')" id="day${day}_transport_additional_search_btn">
                                              <i class="ri-search-line me-2"></i>Search
@@ -8385,17 +8389,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-3 hourly-field" id="day${day}_transport_hourly_date_field" style="display: none;">
-                                         <div class="form-group">
-                                             <label class="form-label fw-semibold text-muted mb-2">
-                                                 <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                             </label>
-                                             <div class="position-relative">
-                                                 <input type="date" class="form-control border-2" name="day${day}_transport_hourly_date" value="${currentDate.format('YYYY-MM-DD')}" style="padding-left: 45px;">
-                                                 <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                             </div>
-                                         </div>
-                                     </div>
+                                     
                                      <div class="col-md-2 hourly-field" id="day${day}_transport_hourly_search_field" style="display: none;">
                                          <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_hourly')" id="day${day}_transport_hourly_search_btn">
                                              <i class="ri-search-line me-2"></i>Search
@@ -8445,7 +8439,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="row mt-3">
                                             <div class="col-md-12">
                                                 <div class="form-group">
-                                                    <label class="form-label fw-semibold">Number of Passengers</label>
+                                                    <label class="form-label fw-semibold">Number of Passengers3</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
                                                         <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="10" value="" onchange="updatePricing(${day}, 'transport')">
@@ -10066,6 +10060,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         option.textContent = `${icon}${meal.display_name || meal.name}`;
                         option.dataset.adultPrice = meal.adult_price || 0;
                         option.dataset.childPrice = meal.child_price || 0;
+                        
+                        // Debug logging
+                        console.log('Meal data:', {
+                            name: meal.name,
+                            adult_price: meal.adult_price,
+                            child_price: meal.child_price,
+                            dataset_adultPrice: option.dataset.adultPrice,
+                            dataset_childPrice: option.dataset.childPrice
+                        });
+                        
                         dishSelect.appendChild(option);
                     });
                 } else {
@@ -10106,6 +10110,117 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show user-friendly error message
                 showNotification('Error loading dishes. Please try again.', 'error');
             });
+    }
+    
+    // Function to update restaurant pricing display
+    window.updateRestaurantPricing = function(day, index) {
+        console.log(`=== UPDATING RESTAURANT PRICING: Day ${day}, Index ${index} ===`);
+        
+        const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+        const dishSelect = document.getElementById(`day${day}_dish_${index}`);
+        const priceDisplay = document.getElementById(`day${day}_restaurant_${index}_price_display`);
+        const restaurantNameDisplay = document.getElementById(`day${day}_restaurant_${index}_restaurant_name`);
+        const pricingDetailsDisplay = document.getElementById(`day${day}_restaurant_${index}_pricing_details`);
+        
+        console.log('Elements found:', {
+            restaurantSelect: !!restaurantSelect,
+            dishSelect: !!dishSelect,
+            priceDisplay: !!priceDisplay,
+            restaurantNameDisplay: !!restaurantNameDisplay,
+            pricingDetailsDisplay: !!pricingDetailsDisplay
+        });
+        
+        if (!restaurantSelect || !priceDisplay) {
+            console.log('Required elements not found for restaurant pricing update');
+            return;
+        }
+        
+        const selectedRestaurant = restaurantSelect.options[restaurantSelect.selectedIndex];
+        const selectedDish = dishSelect ? dishSelect.options[dishSelect.selectedIndex] : null;
+        
+        console.log('Selected elements:', {
+            restaurant: selectedRestaurant ? selectedRestaurant.text : 'None',
+            dish: selectedDish ? selectedDish.text : 'None'
+        });
+        
+        if (!selectedRestaurant || !selectedRestaurant.value) {
+            console.log('No restaurant selected, hiding pricing');
+            priceDisplay.style.display = 'none';
+            return;
+        }
+        
+        // Update restaurant name
+        if (restaurantNameDisplay) {
+            restaurantNameDisplay.textContent = selectedRestaurant.text;
+        }
+        
+        // Check if dish is selected (required for pricing)
+        if (!selectedDish || !selectedDish.value) {
+            console.log('No dish selected, showing info message');
+            priceDisplay.style.display = 'block';
+            if (pricingDetailsDisplay) {
+                pricingDetailsDisplay.innerHTML = `
+                    <strong>Restaurant Selected: ${selectedRestaurant.text}</strong><br>
+                    <span class="text-muted">Please select a dish to see pricing information</span>
+                `;
+            }
+            return;
+        }
+        
+        // Get pricing data from the selected dish option
+        let adultPrice = parseFloat(selectedDish.dataset.adultPrice) || 0;
+        let childPrice = parseFloat(selectedDish.dataset.childPrice) || 0;
+        
+        console.log('Dish pricing data:', { 
+            adultPrice, 
+            childPrice,
+            rawAdultPrice: selectedDish.dataset.adultPrice,
+            rawChildPrice: selectedDish.dataset.childPrice,
+            selectedDish: selectedDish
+        });
+        
+        // Get current guest counts from the guest summary
+        const guestSummaryElement = document.getElementById(`day${day}_restaurant_${index}_guest_summary`);
+        if (!guestSummaryElement) {
+            priceDisplay.style.display = 'none';
+            return;
+        }
+        
+        const guestText = guestSummaryElement.textContent;
+        const adultsMatch = guestText.match(/(\d+)\s+adults/);
+        const childrenMatch = guestText.match(/(\d+)\s+children/);
+        
+        const adults = adultsMatch ? parseInt(adultsMatch[1]) : 0;
+        const children = childrenMatch ? parseInt(childrenMatch[1]) : 0;
+        
+        console.log('Guest counts:', { adults, children });
+        
+        if (adults > 0 || children > 0) {
+            const adultTotal = adults * adultPrice;
+            const childTotal = children * childPrice;
+            const totalPrice = adultTotal + childTotal;
+            
+            priceDisplay.style.display = 'block';
+            if (pricingDetailsDisplay) {
+                pricingDetailsDisplay.innerHTML = `
+                    <strong>Restaurant Selected: ${selectedRestaurant.text}</strong><br>
+                    <strong>Dish: ${selectedDish.text}</strong><br>
+                    ${adults > 0 ? `${adults} Adults × $${adultPrice.toFixed(2)} = $${adultTotal.toFixed(2)}<br>` : ''}
+                    ${children > 0 ? `${children} Children × $${childPrice.toFixed(2)} = $${childTotal.toFixed(2)}<br>` : ''}
+                    <strong class="text-success">Total: $${totalPrice.toFixed(2)}</strong>
+                `;
+            }
+            
+            // Update hidden total price field
+            const totalPriceField = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (totalPriceField) {
+                totalPriceField.value = totalPrice.toFixed(2);
+            }
+            
+            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
+        } else {
+            priceDisplay.style.display = 'none';
+        }
     }
     
     // Toggle between dish display modes (buttons/dropdown)
@@ -10160,7 +10275,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Select Restaurant</label>
-                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="console.log('Restaurant changed:', this.value); if(this.value) loadRestaurantDetails(${day}, this.value, ${newIndex})" disabled>
+                            <select class="form-select restaurant-select" name="day${day}_restaurant_${newIndex}" id="day${day}_restaurant_${newIndex}" onchange="console.log('Restaurant changed:', this.value); if(this.value) { loadRestaurantDetails(${day}, this.value, ${newIndex}); updateRestaurantPricing(${day}, ${newIndex}); }" disabled>
                                 <option value="">Select city first</option>
                             </select>
                         </div>
@@ -10200,7 +10315,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                          <div class="col-md-2" id="day${day}_dish_container_${newIndex}" style="display: none;">
                              <label class="form-label fw-semibold">Select Dish</label>
-                             <select class="form-select" name="day${day}_dish_${newIndex}" id="day${day}_dish_${newIndex}">
+                             <select class="form-select" name="day${day}_dish_${newIndex}" id="day${day}_dish_${newIndex}" onchange="updateRestaurantPricing(${day}, ${newIndex})">
                                  <option value="">Select Dish</option>
                              </select>
                              <small class="text-muted">Buffet or Set Menu options</small>
@@ -10212,6 +10327,21 @@ document.addEventListener('DOMContentLoaded', function() {
                              </select>
                              <small class="text-muted">Available time slots</small>
                          </div>
+                    </div>
+                    
+                    <!-- Restaurant Pricing Section -->
+                    <div id="day${day}_restaurant_${newIndex}_price_display" class="mt-3" style="display: none;">
+                        <div class="alert alert-success">
+                            <div class="d-flex align-items-center">
+                                <i class="ri-restaurant-line me-2 fs-4"></i>
+                                <div>
+                                    <strong>Restaurant Pricing: <span id="day${day}_restaurant_${newIndex}_restaurant_name">Restaurant Name</span></strong>
+                                    <div class="small" id="day${day}_restaurant_${newIndex}_pricing_details">
+                                        Select a restaurant and configure guests to see pricing
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -10272,7 +10402,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          option.textContent = guide.name;
                          option.dataset.nightStartTime = guide.night_start_time;
                          option.dataset.nightEndTime = guide.night_end_time;
-                         option.dataset.dayRate = guide.day_rate;
+                         option.dataset.dayRate = 0;
                          option.dataset.nightSurcharge = guide.night_surcharge;
                          option.dataset.hourlyPrice = guide.hourly_price;
                          option.dataset.twoHourPrice = guide.two_hour_price;
@@ -10348,8 +10478,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const tenHourPrice = parseFloat(selectedOption.dataset.tenHourPrice) || 0;
         const twelveHourPrice = parseFloat(selectedOption.dataset.twelveHourPrice) || 0;
         
-        // Calculate base rate (day rate or night surcharge)
-        const baseRate = isNightTime ? nightSurcharge : dayRate;
+        // Calculate base rate (always use day rate, night surcharge will be added separately)
+        const baseRate = dayRate;
         
         // Calculate total prices for each package
         const packages = [
@@ -10465,11 +10595,37 @@ document.addEventListener('DOMContentLoaded', function() {
             totalPriceValue: totalPriceField?.value
         });
         
-        // Update price display
+        // Update price display with detailed breakdown
         const priceDisplay = document.getElementById(`day${day}_guide_${index}_price_display`);
         if (priceDisplay) {
             priceDisplay.style.display = 'block';
-            priceDisplay.querySelector('span').textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+            
+            // Update guide name
+            const guideNameElement = document.getElementById(`day${day}_guide_${index}_guide_name`);
+            if (guideNameElement) {
+                guideNameElement.textContent = selectedGuide.text;
+            }
+            
+            // Update pricing breakdown
+            const packagePriceDisplay = document.getElementById(`day${day}_guide_${index}_package_price_display`);
+            const hoursDisplay = document.getElementById(`day${day}_guide_${index}_hours_display`);
+            const surchargeDisplay = document.getElementById(`day${day}_guide_${index}_surcharge_display`);
+            const totalPriceDisplay = document.getElementById(`day${day}_guide_${index}_total_price_display`);
+            const surchargeRow = document.getElementById(`day${day}_guide_${index}_surcharge_row`);
+            
+            if (packagePriceDisplay) packagePriceDisplay.textContent = `$${totalPackagePrice.toFixed(2)}`;
+            if (hoursDisplay) hoursDisplay.textContent = `${hours} hours`;
+            if (surchargeDisplay) surchargeDisplay.textContent = `$${surcharge.toFixed(2)}`;
+            if (totalPriceDisplay) totalPriceDisplay.textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+            
+            // Show/hide surcharge row based on whether there's a surcharge
+            if (surchargeRow) {
+                if (surcharge > 0) {
+                    surchargeRow.style.display = 'flex';
+                } else {
+                    surchargeRow.style.display = 'none';
+                }
+            }
         }
         
         console.log(`Guide pricing updated for Day ${day}, Index ${index}:`, {
@@ -10515,6 +10671,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize package options with day rates (default)
         updatePackagePrices(day, index, false);
+        
+        // If there's already a package selected, update the pricing
+        const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+        if (packageSelect && packageSelect.value) {
+            console.log('Package already selected, updating pricing...');
+            updateGuidePricing(day, index);
+        }
     };
     
     // Setup pickup time dropdown with night hours highlighting
@@ -10577,11 +10740,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add night hours info at top if night hours exist
         if (nightStart !== null && nightEnd !== null && nightEnd >= 0) {
+            // Get original end time for display (without the -1 adjustment)
+            const originalNightEnd = parseInt(nightEndTime.split(':')[0]);
+            
             const nightInfo = document.createElement('div');
             nightInfo.className = 'alert alert-warning py-2 mb-2';
             nightInfo.innerHTML = `
                 <i class="ri-moon-line me-1"></i>
-                <strong>Night Hours:</strong> ${nightStart.toString().padStart(2, '0')}:00 - ${nightEnd.toString().padStart(2, '0')}:00
+                <strong>Night Hours:</strong> ${nightStart}:00 - ${originalNightEnd}:00
                 <br><small>Night surcharge applies during these hours</small>
             `;
             timeOptionsContainer.appendChild(nightInfo);
@@ -10728,8 +10894,41 @@ document.addEventListener('DOMContentLoaded', function() {
                             <select class="form-select" name="day${day}_guide_${newIndex}_package" id="day${day}_guide_${newIndex}_package" onchange="updateGuidePricing(${day}, ${newIndex})">
                                 <option value="">Select Duration</option>
                             </select>
-                            <div id="day${day}_guide_${newIndex}_price_display" class="text-success small mt-1" style="display: none;">
-                                Price: <span class="fw-bold">$0.00</span>
+                            <!-- Guide Price Display Section -->
+                            <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none; width: 1307px;">
+                                <div class="card border-0" style="background-color: #e3f2fd;">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title text-primary mb-3">
+                                            <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_${newIndex}_guide_name">Guide Name</span>
+                                        </h6>
+                                        
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <span class="text-muted">Package Price:</span>
+                                                    <span class="fw-semibold" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
+                                                </div>
+                                                
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <span class="text-muted">Duration:</span>
+                                                    <span class="fw-semibold" id="day${day}_guide_${newIndex}_hours_display">0 hours</span>
+                                                </div>
+                                                
+                                                <div class="d-flex justify-content-between align-items-center mb-2" id="day${day}_guide_${newIndex}_surcharge_row" style="display: none;">
+                                                    <span class="text-muted">Night Surcharge:</span>
+                                                    <span class="fw-semibold text-warning" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                                </div>
+                                                
+                                                <hr class="my-2">
+                                                
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="fw-bold text-primary">Total Price:</span>
+                                                    <span class="fw-bold text-success fs-5" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <!-- Hidden fields for pricing -->
                             <input type="hidden" id="day${day}_guide_${newIndex}_base_price" name="day${day}_guide_${newIndex}_base_price" value="0">
@@ -10892,17 +11091,6 @@ document.addEventListener('DOMContentLoaded', function() {
                              </div>
                          </div>
                          <div class="col-md-2 local-transfer-field">
-                             <div class="form-group">
-                                 <label class="form-label fw-semibold text-muted mb-2">
-                                     <i class="ri-calendar-line text-primary me-2"></i>Transport Date
-                                 </label>
-                                 <div class="position-relative">
-                                     <input type="date" class="form-control border-2" name="day${day}_transport_${newIndex}_date" value="${getCurrentDate()}" style="padding-left: 45px;">
-                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
-                             </div>
-                         </div>
-                         <div class="col-md-2 local-transfer-field">
                              <button type="button" class="btn btn-primary w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}')" id="day${day}_transport_${newIndex}_search_btn" disabled>
                                  <i class="ri-search-line me-2"></i>Search Vehicles
                              </button>
@@ -10951,17 +11139,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                              </div>
                          </div>
-                         <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_date_field" style="display: none;">
-                             <div class="form-group">
-                                 <label class="form-label fw-semibold text-muted mb-2">
-                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                 </label>
-                                 <div class="position-relative">
-                                     <input type="date" class="form-control border-2" name="day${day}_transport_${newIndex}_additional_date" value="${getCurrentDate()}" style="padding-left: 45px;">
-                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
-                             </div>
-                         </div>
+                        
                          <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_search_field" style="display: none;">
                              <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional')" id="day${day}_transport_${newIndex}_additional_search_btn">
                                  <i class="ri-search-line me-2"></i>Search
@@ -10994,17 +11172,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                          ${generateTimeOptions()}
                                      </select>
                                      <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
-                                 </div>
-                             </div>
-                         </div>
-                         <div class="col-md-3 hourly-field" id="day${day}_transport_${newIndex}_hourly_date_field" style="display: none;">
-                             <div class="form-group">
-                                 <label class="form-label fw-semibold text-muted mb-2">
-                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
-                                 </label>
-                                 <div class="position-relative">
-                                     <input type="date" class="form-control border-2" name="day${day}_transport_${newIndex}_hourly_date" value="${getCurrentDate()}" style="padding-left: 45px;">
-                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                  </div>
                              </div>
                          </div>
