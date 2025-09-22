@@ -5623,8 +5623,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-       
-        
         // Show loading state
         const createButton = event.target;
         const originalText = createButton.innerHTML;
