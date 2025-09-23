@@ -492,6 +492,11 @@ class PackageController extends Controller
         $hotelIds = collect($data['selected']['hotels'])->pluck('id')->toArray();
         $attractionIds = collect($data['selected']['attractions'])->pluck('id')->toArray();
         $guideIds = collect($data['selected']['guides'])->pluck('id')->toArray();
+
+        $userDMC = User::where('userId', $dmc_id)->first();
+        $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+        $auto_cancel_date = Carbon::parse($check_out)->subDays($auto_cancel_day)->toDateString();
+
         $booking = new PackageBooking();
         $booking->booking_id = $bookingId;
         $booking->package_id = $package_id;
@@ -501,7 +506,7 @@ class PackageController extends Controller
         $booking->package = $data['package'];
         $booking->user_info = $data['user_info'];
         $booking->travel_dates = ["check_in" => $check_in, "check_out" => $check_out];
-
+        $booking->auto_cancel_date = $auto_cancel_date;
         $booking->selected_hotels = $hotelIds;
         $booking->selected_attractions = $attractionIds;
         $booking->selected_guides = $guideIds;
@@ -589,7 +594,7 @@ class PackageController extends Controller
                 if($user->userId){
                     // If DMC ID is found, filter bookings by DMC
                     if ($dmc_id) {
-                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at')
+                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'created_at', 'auto_cancel_date')
                             ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc');
                             
                     } else {
@@ -601,7 +606,7 @@ class PackageController extends Controller
                     }
                 }
                 elseif( $user->agent_id){
-                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
+                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at', 'auto_cancel_date')
                         ->where('booked_by', $user->agent_id)->orderBy('booking_id', 'desc');
                 }
                 else{
@@ -613,13 +618,13 @@ class PackageController extends Controller
                 }
             }
             else{
-                $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at');
+                $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at', 'auto_cancel_date');
                 // Only add the where clause if agent_id is not null
                 if ($agent_id !== null && $user->agent_id) {
                     $booking_query = $booking_query->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
                 }
                 elseif($agent_id !== null && $user->userId){
-                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at')
+                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'dmc_id', 'created_at', 'auto_cancel_date')
                         ->where('dmc_id', $dmc_id)->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
                 }
                 else{
@@ -695,8 +700,6 @@ class PackageController extends Controller
                         ];
                     });
                 }
-                
-                
 
                 // Ensure JSON fields are properly decoded
                 $bookingDetails = is_array($b->booking_details) ? $b->booking_details : (is_string($b->booking_details) ? json_decode($b->booking_details, true) : []);
@@ -717,6 +720,7 @@ class PackageController extends Controller
                     'user_info' => $userInfo,
                     'status' => $b->status,
                     'created_at' => $b->created_at,
+                    'auto_cancel_date' => $b->auto_cancel_date,
                 ];
             }
             
