@@ -239,7 +239,7 @@ const TooltipContent = ({ attraction }) => {
   );
 };
 
-const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange, disabled = false }) => {
+const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange, disabled = false, selectedAttractionName }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const bookingMode = useSelector((state) => state.common.bookingMode);
@@ -286,10 +286,27 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
     }
   };
 
+  // Create a display value for the autocomplete
+  const getDisplayValue = () => {
+    if (selectedAttractionName) {
+      // If we have an attraction name, create a display object
+      return {
+        id: selectedAttraction,
+        attraction_name: selectedAttractionName,
+        // Add other required properties with default values
+        dmc_adult_price: 0,
+        travClicks_adult_price: 0,
+        dmc_id: null,
+        travclicks_dmc_id: null
+      };
+    }
+    return filteredAttractions.find(a => a.id === selectedAttraction) || null;
+  };
+
   return (
     <Grid item xs={12} sm={12} md={12}>
       <Autocomplete
-        value={filteredAttractions.find(a => a.id === selectedAttraction) || null}
+        value={getDisplayValue()}
         onChange={(event, newValue) => {
           handleAttractionClick(newValue);
         }}

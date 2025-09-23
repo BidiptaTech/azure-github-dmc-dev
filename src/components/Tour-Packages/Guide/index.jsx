@@ -1320,7 +1320,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
-          
+          console.log("sectionIndexguide1323", section);
           console.log(`Rendering section ${sectionIndex}:`, {
             guideId: section.guide,
             guideName: section.guide_name,
@@ -1595,6 +1595,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                             <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <GuideListing 
                                 value={section.guide}
+                                selectedGuideName={section?.guide_name}
                                 onChange={(field, value) => handleInputChange(sectionIndex, field, value)}
                                 disabled={status === 'loading' || !isGuideListingEnabled}
                               />
