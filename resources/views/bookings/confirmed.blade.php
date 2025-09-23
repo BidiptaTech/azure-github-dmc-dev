@@ -1319,9 +1319,9 @@
                                                         </span>
                                                     @endif
                                                 </div>
-                                                @if($hotelOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33))
+                                                @if($hotelOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138))
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" class="btn btn-sm btn-outline-primary px-3" onclick="editIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Edit this hotel booking">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
@@ -1332,7 +1332,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" class="btn btn-sm btn-outline-danger px-3" onclick="rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Reject this hotel booking">
                                                         <i class="ri-close-line me-1"></i>Reject
                                                     </button>
@@ -1857,9 +1857,9 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
-                                                @if($attractionOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)) 
+                                                @if($attractionOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)) 
                                                 <div class="d-flex gap-2">
-                                                    @if($attractionOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34))
+                                                    @if($attractionOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138))
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -1873,7 +1873,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if($attractionOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33))
+                                                    @if($attractionOrder->is_approve != 1 && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138))
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="console.log('🎯 BUTTON CLICKED - Attraction Reject'); window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2285,9 +2285,9 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2301,7 +2301,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2628,9 +2628,9 @@
                                                      @endif
                                                  </div>
                                              @else
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                  <div class="d-flex gap-2">
-                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
                                                              class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                              onclick="editIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2644,7 +2644,7 @@
                                                          <i class="ri-check-line me-1"></i>Approve
                                                      </button>
                                                      @endif
-                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
                                                              class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                              onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2958,9 +2958,9 @@
                                                         @endif
                                                     </div>
                                                 @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -2974,7 +2974,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
@@ -3278,9 +3278,9 @@
                                                         @endif
                                                     </div>
                                                 @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -3294,7 +3294,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -3996,9 +3996,9 @@
                                                         @endif
                                                     </div>
                                                 @else
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -4012,7 +4012,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -4381,9 +4381,9 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -4397,7 +4397,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -4765,9 +4765,9 @@
                                                     </div>
                                                     <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                                                 </div>
-                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                 <div class="d-flex gap-2">
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                                             onclick="editIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -4781,7 +4781,7 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
@@ -5329,9 +5329,9 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
     console.log('👨‍💼 Generating guide action buttons:', {
         isApproved,
         userRole,
-        canEdit: [11, 34].includes(userRole),
-        canApprove: [11, 34].includes(userRole),
-        canReject: [11, 34, 33].includes(userRole)
+        canEdit: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
+        canApprove: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
+        canReject: [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)
     });
     
     if (isApproved) {
@@ -5345,13 +5345,13 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
         `;
     }
     
-    if (![11, 34, 33].includes(userRole)) {
+    if (![11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)) {
         return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
     }
     
     return `
                 <div class="d-flex gap-2">
-            ${[11, 34].includes(userRole) ? `
+            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
                     <button type="button" 
                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                             onclick="editIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
@@ -5365,7 +5365,7 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
             ` : ''}
-            ${[11, 34, 33].includes(userRole) ? `
+            ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                             onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
@@ -7906,9 +7906,9 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
                                     style="border-radius: 25px;">
                                 <i class="ri-mail-line me-1"></i>Mail Preview
                             </button>
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                             <div class="d-flex gap-2">
-                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-primary btn-sm px-3 py-2" 
                                         onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
@@ -7922,7 +7922,7 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
                                     <i class="ri-check-line me-1"></i>Approve
                                 </button>
                                 @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm px-3 py-2" 
                                         onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
@@ -8254,14 +8254,14 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
         `;
     } else {
         // Show action buttons (only for authorized users)
-        @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
         modalFooter.innerHTML = `
             <div class="d-flex justify-content-between w-100">
                 <button type="button" class="btn btn-outline-info btn-sm px-3 py-2" onclick="openHotelMailPreview(${tourId}, ${hotelOrderIndex}, ${bookingIndex})" style="border-radius: 25px;">
                     <i class="ri-mail-line me-1"></i>Mail Preview
                 </button>
                 <div class="d-flex gap-2">
-                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                     <button type="button" 
                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                             onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
@@ -8275,7 +8275,7 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
                     @endif
-                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                             onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
@@ -9327,7 +9327,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             let buttonsHTML = '';
             
             // Edit and Approve buttons (DMC and Operational Head only)
-            if (userRoleId === 11 || userRoleId === 34) {
+            if (userRoleId === 11 || userRoleId === 34 || userRoleId === 124 || userRoleId === 125 || userRoleId === 128 || userRoleId === 131 || userRoleId === 132 || userRoleId === 134 || userRoleId === 135 || userRoleId === 137 || userRoleId === 138) {
                 buttonsHTML += `
                     <button type="button" 
                             class="btn btn-outline-primary btn-sm px-3 py-2" 
@@ -9345,7 +9345,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             }
             
             // Reject button (DMC, Operational Head, and Sales Head)
-            if (userRoleId === 11 || userRoleId === 34 || userRoleId === 33) {
+            if (userRoleId === 11 || userRoleId === 34 || userRoleId === 33 || userRoleId === 37 || userRoleId === 38 || userRoleId === 124 || userRoleId === 125 || userRoleId === 128 || userRoleId === 129 || userRoleId === 130 || userRoleId === 131 || userRoleId === 132 || userRoleId === 134 || userRoleId === 135 || userRoleId === 136 || userRoleId === 137 || userRoleId === 138) {
                 buttonsHTML += `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
@@ -10067,9 +10067,9 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
     console.log('🍽️ Generating restaurant action buttons:', {
         isApproved,
         userRole,
-        canEdit: [11, 34].includes(userRole),
-        canApprove: [11, 34].includes(userRole),
-        canReject: [11, 34, 33].includes(userRole)
+        canEdit: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
+        canApprove: [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole),
+        canReject: [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)
     });
     
     if (isApproved) {
@@ -10083,13 +10083,13 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
         `;
     }
     
-    if (![11, 34, 33].includes(userRole)) {
+    if (![11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole)) {
         return '<div class="text-muted small"><i class="ri-information-line me-1"></i>No actions available for your role</div>';
     }
     
     return `
         <div class="d-flex gap-2">
-            ${[11, 34].includes(userRole) ? `
+            ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
                 <button type="button" 
                         class="btn btn-outline-primary btn-sm px-3 py-2" 
                         onclick="editIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
@@ -10103,7 +10103,7 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
                     <i class="ri-check-line me-1"></i>Approve
                 </button>
             ` : ''}
-            ${[11, 34, 33].includes(userRole) ? `
+            ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                 <button type="button" 
                         class="btn btn-outline-danger btn-sm px-3 py-2" 
                         onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
@@ -13247,9 +13247,9 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                     ${travelHourlyData.display_due_date ? `<br><small class="text-muted">Due: ${travelHourlyData.display_due_date}</small>` : ''}
                                 </div>
                             ` : `
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                             <div class="d-flex gap-2">
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-primary btn-sm px-3 py-2" 
                                         onclick="editIndividualTravelHourly(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
@@ -13263,7 +13263,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                     <i class="ri-check-line me-1"></i>Approve
                                 </button>
                                 @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm px-3 py-2" 
                                             onclick="rejectTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
@@ -14525,9 +14525,9 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
                                 </div>
                             ` : `
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <div class="d-flex gap-2">
-                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <button type="button" 
                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
                                             onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
@@ -14541,7 +14541,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <i class="ri-check-line me-1"></i>Approve
                                     </button>
                                     @endif
-                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <button type="button" 
                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                             onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
@@ -15980,9 +15980,9 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
                                 </div>
                             ` : `
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                             <div class="d-flex gap-2">
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-primary btn-sm px-3 py-2" 
                                         onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
@@ -15996,7 +15996,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     <i class="ri-check-line me-1"></i>Approve
                                 </button>
                                 @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm px-3 py-2" 
                                         onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
@@ -17194,9 +17194,9 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                     ${localTransportData.display_due_date ? `<br><small class="text-muted">Due: ${localTransportData.display_due_date}</small>` : ''}
                                 </div>
                             ` : `
-                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                            @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                             <div class="d-flex gap-2">
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34)
+                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-primary btn-sm px-3 py-2" 
                                         onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
@@ -17210,7 +17210,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                     <i class="ri-check-line me-1"></i>Approve
                                 </button>
                                 @endif
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33)
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm px-3 py-2" 
                                         onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
