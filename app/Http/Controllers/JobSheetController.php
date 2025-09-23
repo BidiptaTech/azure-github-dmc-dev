@@ -212,7 +212,8 @@ class JobSheetController extends Controller
             
             foreach ($orders as $order) {
                 // Try to decode data as JSON array first
-                $jsonData = json_decode($order->data, true);
+                $jsonData = is_array($order->data) ? $order->data:json_decode($order->data, true);
+                
                 
                 // If data is a JSON string within a string (escaped JSON), need to decode again
                 if (is_string($jsonData)) {
@@ -413,7 +414,7 @@ class JobSheetController extends Controller
                 if (is_array($order->data)) {
                     $jsonData = $order->data;
                 } else {
-                    $jsonData = json_decode($order->data, true);
+                    $jsonData = is_array($order->data) ? $order->data:json_decode($order->data, true);
                     
                     // If data is a JSON string within a string (escaped JSON), need to decode again
                     if (is_string($jsonData)) {
@@ -755,7 +756,7 @@ class JobSheetController extends Controller
                 
                 // Process guide data for orders
                 $orders->map(function($order) {
-                    $orderData = json_decode($order->data, true);
+                    $orderData = is_array($order->data) ? $order->data:json_decode($order->data, true);
                     if (is_array($orderData) && isset($orderData[0]) && isset($orderData[0]['guide_id'])) {
                         $order->guide_id = $orderData[0]['guide_id'];
                     }
