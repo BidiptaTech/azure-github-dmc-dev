@@ -571,17 +571,18 @@
             transform: translateX(0) !important;
         }
         
-        // Pro Sidebar adjustments
-        .pro-sidebar {
-            width: 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
-            height: 100vh !important;
-            position: relative !important;
-            background: white !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
+    // Pro Sidebar adjustments
+    .pro-sidebar {
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+      height: 100vh !important;
+      position: relative !important;
+      background: white !important;
+      border: none !important;
+      box-shadow: none !important;
+      overflow-y: auto !important;
+    }
         
         .pro-sidebar-inner {
             width: 100% !important;
@@ -719,37 +720,65 @@
 
 // Additional mobile fixes for better compatibility - Prevent shifting
 @media (max-width: 767px) {
-    #mobile-sidebar_menu.mobile_menu-contnet.offcanvas-start {
-        position: fixed !important;
-        top: 40px !important;
-        left: 100px !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 1055 !important;
-        background: white !important;
-        transform: translateX(-100%) !important;
-        transition: transform 0.3s ease-in-out !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        
-        &.show {
-            transform: translateX(0) !important;
-            left: 70px !important;
-            position: fixed !important;
-        }
-        
-        // Override Bootstrap transitions
-        &.fade,
-        &.collapsing,
-        &.collapse {
-            transform: translateX(0) !important;
-            left: 70px !important;
-            position: fixed !important;
-            top: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-        }
+  #mobile-sidebar_menu.mobile_menu-contnet.offcanvas-start {
+    position: fixed !important;
+    top: 40px !important;
+    left: 100px !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 1055 !important;
+    background: white !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s ease-in-out !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    
+    &.show {
+      transform: translateX(0) !important;
+      left: 70px !important;
+      position: fixed !important;
     }
+    
+    // Override Bootstrap transitions
+    &.fade,
+    &.collapsing,
+    &.collapse {
+      transform: translateX(0) !important;
+      left: 70px !important;
+      position: fixed !important;
+      top: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+    }
+  }
+  
+  // Modal responsiveness for mobile
+  .modal-dialog {
+    margin: 10px !important;
+    max-width: calc(100% - 20px) !important;
+  }
+  
+  .modal-content {
+    border-radius: 8px !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+  
+  .modal-header {
+    padding: 15px !important;
+    border-bottom: 1px solid #dee2e6 !important;
+  }
+  
+  .modal-body {
+    padding: 15px !important;
+    max-height: calc(90vh - 120px) !important;
+    overflow-y: auto !important;
+  }
+  
+  .modal-footer {
+    padding: 15px !important;
+    border-top: 1px solid #dee2e6 !important;
+  }
 }
 
 // Completely disable Bootstrap's default offcanvas behavior
