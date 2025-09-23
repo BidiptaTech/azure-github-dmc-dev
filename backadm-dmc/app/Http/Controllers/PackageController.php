@@ -678,27 +678,7 @@ class PackageController extends Controller
             }
 
             // Include the package and agent relationships to access package and agent details
-            $query = PackageBooking::with(['package', 'agent' => function($query) use ($dmc_id) {
-                $query->where(function($q) use ($dmc_id) {
-                    $q->whereRaw("CASE 
-                        WHEN dmc_id IS NOT NULL 
-                        THEN (
-                            CASE 
-                                WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                THEN dmc_id::jsonb @> ?::jsonb
-                                WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                THEN dmc_id::jsonb @> ?::jsonb
-                                ELSE dmc_id::text LIKE ?
-                            END
-                        )
-                        ELSE false
-                    END", [
-                        json_encode([$dmc_id]),
-                        json_encode([$dmc_id]),
-                        "%{$dmc_id}%"
-                    ]);
-                });
-            }])
+            $query = PackageBooking::with(['package', 'agent'])
             ->where('dmc_id', $dmc_id);
             
             // For finance roles, only show bookings with payment_details
