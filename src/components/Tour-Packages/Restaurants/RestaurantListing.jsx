@@ -229,7 +229,7 @@ const TooltipContent = ({ restaurant }) => {
   );
 };
 
-const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange, disabled = false }) => {
+const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange, disabled = false, selectedRestaurantName }) => {
   const dispatch = useDispatch();
   const bookingMode = useSelector((state) => state.common.bookingMode);
   const dmcName = useSelector((state) => state.auth.DmcName) || "DMC";
@@ -314,10 +314,28 @@ const RestaurantListing = ({ restaurants, selectedRestaurant, onRestaurantChange
     }
   };
 
+  // Create a display value for the autocomplete
+  const getDisplayValue = () => {
+    if (selectedRestaurantName) {
+      // If we have a restaurant name, create a display object
+      return {
+        id: selectedRestaurant,
+        restaurant_name: selectedRestaurantName,
+        // Add other required properties with default values
+        breakfast_available: 0,
+        lunch_available: 0,
+        dinner_available: 0,
+        dmc_id: null,
+        travclicks_dmc_id: null
+      };
+    }
+    return filteredRestaurants.find(r => r.id === selectedRestaurant) || null;
+  };
+
   return (
     <Box sx={{ flex: 1 }}>
       <Autocomplete
-        value={filteredRestaurants.find(r => r.id === selectedRestaurant) || null}
+        value={getDisplayValue()}
         onChange={(event, newValue) => {
           handleRestaurantClick(newValue);
         }}

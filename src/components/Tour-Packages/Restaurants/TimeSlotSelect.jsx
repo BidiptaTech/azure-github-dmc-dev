@@ -125,7 +125,19 @@ const TimeSlotSelect = ({ value, onChange, selectedMealType, restaurantDetails, 
             fontSize: '0.8rem'
           }
         }}
+        renderValue={(selected) => {
+          if (!selected) return <em>Select time slot</em>;
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: '#4caf50', fontSize: 18 }} />
+              <Typography sx={{ fontSize: '0.8rem' }}>{selected}</Typography>
+            </Box>
+          );
+        }}
       >
+        <MenuItem value="" sx={{ fontSize: '0.8rem' }}>
+          <em>Select time slot</em>
+        </MenuItem>
         {availableSlots.map((slot) => (
           <MenuItem key={slot} value={slot} sx={{ fontSize: '0.8rem' }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>

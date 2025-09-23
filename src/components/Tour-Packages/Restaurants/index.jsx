@@ -127,6 +127,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const lastDispatchRef = useRef(null);
   const hasDispatchedAllRestaurantsRef = useRef(false);
   const currentServicesRef = useRef([]);
+  const isInitializingRef = useRef(false);
   
   // Initialize form sections with stable default values
   const defaultSection = useMemo(() => ({
@@ -137,11 +138,14 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       Children: searchParams?.children || 0
     }
   }), [searchParams?.adults, searchParams?.children, bookingDate]);
+  console.log("defaultSection", defaultSection);
   
   const [formSections, setFormSections] = useState([{ ...defaultSection }]);
   const [openModal, setOpenModal] = useState(false);
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(null);
 
+  console.log("selectedSectionIndex13", selectedSectionIndex);
+  console.log("formSections13", formSections);
   // Update the current services ref when existingServices changes
   useEffect(() => {
     currentServicesRef.current = existingServices;
@@ -163,10 +167,14 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const initializeFormSectionsFromRestaurantPack = useCallback(() => {
     if (!restaurantspack || !Array.isArray(restaurantspack) || restaurantspack.length === 0) {
       console.log('No restaurantspack data to initialize from');
+      isInitializingRef.current = false; // Ensure flag is reset even when no data
       return;
     }
 
     console.log('Initializing form sections from restaurantspack:', restaurantspack);
+    
+    // Set initialization flag to prevent handleInputChange from triggering during initialization
+    isInitializingRef.current = true;
 
     // Filter restaurants that match the current dayIndex for form sections
     const dayRestaurants = restaurantspack.filter(restaurantService => {
@@ -176,6 +184,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     });
 
     if (dayRestaurants.length === 0) {
+      isInitializingRef.current = false; // Ensure flag is reset when no restaurants found
       console.log(`No restaurants found for bookingDate ${bookingDate}`);
       return;
     }
@@ -193,6 +202,10 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       
       return {
         restaurant: restaurantData.restaurantId,
+        restaurantName: restaurantData.restaurantName || '',
+        city: restaurantData.city || '',
+        country: restaurantData.country || '',
+        image: restaurantData.image || '',
         mealType: restaurantData.mealType,
         specificMeal: specificMealObject, // Use object format for modal compatibility
         timeSlot: restaurantData.visitTime || '',
@@ -213,6 +226,12 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     console.log('Initialized form sections for current day:', newFormSections);
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
+    
+    // Reset initialization flag after form sections are set
+    setTimeout(() => {
+      isInitializingRef.current = false;
+      console.log('Restaurant initialization completed, handleInputChange is now enabled');
+    }, 100);
   }, [restaurantspack, dayIndex, bookingDate]);
 
   // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
@@ -297,6 +316,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     lastDispatchRef.current = null;
     hasDispatchedAllRestaurantsRef.current = false;
     currentServicesRef.current = [];
+    isInitializingRef.current = false;
   }, [dayIndex]);
 
   // Cleanup effect (following attraction pattern)
@@ -306,6 +326,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       lastDispatchRef.current = null;
       hasDispatchedAllRestaurantsRef.current = false;
       currentServicesRef.current = [];
+      isInitializingRef.current = false;
         };
   }, []);
 
@@ -491,17 +512,45 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   };
 
   const handleInputChange = (sectionIndex, field, value) => {
-    console.log('handleInputChange called:', { sectionIndex, field, value });
+    console.log('handleInputChange called:', { sectionIndex, field, value, currentFormSections: formSections, isInitializing: isInitializingRef.current });
+    
+    // Skip updates during initialization to prevent overwriting initialized data
+    if (isInitializingRef.current) {
+      console.log('Skipping handleInputChange during initialization');
+      return;
+    }
+    
     const newFormSections = [...formSections];
     
+    // Generate old signature before changes
+    const oldSectionSignature = formSections[sectionIndex] ? 
+      `${formSections[sectionIndex].restaurant}-${formSections[sectionIndex].mealType}-${formSections[sectionIndex].specificMeal}-${formSections[sectionIndex].timeSlot}-${dayIndex}` : '';
+    
     if (field === 'restaurant') {
+      // Find the selected restaurant details
+      const selectedRestaurantDetails = restaurants.find(r => r.id === value);
+      
       newFormSections[sectionIndex] = {
-        ...defaultSection,
+        ...newFormSections[sectionIndex],
         restaurant: value,
-        bookingDate: newFormSections[sectionIndex].bookingDate,
-        pax: newFormSections[sectionIndex].pax
+        restaurantName: selectedRestaurantDetails?.name || selectedRestaurantDetails?.restaurant_name || '',
+        city: selectedRestaurantDetails?.city || '',
+        country: selectedRestaurantDetails?.country || '',
+        image: selectedRestaurantDetails?.master_image || selectedRestaurantDetails?.additional_images?.[0] || '',
+        // Reset dependent fields when restaurant changes
+        mealType: '',
+        specificMeal: '',
+        timeSlot: ''
       };
       setSelectedRestaurant(value);
+      
+      // Remove old signature since restaurant changed
+      if (oldSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Restaurant booking section ${sectionIndex + 1} restaurant changed, will be re-evaluated for saving`);
+      }
     } else if (field === 'mealType') {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
@@ -510,6 +559,26 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         timeSlot: '',
         bookingDate: bookingDate // Preserve booking date
       };
+      
+      // Check completion and manage saved signatures
+      const updatedSection = newFormSections[sectionIndex];
+      const isComplete = 
+        updatedSection.restaurant && 
+        updatedSection.mealType && 
+        updatedSection.specificMeal && 
+        updatedSection.timeSlot && 
+        (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
+      
+      const newSectionSignature = 
+        `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}-${dayIndex}`;
+      
+      // If the data changed, remove the old signature from saved list
+      if (oldSectionSignature !== newSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Restaurant booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+      }
     } else if (field === 'specificMeal' && value === '') {
       // Clear timeSlot when specificMeal is cleared (e.g., on cancel)
       newFormSections[sectionIndex] = {
@@ -518,47 +587,103 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
         timeSlot: '',
         bookingDate: bookingDate // Preserve booking date
       };
+      
+      // Check completion and manage saved signatures
+      const updatedSection = newFormSections[sectionIndex];
+      const isComplete = 
+        updatedSection.restaurant && 
+        updatedSection.mealType && 
+        updatedSection.specificMeal && 
+        updatedSection.timeSlot && 
+        (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
+      
+      const newSectionSignature = 
+        `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}-${dayIndex}`;
+      
+      // If the data changed, remove the old signature from saved list
+      if (oldSectionSignature !== newSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Restaurant booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+      }
     } else if (field === 'pax') {
-      newFormSections[sectionIndex] = {
-        ...newFormSections[sectionIndex],
-        pax: value,
-        bookingDate: bookingDate // Preserve booking date
-      };
+      const currentPax = newFormSections[sectionIndex].pax;
+      if (
+        currentPax.Adults !== value.Adults ||
+        currentPax.Children !== value.Children
+      ) {
+        newFormSections[sectionIndex] = {
+          ...newFormSections[sectionIndex],
+          pax: {
+            Adults: value.Adults || 0,
+            Children: value.Children || 0
+          }
+        };
+        setFormSections(newFormSections);
+        
+        // Check completion and manage saved signatures
+        const updatedSection = newFormSections[sectionIndex];
+        const isComplete = 
+          updatedSection.restaurant && 
+          updatedSection.mealType && 
+          updatedSection.specificMeal && 
+          updatedSection.timeSlot && 
+          (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
+        
+        const newSectionSignature = 
+          `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}-${dayIndex}`;
+        
+        // If the data changed, remove the old signature from saved list
+        if (oldSectionSignature !== newSectionSignature) {
+          setSavedSectionIds(prev => 
+            prev.filter(signature => signature !== oldSectionSignature)
+          );
+          console.log(`Restaurant booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+        }
+        
+        // Dispatch update to Redux if section is complete
+        if (isComplete) {
+          console.log(`Restaurant booking section ${sectionIndex + 1} is now complete`);
+          dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
+        }
+      }
     } else {
       newFormSections[sectionIndex] = {
         ...newFormSections[sectionIndex],
         [field]: value,
         bookingDate: bookingDate // Preserve booking date
       };
+      
+      // Check completion and manage saved signatures
+      const updatedSection = newFormSections[sectionIndex];
+      const isComplete = 
+        updatedSection.restaurant && 
+        updatedSection.mealType && 
+        updatedSection.specificMeal && 
+        updatedSection.timeSlot && 
+        (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
+      
+      const newSectionSignature = 
+        `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}-${dayIndex}`;
+      
+      // If the data changed, remove the old signature from saved list
+      if (oldSectionSignature !== newSectionSignature) {
+        setSavedSectionIds(prev => 
+          prev.filter(signature => signature !== oldSectionSignature)
+        );
+        console.log(`Restaurant booking section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
+      }
+      
+      // Dispatch update to Redux if section is complete
+      if (isComplete) {
+        console.log(`Restaurant booking section ${sectionIndex + 1} is now complete`);
+        dispatchBookingUpdateToRedux(sectionIndex, updatedSection);
+      }
     }
     
     console.log('Updated form sections:', newFormSections);
     setFormSections(newFormSections);
-    
-    // Check if the current section is now complete
-    const updatedSection = newFormSections[sectionIndex];
-    const isComplete = 
-      updatedSection.restaurant && 
-      updatedSection.mealType && 
-      updatedSection.specificMeal && 
-      updatedSection.timeSlot && 
-      (updatedSection.pax.Adults + updatedSection.pax.Children > 0);
-    
-    // Generate signature for this section
-    const oldSectionSignature = formSections[sectionIndex] ? 
-      `${formSections[sectionIndex].restaurant}-${formSections[sectionIndex].mealType}-${formSections[sectionIndex].specificMeal}-${formSections[sectionIndex].timeSlot}-${dayIndex}` : '';
-    
-    const newSectionSignature = 
-      `${updatedSection.restaurant}-${updatedSection.mealType}-${updatedSection.specificMeal}-${updatedSection.timeSlot}-${dayIndex}`;
-    
-    // If the data changed, remove the old signature from saved list
-    if (oldSectionSignature !== newSectionSignature) {
-      setSavedSectionIds(prev => 
-        prev.filter(signature => signature !== oldSectionSignature)
-      );
-      
-      console.log(`Restaurant enquiry section ${sectionIndex + 1} data changed, will be re-evaluated for saving`);
-    }
   };
 
   // Alias for backward compatibility with existing component calls
@@ -679,6 +804,225 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       bookingDate: booking.bookingDate
     };
   }, [restaurants, searchParams, currentMode]);
+
+  // Function to dispatch individual booking updates to Redux
+  const dispatchBookingUpdateToRedux = useCallback((sectionIndex, updatedSection) => {
+    if (!updatedSection.restaurant || !updatedSection.mealType || !updatedSection.specificMeal || !updatedSection.timeSlot) {
+      console.log('Incomplete section, skipping Redux dispatch');
+      return;
+    }
+
+    // If we have original data, use it directly
+    if (updatedSection.originalData) {
+      console.log('Using original data for individual booking update:', updatedSection.originalData);
+      
+      // Get customer details from original data if available
+      const customerDetails = {
+        fullName: updatedSection.originalData.fullName || "",
+        email: updatedSection.originalData.email || "",
+        phone: updatedSection.originalData.phone || "",
+        countryCode: updatedSection.originalData.countryCode || "",
+        address1: updatedSection.originalData.address1 || "",
+        address2: updatedSection.originalData.address2 || "",
+        state: updatedSection.originalData.state || "",
+        zip: updatedSection.originalData.zip || "",
+        specialRequests: updatedSection.originalData.specialRequests || "",
+      };
+      
+      const bookingData = {
+        // Include customer details
+        ...customerDetails,
+        
+        // Core booking details
+        bookingDate: updatedSection.originalData.bookingDate,
+        visitTime: updatedSection.originalData.visitTime,
+        adultCount: updatedSection.originalData.adultCount,
+        childCount: updatedSection.originalData.childCount,
+        restaurantId: updatedSection.originalData.restaurantId,
+        restaurantName: updatedSection.originalData.restaurantName,
+        mealType: updatedSection.originalData.mealType,
+        mealSpecificType: updatedSection.originalData.mealSpecificType,
+        MealDescription: updatedSection.originalData.MealDescription,
+        totalPrice: updatedSection.originalData.totalPrice,
+        mealPrice: updatedSection.originalData.mealPrice,
+        transport: updatedSection.originalData.transport,
+        transportPrice: updatedSection.originalData.transportPrice,
+        priceTypes: updatedSection.originalData.priceTypes,
+        dmc_id: updatedSection.originalData.dmc_id,
+        bookingType: updatedSection.originalData.bookingType || "enquiry",
+        booking_id: updatedSection.originalData.booking_id // Preserve booking_id
+      };
+
+      // Clone existing services
+      const currentServices = [...existingServices];
+      
+      // Find and update existing restaurant service for this bookingDate
+      let found = false;
+      const updatedServices = currentServices.map(service => {
+        if (service.type === "restaurant" && service.data && Array.isArray(service.data)) {
+          const updatedData = service.data.map(item => {
+            if (item.bookingDate === bookingDate && item.restaurantId === bookingData.restaurantId) {
+              found = true;
+              return bookingData;
+            }
+            return item;
+          });
+          
+          if (found) {
+            return { ...service, data: updatedData };
+          }
+        }
+        return service;
+      });
+
+      // If not found, add new service entry
+      if (!found) {
+        const newRestaurantService = {
+          type: "restaurant",
+          agent_id: agentId,
+          tour_id: tourId,
+          data: [bookingData],
+          bookingType: "enquiry"
+        };
+        
+        // Add booking_id if available from original data
+        if (updatedSection.originalData?.booking_id) {
+          newRestaurantService.booking_id = updatedSection.originalData.booking_id;
+        }
+        
+        updatedServices.push(newRestaurantService);
+      }
+
+      console.log("Restaurant - Dispatching individual booking update to Redux (original data):", bookingData);
+      dispatch(setAllServices(updatedServices));
+      return;
+    }
+
+    // For new bookings, calculate everything
+    const summaryData = getBookingSummary(updatedSection);
+    const restaurant = restaurants.find(r => r.id === updatedSection.restaurant) || {};
+    
+    // Get pricing data from the meal selection
+    const adultCount = updatedSection.pax?.Adults || 0;
+    const childCount = updatedSection.pax?.Children || 0;
+    
+    // Extract price information from the specificMeal selection
+    let totalPrice = 0;
+    let mealPrice = 0;
+    let mealDescriptionArray = [];
+    
+    // If specificMeal contains pricing data from SpecificMealSelect
+    if (updatedSection.specificMeal && typeof updatedSection.specificMeal === 'object' && updatedSection.specificMeal.totalPrice) {
+      totalPrice = updatedSection.specificMeal.totalPrice;
+      mealPrice = updatedSection.specificMeal.totalPrice;
+      
+      // Create MealDescription array from the selected items
+      if (updatedSection.specificMeal.items && Array.isArray(updatedSection.specificMeal.items)) {
+        mealDescriptionArray = updatedSection.specificMeal.items.map(item => ({
+          item_name: item.name || "Meal Item",
+          name: item.name || "Meal Item", 
+          price: item.price || 0,
+          meal_id: item.meal_id || restaurant.id || 0,
+          category: updatedSection.mealType || "Meal",
+          item_type: "Standard",
+          quantity: item.quantity || 1
+        }));
+      }
+    } else {
+      // Fallback pricing if no specific meal data
+      const basePrice = 50;
+      totalPrice = (adultCount + childCount) * basePrice;
+      mealPrice = totalPrice;
+      mealDescriptionArray = [{
+        item_name: updatedSection.specificMeal || "Meal",
+        name: updatedSection.specificMeal || "Meal",
+        price: basePrice,
+        meal_id: restaurant.id || 0,
+        category: updatedSection.mealType || "Meal",
+        item_type: "Standard",
+        quantity: adultCount + childCount
+      }];
+    }
+
+    const bookingData = {
+      // Customer information fields (will be populated when available)
+      fullName: "",
+      email: "",
+      phone: "",
+      countryCode: "",
+      address1: "",
+      address2: "",
+      state: "",
+      zip: "",
+      specialRequests: "",
+      
+      // Core booking details
+      bookingDate: updatedSection.bookingDate,
+      visitTime: updatedSection.timeSlot,
+      adultCount: adultCount,
+      childCount: childCount,
+      restaurantId: updatedSection.restaurant,
+      restaurantName: restaurant.restaurant_name || 'Restaurant',
+      mealType: updatedSection.mealType,
+      mealSpecificType: typeof updatedSection.specificMeal === 'object' ? updatedSection.specificMeal.specificMealType : updatedSection.specificMeal,
+      MealDescription: mealDescriptionArray,
+      totalPrice: totalPrice,
+      mealPrice: mealPrice,
+      transport: null,
+      transportPrice: 0,
+      priceTypes: ["dmc"],
+      dmc_id: restaurant.dmc_id || null,
+      bookingType: "enquiry"
+    };
+
+    // Clone existing services
+    const currentServices = [...existingServices];
+    
+    // Find and update existing restaurant service for this bookingDate
+    let found = false;
+    const updatedServices = currentServices.map(service => {
+      if (service.type === "restaurant" && service.data && Array.isArray(service.data)) {
+        const updatedData = service.data.map(item => {
+          if (item.bookingDate === bookingDate && item.restaurantId === bookingData.restaurantId) {
+            found = true;
+            return bookingData;
+          }
+          return item;
+        });
+        
+        if (found) {
+          return { ...service, data: updatedData };
+        }
+      }
+      return service;
+    });
+
+    // If not found, add new service entry
+    if (!found) {
+      const newRestaurantService = {
+        type: "restaurant",
+        agent_id: agentId,
+        tour_id: tourId,
+        data: [bookingData],
+        bookingType: "enquiry"
+      };
+      
+      // Add booking_id if available from original data
+      if (updatedSection.originalData?.booking_id) {
+        newRestaurantService.booking_id = updatedSection.originalData.booking_id;
+      }
+      
+      updatedServices.push(newRestaurantService);
+    }
+
+    console.log("Restaurant - Dispatching individual booking update to Redux:", bookingData);
+    dispatch(setAllServices(updatedServices));
+    setBookingSuccess(true);
+    
+    setTimeout(() => {
+      setBookingSuccess(false);
+    }, 5000);
+  }, [restaurants, restaurantDetails, currentMode, agentId, tourId, dayIndex, existingServices, dispatch, getBookingSummary, bookingDate]);
 
   // Validate bookings before submission
   const validateBookings = useCallback(() => {
@@ -1105,7 +1449,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
           const completionStatus = getSectionCompletion(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
-          
+          console.log("sectionIndex1451", section);
           return (
             <Grid item xs={12} key={sectionIndex}>
               <Card 
@@ -1351,6 +1695,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                               <RestaurantListing 
                                 restaurants={restaurants} 
                                 selectedRestaurant={section.restaurant}
+                                selectedRestaurantName={section.restaurantName}
                                 onRestaurantChange={(restaurantId) => handleFieldChange(sectionIndex, 'restaurant', restaurantId)}
                                 disabled={!isRestaurantListingEnabled}
                               />
@@ -1376,8 +1721,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                               <PaxSelector
                                 selectedPax={section.pax}
                                 onPaxChange={(value) => handlePaxChange(sectionIndex, value)}
-                                initialAdults={searchParams?.adults || 1}
-                                initialChildren={searchParams?.children || 0}
+                                initialAdults={section.pax?.Adults || searchParams?.adults || 1}
+                                initialChildren={section.pax?.Children || searchParams?.children || 0}
                                 disabled={!section.restaurant}
                               />
                             </Box>
@@ -1454,7 +1799,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
                                 value={section.timeSlot}
                                 onChange={(e) => handleFieldChange(sectionIndex, 'timeSlot', e.target.value)}
                                 selectedMealType={section.mealType}
-                                restaurantDetails={restaurantDetails}
+                                restaurantDetails={selectedRestaurantDetails}
                                 disabled={!section.restaurant || !section.mealType || !section.specificMeal}
                                 bookingDate={section.bookingDate}
                                 formSection={section}
