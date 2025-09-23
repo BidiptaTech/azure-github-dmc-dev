@@ -361,6 +361,7 @@
                             <th>Confirmation Date</th>
                             <th>Actions</th>
                             <th>Created At</th>
+                            <th>Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -935,6 +936,21 @@
                                 <div class="d-flex flex-column">
                                     <span>{{ $tour->created_at->format('D,  M d, Y') }}</span>
                                     <small class="text-muted">{{ $tour->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    @if($tour->auto_cancel_date)
+                                        <span class="fw-semibold">
+                                            <i class="fas fa-calendar-times text-warning me-1"></i>
+                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('D, M d, Y') }}
+                                        </span>
+                                        <small class="text-muted">
+                                            {{ \Carbon\Carbon::parse($tour->auto_cancel_date)->format('h:i A') }}
+                                        </small>
+                                    @else
+                                        <span class="text-muted">N/A</span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

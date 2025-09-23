@@ -1218,16 +1218,16 @@ class CommonHelper
             if($agent->role_id == 11){
                 $dmcId = $sales_manager_dmc;
             }
-            elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
+            elseif($agent->role_id == 33 || $agent->role_id == 34 || $agent->role_id == 36 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
                 $sales_head = User::where('userId', $sales_manager_dmc)->first();
                 $dmcId = $sales_head->created_by;
             }
-            elseif($agent->role_id == 37){
+            elseif($agent->role_id == 37 || $agent->role_id == 126 || $agent->role_id == 124){
                 $sales_manager = User::where('userId', $sales_manager_dmc)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();
                 $dmcId = $sales_head->created_by;
             }
-            elseif($agent->role_id == 38){
+            elseif($agent->role_id == 38 || $agent->role_id == 127 || $agent->role_id == 125){
                 $assistant_sales_manager = User::where('userId', $sales_manager_dmc)->first();
                 $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager->created_by)->first();

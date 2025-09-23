@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Tour;
+use App\Models\User;
 
 class BookingCountServiceProvider extends ServiceProvider
 {
@@ -35,8 +36,22 @@ class BookingCountServiceProvider extends ServiceProvider
                 // Determine DMC ID based on user role
                 if ($user->role_id == 11) { // DMC
                     $dmc_id = $user->userId;
-                } else if (in_array($user->role_id, [33, 34, 36, 37, 38, 128, 129, 130, 134, 135, 136, 138])) { // Sales Head, Sales Manager, Assistant Sales Manager
+                } else if (in_array($user->role_id, [33, 34, 36, 128, 129, 130, 134, 135, 136, 138])) { // Sales Head, Sales Manager, Assistant Sales Manager
                     $dmc_id = $user->created_by;
+                }
+                elseif($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
+                    $sales_manager_id = $user->userId;
+                    $sales_head_id = $user->created_by;
+                    $sales_head = User::where('userId', $sales_head_id)->first();
+                    $dmc_id = $sales_head->created_by;
+                }
+                elseif($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
+                    $assistant_sales_manager_id = $user->userId;
+                    $sales_manager_id = $user->created_by;
+                    $sales_manager = User::where('userId', $sales_manager_id)->first();
+                    $sales_head_id = $sales_manager->created_by;
+                    $sales_head = User::where('userId', $sales_head_id)->first();
+                    $dmc_id = $sales_head->created_by;
                 }
             }
             
