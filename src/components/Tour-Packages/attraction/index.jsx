@@ -697,6 +697,11 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     console.log("Attraction - Dispatching individual booking update to Redux:", bookingData);
     dispatch(setAllServices(updatedServices));
+    setBookingSuccess(true);
+    
+    setTimeout(() => {
+      setBookingSuccess(false);
+    }, 5000);
   }, [attractions, attractionDetails, currentMode, agentId, tourId, dayIndex, existingServices, dispatch]);
 
   const handleInputChange = (sectionIndex, field, value) => {
@@ -1468,7 +1473,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
-          
+          console.log("sectionIndexatt1476", section);
           return (
             <Grid item xs={12} key={sectionIndex}>
               <Card 
@@ -1693,6 +1698,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                               <AttractionListing
                                 attractions={attractions}
                                 selectedAttraction={section.attraction}
+                                selectedAttractionName={section?.originalData?.AttractionName}
                                 disabled={!isAttractionListingEnabled}
                                 onAttractionChange={(value) => handleInputChange(sectionIndex, 'attraction', value)}
                               />

@@ -68,7 +68,19 @@ const MealTypeSelect = ({ value, onChange, restaurantDetails, disabled }) => {
             fontSize: '0.8rem'
           }
         }}
+        renderValue={(selected) => {
+          if (!selected) return <em>Select meal type</em>;
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {getMealIcon(selected)}
+              <Typography sx={{ ml: 1, fontSize: '0.8rem' }}>{selected}</Typography>
+            </Box>
+          );
+        }}
       >
+        <MenuItem value="" sx={{ fontSize: '0.8rem' }}>
+          <em>Select meal type</em>
+        </MenuItem>
         {Object.entries(availableMealTypes).map(([type, isAvailable]) => {
           if (!isAvailable) return null;
           const timeSlot = getTimeSlot(type);

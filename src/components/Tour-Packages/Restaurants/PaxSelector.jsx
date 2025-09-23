@@ -110,38 +110,39 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
   );
 };
 
-const PaxSelector = ({ selectedPax, onPaxChange, disabled }) => {
+const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initialChildren }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   
-  // Get the search parameters from Redux store
+  // Get the search parameters from Redux store as fallback
   const searchParams = useSelector((state) => state.restaurants.searchParams);
-  const initialAdults = searchParams?.adults || 1;
-  const initialChildren = searchParams?.children || 0;
+  const fallbackAdults = searchParams?.adults || 1;
+  const fallbackChildren = searchParams?.children || 0;
 
-  // Initialize guest counts with search parameters
+  // Use props first, then fallback to Redux state
+  const effectiveAdults = initialAdults || fallbackAdults;
+  const effectiveChildren = initialChildren || fallbackChildren;
+
+  // Initialize guest counts with selectedPax if available, otherwise use effective values
   const [guestCounts, setGuestCounts] = useState({
-    Adults: initialAdults,
-    Children: initialChildren
+    Adults: selectedPax?.Adults || effectiveAdults,
+    Children: selectedPax?.Children || effectiveChildren
   });
 
   // Store initial values as maximum limits
   const [maxLimits] = useState({
-    Adults: initialAdults,
-    Children: initialChildren
+    Adults: effectiveAdults,
+    Children: effectiveChildren
   });
 
-  // Update guest counts when search parameters change
+  // Update guest counts when selectedPax changes
   useEffect(() => {
-    if (searchParams) {
-      const newAdults = searchParams.adults || 1;
-      const newChildren = searchParams.children || 0;
-      
+    if (selectedPax) {
       setGuestCounts({
-        Adults: newAdults,
-        Children: newChildren
+        Adults: selectedPax.Adults || effectiveAdults,
+        Children: selectedPax.Children || effectiveChildren
       });
     }
-  }, [searchParams]);
+  }, [selectedPax, effectiveAdults, effectiveChildren]);
 
   useEffect(() => {
     // Only call onPaxChange if the values are actually different from the current props

@@ -90,40 +90,98 @@ const RestaurantBookingSummaryModal = ({
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate) || 1;
   const restaurants = useSelector((state) => state.restaurants.restaurants);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  console.log("bookingData5678", bookingData);
 
-  // Get restaurant details - handle both current restaurantDetails and restaurantspack data
-  const getRestaurantDetails = () => {
-    if (restaurantDetails) {
-      return restaurantDetails;
-    } else if (bookingData?.restaurant && restaurants) {
-      // Find restaurant details from the restaurants list
-      const foundRestaurant = restaurants.find(r => r.id === bookingData.restaurant);
-      return foundRestaurant;
-    } else if (bookingData?.originalData) {
-      // Create restaurant details from original data
-      return {
-        name: bookingData.originalData.restaurantName,
-        city: bookingData.originalData.city || 'Not specified',
-        country: bookingData.originalData.country || 'Not specified',
-        cuisine: 'Not specified',
-        master_image: '/placeholder-restaurant.jpg'
-      };
-    }
-    return null;
+  // Check if this is originalData format (from restaurantspack) or form format
+  const isOriginalDataFormat = bookingData?.originalData && bookingData.originalData.restaurantId;
+  
+  // Direct mapping based on data format
+  const mappedData = !bookingData ? null : isOriginalDataFormat ? {
+    // Format 1: Original data from restaurantspack
+    restaurantId: bookingData.originalData.restaurantId,
+    restaurantName: bookingData.originalData.restaurantName,
+    city: bookingData.originalData.city || 'Not specified',
+    country: bookingData.originalData.country || 'Not specified',
+    image: bookingData.originalData.image || '/placeholder-restaurant.jpg',
+    bookingDate: bookingData.originalData.bookingDate,
+    visitTime: bookingData.originalData.visitTime,
+    mealType: bookingData.originalData.mealType,
+    mealSpecificType: bookingData.originalData.mealSpecificType,
+    adultCount: bookingData.originalData.adultCount,
+    childCount: bookingData.originalData.childCount,
+    pax: {
+      Adults: bookingData.originalData.adultCount || 0,
+      Children: bookingData.originalData.childCount || 0
+    },
+    totalPrice: bookingData.originalData.totalPrice,
+    mealPrice: bookingData.originalData.mealPrice,
+    mealDescription: bookingData.originalData.MealDescription || [],
+    customerDetails: {
+      fullName: bookingData.originalData.fullName || '',
+      email: bookingData.originalData.email || '',
+      phone: bookingData.originalData.phone || '',
+      countryCode: bookingData.originalData.countryCode || '',
+      address1: bookingData.originalData.address1 || '',
+      address2: bookingData.originalData.address2 || '',
+      state: bookingData.originalData.state || '',
+      zip: bookingData.originalData.zip || '',
+      specialRequests: bookingData.originalData.specialRequests || ''
+    },
+    bookingType: bookingData.originalData.bookingType || 'enquiry',
+    booking_id: bookingData.originalData.booking_id,
+    dmc_id: bookingData.originalData.dmc_id,
+    priceTypes: bookingData.originalData.priceTypes || ['dmc'],
+    transport: bookingData.originalData.transport,
+    transportPrice: bookingData.originalData.transportPrice || 0
+  } : {
+    // Format 2: Form data format
+    restaurantId: bookingData.restaurant,
+    restaurantName: bookingData.restaurantName || 'Restaurant',
+    city: bookingData.city || 'Not specified',
+    country: bookingData.country || 'Not specified',
+    image: bookingData.image || '/placeholder-restaurant.jpg',
+    bookingDate: bookingData.bookingDate,
+    visitTime: bookingData.timeSlot,
+    mealType: bookingData.mealType,
+    mealSpecificType: bookingData.specificMeal?.specificMealType || bookingData.mealType,
+    adultCount: bookingData.pax?.Adults || 0,
+    childCount: bookingData.pax?.Children || 0,
+    pax: bookingData.pax || { Adults: 0, Children: 0 },
+    totalPrice: bookingData.specificMeal?.totalPrice || 0,
+    mealPrice: bookingData.specificMeal?.totalPrice || 0,
+    mealDescription: bookingData.specificMeal?.items || [],
+    customerDetails: {
+      fullName: '',
+      email: '',
+      phone: '',
+      countryCode: '',
+      address1: '',
+      address2: '',
+      state: '',
+      zip: '',
+      specialRequests: ''
+    },
+    bookingType: 'enquiry',
+    booking_id: null,
+    dmc_id: null,
+    priceTypes: ['dmc'],
+    transport: null,
+    transportPrice: 0
   };
-
-  const effectiveRestaurantDetails = getRestaurantDetails();
 
   // Add console log for incoming data
   useEffect(() => {
-    console.log('RestaurantBookingSummaryModal Data:', {
-      bookingData,
-      restaurantDetails,
-      effectiveRestaurantDetails,
-      hasOriginalData: !!bookingData?.originalData
-    });
-  }, [bookingData, restaurantDetails]);
+    if (bookingData) {
+      console.log('RestaurantBookingSummaryModal Data:', {
+        originalBookingData: bookingData,
+        mappedData: mappedData,
+        hasOriginalData: !!bookingData?.originalData,
+        dataFormat: bookingData?.originalData ? 'originalData' : 'form'
+      });
+    }
+  }, [bookingData, mappedData]);
 
+  // Early return after all hooks to avoid Rules of Hooks violation
   if (!bookingData) return null;
 
   // Helper function to safely render potentially complex data
@@ -146,34 +204,13 @@ const RestaurantBookingSummaryModal = ({
     return `${openTime} - ${closeTime}`;
   };
 
-  // Get meal time slots based on meal type
-  const getMealTimeSlot = (mealType) => {
-    if (!effectiveRestaurantDetails) return 'Not specified';
-    
-    switch (mealType?.toLowerCase()) {
-      case 'breakfast':
-        return formatTimeSlot(effectiveRestaurantDetails.opening_time_bf, effectiveRestaurantDetails.closing_time_bf);
-      case 'lunch':
-        return formatTimeSlot(effectiveRestaurantDetails.opening_time_lunch, effectiveRestaurantDetails.closing_time_lunch);
-      case 'dinner':
-        return formatTimeSlot(effectiveRestaurantDetails.opening_time_dinner, effectiveRestaurantDetails.closing_time_dinner);
-      default:
-        return 'Not specified';
-    }
-  };
-
-  // Calculate total price based on meal selection
+  // Calculate total price based on mapped data
   const calculateTotalPrice = () => {
-    if (!bookingData.specificMeal) return 0;
-
-    console.log('Calculating total price from:', bookingData.specificMeal);
+    if (!mappedData) return 0;
+    console.log('Calculating total price from mapped data:', mappedData);
     
-    // If specificMeal contains the meal selection object
-    if (typeof bookingData.specificMeal === 'object' && bookingData.specificMeal.totalPrice) {
-      return bookingData.specificMeal.totalPrice;
-    }
-
-    return 0;
+    // Use the mapped total price
+    return mappedData.totalPrice || 0;
   };
 
   const totalPrice = calculateTotalPrice();
@@ -206,28 +243,14 @@ const RestaurantBookingSummaryModal = ({
     );
   };
 
-  // Check if the meal type is buffet
-  const isBuffet = bookingData.specificMeal?.specificMealType?.toLowerCase() === 'buffet';
+  // Check if the meal type is buffet using mapped data
+  const isBuffet = mappedData?.mealSpecificType?.toLowerCase() === 'buffet';
 
-  // Get pax data - handle both form data and restaurantspack data
-  const getPaxData = () => {
-    if (bookingData.pax) {
-      // Form data format
-      return {
-        Adults: bookingData.pax.Adults || 0,
-        Children: bookingData.pax.Children || 0
-      };
-    } else if (bookingData.originalData) {
-      // Restaurantspack data format
-      return {
-        Adults: bookingData.originalData.adultCount || 0,
-        Children: bookingData.originalData.childCount || 0
-      };
-    }
-    return { Adults: 0, Children: 0 };
+  // Get pax data from mapped data
+  const paxData = {
+    Adults: mappedData?.pax?.Adults || 0,
+    Children: mappedData?.pax?.Children || 0
   };
-
-  const paxData = getPaxData();
 
   return (
     <StyledModal
@@ -254,15 +277,29 @@ const RestaurantBookingSummaryModal = ({
             <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
               Restaurant Booking Summary
             </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Booking #{bookingIndex + 1}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle1" color="text.secondary">
+                Booking #{bookingIndex + 1}
+              </Typography>
+              {mappedData?.booking_id && (
+                <Chip 
+                  label={`ID: ${mappedData.booking_id}`}
+                  size="small"
+                  sx={{ 
+                    bgcolor: '#4caf50',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    height: '20px'
+                  }}
+                />
+              )}
+            </Box>
           </Box>
 
           <Divider />
 
           {/* Booking Date */}
-          {bookingDate && (
+          {mappedData?.bookingDate && (
             <SummarySection>
               <Box
                 sx={{
@@ -278,7 +315,7 @@ const RestaurantBookingSummaryModal = ({
               >
                 <CalendarTodayIcon sx={{ color: 'white' }} />
                 <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
-                  Booking Date: {bookingDate}
+                  Booking Date: {mappedData.bookingDate}
                 </Typography>
               </Box>
             </SummarySection>
@@ -290,18 +327,18 @@ const RestaurantBookingSummaryModal = ({
               <CardMedia
                 component="img"
                 sx={{ width: 200, height: 200, objectFit: 'cover' }}
-                image={effectiveRestaurantDetails?.master_image || effectiveRestaurantDetails?.additional_images?.[0] || '/placeholder-restaurant.jpg'}
-                alt={effectiveRestaurantDetails?.name || effectiveRestaurantDetails?.restaurant_name || 'Restaurant'}
+                image={mappedData?.image || '/placeholder-restaurant.jpg'}
+                alt={mappedData?.restaurantName || 'Restaurant'}
               />
               <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="h6" gutterBottom>
-                      {effectiveRestaurantDetails?.name || effectiveRestaurantDetails?.restaurant_name || 'Restaurant'}
+                      {mappedData?.restaurantName || 'Restaurant'}
                     </Typography>
                     <Chip 
                       icon={<LocalDiningIcon />} 
-                      label={effectiveRestaurantDetails?.cuisine || effectiveRestaurantDetails?.cuisine_type || 'Cuisine not specified'} 
+                      label="Restaurant" 
                       sx={{ 
                         color: '#4caf50', 
                         borderColor: '#4caf50',
@@ -311,12 +348,6 @@ const RestaurantBookingSummaryModal = ({
                     />
                   </Box>
                   
-                  <DetailRow>
-                    <LocationOnIcon sx={{ color: '#4caf50' }} />
-                    <Typography>
-                      {effectiveRestaurantDetails?.city || 'Not specified'}, {effectiveRestaurantDetails?.country || 'Not specified'}
-                    </Typography>
-                  </DetailRow>
 
                   {/* Selected Time Info */}
                   <Box 
@@ -333,7 +364,7 @@ const RestaurantBookingSummaryModal = ({
                       Selected Time
                     </Typography>
                     <Typography sx={{ fontSize: '1rem', ml: 3,color: 'white', }}>
-                      {bookingData.mealType}: {bookingData.timeSlot || getMealTimeSlot(bookingData.mealType)}
+                      {mappedData?.mealType}: {mappedData?.visitTime}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -356,7 +387,7 @@ const RestaurantBookingSummaryModal = ({
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FastfoodIcon sx={{ color: '#4caf50' }} />
                     <Typography variant="body1">
-                      {bookingData.specificMeal?.specificMealType || bookingData.mealType || 'Not selected'}
+                      {mappedData?.mealSpecificType || mappedData?.mealType || 'Not selected'}
                     </Typography>
                   </Box>
                 </InfoCard>
@@ -368,13 +399,13 @@ const RestaurantBookingSummaryModal = ({
                       Selected Items
                     </Typography>
                     <Box>
-                      {bookingData.specificMeal?.items?.map((item) => (
+                      {mappedData?.mealDescription?.map((item, index) => (
                         <Box 
-                          key={`meal-${item.meal_id}-${item.name}`} 
+                          key={`meal-${item.meal_id || index}-${item.name || item.item_name}`} 
                           sx={{ mb: 1 }}
                         >
                           <Typography variant="body2">
-                            {item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                            {item.name || item.item_name} {item.quantity > 1 ? `(x${item.quantity})` : ''}
                           </Typography>
                         </Box>
                       )) || 'No items selected'}
@@ -423,12 +454,12 @@ const RestaurantBookingSummaryModal = ({
                   <Typography variant="subtitle1" sx={{ color: '#4caf50' }} gutterBottom>
                     Price Breakdown
                   </Typography>
-                  {bookingData.specificMeal?.items?.map((item) => (
+                  {mappedData?.mealDescription?.map((item, index) => (
                     <Box 
-                      key={`price-${item.meal_id}-${item.name}`}
+                      key={`price-${item.meal_id || index}-${item.name || item.item_name}`}
                     >
                       {item.adult_price ? (
-                        <Box key={`buffet-${item.meal_id}`}>
+                        <Box key={`buffet-${item.meal_id || index}`}>
                           <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <span>Adult ({paxData.Adults}x):</span>
                             {PriceHide !== "1" ? (
@@ -450,16 +481,20 @@ const RestaurantBookingSummaryModal = ({
                         </Box>
                       ) : (
                         <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>{item.name} ({item.quantity}x):</span>
+                          <span>{item.name || item.item_name} ({item.quantity}x):</span>
                           {PriceHide !== "1" ? (
-                            <span>{currencyCode} {Math.ceil(item.price * exchangeRate * item.quantity)}</span>
+                            <span>{currencyCode} {Math.ceil((item.price || 0) * exchangeRate * item.quantity)}</span>
                           ):(
                             <span>Pricing hidden</span>
                           )}
                         </Typography>
                       )}
                     </Box>
-                  ))}
+                  )) || (
+                    <Typography variant="body2" color="text.secondary">
+                      No pricing details available
+                    </Typography>
+                  )}
                 </InfoCard>
               </Grid>
               <Grid item xs={12} md={6}>
@@ -474,15 +509,11 @@ const RestaurantBookingSummaryModal = ({
                       Pricing hidden
                     </Typography>
                   )}
-                  {/* {restaurantDetails?.tax_percentage && (
-                    <Typography variant="caption" sx={{ color: 'inherit', opacity: 0.8 }}>
-                      *Prices are subject to {restaurantDetails.tax_percentage}% tax
-                    </Typography>
-                  )} */}
                 </PriceCard>
               </Grid>
             </Grid>
           </SummarySection>
+
 
           {/* Action Buttons */}
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
