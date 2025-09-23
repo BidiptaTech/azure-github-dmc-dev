@@ -2519,13 +2519,17 @@
                     console.log('=== COLLECTING MAIN ENTRY/EXIT PORT TRANSPORTS (INDEX 0) ===');
                     
                     // Collect main entry/exit vehicles (index 0) that weren't collected above
-                    const entryExitFields = document.querySelectorAll('select[name*="_entry_pickup_zone_id"], select[name*="_exit_pickup_zone_id"]');
-                    console.log(`Found ${entryExitFields.length} zone-based entry/exit fields`);
+                    // Include both zone-based selects and Google Maps inputs
+                    const entryExitZoneFields = document.querySelectorAll('select[name*="_entry_pickup_zone_id"], select[name*="_exit_pickup_zone_id"]');
+                    const entryExitLocationFields = document.querySelectorAll('input[name*="_entry_pickup_location"], input[name*="_exit_pickup_location"]');
+                    const entryExitFields = [...entryExitZoneFields, ...entryExitLocationFields];
+                    console.log(`Found ${entryExitZoneFields.length} zone-based entry/exit fields and ${entryExitLocationFields.length} location-based entry/exit fields`);
                     
                     entryExitFields.forEach(field => {
                         console.log(`Checking entry/exit field: ${field.name} = ${field.value}`);
                         if (field.value) {
-                            const nameMatch = field.name.match(/day(\d+)_(entry|exit)_pickup_zone_id/);
+                            // Handle both zone-based and location-based field names
+                            const nameMatch = field.name.match(/day(\d+)_(entry|exit)_pickup_(zone_id|location)/);
                             if (nameMatch) {
                                 const day = nameMatch[1];
                                 const section = nameMatch[2]; // entry or exit
@@ -2533,15 +2537,42 @@
                                 
                                 console.log(`✅ Processing ${section} port field: ${field.name} = ${field.value}`);
                                 
-                                const dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
+                                // Determine if this is a zone-based or location-based field
+                                const isLocationField = field.name.includes('_pickup_location');
+                                
+                                let dropoffField, pickupZone, dropoffZone;
+                                if (isLocationField) {
+                                    // Google Maps input fields
+                                    dropoffField = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
+                                    pickupZone = { text: field.value, dataset: {} };
+                                    dropoffZone = { text: dropoffField?.value || '', dataset: {} };
+                                } else {
+                                    // Zone-based select fields
+                                    dropoffField = document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_dropoff_zone_id"]`);
+                                    pickupZone = field.options[field.selectedIndex];
+                                    dropoffZone = dropoffField?.options[dropoffField.selectedIndex];
+                                }
+                                
                                 // For main entry/exit vehicles, use the correct naming pattern with _0_ index
                                 const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_0_vehicle_id"]`) || document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
                                 const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`) || document.querySelector(`select[name="day${day}_${section}_0_service_type"]`);
                                 // Handle different time and date field names for entry vs exit
                                 const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
-                                const dateFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_date` : `day${day}_${section}${fieldSuffix}_pickup_date`;
                                 const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
-                                const dateInput = document.querySelector(`input[name="${dateFieldName}"]`);
+                                
+                                // Date field handling - try section-specific date first, then fallback to travel_dates
+                                let dateInput;
+                                if (section === 'exit') {
+                                    const exitDateFieldName = `day${day}_exit_date`;
+                                    dateInput = document.querySelector(`input[name="${exitDateFieldName}"]`);
+                                } else {
+                                    const entryDateFieldName = `day${day}_${section}_pickup_date`;
+                                    dateInput = document.querySelector(`input[name="${entryDateFieldName}"]`);
+                                }
+                                if (!dateInput) {
+                                    // Fallback to global travel dates control
+                                    dateInput = document.getElementById('travel_dates');
+                                }
                                 
                                 console.log(`🔍 Related fields for ${section} port:`, {
                                     dropoffField: dropoffField?.name || 'NOT_FOUND',
@@ -2552,14 +2583,11 @@
                                     serviceTypeValue: serviceTypeSelect?.value || 'NO_VALUE',
                                     timeFieldName: timeFieldName,
                                     timeValue: timeSelect?.value || 'NO_VALUE',
-                                    dateFieldName: dateFieldName,
                                     dateValue: dateInput?.value || 'NO_VALUE'
                                 });
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
                                     console.log(`✅ All required fields found for ${section} port - proceeding with data creation`);
-                                    const pickupZone = field.options[field.selectedIndex];
-                                    const dropoffZone = dropoffField.options[dropoffField.selectedIndex];
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
                                     // For main entry/exit vehicles, get passenger count from the correct field
                                     const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
@@ -2583,15 +2611,15 @@
                                             model_year: vehicle.dataset.model_year || "",
                                             seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
                                             travel_type: "entry_port",
-                                            entrypickup: pickupZone.text,
-                                            entrydropoff: dropoffZone.text,
+                                            entrypickup: pickupZone?.text || '',
+                                            entrydropoff: dropoffZone?.text || '',
                                             PickupPlaceid: {
-                                                lat: pickupZone.dataset.lat || "",
-                                                lng: pickupZone.dataset.lng || ""
+                                                lat: pickupZone?.dataset?.lat || "",
+                                                lng: pickupZone?.dataset?.lng || ""
                                             },
                                             DropoffPlaceid: {
-                                                lat: dropoffZone.dataset.lat || "",
-                                                lng: dropoffZone.dataset.lng || ""
+                                                lat: dropoffZone?.dataset?.lat || "",
+                                                lng: dropoffZone?.dataset?.lng || ""
                                             },
                                             pickupdate: dateInput?.value || getTourDateForDay(day),
                                             entrytime: timeSelect?.value || "",
@@ -2603,8 +2631,8 @@
                                             distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
-                                            city: pickupZone.dataset.city || "",
-                                            country: pickupZone.dataset.country || "",
+                                            city: pickupZone?.dataset?.city || "",
+                                            country: pickupZone?.dataset?.country || "",
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -7518,7 +7546,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')">
+                                                        <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
+                                                        oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
+                                                        onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter number of passengers for this service
@@ -7720,7 +7750,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_exit_passengers" name="day${day}_exit_passengers" min="1" max="50" value="" onchange="validatePassengerCapacity(${day}, 'exit'); updatePricing(${day}, 'exit')">
+                                                        <input type="number" class="form-control" id="day${day}_exit_passengers" name="day${day}_exit_passengers" min="1" max="50" value="" 
+                                                        oninput="validatePassengerCapacity(${day}, 'exit'); updatePricing(${day}, 'exit')"
+                                                        onchange="validatePassengerCapacity(${day}, 'exit'); updatePricing(${day}, 'exit')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter number of passengers for this service
@@ -8417,6 +8449,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="col-md-8">
                                                 <label class="form-label fw-semibold">Vehicle</label>
                                                 <select class="form-select vehicle-select" 
+                                                        id="day${day}_transport_vehicle_id"
                                                         name="day${day}_transport_vehicle_id" 
                                                         onchange="updateVehicleDetails(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport');">
                                                     <option value="">Choose vehicle</option>
@@ -8426,6 +8459,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold">Service Type</label>
                                                 <select class="form-select" 
+                                                        id="day${day}_transport_service_type"
                                                         name="day${day}_transport_service_type" 
                                                         onchange="updatePricing(${day}, 'transport')">
                                                     <option value="">Select service type</option>
@@ -8435,6 +8469,22 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                         </div>
                                         
+                                        <!-- Price Field for Point to Point -->
+                                        <div class="row mt-3 point-to-point-price-field" id="day${day}_transport_price_field" style="display: none;">
+                                            <div class="col-md-12">
+                                                <div class="form-group">
+                                                    <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text"><i class="ri-money-dollar-circle-line"></i></span>
+                                                        <input type="number" class="form-control" id="day${day}_transport_custom_price" name="day${day}_transport_custom_price" min="0" step="0.01" placeholder="Enter custom price" onchange="updatePricing(${day}, 'transport')">
+                                                    </div>
+                                                    <small class="form-text text-muted">
+                                                        Enter the custom price for this point-to-point service
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <!-- Guest Information -->
                                         <div class="row mt-3">
                                             <div class="col-md-12">
@@ -8442,7 +8492,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers3</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="10" value="" onchange="updatePricing(${day}, 'transport')">
+                                                        <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" value=""
+
+                                                         oninput="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport')"
+                                                         onchange="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport')">
                                                     </div>
                                                     <small class="form-text text-muted">
                                                         Enter number of passengers for this service
@@ -8464,7 +8517,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                         </div>
                                     </div>
-
                                 </div>
                              </div>
                          </div>
@@ -12251,17 +12303,64 @@ function enableSearchButton(day, section) {
         const citySelectId = section === 'entry' ? 'modal_local_transfer_city' : 'modal_exit_city';
         const citySelect = document.getElementById(citySelectId);
         
-        // Get pickup and dropoff selects
-        const pickupSelect = document.getElementById(`day${day}_${section}_pickup_location`);
-        const dropoffSelect = document.getElementById(`day${day}_${section}_dropoff_location`);
-        const pickupFeildName = pickupSelect ? pickupSelect.name : null;
-        const dropoffFeildName = dropoffSelect ? dropoffSelect.name : null;
-        
+        // Get pickup and dropoff elements
+        // When zone_on = 0 → entry uses Google Maps inputs; when zone_on = 1 → entry uses selects
+        // Exit generally uses selects (zone-assigned lists)
+        const userDmcConfig = UserDmc || null;
+        const zoneOn = userDmcConfig && typeof userDmcConfig.zone_on !== 'undefined'
+            ? parseInt(userDmcConfig.zone_on)
+            : 1; // default to 1 (zones enabled)
+            
+        console.log(`Zone configuration for ${section} port:`, {
+            userDmcConfig: userDmcConfig,
+            zoneOn: zoneOn,
+            section: section
+        });
+
+        let pickupSelect, dropoffSelect;
+        if (section === 'entry') {
+            if (zoneOn === 0) {
+                // Entry with Google Maps inputs
+                pickupSelect = document.querySelector(`input[name="day${day}_${section}_pickup_location"]`);
+                dropoffSelect = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
+            } else {
+                // Entry with zone selects
+                pickupSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+                dropoffSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+            }
+        } else {
+            // Exit ports - also depend on zone_on setting
+            if (zoneOn === 0) {
+                // Exit with Google Maps inputs
+                pickupSelect = document.querySelector(`input[name="day${day}_${section}_pickup_location"]`);
+                dropoffSelect = document.querySelector(`input[name="day${day}_${section}_dropoff_location"]`);
+            } else {
+                // Exit with zone selects
+                pickupSelect = document.querySelector(`select[name="day${day}_${section}_pickup_zone_id"]`);
+                dropoffSelect = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
+            }
+        }
+         const pickupFeildName = pickupSelect ? pickupSelect.name : null;
+         const dropoffFeildName = dropoffSelect ? dropoffSelect.name : null;
+         
         // Get time and date fields
         const timeFieldName = section === 'exit' ? `day${day}_exit_time` : `day${day}_${section}_pickup_time`;
-        const dateFieldName = section === 'exit' ? `day${day}_exit_date` : `day${day}_${section}_pickup_date`;
         const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
-        const dateInput = document.querySelector(`input[name="${dateFieldName}"]`);
+
+        // Date field handling
+        // Try section-specific date first (when present), otherwise fallback to main travel_dates
+        let dateInput;
+        if (section === 'exit') {
+            const exitDateFieldName = `day${day}_exit_date`;
+            dateInput = document.querySelector(`input[name="${exitDateFieldName}"]`);
+        } else {
+            const entryDateFieldName = `day${day}_${section}_pickup_date`;
+            dateInput = document.querySelector(`input[name="${entryDateFieldName}"]`);
+        }
+        if (!dateInput) {
+            // Fallback to global travel dates control
+            dateInput = document.getElementById('travel_dates');
+        }
         
         console.log(`Checking ${section} port fields:`, {
             city: citySelect?.value || 'missing',
@@ -12270,19 +12369,25 @@ function enableSearchButton(day, section) {
             time: timeSelect?.value || 'missing',
             date: dateInput?.value || 'missing',
             timeFieldName: timeFieldName,
-            dateFieldName: dateFieldName,
             timeSelectElement: timeSelect,
             dateInputElement: dateInput,
             pickupFeildName: pickupFeildName,
-            dropoffFeildName: dropoffFeildName
+            dropoffFeildName: dropoffFeildName,
+            // Debug: Show actual field elements and their properties
+            pickupElement: pickupSelect,
+            dropoffElement: dropoffSelect,
+            pickupElementValue: pickupSelect ? pickupSelect.value : 'NO_ELEMENT',
+            dropoffElementValue: dropoffSelect ? dropoffSelect.value : 'NO_ELEMENT',
+            pickupElementName: pickupSelect ? pickupSelect.name : 'NO_ELEMENT',
+            dropoffElementName: dropoffSelect ? dropoffSelect.name : 'NO_ELEMENT'
         });
         
-        // Check if all required fields are filled
-        const allFieldsFilled = citySelect?.value && 
-                               pickupSelect?.value && 
-                               dropoffSelect?.value && 
-                               timeSelect?.value && 
-                               dateInput?.value;
+         // Check if all required fields are filled
+         const allFieldsFilled = citySelect?.value && 
+                                pickupSelect?.value && 
+                                dropoffSelect?.value && 
+                                timeSelect?.value && 
+                                dateInput?.value;
         
         if (allFieldsFilled) {
             searchBtn.disabled = false;
@@ -12293,7 +12398,7 @@ function enableSearchButton(day, section) {
             searchBtn.disabled = true;
             searchBtn.classList.remove('btn-primary');
             searchBtn.classList.add('btn-secondary');
-            console.log(`Search button disabled for zone-based ${section} port - missing required fields`);
+             console.log(`Search button disabled for zone-based ${section} port - missing required fields`);
         }
         return;
     }
@@ -13877,6 +13982,11 @@ function loadDropoffZones(day, section) {
                 
                 // Re-evaluate search button state after enabling dropoff
                 enableSearchButton(day, 'entry');
+                
+                // Add event listener to dropoff select to trigger search button update
+                dropoffZoneSelect.addEventListener('change', () => {
+                    enableSearchButton(day, 'entry');
+                });
             } else {
                 // No static options, fetch from API
                 console.log('Populating entry port dropoff with zone-assigned locations from API');
@@ -13921,6 +14031,11 @@ function loadDropoffZones(day, section) {
                         
                         // Re-evaluate search button state after populating dropoff
                         enableSearchButton(day, 'entry');
+                        
+                        // Add event listener to dropoff select to trigger search button update
+                        dropoffZoneSelect.addEventListener('change', () => {
+                            enableSearchButton(day, 'entry');
+                        });
                     } else {
                         console.log('No valid locations data received:', data);
                         dropoffZoneSelect.innerHTML = '<option value="">No locations available</option>';
@@ -14219,6 +14334,7 @@ function loadDropoffZones(day, section) {
      
      if (!vehicleSelect) { 
         console.log(`Vehicle select not found for day${day}_${section}_vehicle_id`);
+        console.log(`Available elements with similar names:`, document.querySelectorAll(`[id*="${section}_vehicle_id"]`));
         return;
      }
      
@@ -14234,6 +14350,17 @@ function loadDropoffZones(day, section) {
      });
      
      if (selectedOption.value) {
+         // Check if point-to-point service type is selected
+         const pointToPointRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="point_to_point"]`);
+         if (pointToPointRadio && pointToPointRadio.checked) {
+             // Show custom price field for point-to-point
+             const priceField = document.getElementById(`day${day}_transport_price_field`);
+             if (priceField) {
+                 priceField.style.display = 'block';
+                 console.log(`Showing price field for day ${day} transport`);
+             }
+         }
+         
          // Show price display section with initial message
          if (priceDisplay) {
              priceDisplay.style.display = 'block';
@@ -14251,6 +14378,13 @@ function loadDropoffZones(day, section) {
          // Reset service type selection to trigger pricing update
      } else {
          // Reset to default state
+         
+         // Hide custom price field
+         const priceField = document.getElementById(`day${day}_transport_price_field`);
+         if (priceField) {
+             priceField.style.display = 'none';
+             console.log(`Hiding price field for day ${day} transport`);
+         }
          
          // Hide price display
          if (priceDisplay) {
@@ -14320,6 +14454,65 @@ function loadDropoffZones(day, section) {
     if (!selectedServiceType || !selectedVehicleOption.value) {
         priceDisplay.style.display = 'none';
         return;
+    }
+    
+    // Check if this is a point-to-point transport service
+    const pointToPointRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="point_to_point"]`);
+    const isPointToPoint = pointToPointRadio && pointToPointRadio.checked && section === 'transport';
+    
+    if (isPointToPoint) {
+        // For point-to-point services, use custom price
+        const customPriceField = document.getElementById(`day${day}_transport_custom_price`);
+        const customPrice = customPriceField ? parseFloat(customPriceField.value) : 0;
+        
+        if (customPrice > 0) {
+            // Get passenger count for display
+            const passengersInput = document.getElementById(`day${day}_transport_passengers`);
+            const totalGuests = passengersInput && passengersInput.value ? parseInt(passengersInput.value) : 1;
+            
+            priceDisplay.style.display = 'block';
+            priceDisplay.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Point-to-Point Service Pricing</strong>
+                        <div class="small">
+                            <strong>Custom Price:</strong> $${customPrice.toFixed(2)} (fixed price)<br>
+                            <strong>Total Passengers:</strong> ${totalGuests}<br>
+                            <strong>Total Price:</strong> <span class="text-success fw-bold">$${customPrice.toFixed(2)}</span><br>
+                            <small class="text-info">Point-to-point service with custom pricing</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Store pricing data in hidden fields
+            const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+            const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+            const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+            
+            if (basePriceField) basePriceField.value = customPrice.toFixed(2);
+            if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
+            if (guestCountField) guestCountField.value = totalGuests;
+            
+            console.log(`Point-to-point service pricing: Custom price $${customPrice} for ${totalGuests} passengers`);
+            return;
+        } else {
+            // Custom price not entered yet
+            priceDisplay.style.display = 'block';
+            priceDisplay.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Point-to-Point Service Pricing</strong>
+                        <div class="small text-warning">
+                            Please enter a custom price for this point-to-point service
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
     }
     
     // Get pricing data from the selected vehicle option
@@ -14493,8 +14686,8 @@ function loadDropoffZones(day, section) {
         
         // Clear hidden fields when no pricing
         const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+         const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+         const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
         
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
@@ -14799,6 +14992,22 @@ window.saveService = function(day, type) {
         const vehicleId = document.querySelector(`select[name="day${day}_transport_vehicle_id"]`).value;
         const serviceType = document.querySelector(`select[name="day${day}_transport_service_type"]`).value;
         
+        // Check if point-to-point service type is selected
+        const pointToPointRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="point_to_point"]`);
+        const isPointToPoint = pointToPointRadio && pointToPointRadio.checked;
+        
+        // Get custom price for point-to-point services
+        let customPrice = null;
+        if (isPointToPoint) {
+            const customPriceField = document.getElementById(`day${day}_transport_custom_price`);
+            customPrice = customPriceField ? customPriceField.value : null;
+            
+            if (!customPrice || customPrice <= 0) {
+                showNotification('Please enter a valid price for point-to-point service.', 'error');
+                return;
+            }
+        }
+        
         if (!pickupZoneId || !dropoffZoneId || !pickupTime || !pickupDate || !vehicleId || !serviceType) {
             showNotification('Please fill in all required fields for transport service.', 'error');
             return;
@@ -14828,7 +15037,8 @@ window.saveService = function(day, type) {
             };
         }
         
-        const totalPrice = document.getElementById(`day${day}_transport_total_price`)?.value || '0';
+        // Use custom price for point-to-point, otherwise use calculated total price
+        const totalPrice = isPointToPoint && customPrice ? customPrice : (document.getElementById(`day${day}_transport_total_price`)?.value || '0');
         
         const transportData = {
             fullName: customer_info.fullName,
@@ -14856,6 +15066,7 @@ window.saveService = function(day, type) {
             adults: parseInt(document.getElementById(`day${day}_transport_passengers`)?.value || 1),
             children: 0,
             totalPrice: parseFloat(totalPrice),
+            customPrice: isPointToPoint ? parseFloat(customPrice) : null,
             Tax: 0,
             distance: 0,
             Night_Start_Time: null,
@@ -15166,28 +15377,32 @@ window.saveService = function(day, type) {
                              </option>`;
                          });
                          
-                         // Enable the vehicle select
-                         vehicleSelect.disabled = false;
-                         console.log('Vehicle dropdown populated successfully (city-based)');
-                         
-                         // Reset service type select and price display when vehicles are loaded
-                        // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
-                        let sectionForUpdate;
-                        if (section === 'entry') {
-                            sectionForUpdate = 'entry_0';
-                        } else if (section === 'exit') {
-                            sectionForUpdate = 'exit';
-                        } else {
-                            sectionForUpdate = baseSection;
-                        }
-                        updateVehicleDetails(day, sectionForUpdate);
-                     } else {
-                         console.error('Vehicle select element not found!');
-                     }
+                        // Enable the vehicle select
+                        vehicleSelect.disabled = false;
+                        console.log('Vehicle dropdown populated successfully (city-based)');
+                    } else {
+                        console.error('Vehicle select element not found!');
+                    }
 
-                     // Show results section
-                     vehicleResultsDiv.style.display = 'block';
-                     vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Show results section
+                    vehicleResultsDiv.style.display = 'block';
+                    vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    
+                    // Reset service type select and price display when vehicles are loaded
+                    // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
+                    let sectionForUpdate;
+                    if (section === 'entry') {
+                        sectionForUpdate = 'entry_0';
+                    } else if (section === 'exit') {
+                        sectionForUpdate = 'exit';
+                    } else {
+                        sectionForUpdate = baseSection;
+                    }
+                    
+                    // Call updateVehicleDetails after the results section is shown
+                    setTimeout(() => {
+                        updateVehicleDetails(day, sectionForUpdate);
+                    }, 100);
 
                      // Reset search button
                      searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
@@ -15329,18 +15544,6 @@ window.saveService = function(day, type) {
                      // Enable the vehicle select
                      vehicleSelect.disabled = false;
                         console.log('Vehicle dropdown populated successfully (zone-based)');
-                     
-                     // Reset service type select and price display when vehicles are loaded
-                       // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
-                       let sectionForUpdate;
-                       if (section === 'entry') {
-                           sectionForUpdate = 'entry_0';
-                       } else if (section === 'exit') {
-                           sectionForUpdate = 'exit';
-                       } else {
-                           sectionForUpdate = baseSection;
-                       }
-                       updateVehicleDetails(day, sectionForUpdate);
                  } else {
                      console.error('Vehicle select element not found!');
                  }
@@ -15348,6 +15551,22 @@ window.saveService = function(day, type) {
                  // Show results section
                  vehicleResultsDiv.style.display = 'block';
                  vehicleResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                 
+                 // Reset service type select and price display when vehicles are loaded
+                 // For entry ports, use section_0; for exit ports, use section; for others, use baseSection
+                 let sectionForUpdate;
+                 if (section === 'entry') {
+                     sectionForUpdate = 'entry_0';
+                 } else if (section === 'exit') {
+                     sectionForUpdate = 'exit';
+                 } else {
+                     sectionForUpdate = baseSection;
+                 }
+                 
+                 // Call updateVehicleDetails after the results section is shown
+                 setTimeout(() => {
+                     updateVehicleDetails(day, sectionForUpdate);
+                 }, 100);
 
                  // Reset search button
                  searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
@@ -17344,19 +17563,39 @@ function handleTransportServiceTypeChange(day, serviceType) {
         vehicleResultsSection.style.display = 'none';
     }
     
+    // Get the price field for point-to-point
+    const priceField = document.getElementById(`day${day}_transport_price_field`);
+    
     // Show/hide fields based on selected service type
     if (serviceType === 'local_transfer') {
         localTransferFields.forEach(field => field.style.display = 'block');
         pointToPointFields.forEach(field => field.style.display = 'none');
         hourlyFields.forEach(field => field.style.display = 'none');
+        
+        // Hide price field for local transfer
+        if (priceField) {
+            priceField.style.display = 'none';
+        }
     } else if (serviceType === 'point_to_point') {
         pointToPointFields.forEach(field => field.style.display = 'block');
         localTransferFields.forEach(field => field.style.display = 'none');
         hourlyFields.forEach(field => field.style.display = 'none');
+        
+        // Check if a vehicle is selected to show price field
+        const vehicleSelect = document.getElementById(`day${day}_transport_vehicle_id`);
+        if (vehicleSelect && vehicleSelect.value && priceField) {
+            priceField.style.display = 'block';
+            console.log(`Showing price field for point-to-point service on day ${day}`);
+        }
     } else if (serviceType === 'hourly') {
         hourlyFields.forEach(field => field.style.display = 'block');
         localTransferFields.forEach(field => field.style.display = 'none');
         pointToPointFields.forEach(field => field.style.display = 'none');
+        
+        // Hide price field for hourly
+        if (priceField) {
+            priceField.style.display = 'none';
+        }
     }
 }
 
