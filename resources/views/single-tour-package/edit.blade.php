@@ -5931,8 +5931,8 @@
                 // Show success message
                 showNotification(data.message || successMessage, 'success');
                 
-                // Optionally refresh the page or update UI
-                // location.reload();
+                // Refresh the page to show the new service in the listing
+                setTimeout(() => location.reload(), 1500);
             } else {
                 showNotification(data.message || 'Booking failed. Please try again.', 'error');
             }
