@@ -2,6 +2,7 @@
 @section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
 
+
 <!-- Date Range Picker CSS -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- Add SweetAlert2 CSS -->
