@@ -208,6 +208,7 @@
                                 <th>Confirm Payment </th>
                             @endif
                             <th>Created At</th>
+                            <th>Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -330,7 +331,7 @@
                                         </button>
                                     @endif
                                     
-                                    @if(in_array(auth()->user()->role_id, [33, 36, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138]) && $booking->status == '5')
+                                    @if(in_array(auth()->user()->role_id, [36, 126, 127, 129, 131, 133, 134, 136, 137, 138]) && $booking->status == '5')
                                         <button type="button" class="btn btn-sm btn-warning ms-1" data-booking-id="{{ $booking->booking_id }}">
                                             <i class="fas fa-money-bill-wave"></i> Refund
                                         </button>
@@ -400,7 +401,7 @@
                                             @endif
                                         </div>
                                     </td>
-                                @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <td>
                                         {{-- Finance users always need access to history for verification --}}
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
@@ -413,6 +414,16 @@
                                         <span>{{ $booking->created_at->format('D,  M d, Y') }}</span>
                                         <small class="text-muted">{{ $booking->created_at->format('h:i A') }}</small>
                                     </div>
+                                </td>
+                                <td>
+                                    @if($booking->auto_cancel_date)
+                                        <div class="d-flex flex-column">
+                                            <span>{{ \Carbon\Carbon::parse($booking->auto_cancel_date)->format('D,  M d, Y') }}</span>
+                                            <small class="text-muted">{{ \Carbon\Carbon::parse($booking->auto_cancel_date)->format('h:i A') }}</small>
+                                        </div>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
                                 </td>
                             </tr>
                             @endforeach

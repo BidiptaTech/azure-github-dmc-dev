@@ -75,6 +75,55 @@
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
     
+    <!-- Select2 CSS and JS with multiple CDN fallbacks -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <!-- Bootstrap 4 compatible Select2 theme (more stable) -->
+    <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet" />
+    
+    <!-- Primary Select2 JS from cdnjs -->
+    <script>
+        // Function to load Select2 with fallbacks
+        function loadSelect2WithFallback() {
+            // Try primary CDN (cdnjs.cloudflare.com)
+            const script1 = document.createElement('script');
+            script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js';
+            script1.onload = function() {
+                console.log('Select2 loaded successfully from cdnjs');
+            };
+            script1.onerror = function() {
+                console.warn('Failed to load Select2 from cdnjs, trying jsdelivr...');
+                // Fallback to jsdelivr
+                const script2 = document.createElement('script');
+                script2.src = 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js';
+                script2.onload = function() {
+                    console.log('Select2 loaded successfully from jsdelivr');
+                };
+                script2.onerror = function() {
+                    console.warn('Failed to load Select2 from jsdelivr, trying unpkg...');
+                    // Final fallback to unpkg
+                    const script3 = document.createElement('script');
+                    script3.src = 'https://unpkg.com/select2@4.0.13/dist/js/select2.min.js';
+                    script3.onload = function() {
+                        console.log('Select2 loaded successfully from unpkg');
+                    };
+                    script3.onerror = function() {
+                        console.error('All Select2 CDN sources failed to load');
+                    };
+                    document.head.appendChild(script3);
+                };
+                document.head.appendChild(script2);
+            };
+            document.head.appendChild(script1);
+        }
+        
+        // Load Select2 when document is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadSelect2WithFallback);
+        } else {
+            loadSelect2WithFallback();
+        }
+    </script>
+    
     <style>
         /* Google Maps Autocomplete Styling */
         .pac-container {
@@ -96,6 +145,91 @@
 
         .pac-item-selected {
             background-color: #e3f2fd;
+        }
+
+        /* Select2 Modal Styling - Bootstrap Compatible */
+        .modal .select2-container--bootstrap4 {
+            width: 100% !important;
+        }
+        
+        .modal .select2-container--bootstrap4 .select2-selection--single {
+            height: calc(1.5em + 0.75rem + 2px) !important;
+            padding: 0.375rem 0.75rem !important;
+            font-size: 1rem !important;
+            line-height: 1.5 !important;
+            border-radius: 0.375rem !important;
+        }
+
+        .modal .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+            line-height: calc(1.5em + 0.75rem) !important;
+            padding-left: 0 !important;
+            padding-right: 20px !important;
+        }
+
+        .modal .select2-container--bootstrap4 .select2-selection--multiple {
+            min-height: calc(1.5em + 0.75rem + 2px) !important;
+            border-radius: 0.375rem !important;
+        }
+
+        /* Ensure dropdown appears above modal */
+        .modal .select2-dropdown {
+            z-index: 9999 !important;
+        }
+
+        .select2-container--open .select2-dropdown {
+            z-index: 9999 !important;
+        }
+
+        /* Fix select2 arrow positioning */
+        .modal .select2-container--bootstrap4 .select2-selection__arrow {
+            height: calc(1.5em + 0.75rem) !important;
+        }
+
+        /* Ensure proper spacing and alignment */
+        .modal .form-group .select2-container--bootstrap4 {
+            margin-bottom: 0 !important;
+        }
+
+        /* Fix for position relative containers */
+        .position-relative .select2-container--bootstrap4 {
+            position: static !important;
+        }
+
+        /* Fix for icon positioning in select containers */
+        .modal .position-relative .select2-container--bootstrap4 .select2-selection--single {
+            padding-left: 45px !important;
+        }
+
+        /* Ensure icons are visible above Select2 */
+        .modal .position-relative i {
+            z-index: 10 !important;
+            pointer-events: none !important;
+        }
+
+        /* Fix Select2 selection rendering for selects with icons */
+        .modal .position-relative .select2-container--bootstrap4 .select2-selection__rendered {
+            padding-left: 0 !important;
+        }
+
+        /* Specific fixes for port location selects */
+        .modal #modal_transport_dropoff_zone.select2-hidden-accessible + .select2-container--bootstrap4,
+        .modal #modal_dropoff_transport_pickup_zone.select2-hidden-accessible + .select2-container--bootstrap4,
+        .modal #modal_transport_pickup_zone.select2-hidden-accessible + .select2-container--bootstrap4,
+        .modal #modal_dropoff_transport_dropoff_zone.select2-hidden-accessible + .select2-container--bootstrap4 {
+            width: 100% !important;
+            display: block !important;
+            visibility: visible !important;
+        }
+
+        /* Ensure port location dropdowns are visible */
+        .modal .dropoff-zone-select + .select2-container--bootstrap4,
+        .modal .pickup-zone-select + .select2-container--bootstrap4 {
+            width: 100% !important;
+        }
+
+        /* Fix dropdown positioning for port selects */
+        .modal .form-group .select2-container--bootstrap4 .select2-dropdown {
+            z-index: 10000 !important;
         }
 
         .location-input {
@@ -9139,6 +9273,312 @@
         if (localTransferPickupDateField) {
             localTransferPickupDateField.addEventListener('change', checkLocalTransferZoneFormCompletion);
         }
+    });
+
+    // Initialize Select2 for all select elements in modals
+    function initializeSelect2InModals() {
+        // Check if Select2 is loaded
+        if (typeof $.fn.select2 === 'undefined') {
+            console.warn('Select2 is not loaded yet, retrying in 100ms...');
+            setTimeout(initializeSelect2InModals, 100);
+            return;
+        }
+        
+        // Get all modals in the page
+        const modals = document.querySelectorAll('.modal');
+        
+        modals.forEach(function(modal) {
+            const modalId = modal.getAttribute('id');
+            const $modal = $(modal);
+            
+            // Find all select elements within this modal
+            const selectElements = modal.querySelectorAll('select');
+            
+            selectElements.forEach(function(selectElement) {
+                const $select = $(selectElement);
+                
+                // Skip if already initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+                
+                // Determine Select2 configuration based on select attributes
+                let config = {
+                    theme: 'bootstrap4',
+                    dropdownParent: $modal,
+                    width: '100%',
+                    placeholder: function() {
+                        return $(this).data('placeholder') || this.getAttribute('placeholder') || 'Select an option';
+                    },
+                    allowClear: true
+                };
+                
+                // Handle multiple select
+                if (selectElement.hasAttribute('multiple')) {
+                    config.multiple = true;
+                    config.tags = true;
+                }
+                
+                // Handle specific configurations based on element ID or class
+                if (selectElement.id.includes('guide') || selectElement.id.includes('restaurant') || selectElement.id.includes('attraction')) {
+                    config.placeholder = function() {
+                        return 'Search and select...';
+                    };
+                }
+                
+                // Handle city/location selects
+                if (selectElement.id.includes('city') || selectElement.id.includes('location')) {
+                    config.placeholder = function() {
+                        return 'Select location...';
+                    };
+                }
+                
+                // Handle zone/port selects (pickup/dropoff locations)
+                if (selectElement.id.includes('zone') || selectElement.id.includes('pickup') || selectElement.id.includes('dropoff')) {
+                    config.placeholder = function() {
+                        return 'Select location...';
+                    };
+                    config.minimumResultsForSearch = 0; // Always show search box
+                }
+                
+                // Handle time selects
+                if (selectElement.id.includes('time') || selectElement.id.includes('duration')) {
+                    config.placeholder = function() {
+                        return 'Select time...';
+                    };
+                }
+                
+                try {
+                    // Initialize Select2
+                    $select.select2(config);
+                    
+                // Handle change events - preserve existing onchange handlers
+                const originalOnChange = selectElement.getAttribute('onchange');
+                if (originalOnChange) {
+                    $select.on('select2:select select2:unselect', function(e) {
+                        // Execute original onchange function
+                        try {
+                            eval(originalOnChange);
+                        } catch (error) {
+                            console.warn('Error executing original onchange handler:', error);
+                        }
+                    });
+                }
+                
+                // Trigger change event after initialization to ensure dependent dropdowns load
+                if (selectElement.value && selectElement.value !== '') {
+                    setTimeout(function() {
+                        $select.trigger('change');
+                    }, 100);
+                }
+                } catch (error) {
+                    console.warn('Error initializing Select2 for element:', selectElement.id, error);
+                }
+            });
+        });
+    }
+    
+    // Global function to manually initialize Select2 (useful for debugging)
+    window.manualInitializeSelect2 = function() {
+        console.log('Manually initializing Select2...');
+        initializeSelect2InModals();
+    };
+    
+    // Global function to manually initialize port locations (useful for debugging)
+    window.manualInitializePortLocations = function() {
+        console.log('Manually initializing port location selects...');
+        initializePortLocationSelects();
+    };
+    
+    // Robust initialization with multiple attempts and longer timeout
+    function robustSelect2Initialization() {
+        let attempts = 0;
+        const maxAttempts = 20; // Increased attempts
+        
+        function tryInitialization() {
+            attempts++;
+            
+            if (typeof $ === 'undefined') {
+                if (attempts < maxAttempts) {
+                    console.warn('jQuery not loaded yet, retrying in 500ms... (attempt ' + attempts + ')');
+                    setTimeout(tryInitialization, 500); // Increased timeout
+                } else {
+                    console.error('jQuery failed to load after maximum attempts');
+                }
+                return;
+            }
+            
+            if (typeof $.fn.select2 === 'undefined') {
+                if (attempts < maxAttempts) {
+                    console.warn('Select2 not loaded yet, retrying in 500ms... (attempt ' + attempts + ')');
+                    setTimeout(tryInitialization, 500); // Increased timeout
+                } else {
+                    console.error('Select2 failed to load after maximum attempts. Check network connection and CDN availability.');
+                    // Try to provide a helpful message to the user
+                    if (typeof console !== 'undefined') {
+                        console.log('💡 To manually initialize Select2 if it loads later, run: window.manualInitializeSelect2()');
+                    }
+                }
+                return;
+            }
+            
+            // Both jQuery and Select2 are loaded, initialize
+            console.log('✅ Successfully loaded jQuery and Select2, initializing modal selects...');
+            initializeSelect2InModals();
+        }
+        
+        tryInitialization();
+    }
+    
+    // Initialize Select2 when document is ready
+    $(document).ready(function() {
+        robustSelect2Initialization();
+    });
+    
+    // Also try to initialize when window loads (fallback)
+    $(window).on('load', function() {
+        if (typeof $.fn.select2 !== 'undefined') {
+            // Only reinitialize if there are select elements that aren't initialized yet
+            if ($('.modal select:not(.select2-hidden-accessible)').length > 0) {
+                console.log('Window loaded - reinitializing any remaining select elements');
+                initializeSelect2InModals();
+            }
+        }
+    });
+
+    // Specific initialization for transport/port location selects
+    function initializePortLocationSelects() {
+        if (typeof $.fn.select2 === 'undefined') {
+            console.warn('Select2 not available for port location initialization');
+            return;
+        }
+
+        // Specific selects that need special attention
+        const portLocationSelects = [
+            'modal_transport_dropoff_zone',
+            'modal_dropoff_transport_pickup_zone',
+            'modal_transport_pickup_zone',
+            'modal_dropoff_transport_dropoff_zone'
+        ];
+
+        portLocationSelects.forEach(function(selectId) {
+            const selectElement = document.getElementById(selectId);
+            if (selectElement && !$(selectElement).hasClass('select2-hidden-accessible')) {
+                const $select = $(selectElement);
+                const modalElement = selectElement.closest('.modal');
+                const $modal = modalElement ? $(modalElement) : $(document.body);
+
+                try {
+                    console.log('Initializing port location select:', selectId);
+                    $select.select2({
+                        theme: 'bootstrap4',
+                        dropdownParent: $modal,
+                        width: '100%',
+                        placeholder: 'Select location...',
+                        allowClear: true,
+                        minimumResultsForSearch: 0
+                    });
+
+                    // Preserve original onchange handlers
+                    const originalOnChange = selectElement.getAttribute('onchange');
+                    if (originalOnChange) {
+                        $select.on('select2:select select2:unselect', function(e) {
+                            try {
+                                eval(originalOnChange);
+                            } catch (error) {
+                                console.warn('Error executing original onchange handler for ' + selectId + ':', error);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Error initializing Select2 for port location select ' + selectId + ':', error);
+                }
+            }
+        });
+    }
+
+    // Call port location initialization when document is ready and periodically
+    $(document).ready(function() {
+        setTimeout(initializePortLocationSelects, 500);
+    });
+    
+    // Reinitialize Select2 when modals are shown (in case of dynamic content)
+    $(document).on('shown.bs.modal', '.modal', function() {
+        // Check if Select2 is loaded
+        if (typeof $.fn.select2 === 'undefined') {
+            console.warn('Select2 is not loaded yet, cannot initialize selects in modal');
+            return;
+        }
+        
+        const modalId = this.getAttribute('id');
+        const $modal = $(this);
+        
+        // Add a small delay to ensure modal is fully shown
+        setTimeout(function() {
+            // Special handling for transport modals
+            const modalId = $modal.attr('id');
+            if (modalId === 'transportSelectionModal' || modalId === 'dropoffTransportSelectionModal') {
+                console.log('Transport modal shown, initializing port location selects...');
+                initializePortLocationSelects();
+            }
+            // Initialize Select2 for any new select elements in this modal
+            $modal.find('select:not(.select2-hidden-accessible)').each(function() {
+                const $select = $(this);
+                
+                try {
+                    let config = {
+                        theme: 'bootstrap4',
+                        dropdownParent: $modal,
+                        width: '100%',
+                        placeholder: function() {
+                            return $(this).data('placeholder') || this.getAttribute('placeholder') || 'Select an option';
+                        },
+                        allowClear: true
+                    };
+                    
+                    // Handle specific configurations based on element ID
+                    if (this.id.includes('guide') || this.id.includes('restaurant') || this.id.includes('attraction')) {
+                        config.placeholder = 'Search and select...';
+                    } else if (this.id.includes('city') || this.id.includes('location')) {
+                        config.placeholder = 'Select location...';
+                    } else if (this.id.includes('zone') || this.id.includes('pickup') || this.id.includes('dropoff')) {
+                        config.placeholder = 'Select location...';
+                        config.minimumResultsForSearch = 0; // Always show search box
+                    } else if (this.id.includes('time') || this.id.includes('duration')) {
+                        config.placeholder = 'Select time...';
+                    }
+                    
+                    if (this.hasAttribute('multiple')) {
+                        config.multiple = true;
+                        config.tags = true;
+                    }
+                    
+                    $select.select2(config);
+                    
+                    // Preserve original onchange handlers
+                    const originalOnChange = this.getAttribute('onchange');
+                    if (originalOnChange) {
+                        $select.on('select2:select select2:unselect', function(e) {
+                            try {
+                                eval(originalOnChange);
+                            } catch (error) {
+                                console.warn('Error executing original onchange handler:', error);
+                            }
+                        });
+                    }
+                    
+                    // Trigger change event after initialization to ensure dependent dropdowns load
+                    if (this.value && this.value !== '') {
+                        const selectElement = this;
+                        setTimeout(function() {
+                            $(selectElement).trigger('change');
+                        }, 100);
+                    }
+                } catch (error) {
+                    console.warn('Error initializing Select2 for modal element:', this.id, error);
+                }
+            });
+        }, 50); // Small delay to ensure modal is fully rendered
     });
 
 </script>

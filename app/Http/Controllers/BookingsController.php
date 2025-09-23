@@ -120,6 +120,7 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.created_at',
                     'tours.updated_at',
+                    'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name'
@@ -165,6 +166,7 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.created_at',
                     'tours.updated_at',
+                    'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name'
@@ -317,6 +319,7 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name',
@@ -374,6 +377,7 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.created_at',
                     'tours.updated_at',
+                    'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name',
@@ -418,6 +422,7 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name'
             ])
@@ -465,6 +470,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
@@ -477,10 +483,10 @@ class BookingsController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 37){
+        }else if($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($user->role_id == 38){
+        }else if($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
             $sales_manager = User::where('userId', $user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -516,6 +522,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
@@ -566,6 +573,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
@@ -582,10 +590,10 @@ class BookingsController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 37){
+        }else if($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($user->role_id == 38){
+        }else if($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
             $sales_manager = User::where('userId', $user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -625,6 +633,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
@@ -668,6 +677,7 @@ class BookingsController extends Controller
                     'tours.payment_details',
                     'tours.created_at',
                     'tours.updated_at',
+                    'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name'
@@ -680,10 +690,10 @@ class BookingsController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 37){
+        }else if($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($user->role_id == 38){
+        }else if($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
             $sales_manager = User::where('userId', $user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -713,6 +723,7 @@ class BookingsController extends Controller
                     'tours.payment_details',
                     'tours.created_at',
                     'tours.updated_at',
+                    'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
                     'agents.company_name as agent_company_name'
@@ -773,6 +784,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
@@ -785,10 +797,10 @@ class BookingsController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 37){
+        }else if($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($user->role_id == 38){
+        }else if($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
             $sales_manager = User::where('userId', $user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -815,6 +827,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
@@ -864,6 +877,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'tours.dmc_id',
                 'agents.name as agent_name',
@@ -877,10 +891,10 @@ class BookingsController extends Controller
             $dmc_id = $user->userId;
         }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
             $dmc_id = $user->created_by;
-        }else if($user->role_id == 37){
+        }else if($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
             $sales_head = User::where('userId', $user->created_by)->first();
             $dmc_id = $sales_head->created_by;
-        }else if($user->role_id == 38){
+        }else if($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
             $sales_manager = User::where('userId', $user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
@@ -916,6 +930,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'tours.dmc_id',
                 'agents.name as agent_name',
@@ -1000,6 +1015,7 @@ class BookingsController extends Controller
                 'tours.payment_details',
                 'tours.created_at',
                 'tours.updated_at',
+                'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
                 'agents.company_name as agent_company_name'
