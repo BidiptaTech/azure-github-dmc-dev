@@ -31,71 +31,120 @@ import { fetchDMCsByCountry, setSelectedCountries, clearError, clearSelectedDmc,
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
-    borderRadius: '20px',
+    borderRadius: { xs: '16px', sm: '20px', md: '24px' },
     padding: '0px',
-    width: '60%',
-    maxWidth: '700px',
-    minWidth: '600px',
-    boxShadow: '0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.2)',
+    width: { xs: '96%', sm: '88%', md: '75%', lg: '65%' },
+    maxWidth: { xs: '96vw', sm: '88vw', md: '750px', lg: '750px' },
+    minWidth: { xs: '340px', sm: '420px', md: '520px', lg: '620px' },
+    maxHeight: { xs: '96vh', sm: '92vh', md: '88vh', lg: '85vh' },
+    margin: { xs: '12px', sm: '20px', md: '32px', lg: '40px' },
+    boxShadow: '0 32px 64px 8px rgba(0,0,0,0.18), 0 16px 48px 12px rgba(0,0,0,0.15), 0 8px 24px -8px rgba(0,0,0,0.25)',
+    zIndex: { xs: 1300, sm: 1300, md: 1300, lg: 1300 },
+    position: 'relative',
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(20px)',
   },
 }));
 
 const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   color: 'white',
-  padding: '24px 32px',
-  borderRadius: '20px 20px 0 0',
+  padding: { xs: '20px 24px', sm: '24px 28px', md: '28px 32px' },
+  borderRadius: { xs: '12px 12px 0 0', sm: '16px 16px 0 0', md: '20px 20px 0 0' },
   position: 'relative',
+  minHeight: { xs: '80px', sm: '90px', md: '100px' },
+  display: 'flex',
+  alignItems: 'center',
   '& .MuiIconButton-root': {
     color: 'white',
     position: 'absolute',
-    right: '20px',
+    right: { xs: '16px', sm: '20px', md: '24px' },
     top: '50%',
     transform: 'translateY(-50%)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: { xs: '10px', sm: '12px', md: '14px' },
+    borderRadius: '50%',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    transition: 'all 0.3s ease',
     '&:hover': {
-      backgroundColor: 'rgba(255,255,255,0.2)',
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      transform: 'translateY(-50%) scale(1.05)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
     },
   },
 }));
 
 const SearchCard = styled(Card)(({ theme }) => ({
-  borderRadius: '16px',
-  background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-  border: '1px solid rgba(255,255,255,0.2)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-  marginBottom: '20px',
+  borderRadius: { xs: '16px', sm: '18px', md: '20px' },
+  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+  border: '2px solid rgba(102, 126, 234, 0.1)',
+  boxShadow: '0 12px 40px rgba(102, 126, 234, 0.08), 0 4px 16px rgba(0,0,0,0.04)',
+  marginBottom: { xs: '20px', sm: '24px', md: '28px' },
+  overflow: 'hidden',
+  position: 'relative',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '4px',
+    background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+    borderRadius: '20px 20px 0 0',
+  },
 }));
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
-    borderRadius: '12px',
+    borderRadius: { xs: '12px', sm: '14px', md: '16px' },
     backgroundColor: 'white',
-    transition: 'all 0.3s ease',
+    border: '2px solid rgba(102, 126, 234, 0.1)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     '&:hover': {
-      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+      borderColor: 'rgba(102, 126, 234, 0.3)',
+      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.12)',
     },
     '&.Mui-focused': {
-      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.25)',
+      borderColor: '#667eea',
+      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.25)',
+    },
+    '& fieldset': {
+      border: 'none',
     },
   },
   '& .MuiInputLabel-root': {
-    fontWeight: 500,
+    fontWeight: 600,
+    fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
+    color: '#64748b',
+  },
+  '& .MuiInputBase-input': {
+    fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
+    padding: { xs: '16px 18px', sm: '16px 20px', md: '18px 22px' },
+    color: '#1e293b',
   },
 }));
 
 const PreviewCard = styled(Paper)(({ theme }) => ({
-  padding: '16px 20px',
-  borderRadius: '12px',
-  background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-  border: '2px solid #2196f3',
+  padding: { xs: '16px 20px', sm: '18px 24px', md: '20px 28px' },
+  borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+  background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+  border: '2px solid rgba(102, 126, 234, 0.2)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0,0,0,0.05)',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 12px 40px rgba(102, 126, 234, 0.2), 0 4px 16px rgba(0,0,0,0.08)',
+  },
 }));
 
 const SearchLocationModal = ({ open, onClose, onSearch }) => {
+  // Debug modal open/close state
+  
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [countries, setCountries] = useState([]);
   //console.log('countries',selectedCountry);
@@ -181,7 +230,12 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
             });
           } else {
             // Multiple DMCs available - proceed with normal DMC selection modal
-            onSearch(selectedCountry);
+            console.log('🔍 Multiple DMCs found, opening DMC selection modal...');
+            // Add small delay for mobile devices to ensure smooth modal transition
+            setTimeout(() => {
+              console.log('🚀 Calling onSearch with country:', selectedCountry);
+              onSearch(selectedCountry);
+            }, 100);
           }
           
           onClose();
@@ -198,6 +252,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
   };
 
   const handleClose = () => {
+    console.log('🔍 SearchLocationModal: handleClose called');
     onClose();
     // Reset form and clear errors
     setSelectedCountry(null);
@@ -222,13 +277,33 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
       fullWidth={false}
     >
       <StyledDialogTitle>
-        <Box display="flex" alignItems="center">
-          <TravelIcon sx={{ mr: 2, fontSize: 32 }} />
-          <Box>
-            <Typography variant="h4" component="div" fontWeight="bold" sx={{ fontSize: '1.5rem' }}>
+        <Box display="flex" alignItems="center" flexDirection={{ xs: 'column', sm: 'row' }} gap={{ xs: 1, sm: 0 }}>
+          <TravelIcon sx={{ 
+            mr: { xs: 0, sm: 2 }, 
+            fontSize: { xs: 24, sm: 28, md: 32 },
+            mb: { xs: 1, sm: 0 }
+          }} />
+          <Box textAlign={{ xs: 'center', sm: 'left' }}>
+            <Typography 
+              variant="h4" 
+              component="div" 
+              fontWeight="bold" 
+              sx={{ 
+                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
+              }}
+            >
               Find Your Perfect Destination
             </Typography>
-            <Typography variant="body2" sx={{ color: 'white', mt: 0.5 }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'white', 
+                mt: 0.5,
+                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
+                lineHeight: { xs: 1.4, sm: 1.5, md: 1.6 }
+              }}
+            >
               Search for the best DMCs in your preferred location
             </Typography>
           </Box>
@@ -238,7 +313,26 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         </IconButton>
       </StyledDialogTitle>
 
-      <DialogContent sx={{ padding: '32px', backgroundColor: '#fafbfc' }}>
+      <DialogContent sx={{ 
+        padding: { xs: '24px', sm: '28px', md: '32px', lg: '40px' }, 
+        backgroundColor: 'linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%)',
+        maxHeight: { xs: '75vh', sm: '70vh', md: '65vh' },
+        overflowY: 'auto',
+        '&::-webkit-scrollbar': {
+          width: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'rgba(0,0,0,0.05)',
+          borderRadius: '3px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: 'rgba(102, 126, 234, 0.3)',
+          borderRadius: '3px',
+          '&:hover': {
+            background: 'rgba(102, 126, 234, 0.5)',
+          },
+        },
+      }}>
         {dmcError && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
             <Typography variant="body2">
@@ -248,19 +342,39 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         )}
 
         <SearchCard>
-          <CardContent sx={{ padding: '28px !important' }}>
-            <Box textAlign="center" mb={3}>
-              <TravelIcon sx={{ fontSize: 40, color: '#667eea', mb: 1 }} />
-              <Typography variant="h6" fontWeight="600" color="#333" gutterBottom>
+          <CardContent sx={{ padding: { xs: '16px', sm: '20px', md: '24px', lg: '28px' } + ' !important' }}>
+            <Box textAlign="center" mb={{ xs: 2, sm: 2.5, md: 3 }}>
+              <TravelIcon sx={{ 
+                fontSize: { xs: 32, sm: 36, md: 40 }, 
+                color: '#667eea', 
+                mb: 1 
+              }} />
+              <Typography 
+                variant="h6" 
+                fontWeight="600" 
+                color="#333" 
+                gutterBottom
+                sx={{ 
+                  fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' },
+                  lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
+                }}
+              >
                 Select Your Travel Destination
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography 
+                variant="body2" 
+                color="text.secondary"
+                sx={{ 
+                  fontSize: { xs: '0.8rem', sm: '0.875rem', md: '1rem' },
+                  lineHeight: { xs: 1.4, sm: 1.5, md: 1.6 }
+                }}
+              >
                 Choose your country to find the perfect DMC partners
               </Typography>
             </Box>
 
-            <Grid container spacing={3} justifyContent="center">
-              <Grid item xs={12} md={8}>
+            <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }} justifyContent="center">
+              <Grid item xs={12} sm={10} md={8}>
                 <Autocomplete
                   options={countries}
                   value={selectedCountry || null}
@@ -291,7 +405,10 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
                         ...params.InputProps,
                         startAdornment: (
                           <InputAdornment position="start">
-                            <PublicIcon sx={{ color: dmcLoading ? '#ccc' : '#667eea' }} />
+                            <PublicIcon sx={{ 
+                              color: dmcLoading ? '#ccc' : '#667eea',
+                              fontSize: { xs: 20, sm: 22, md: 24 }
+                            }} />
                           </InputAdornment>
                         ),
                       }}
@@ -302,10 +419,22 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
             </Grid>
 
             {selectedCountry && (
-              <Box mt={3}>
+              <Box mt={{ xs: 2, sm: 2.5, md: 3 }}>
                 <PreviewCard elevation={0}>
-                  <TravelIcon sx={{ color: '#2196f3', fontSize: 24, mr: 2 }} />
-                  <Typography variant="h6" color="#1976d2" fontWeight="600">
+                  <TravelIcon sx={{ 
+                    color: '#2196f3', 
+                    fontSize: { xs: 20, sm: 22, md: 24 }, 
+                    mr: { xs: 1, sm: 1.5, md: 2 } 
+                  }} />
+                  <Typography 
+                    variant="h6" 
+                    color="#1976d2" 
+                    fontWeight="600"
+                    sx={{ 
+                      fontSize: { xs: '0.9rem', sm: '1rem', md: '1.25rem' },
+                      lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
+                    }}
+                  >
                     Destination: {selectedCountry.name}
                   </Typography>
                 </PreviewCard>
@@ -315,32 +444,58 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         </SearchCard>
 
         <Box textAlign="center">
-          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              fontStyle: 'italic',
+              fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.875rem' },
+              lineHeight: { xs: 1.4, sm: 1.5, md: 1.6 },
+              px: { xs: 1, sm: 2, md: 0 }
+            }}
+          >
             Our AI will match you with the most suitable DMC partners in your selected country
           </Typography>
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ padding: '20px 32px 32px', backgroundColor: '#fafbfc' }}>
+      <DialogActions sx={{ 
+        padding: { xs: '24px 28px', sm: '28px 32px', md: '32px 40px', lg: '32px 40px 40px' }, 
+        backgroundColor: 'linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%)',
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 3, sm: 2 },
+        borderTop: '1px solid rgba(102, 126, 234, 0.1)',
+        '& > *': {
+          margin: { xs: '0 !important', sm: '0 !important' },
+          width: { xs: '100%', sm: 'auto' },
+          minWidth: { xs: '100%', sm: '140px' },
+        }
+      }}>
         <Button 
           onClick={handleClose}
           variant="outlined"
           size="large"
           disabled={dmcLoading}
           sx={{ 
-            borderRadius: '12px',
+            borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             textTransform: 'none',
             fontWeight: 600,
-            minWidth: '120px',
-            borderColor: '#667eea',
+            borderColor: 'rgba(102, 126, 234, 0.3)',
             color: '#667eea',
+            fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
+            padding: { xs: '12px 20px', sm: '14px 24px', md: '16px 28px' },
+            border: '2px solid',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               borderColor: '#5a67d8',
-              backgroundColor: 'rgba(102, 126, 234, 0.04)',
+              backgroundColor: 'rgba(102, 126, 234, 0.08)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
             },
             '&:disabled': {
-              borderColor: '#e0e0e0',
-              color: '#9e9e9e',
+              borderColor: 'rgba(0,0,0,0.12)',
+              color: 'rgba(0,0,0,0.26)',
+              backgroundColor: 'rgba(0,0,0,0.04)',
             },
           }}
         >
@@ -351,22 +506,30 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
           variant="contained"
           size="large"
           disabled={isSearchDisabled}
-          startIcon={dmcLoading ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
+          startIcon={dmcLoading ? <CircularProgress size={18} color="inherit" /> : <SearchIcon />}
           sx={{
-            borderRadius: '12px',
+            borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             textTransform: 'none',
             fontWeight: 600,
-            minWidth: '140px',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3), 0 2px 8px rgba(0,0,0,0.1)',
+            fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
+            padding: { xs: '12px 24px', sm: '14px 28px', md: '16px 32px' },
+            border: 'none',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               background: 'linear-gradient(135deg, #5a67d8 0%, #6b46a3 100%)',
-              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+              boxShadow: '0 12px 48px rgba(102, 126, 234, 0.4), 0 4px 16px rgba(0,0,0,0.15)',
+              transform: 'translateY(-2px)',
+            },
+            '&:active': {
+              transform: 'translateY(0px)',
             },
             '&:disabled': {
-              background: '#e0e0e0',
-              color: '#9e9e9e',
+              background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+              color: 'rgba(0,0,0,0.38)',
               boxShadow: 'none',
+              transform: 'none',
             },
           }}
         >
