@@ -2940,19 +2940,42 @@ class SingleTourPackageController extends Controller
             
             $servicesByDate = [];
             foreach ($serviceOrders as $order) {
-                $orderData = $order->data;
                 
+                $orderData = $order->data;
+
                 // Each order contains an array with one service item
                 if (is_array($orderData) && count($orderData) > 0) {
                     $serviceData = $orderData[0]; // Get the first (and only) service item
                     $bookingDate = $this->extractBookingDate($order->type, $serviceData);
-                    
+
                     if ($bookingDate) {
-                        $formattedDate = \Carbon\Carbon::parse($bookingDate)->format('M d, Y');
+                        try {
+                            // Handle range case like "Oct 06 - Oct 10, 2025"
+                            if (strpos($bookingDate, '-') !== false) {
+                                $parts = explode('-', $bookingDate);
+                                $start = trim($parts[0]);
+                                $end   = trim($parts[1]);
+
+                                // Append year from end part if missing
+                                if (!preg_match('/\d{4}$/', $start) && preg_match('/\d{4}$/', $end)) {
+                                    $year = substr($end, -4);
+                                    $start .= " " . $year;
+                                }
+
+                                $formattedDate = \Carbon\Carbon::parse($start)->format('M d, Y');
+                            } else {
+                                // Normal single date
+                                $formattedDate = \Carbon\Carbon::parse($bookingDate)->format('M d, Y');
+                            }
+                        } catch (\Exception $e) {
+                            // Fallback → today's date if parsing fails
+                            $formattedDate = now()->format('M d, Y');
+                        }
+
                         if (!isset($servicesByDate[$formattedDate])) {
                             $servicesByDate[$formattedDate] = [];
                         }
-                        
+
                         $servicesByDate[$formattedDate][] = [
                             'type' => $order->type,
                             'name' => $this->getServiceName($order->type, $serviceData),
