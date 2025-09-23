@@ -64,6 +64,7 @@
                                 <th>Create Tour</th>
                             @endif
                             <th>Created At</th>
+                            <th>Auto Cancel Date</th>
                         </tr>
                     </thead>
                     <tbody class="sortable">
@@ -237,6 +238,21 @@
                                 <div class="d-flex flex-column">
                                     <span>{{ $enquiry->created_at->format('D,  M d, Y') }}</span>
                                     <small class="text-muted">{{ $enquiry->created_at->format('h:i A') }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    @if($enquiry->auto_cancel_date)
+                                        <span class="fw-semibold">
+                                            <i class="fas fa-calendar-times text-warning me-1"></i>
+                                            {{ \Carbon\Carbon::parse($enquiry->auto_cancel_date)->format('D, M d, Y') }}
+                                        </span>
+                                        <small class="text-muted">
+                                            {{ \Carbon\Carbon::parse($enquiry->auto_cancel_date)->format('h:i A') }}
+                                        </small>
+                                    @else
+                                        <span class="text-muted">N/A</span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -939,21 +955,77 @@
                     table.destroy();
                     table = $('.datatables-basic').DataTable({
                         responsive: true,
-                        columnDefs: getColumnDefs()
+                        columnDefs: getColumnDefs(),
+                        drawCallback: function() {
+                            updateRowNumbers();
+                        }
                     });
+                } else {
+                    // Update row numbers for existing table
+                    updateRowNumbers();
                 }
             } else {
                 console.log('Initializing new DataTable...');
                 var table = $('.datatables-basic').DataTable({
                     responsive: true,
-                    columnDefs: getColumnDefs()
+                    columnDefs: getColumnDefs(),
+                    drawCallback: function() {
+                        updateRowNumbers();
+                    }
+                });
+            }
+            
+            // Force update row numbers after DataTable is ready
+            setTimeout(function() {
+                updateRowNumbers();
+            }, 100);
+            
+            // Function to update row numbers after DataTable operations
+            function updateRowNumbers() {
+                var table = $('.datatables-basic').DataTable();
+                var info = table.page.info();
+                var start = info.start;
+                
+                // Update row numbers for visible rows
+                table.rows({page: 'current'}).every(function(rowIdx, tableLoop, rowLoop) {
+                    var node = this.node();
+                    var rowNumber = start + rowLoop + 1;
+                    var rowNumberSpan = $(node).find('.row-number');
+                    
+                    if (rowNumberSpan.length) {
+                        rowNumberSpan.text(rowNumber);
+                    } else {
+                        // If row-number span doesn't exist, create it
+                        var dragHandle = $(node).find('.drag-handle');
+                        if (dragHandle.length) {
+                            dragHandle.after('<span class="row-number">' + rowNumber + '</span>');
+                        } else {
+                            // If drag handle doesn't exist, create the entire structure
+                            var firstCell = $(node).find('td:first');
+                            if (firstCell.length) {
+                                firstCell.html(`
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <span class="drag-handle me-2"><i class="fas fa-grip-vertical text-muted"></i></span>
+                                        <span class="row-number">${rowNumber}</span>
+                                    </div>
+                                `);
+                            }
+                        }
+                    }
+                });
+                
+                // Also update the data-id attribute for drag and drop
+                table.rows({page: 'current'}).every(function(rowIdx, tableLoop, rowLoop) {
+                    var node = this.node();
+                    var rowNumber = start + rowLoop + 1;
+                    $(node).attr('data-id', rowNumber);
                 });
             }
             
             // Function to get column definitions based on user role
             function getColumnDefs() {
                 @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
-                    // User has Create Tour permission - 7 columns
+                    // User has Create Tour permission - 8 columns
                     return [
                         { targets: 0, className: 'dtr-control' },
                         { responsivePriority: 1, targets: 0 }, // # - Always visible
@@ -963,10 +1035,11 @@
                         { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
                         { responsivePriority: 7, targets: 5 }, // Travel Dates - Low priority
                         { responsivePriority: 6, targets: 6 }, // Create Tour - Medium priority
-                        { responsivePriority: 8, targets: 7 }  // Created At - Low priority
+                        { responsivePriority: 8, targets: 7 }, // Created At - Low priority
+                        { responsivePriority: 9, targets: 8 }  // Auto Cancel Date - Lowest priority
                     ];
                 @else
-                    // User doesn't have Create Tour permission - 6 columns
+                    // User doesn't have Create Tour permission - 7 columns
                     return [
                         { targets: 0, className: 'dtr-control' },
                         { responsivePriority: 1, targets: 0 }, // # - Always visible
@@ -975,11 +1048,64 @@
                         { responsivePriority: 4, targets: 3 }, // Location - Medium priority
                         { responsivePriority: 5, targets: 4 }, // Pax Info - Medium priority
                         { responsivePriority: 6, targets: 5 }, // Travel Dates - Medium priority
-                        { responsivePriority: 7, targets: 6 }  // Created At - Low priority
+                        { responsivePriority: 7, targets: 6 }, // Created At - Low priority
+                        { responsivePriority: 8, targets: 7 }  // Auto Cancel Date - Lowest priority
                     ];
                 @endif
             }
-
+            
+            // Add event listeners for DataTable events to update row numbers
+            var table = $('.datatables-basic').DataTable();
+            
+            // Update row numbers on page change
+            table.on('page.dt', function() {
+                setTimeout(updateRowNumbers, 100);
+            });
+            
+            // Update row numbers on search
+            table.on('search.dt', function() {
+                setTimeout(updateRowNumbers, 100);
+            });
+            
+            // Update row numbers on length change
+            table.on('length.dt', function() {
+                setTimeout(updateRowNumbers, 100);
+            });
+            
+            // Update row numbers on order change
+            table.on('order.dt', function() {
+                setTimeout(updateRowNumbers, 100);
+            });
+            
+            // Initial row number update after a short delay to ensure DOM is ready
+            setTimeout(function() {
+                updateRowNumbers();
+            }, 200);
+            
+            // Additional update on window load to handle complete page refresh
+            $(window).on('load', function() {
+                setTimeout(function() {
+                    updateRowNumbers();
+                }, 500);
+            });
+            
+            // Initialize Sortable for drag and drop functionality
+            setTimeout(function() {
+                var sortableElement = document.querySelector('.sortable');
+                if (sortableElement && typeof Sortable !== 'undefined') {
+                    var sortable = Sortable.create(sortableElement, {
+                        handle: '.drag-handle',
+                        animation: 150,
+                        onEnd: function(evt) {
+                            // Update row numbers after drag and drop
+                            setTimeout(function() {
+                                updateRowNumbers();
+                            }, 100);
+                        }
+                    });
+                }
+            }, 300);
+            
             // Custom export button functionality
             $('#exportCopy').on('click', function() {
                 var currentTable = $('.datatables-basic').DataTable();
