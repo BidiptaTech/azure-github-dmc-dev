@@ -653,7 +653,7 @@ class PackageController extends Controller
                 $dmc_id = $user->created_by;
             }
             //operational head
-            elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
+            elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                 $dmc_id = $user->created_by;
             }
             //finance head
@@ -661,14 +661,14 @@ class PackageController extends Controller
                 $dmc_id = $user->created_by;
             }
             //sales manager
-            elseif($user->role_id == 37){
+            elseif($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
                 $sales_manager_id = $user->userId;
                 $sales_head_id = $user->created_by;
                 $sales_head = User::where('userId', $sales_head_id)->first();
                 $dmc_id = $sales_head->created_by;
             }
             //assistant sales manager
-            elseif($user->role_id == 38){
+            elseif($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
                 $assistant_sales_manager_id = $user->userId;
                 $sales_manager_id = $user->created_by;
                 $sales_manager = User::where('userId', $sales_manager_id)->first();
@@ -947,7 +947,7 @@ class PackageController extends Controller
 
             // Check if user has permission to cancel (sales head roles)
             $user = Auth::user();
-            if (!in_array($user->role_id, [33, 128, 129, 130, 134, 135, 136, 138])) {
+            if (!in_array($user->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {
                 return redirect()->route('predefined.package.booking.list')
                     ->with('error', 'You do not have permission to cancel bookings.');
             }
@@ -1024,7 +1024,7 @@ class PackageController extends Controller
 
             // Check if user has permission to process refund (sales and finance roles)
             $user = Auth::user();
-            if (!in_array($user->role_id, [33, 36, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138])) {
+            if (!in_array($user->role_id, [36, 126, 127, 129, 131, 133, 134, 136, 137, 138])) {
                 return redirect()->route('predefined.package.booking.list')
                     ->with('error', 'You do not have permission to process refunds.');
             }
