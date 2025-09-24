@@ -68,19 +68,44 @@ const SectionPaper = styled(Paper)(({ theme }) => ({
   "&:hover": {
     boxShadow: "0 8px 30px rgba(0, 0, 0, 0.12)",
     transform: "translateY(-3px)"
+  },
+  // Mobile and tablet responsive styling
+  [theme.breakpoints.down('md')]: {
+    padding: theme.spacing(1.5),
+    marginBottom: theme.spacing(1.5),
+    borderRadius: theme.spacing(1.5),
+  },
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(1),
+    marginBottom: theme.spacing(1),
+    borderRadius: theme.spacing(1),
   }
 }));
 
 const SectionHeader = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
-  marginBottom: theme.spacing(2)
+  marginBottom: theme.spacing(2),
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    marginBottom: theme.spacing(1),
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: theme.spacing(0.5)
+  }
 }));
 
 const SectionIcon = styled(Avatar)(({ theme, bgcolor }) => ({
   backgroundColor: bgcolor || theme.palette.primary.main,
   color: theme.palette.common.white,
-  marginRight: theme.spacing(2)
+  marginRight: theme.spacing(2),
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    marginRight: 0,
+    marginBottom: theme.spacing(1),
+    width: 32,
+    height: 32
+  }
 }));
 
 const DetailItem = styled(Box)(({ theme }) => ({
@@ -96,6 +121,17 @@ const DetailItem = styled(Box)(({ theme }) => ({
   "&:hover": {
     backgroundColor: theme.palette.action.hover,
     transform: "translateX(5px)"
+  },
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(0.75),
+    marginBottom: theme.spacing(0.25),
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: theme.spacing(0.25),
+    "&:hover": {
+      transform: "translateX(2px)"
+    }
   }
 }));
 
@@ -106,6 +142,14 @@ const ServiceCard = styled(Card)(({ theme, servicecolor }) => ({
   "&:hover": {
     boxShadow: "0 6px 15px rgba(0, 0, 0, 0.1)",
     transform: "translateY(-3px)"
+  },
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    marginBottom: theme.spacing(1),
+    borderLeft: `3px solid ${servicecolor || theme.palette.primary.main}`,
+    "&:hover": {
+      transform: "translateY(-2px)"
+    }
   }
 }));
 
@@ -117,6 +161,15 @@ const ActionButton = styled(Button)(({ theme }) => ({
   "&:hover": {
     transform: "translateY(-3px)",
     boxShadow: "0 6px 20px rgba(0, 0, 0, 0.15)"
+  },
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(0.75, 1.5),
+    borderRadius: theme.spacing(2),
+    fontSize: '0.875rem',
+    "&:hover": {
+      transform: "translateY(-2px)"
+    }
   }
 }));
 
@@ -194,17 +247,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       enquiryStatus
     });
     
-    // Debug service details structure
-    console.log("Service Details Debug:", {
-      hotel: serviceDetails.hotel,
-      entryExitPort: serviceDetails.entryExitPort,
-      attraction: serviceDetails.attraction,
-      localTour: serviceDetails.localTour,
-      tourGuide: serviceDetails.tourGuide,
-      restaurant: serviceDetails.restaurant,
-      packagedAttractions: serviceDetails.packagedAttractions,
-      undefined: serviceDetails["undefined"] // Check for data stored under "undefined" key
-    });
+ 
     
     // If we found an enquiryId, store it locally
     if (enquiryId) {
@@ -1309,11 +1352,38 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
 
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" align="center" fontWeight={600} gutterBottom>
+    <Container maxWidth="lg" sx={{ 
+      py: { xs: 1, sm: 1.5, md: 4 },
+      px: { xs: 0.5, sm: 1, md: 3 }
+    }}>
+      <Typography 
+        variant="h4" 
+        component="h1" 
+        align="center" 
+        fontWeight={600} 
+        gutterBottom
+        sx={{
+          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+          color: { xs: '#ff6b6b', sm: '#ff6b6b', md: 'text.primary' },
+          background: { xs: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', sm: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', md: 'none' },
+          WebkitBackgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
+          WebkitTextFillColor: { xs: 'transparent', sm: 'transparent', md: 'unset' },
+          backgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
+          textShadow: { xs: '0 2px 4px rgba(255, 107, 107, 0.3)', sm: '0 2px 4px rgba(255, 107, 107, 0.3)', md: 'none' }
+        }}
+      >
         Review Your Booking
       </Typography>
-      <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 4 }}>
+      <Typography 
+        variant="body1" 
+        align="center" 
+        color="text.secondary" 
+        sx={{ 
+          mb: { xs: 1, sm: 1.5, md: 4 },
+          fontSize: { xs: '0.875rem', sm: '1rem', md: '1rem' },
+          color: { xs: '#666', sm: '#666', md: 'text.secondary' }
+        }}
+      >
         Please review all your selected services and confirm your booking details
       </Typography>
       
@@ -1332,14 +1402,11 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         
         <Divider sx={{ mb: 3 }} />
         
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 1, sm: 1.5, md: 3 }}>
           <Grid item xs={12} md={6}>
-
               <Box display="flex" alignItems="center" sx={{ mb: 1, width: '100%' }}>
-   
-          
               </Box>
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 0.5, sm: 1, md: 2 }}>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
@@ -1349,7 +1416,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     size="small"
                     variant="outlined"
                     InputProps={{
-                      sx: { borderRadius: 2 }
+                      sx: { 
+                        borderRadius: 2,
+                        fontSize: { xs: '0.875rem', sm: '1rem' }
+                      }
                     }}
                   />
                 </Grid>
@@ -1362,15 +1432,17 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     size="small"
                     variant="outlined"
                     InputProps={{
-                      sx: { borderRadius: 2 }
+                      sx: { 
+                        borderRadius: 2,
+                        fontSize: { xs: '0.875rem', sm: '1rem' }
+                      }
                     }}
                   />
                 </Grid>
               </Grid>
-     
           </Grid>
           
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <DetailItem>
               <Box display="flex" alignItems="center">
                 <CalendarIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -1382,7 +1454,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             </DetailItem>
           </Grid>
           
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <DetailItem>
               <Box display="flex" alignItems="center">
                 <CalendarIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -1394,7 +1466,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             </DetailItem>
           </Grid>
           
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <DetailItem>
               <Box display="flex" alignItems="center">
                 <PeopleIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -1595,13 +1667,20 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       )}
       
       {/* Action buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        mt: { xs: 2, sm: 2.5, md: 4 },
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 1.5, sm: 0 }
+      }}>
         <ActionButton 
           variant="outlined" 
           color="primary" 
           startIcon={<ArrowBackIcon />}
           onClick={onBack}
           disabled={submitting}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           Back to Services
         </ActionButton>
@@ -1612,6 +1691,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           endIcon={submitting ? null : <SendIcon />}
           onClick={handleSubmit}
           disabled={submitting || enquiryStatus === "submitted"}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           {submitting ? (
             <>
@@ -1620,7 +1700,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             </>
           ) : enquiryStatus === "submitted" ? (
             <>
-              <CheckCircleIcon sx={{ mr: 1 }} /> 
+              <CheckCircleIcon sx={{ mr: 1 }} />
               Booking Enquiry 
             </>
           ) : (

@@ -58,10 +58,6 @@ const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
   alignItems: 'center',
   '& .MuiIconButton-root': {
     color: 'white',
-    position: 'absolute',
-    right: { xs: '16px', sm: '20px', md: '24px' },
-    top: '50%',
-    transform: 'translateY(-50%)',
     backgroundColor: 'rgba(255,255,255,0.15)',
     padding: { xs: '10px', sm: '12px', md: '14px' },
     borderRadius: '50%',
@@ -70,7 +66,7 @@ const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
     transition: 'all 0.3s ease',
     '&:hover': {
       backgroundColor: 'rgba(255,255,255,0.25)',
-      transform: 'translateY(-50%) scale(1.05)',
+      transform: 'scale(1.05)',
       boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
     },
   },
@@ -81,7 +77,7 @@ const SearchCard = styled(Card)(({ theme }) => ({
   background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
   border: '2px solid rgba(102, 126, 234, 0.1)',
   boxShadow: '0 12px 40px rgba(102, 126, 234, 0.08), 0 4px 16px rgba(0,0,0,0.04)',
-  marginBottom: { xs: '20px', sm: '24px', md: '28px' },
+  marginBottom: { xs: '24px', sm: '28px', md: '32px' },
   overflow: 'hidden',
   position: 'relative',
   '&::before': {
@@ -277,40 +273,30 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
       fullWidth={false}
     >
       <StyledDialogTitle>
-        <Box display="flex" alignItems="center" flexDirection={{ xs: 'column', sm: 'row' }} gap={{ xs: 1, sm: 0 }}>
-          <TravelIcon sx={{ 
-            mr: { xs: 0, sm: 2 }, 
-            fontSize: { xs: 24, sm: 28, md: 32 },
-            mb: { xs: 1, sm: 0 }
-          }} />
-          <Box textAlign={{ xs: 'center', sm: 'left' }}>
-            <Typography 
-              variant="h4" 
-              component="div" 
-              fontWeight="bold" 
-              sx={{ 
-                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
-                lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
-              }}
-            >
-              Find Your Perfect Destination
-            </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: 'white', 
-                mt: 0.5,
-                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
-                lineHeight: { xs: 1.4, sm: 1.5, md: 1.6 }
-              }}
-            >
-              Search for the best DMCs in your preferred location
-            </Typography>
+        <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
+          <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
+            <TravelIcon sx={{ 
+              fontSize: { xs: 20, sm: 24, md: 28 }
+            }} />
+            <Box>
+              <Typography 
+                variant="h4" 
+                component="div" 
+                fontWeight="bold" 
+                sx={{ 
+                  fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                  lineHeight: { xs: 1.2, sm: 1.4, md: 1.5 }
+                }}
+              >
+                Find Your Perfect Destination
+              </Typography>
+             
+            </Box>
           </Box>
+          <IconButton onClick={handleClose}>
+            <CloseIcon />
+          </IconButton>
         </Box>
-        <IconButton onClick={handleClose}>
-          <CloseIcon />
-        </IconButton>
       </StyledDialogTitle>
 
       <DialogContent sx={{ 
@@ -318,6 +304,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         backgroundColor: 'linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%)',
         maxHeight: { xs: '75vh', sm: '70vh', md: '65vh' },
         overflowY: 'auto',
+        paddingBottom: { xs: '32px', sm: '36px', md: '40px' },
         '&::-webkit-scrollbar': {
           width: '6px',
         },
@@ -344,11 +331,11 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
         <SearchCard>
           <CardContent sx={{ padding: { xs: '16px', sm: '20px', md: '24px', lg: '28px' } + ' !important' }}>
             <Box textAlign="center" mb={{ xs: 2, sm: 2.5, md: 3 }}>
-              <TravelIcon sx={{ 
+              {/* <TravelIcon sx={{ 
                 fontSize: { xs: 32, sm: 36, md: 40 }, 
                 color: '#667eea', 
                 mb: 1 
-              }} />
+              }} /> */}
               <Typography 
                 variant="h6" 
                 fontWeight="600" 
@@ -361,7 +348,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
               >
                 Select Your Travel Destination
               </Typography>
-              <Typography 
+              {/* <Typography 
                 variant="body2" 
                 color="text.secondary"
                 sx={{ 
@@ -370,7 +357,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
                 }}
               >
                 Choose your country to find the perfect DMC partners
-              </Typography>
+              </Typography> */}
             </Box>
 
             <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }} justifyContent="center">
@@ -432,7 +419,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
                     fontWeight="600"
                     sx={{ 
                       fontSize: { xs: '0.9rem', sm: '1rem', md: '1.25rem' },
-                      lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
+                      lineHeight: { xs: 3.3, sm: 3.4, md: 2.5 }
                     }}
                   >
                     Destination: {selectedCountry.name}
@@ -460,11 +447,12 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
       </DialogContent>
 
       <DialogActions sx={{ 
-        padding: { xs: '24px 28px', sm: '28px 32px', md: '32px 40px', lg: '32px 40px 40px' }, 
+        //padding: { xs: '32px 28px', sm: '36px 32px', md: '40px 40px', lg: '40px 40px 48px' }, 
         backgroundColor: 'linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%)',
         flexDirection: { xs: 'column', sm: 'row' },
         gap: { xs: 3, sm: 2 },
         borderTop: '1px solid rgba(102, 126, 234, 0.1)',
+        //marginTop: { xs: '16px', sm: '20px', md: '24px' },
         '& > *': {
           margin: { xs: '0 !important', sm: '0 !important' },
           width: { xs: '100%', sm: 'auto' },
