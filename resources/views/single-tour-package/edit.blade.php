@@ -3253,8 +3253,8 @@
     // Initialize on DOM content loaded
     document.addEventListener('DOMContentLoaded', function() {
         initializeModalAccessibility();
-        // Initialize person selector with default max occupancy of 2
-        generatePersonSelector(2);
+        // Initialize person selector with default max occupancy of 2 (no extra bed by default)
+        generatePersonSelector(2, false);
     });
     
 
@@ -7011,8 +7011,8 @@
             occupancyInfo.textContent = `Max Occupancy: ${maxOccupancy}`;
         }
         
-        // Update person selector dynamically based on max occupancy
-        generatePersonSelector(maxOccupancy);
+        // Update person selector dynamically based on max occupancy and extra bed availability
+        generatePersonSelector(maxOccupancy, bedData.extra_bed || false);
         // Store selected bed info globally
         window.selectedBedInfo = {
             bedId: bedData.bed_id,
@@ -7022,6 +7022,8 @@
             babyCotPrice: bedData.baby_cot_price || 0,
             extraBedAvailable: bedData.extra_bed || false
         };
+        // Store extra bed availability globally for validation
+        window.extraBedAvailable = bedData.extra_bed || false;
         
         console.log('Bed selected:', bedData);
         
@@ -7128,7 +7130,7 @@
         console.log('Hotel modal validation:', isValid);
     }
     
-    function generatePersonSelector(maxOccupancy) {
+    function generatePersonSelector(maxOccupancy, extraBedAvailable = false) {
         const personSelect = document.getElementById('person_count_select');
         const maxOccupancyText = document.querySelector('#person_count_select').nextElementSibling;
         
@@ -7137,27 +7139,48 @@
         // Store current selected value
         const currentValue = personSelect.value;
         
+        // Get tour pax (total guests from the form)
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const tourPax = adults + children;
+        
         // Clear existing options
         personSelect.innerHTML = '';
         
-        // Generate dropdown options based on max occupancy
-        for (let i = 1; i <= maxOccupancy; i++) {
+        // Apply the person selection rules:
+        // Selection range = min(tour pax, max occupancy [+ extra bed if available])
+        const maxWithExtraBed = extraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
+        const maxSelectable = Math.min(tourPax, maxWithExtraBed);
+        
+        console.log(`Person selection rules applied: tour pax=${tourPax}, max occupancy=${maxOccupancy}, extra bed=${extraBedAvailable}, max selectable=${maxSelectable}`);
+        
+        // Generate dropdown options based on calculated max selectable
+        for (let i = 1; i <= maxSelectable; i++) {
             const option = document.createElement('option');
             option.value = i;
-            option.textContent = i === 1 ? '1 Person' : `${i} Persons`;
+            if (i > maxOccupancy && extraBedAvailable) {
+                option.textContent = `${i} Persons (Extra Bed)`;
+            } else {
+                option.textContent = i === 1 ? '1 Person' : `${i} Persons`;
+            }
             personSelect.appendChild(option);
         }
         
-        // Restore previous selection or set to 1 if not valid
-        if (currentValue && parseInt(currentValue) <= maxOccupancy) {
+        // Restore previous selection or set to appropriate default
+        const defaultSelection = tourPax > 0 ? Math.min(tourPax, maxWithExtraBed) : 1;
+        if (currentValue && parseInt(currentValue) <= maxSelectable) {
             personSelect.value = currentValue;
         } else {
-            personSelect.value = '1';
+            personSelect.value = defaultSelection.toString();
         }
         
-        // Update max occupancy text
+        // Update max occupancy text to show the rules applied
         if (maxOccupancyText) {
-            maxOccupancyText.textContent = `Max Occupancy: ${maxOccupancy}`;
+            if (maxSelectable < maxWithExtraBed) {
+                maxOccupancyText.textContent = `Max Selectable: ${maxSelectable} (Limited by tour pax: ${tourPax})`;
+            } else {
+                maxOccupancyText.textContent = `Max Occupancy: ${maxOccupancy}${extraBedAvailable ? ' (+1 extra bed)' : ''}`;
+            }
         }
         
         // Store max occupancy and selected count
@@ -7166,8 +7189,46 @@
     }
     
     function selectPersonCount(count) {
+        const numPersons = parseInt(count);
+        
+        // Get tour pax (total guests from the form)
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const tourPax = adults + children;
+        
+        // Get bed information for validation
+        const maxOccupancy = window.maxOccupancy || 0;
+        const extraBedAvailable = window.extraBedAvailable || false;
+        
+        // Apply the person selection rules: min(tour pax, max occupancy [+ extra bed if available])
+        const maxWithExtraBed = extraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
+        const maxAllowed = Math.min(tourPax, maxWithExtraBed);
+        
+        // Validate against the rules
+        if (numPersons > maxAllowed) {
+            if (numPersons > tourPax) {
+                showNotification(`Cannot select more than ${tourPax} persons (tour pax limit).`, 'error');
+                // Reset to previous valid value
+                const personSelect = document.getElementById('person_count_select');
+                if (personSelect && window.selectedPersonCount) {
+                    personSelect.value = window.selectedPersonCount;
+                }
+                return;
+            } else if (numPersons > maxWithExtraBed) {
+                showNotification(`Maximum occupancy is ${maxOccupancy}${extraBedAvailable ? ' (+1 extra bed)' : ''} persons.`, 'error');
+                // Reset to previous valid value
+                const personSelect = document.getElementById('person_count_select');
+                if (personSelect && window.selectedPersonCount) {
+                    personSelect.value = window.selectedPersonCount;
+                }
+                return;
+            }
+        }
+        
+        console.log(`Person selection validated: ${numPersons} persons (tour pax: ${tourPax}, max occupancy: ${maxOccupancy}, extra bed: ${extraBedAvailable}, max allowed: ${maxAllowed})`);
+        
         // Store the selected count in a global variable
-        window.selectedPersonCount = parseInt(count);
+        window.selectedPersonCount = numPersons;
         
         // Update pricing if needed
         updateMealPricing();
