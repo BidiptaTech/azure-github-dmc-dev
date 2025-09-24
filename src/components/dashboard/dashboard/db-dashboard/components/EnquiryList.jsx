@@ -82,13 +82,13 @@ const modalStyle = {
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: "80%",
-  maxWidth: 1000,
-  maxHeight: "90vh",
+  width: { xs: "95%", sm: "90%", md: "80%" },
+  maxWidth: { xs: 400, sm: 600, md: 1000 },
+  maxHeight: { xs: "85vh", sm: "90vh" },
   bgcolor: "background.paper",
   boxShadow: 24,
-  borderRadius: 2,
-  p: 4,
+  borderRadius: { xs: 1.5, sm: 2 },
+  p: { xs: 2, sm: 3, md: 4 },
   overflow: "auto",
 };
 
@@ -513,14 +513,14 @@ useEffect(() => {
       },
     }}>
       {/* Compact Enhanced Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={1.5}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -542,37 +542,55 @@ useEffect(() => {
               }
             }
           }}>
-            <CardContent sx={{ textAlign: "center", py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+            <CardContent sx={{ 
+              textAlign: "center", 
+              py: { xs: 1, sm: 1.25, md: 1.5 }, 
+              px: { xs: 0.5, sm: 0.75, md: 1 }, 
+              position: 'relative', 
+              zIndex: 1 
+            }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 0.5, sm: 0.75, md: 1 } }}>
                 <Avatar sx={{ 
                   bgcolor: 'rgba(255,255,255,0.2)', 
-                  width: 35, 
-                  height: 35,
+                  width: { xs: 28, sm: 32, md: 35 }, 
+                  height: { xs: 28, sm: 32, md: 35 },
                   backdropFilter: 'blur(10px)',
                   border: '2px solid rgba(255,255,255,0.3)'
                 }}>
-                  <EventIcon sx={{ color: 'white', fontSize: 20 }} />
+                  <EventIcon sx={{ color: 'white', fontSize: { xs: 16, sm: 18, md: 20 } }} />
                 </Avatar>
               </Box>
               <Typography
                 variant="h5"
-                sx={{ fontWeight: 800, color: "white", mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}
+                sx={{ 
+                  fontWeight: 800, 
+                  color: "white", 
+                  mb: { xs: 0.25, sm: 0.5 }, 
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)', 
+                  lineHeight: 1,
+                  fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }
+                }}
               >
                 {stats.total}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
+              <Typography variant="caption" sx={{ 
+                color: 'rgba(255,255,255,0.9)', 
+                fontWeight: 600, 
+                fontSize: { xs: '0.6rem', sm: '0.65rem', md: '0.7rem' }, 
+                lineHeight: 1.2 
+              }}>
                 📊 Total Enquiries
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -618,13 +636,13 @@ useEffect(() => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -670,13 +688,13 @@ useEffect(() => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -719,13 +737,13 @@ useEffect(() => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -768,13 +786,13 @@ useEffect(() => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -817,13 +835,13 @@ useEffect(() => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #55a3ff 0%, #003d82 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -866,13 +884,13 @@ useEffect(() => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={1.5}>
+        <Grid item xs={6} sm={4} md={1.5}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, #00b894 0%, #00cec9 100%)',
-            height: 120,
+            height: { xs: 100, sm: 110, md: 120 },
             transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
             cursor: 'pointer',
-            borderRadius: 3,
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
             overflow: 'hidden',
             position: 'relative',
             '&::before': {
@@ -924,9 +942,9 @@ useEffect(() => {
       <Paper 
         elevation={0}
         sx={{ 
-          p: 4, 
-          mb: 4, 
-          borderRadius: 4, 
+          p: { xs: 2, sm: 3, md: 4 }, 
+          mb: { xs: 2, sm: 3, md: 4 }, 
+          borderRadius: { xs: 2, sm: 3, md: 4 }, 
           background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255,255,255,0.3)',
@@ -944,18 +962,25 @@ useEffect(() => {
           }
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', sm: 'center' }, 
+          mb: { xs: 2, sm: 3 },
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 0 }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 } }}>
             <Box sx={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               borderRadius: '50%',
-              p: 1,
+              p: { xs: 0.75, sm: 1 },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
             }}>
-              <EventIcon sx={{ color: 'white', fontSize: 24 }} />
+              <EventIcon sx={{ color: 'white', fontSize: { xs: 20, sm: 24 } }} />
             </Box>
             <Box>
               <Typography variant="h5" sx={{ 
@@ -963,11 +988,16 @@ useEffect(() => {
                 background: 'linear-gradient(45deg, #667eea, #764ba2)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                mb: 0.5
+                mb: 0.5,
+                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }
               }}>
                 🔍 Advanced Search & Filter
               </Typography>
-              <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ 
+                color: '#64748b', 
+                fontWeight: 500,
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 Find and filter enquiries with powerful search options
               </Typography>
             </Box>
@@ -979,11 +1009,11 @@ useEffect(() => {
             disabled={isRefreshing || status === 'loading'}
             sx={{
               background: 'linear-gradient(45deg, #667eea, #764ba2)',
-              borderRadius: 3,
+              borderRadius: { xs: 2, sm: 2.5, md: 3 },
               textTransform: 'none',
               fontWeight: 600,
-              px: 3,
-              py: 1.5,
+              px: { xs: 2, sm: 2.5, md: 3 },
+              py: { xs: 1, sm: 1.25, md: 1.5 },
               boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
               transition: 'all 0.3s ease',
               '&:hover': {
@@ -994,13 +1024,15 @@ useEffect(() => {
               '&:disabled': {
                 background: 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
                 color: '#a0aec0'
-              }
+              },
+              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
+              width: { xs: '100%', sm: 'auto' }
             }}
           >
             {isRefreshing ? '🔄 Refreshing...' : '⚡ Refresh Data'}
           </Button>
         </Box>
-        <Grid container spacing={4}>
+        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
               name="searchId"
@@ -1012,7 +1044,7 @@ useEffect(() => {
               size="medium"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
+                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
                   background: 'rgba(255,255,255,0.8)',
                   backdropFilter: 'blur(10px)',
                   transition: 'all 0.3s ease',
@@ -1055,7 +1087,7 @@ useEffect(() => {
               size="medium"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
+                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
                   background: 'rgba(255,255,255,0.8)',
                   backdropFilter: 'blur(10px)',
                   transition: 'all 0.3s ease',
@@ -1098,7 +1130,7 @@ useEffect(() => {
               size="medium"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
+                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
                   background: 'rgba(255,255,255,0.8)',
                   backdropFilter: 'blur(10px)',
                   transition: 'all 0.3s ease',
@@ -1144,7 +1176,7 @@ useEffect(() => {
                 label="📅 Date Range"
                 onChange={handleFilterChange}
                 sx={{
-                  borderRadius: 3,
+                  borderRadius: { xs: 2, sm: 2.5, md: 3 },
                   background: 'rgba(255,255,255,0.8)',
                   backdropFilter: 'blur(10px)',
                   transition: 'all 0.3s ease',
@@ -1169,7 +1201,7 @@ useEffect(() => {
                 MenuProps={{
                   PaperProps: {
                     sx: {
-                      borderRadius: 3,
+                      borderRadius: { xs: 2, sm: 2.5, md: 3 },
                       mt: 1,
                       boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                       border: '1px solid rgba(255,255,255,0.3)',
@@ -1198,8 +1230,8 @@ useEffect(() => {
       <Paper sx={{ 
         width: "100%", 
         overflow: "hidden", 
-        borderRadius: 3, 
-        mb: 2,
+        borderRadius: { xs: 2, sm: 2.5, md: 3 }, 
+        mb: { xs: 1, sm: 2 },
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         border: `1px solid ${alpha('#667eea', 0.1)}`,
         position: 'relative',
@@ -1219,7 +1251,7 @@ useEffect(() => {
               justifyContent: 'center',
               alignItems: 'center',
               zIndex: 1,
-              borderRadius: 3,
+              borderRadius: { xs: 2, sm: 2.5, md: 3 },
             }}
           >
             <CircularProgress size={24} />
@@ -1227,13 +1259,14 @@ useEffect(() => {
         )}
         <TableContainer 
           sx={{ 
-            maxHeight: 600,
-            borderRadius: 3,
-            overflowX: 'hidden', // Remove horizontal scrollbar
+            maxHeight: { xs: 400, sm: 500, md: 600 },
+            borderRadius: { xs: 2, sm: 2.5, md: 3 },
+            overflowX: { xs: 'auto', sm: 'auto', md: 'hidden' }, // Enable horizontal scroll on mobile/tablet
             overflowY: 'auto',   // Keep vertical scrollbar
+            width: '100%',
             '&::-webkit-scrollbar': {
               width: '8px',
-              height: '0px', // Remove horizontal scrollbar completely
+              height: { xs: '8px', sm: '8px', md: '0px' }, // Show horizontal scrollbar on mobile/tablet
             },
             '&::-webkit-scrollbar-track': {
               background: alpha('#667eea', 0.1),
@@ -1251,20 +1284,20 @@ useEffect(() => {
           <Table stickyHeader aria-label="enquiries table" sx={{ 
             tableLayout: 'fixed',
             width: '100%',
-            minWidth: 'unset', // Remove minimum width constraints
+            minWidth: { xs: '800px', sm: '900px', md: 'unset' }, // Set minimum width for mobile/tablet scrolling
           }}>
             <TableHead>
               <TableRow sx={{ 
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                
               }}>
-                <SortableTableCell id="display_id" label="Enquiry ID" sx={{ width: '8%' }} />
-                <SortableTableCell id="location" label="📍Location" sx={{ width: '15%' }} />
-                <SortableTableCell id="dates" label="📅Tour Date" sx={{ width: '18%' }} />
-                <SortableTableCell id="guest" label="👥Guest" sx={{ width: '12%' }} />
-                <SortableTableCell id="price" label="💰Price" sx={{ width: '10%' }} />
-                <SortableTableCell id="services" label="🏨Services" sx={{ width: '25%' }} />
-                <SortableTableCell id="created_at" label="⏰Created" sx={{ width: '12%' }} />
+                <SortableTableCell id="display_id" label="Enquiry ID" sx={{ width: { xs: '12%', sm: '10%', md: '8%' } }} />
+                <SortableTableCell id="location" label="📍Location" sx={{ width: { xs: '18%', sm: '16%', md: '15%' } }} />
+                <SortableTableCell id="dates" label="📅Tour Date" sx={{ width: { xs: '20%', sm: '19%', md: '18%' } }} />
+                <SortableTableCell id="guest" label="👥Guest" sx={{ width: { xs: '14%', sm: '13%', md: '12%' } }} />
+                <SortableTableCell id="price" label="💰Price" sx={{ width: { xs: '12%', sm: '11%', md: '10%' } }} />
+                <SortableTableCell id="services" label="🏨Services" sx={{ width: { xs: '30%', sm: '28%', md: '25%' } }} />
+                <SortableTableCell id="created_at" label="⏰Created" sx={{ width: { xs: '14%', sm: '13%', md: '12%' } }} />
                 {(userRole === "Sales Head(DMC)" ||
                   userRole === "Sales Manager (DMC)" ||
                   userRole === "Assistant Manager (DMC)") && (
@@ -1272,7 +1305,7 @@ useEffect(() => {
                     id="actions"
                     label="⚡ Actions"
                     disableSort={true}
-                    sx={{ width: '10%' }}
+                    sx={{ width: { xs: '12%', sm: '11%', md: '10%' } }}
                   />
                 )}
               </TableRow>
@@ -1305,7 +1338,7 @@ useEffect(() => {
                       }
                     }}
                   >
-                    <TableCell sx={{ width: '8%', whiteSpace: 'normal' }}>
+                    <TableCell sx={{ width: { xs: '12%', sm: '10%', md: '8%' }, whiteSpace: 'normal' }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Typography
                           variant="body2"
@@ -1337,7 +1370,7 @@ useEffect(() => {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ width: '15%', whiteSpace: 'normal' }}>
+                    <TableCell sx={{ width: { xs: '18%', sm: '16%', md: '15%' }, whiteSpace: 'normal' }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Box sx={{
                           background: 'linear-gradient(45deg, #ff6b6b, #ee5a24)',
@@ -1362,7 +1395,7 @@ useEffect(() => {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ width: '18%', whiteSpace: 'normal' }}>
+                    <TableCell sx={{ width: { xs: '20%', sm: '19%', md: '18%' }, whiteSpace: 'normal' }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Box sx={{
                           background: 'linear-gradient(45deg, #4ecdc4, #44a08d)',
@@ -1387,7 +1420,7 @@ useEffect(() => {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ width: '12%', whiteSpace: 'normal' }}>
+                    <TableCell sx={{ width: { xs: '14%', sm: '13%', md: '12%' }, whiteSpace: 'normal' }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Box sx={{
                           background: 'linear-gradient(45deg, #a8edea, #fed6e3)',
@@ -1414,7 +1447,7 @@ useEffect(() => {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ width: '10%' }}>
+                    <TableCell sx={{ width: { xs: '12%', sm: '11%', md: '10%' } }}>
                       <Box sx={{ 
                         display: "flex", 
                         alignItems: "center",
@@ -1437,7 +1470,7 @@ useEffect(() => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ width: '25%', whiteSpace: 'normal' }}>
+                    <TableCell sx={{ width: { xs: '30%', sm: '28%', md: '25%' }, whiteSpace: 'normal' }}>
                       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                         <Tooltip
                           title={enquiry.hotel ? "🏨 View Hotel Details" : "🏨 Hotel Not Selected"}
@@ -1641,7 +1674,7 @@ useEffect(() => {
                         </Tooltip>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ width: '12%', whiteSpace: 'normal' }}>
+                    <TableCell sx={{ width: { xs: '14%', sm: '13%', md: '12%' }, whiteSpace: 'normal' }}>
                       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.8 }}>
                         <Box sx={{
                           background: 'linear-gradient(45deg, #636e72, #2d3436)',
@@ -1671,7 +1704,7 @@ useEffect(() => {
                     {(userRole === "Sales Head(DMC)" ||
                       userRole === "Sales Manager (DMC)" ||
                       userRole === "Assistant Manager (DMC)") && (
-                      <TableCell sx={{ width: '10%' }}>
+                      <TableCell sx={{ width: { xs: '12%', sm: '11%', md: '10%' } }}>
                         <Button
                           size="small"
                           variant="contained"
@@ -1681,7 +1714,7 @@ useEffect(() => {
                             color: 'white',
                             fontWeight: 700,
                             fontSize: '0.75rem',
-                            borderRadius: 3,
+                            borderRadius: { xs: 2, sm: 2.5, md: 3 },
                             textTransform: 'none',
                             boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
                             transition: 'all 0.3s ease',
@@ -1716,7 +1749,7 @@ useEffect(() => {
             flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
-            padding: "20px 0",
+            padding: { xs: "15px 0", sm: "20px 0" },
             width: "100%",
           }}
         >
@@ -1844,11 +1877,21 @@ useEffect(() => {
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              mb: 2,
+              alignItems: { xs: "flex-start", sm: "center" },
+              mb: { xs: 1.5, sm: 2 },
+              flexDirection: { xs: "column", sm: "row" },
+              gap: { xs: 1, sm: 0 }
             }}
           >
-            <Typography variant="h6" component="h2" fontWeight={600}>
+            <Typography 
+              variant="h6" 
+              component="h2" 
+              fontWeight={600}
+              sx={{
+                fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
+                lineHeight: { xs: 1.2, sm: 1.3, md: 1.4 }
+              }}
+            >
               {selectedService === 'hotel' && 'Hotel Details'}
               {selectedService === 'attraction' && 'Attraction Details'}
               {selectedService === 'restaurant' && 'Restaurant Details'}
@@ -1856,18 +1899,56 @@ useEffect(() => {
               {selectedService === 'local_transfer' && 'Local Transfer Details'}
               {selectedService === 'port' && 'Port Details'}
             </Typography>
-            <IconButton onClick={() => setModalOpen(false)}>
+            <IconButton 
+              onClick={() => setModalOpen(false)}
+              sx={{
+                alignSelf: { xs: "flex-end", sm: "center" },
+                p: { xs: 0.5, sm: 1 },
+                '& .MuiSvgIcon-root': {
+                  fontSize: { xs: '1.2rem', sm: '1.5rem' }
+                }
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
 
           {/* Modal Content */}
-          <Box>
+          <Box sx={{
+            maxHeight: { xs: '60vh', sm: '70vh' },
+            overflowY: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: alpha('#667eea', 0.1),
+              borderRadius: '10px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'linear-gradient(45deg, #667eea, #764ba2)',
+              borderRadius: '10px',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #764ba2, #667eea)',
+              },
+            },
+          }}>
             {/* Tabs for Overview and Details */}
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
-              sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
+              sx={{ 
+                borderBottom: 1, 
+                borderColor: "divider", 
+                mb: { xs: 1.5, sm: 2 },
+                '& .MuiTab-root': {
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  minHeight: { xs: 40, sm: 48 },
+                  padding: { xs: '8px 12px', sm: '12px 16px' }
+                },
+                '& .MuiTabs-indicator': {
+                  height: { xs: 2, sm: 3 }
+                }
+              }}
             >
               <Tab label="Overview" />
               <Tab label="Details" />
