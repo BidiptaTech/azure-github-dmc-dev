@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
+import { useMediaQuery, useTheme } from "@mui/material";
 import "./dateRangePickerStyles.css";
 
 // Create a reusable alert component
@@ -10,6 +11,10 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 });
 
 const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isDataFromEnquiryDetail}) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+  
   const today = new DateObject(); // Current date
   const tomorrow = new DateObject().add(1, "day"); // Tomorrow's date
 
@@ -78,6 +83,13 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isData
     setOpenSnackbar(false);
   };
 
+  // Determine number of months based on screen size
+  const getNumberOfMonths = () => {
+    if (isMobile) return 1; // Mobile: 1 month
+    if (isTablet) return 1; // Tablet: 1 month  
+    return 2; // Desktop: 2 months
+  };
+
   return (
     <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker">
       <DatePicker
@@ -85,7 +97,7 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isData
         containerClassName="custom_container-picker"
         value={dates}
         onChange={handleDateChange}
-        numberOfMonths={2}
+        numberOfMonths={getNumberOfMonths()}
         offsetY={10}
         range
         rangeHover
@@ -96,7 +108,7 @@ const DateRangePicker = ({ onDateChange, defaultCheckIn, defaultCheckOut ,isData
         style={{
           zIndex: 9999
         }} 
-        calendarPosition="bottom-left"
+        calendarPosition={isMobile ? "bottom-center" : "bottom-left"}
         zIndex={9999}
         portal={true}
         portalTarget={document.body}

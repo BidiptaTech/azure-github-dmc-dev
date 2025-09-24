@@ -77,15 +77,53 @@ const CombinedSearchLocationZone = ({ Location, portType, portType1, entryPorts,
           mx: 'auto',
         }}
       >
-        <CardContent sx={{height: '52px', py: 0.1}}>
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="center">
-              <DirectionsCarIcon sx={{ mr: 1.5, fontSize: 24, color: '#FFD700' }} />
+        <CardContent sx={{ 
+          py: { xs: 1, sm: 0.8, md: 0.1 },
+          px: { xs: 1.5, sm: 2, md: 2 },
+          height: { xs: 'auto', sm: '52px' },
+          minHeight: { xs: '60px', sm: '52px' }
+        }}>
+          <Box 
+            display="flex" 
+            alignItems="center" 
+            justifyContent="space-between"
+            flexDirection={{ xs: 'column', sm: 'row' }}
+            gap={{ xs: 1, sm: 0 }}
+          >
+            <Box 
+              display="flex" 
+              alignItems="center"
+              flexDirection={{ xs: 'column', sm: 'row' }}
+              textAlign={{ xs: 'center', sm: 'left' }}
+              gap={{ xs: 1, sm: 0 }}
+            >
+              <DirectionsCarIcon sx={{ 
+                mr: { xs: 0, sm: 1.5 }, 
+                mb: { xs: 0.5, sm: 0 },
+                fontSize: { xs: 28, sm: 24 }, 
+                color: '#FFD700' 
+              }} />
               <Box>
-                <Typography variant="h6" fontWeight="600" sx={{ color: 'white', fontSize: '1rem' }}>
+                <Typography 
+                  variant="h6" 
+                  fontWeight="600" 
+                  sx={{ 
+                    color: 'white', 
+                    fontSize: { xs: '0.85rem', sm: '1rem', md: '1rem' },
+                    lineHeight: 1.2
+                  }}
+                >
                   Port Transport Services (Zone)
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.75rem' }}>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: 'rgba(255, 255, 255, 0.8)', 
+                    fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.75rem' },
+                    lineHeight: 1.3,
+                    display: { xs: 'none', sm: 'block' }
+                  }}
+                >
                   Configure entry and exit port transportation services with zone pricing
                 </Typography>
               </Box>
@@ -97,8 +135,10 @@ const CombinedSearchLocationZone = ({ Location, portType, portType1, entryPorts,
                 color: 'white',
                 fontWeight: 600,
                 border: '1px solid rgba(255, 255, 255, 0.3)',
-                fontSize: '0.7rem',
-                height: '20px'
+                fontSize: { xs: '0.7rem', sm: '0.7rem' },
+                height: { xs: '28px', sm: '20px' },
+                minWidth: { xs: '80px', sm: 'auto' },
+                mt: { xs: 0.5, sm: 0 }
               }}
             />
           </Box>

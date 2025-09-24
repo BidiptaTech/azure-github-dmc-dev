@@ -8,6 +8,7 @@ import SalesManagerDashboard from "./components/SalesManagerDashboard";
 import DashboardCard from "./components/DashboardCard";
 import ChartMain from "./components/ChartMain";
 import RecentBooking from "./components/RercentBooking";
+import ResponsiveTabs from "./components/ResponsiveTabs";
 import { Grid, Container, Box, Tab, Tabs, Stack, Typography, Avatar, Chip, Card, CardContent, Fade, Grow, Menu, MenuItem, Button, Tooltip, IconButton, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField, InputAdornment, Slider, Paper } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -75,30 +76,6 @@ import {
 } from "@/components/dashboard/DashboardAnimations";
 import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
 
-// Custom Tab Panel component
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`dashboard-tabpanel-${index}`}
-      aria-labelledby={`dashboard-tab-${index}`}
-      {...other}
-      style={{ padding: "20px 0" }}
-    >
-      {value === index && <Box>{children}</Box>}
-    </div>
-  );
-}
-
-function a11yProps(index) {
-  return {
-    id: `dashboard-tab-${index}`,
-    "aria-controls": `dashboard-tabpanel-${index}`,
-  };
-}
 
 const DashboardLayout = () => {
   const location = useLocation();
@@ -490,139 +467,55 @@ const DashboardLayout = () => {
     }
 
     // Default to Agent dashboard for any other role
+    const tabs = [
+      {
+        icon: <EventNote />,
+        label: "Bookings Details"
+      },
+      {
+        icon: <EmailOutlined />,
+        label: "Quick Enquiries"
+      },
+      {
+        icon: <CardGiftcardOutlined />,
+        label: "Fixed Itinerary Packages"
+      }
+    ];
+
+    const tabContents = [
+      <AnimatedBox key="tab-0" direction="up" delay={800}>
+        <BasicTabs />
+      </AnimatedBox>,
+      <AnimatedBox key="tab-1" direction="up" delay={800}>
+        <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
+          <EnquiryList />
+        </Box>
+      </AnimatedBox>,
+      <AnimatedBox key="tab-2" direction="up" delay={800}>
+        <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
+          <PreDefinePackages />
+        </Box>
+      </AnimatedBox>
+    ];
+
     return (
       <>
         <AnimatedBox direction="down" delay={600}>
-          <Box
-            className="dashboard-tabs"
+          <ResponsiveTabs
+            tabs={tabs}
+            value={mainTabValue}
+            onChange={handleMainTabChange}
             sx={{
               borderBottom: 1,
               borderColor: "divider",
               backgroundColor: "white",
               borderRadius: "12px 12px 0 0",
               boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-              padding: "0 20px",
             }}
           >
-            <Tabs
-              value={mainTabValue}
-              onChange={handleMainTabChange}
-              aria-label="dashboard tabs"
-              indicatorColor="primary"
-              textColor="primary"
-              sx={{
-                "& .MuiTab-root": {
-                  textTransform: "none",
-                  fontWeight: 500,
-                  fontSize: "15px",
-                  minHeight: "56px",
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: "8px",
-                },
-              }}
-            >
-              <Tab
-                icon={<EventNote />}
-                label="Bookings Details"
-                iconPosition="start"
-                {...a11yProps(0)}
-              />
-              <Tab
-                icon={<EmailOutlined />}
-                label="Quick Enquiries"
-                iconPosition="start"
-                {...a11yProps(1)}
-              />
-              <Tab
-                icon={<CardGiftcardOutlined />}
-                label="Fixed Itinerary Packages"
-                iconPosition="start"
-                {...a11yProps(2)}
-              />
-              {/* <Tab 
-                icon={<AssessmentOutlined />} 
-                label="Booking Overview" 
-                iconPosition="start" 
-                {...a11yProps(1)} 
-              />
-              <Tab 
-                icon={<MoreHoriz />} 
-                label="Recent Bookings" 
-                iconPosition="start" 
-                {...a11yProps(2)} 
-              /> */}
-            </Tabs>
-          </Box>
+            {tabContents}
+          </ResponsiveTabs>
         </AnimatedBox>
-
-        <TabPanel value={mainTabValue} index={0} sx={{ p: 0 }}>
-          {/* Insert your booking details content here */}
-          <AnimatedBox direction="up" delay={800}>
-            <BasicTabs />
-          </AnimatedBox>
-        </TabPanel>
-
-        <TabPanel value={mainTabValue} index={1} sx={{ p: 0 }}>
-          {/* Insert your booking enquiries content here */}
-          <AnimatedBox direction="up" delay={800}>
-            <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
-              <EnquiryList />
-            </Box>
-          </AnimatedBox>
-        </TabPanel>
-
-        <TabPanel value={mainTabValue} index={2} sx={{ p: 0 }}>
-          {/* Insert your predefine packages content here */}
-          <AnimatedBox direction="up" delay={800}>
-            <Box sx={{ p: 3, backgroundColor: "white", borderRadius: "0 0 12px 12px" }}>
-              <PreDefinePackages />
-            </Box>
-          </AnimatedBox>
-        </TabPanel>
-
-        {/* <TabPanel value={mainTabValue} index={1}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              backgroundColor: "white",
-              borderRadius: "0 0 12px 12px",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-              }}
-            >
-              <ChartMain />
-            </Box>
-          </Paper>
-        </TabPanel>
-
-        <TabPanel value={mainTabValue} index={2}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              backgroundColor: "white",
-              borderRadius: "0 0 12px 12px",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-              }}
-            >
-              <RercentBooking />
-            </Box>
-          </Paper>
-        </TabPanel> */}
       </>
     );
   };
@@ -685,82 +578,87 @@ const DashboardLayout = () => {
                         }
                       }}
                     >
-                      <CardContent sx={{ p: 4, position: "relative", zIndex: 1 }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Stack direction="row" spacing={3} alignItems="center">
+                      <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 }, position: "relative", zIndex: 1 }}>
+                        <Stack 
+                          direction={{ xs: "column", sm: "row" }} 
+                          justifyContent="space-between" 
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                          spacing={{ xs: 2, sm: 0 }}
+                        >
+                          <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 2, sm: 3 }} alignItems={{ xs: "flex-start", sm: "center" }}>
                             <Grow in={true} timeout={800}>
                               <Avatar
                                 sx={{
-                                  width: 64,
-                                  height: 64,
+                                  width: { xs: 48, sm: 56, md: 64 },
+                                  height: { xs: 48, sm: 56, md: 64 },
                                   background: "rgba(255, 255, 255, 0.2)",
                                   backdropFilter: "blur(10px)",
                                   border: "2px solid rgba(255, 255, 255, 0.3)",
                                 }}
                               >
                                 {userRole === "Sales Head(DMC)" ? (
-                                  <SupervisorAccount sx={{ fontSize: 32, color: "white" }} />
+                                  <SupervisorAccount sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 ) : userRole === "Sales Manager (DMC)" ? (
-                                  <ManageAccounts sx={{ fontSize: 32, color: "white" }} />
+                                  <ManageAccounts sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 ) : userRole === "Assistant Manager (DMC)" ? (
-                                  <Business sx={{ fontSize: 32, color: "white" }} />
+                                  <Business sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 ) : userRole === "Operational Head(DMC)" ? (
-                                  <AdminPanelSettings sx={{ fontSize: 32, color: "white" }} />
+                                  <AdminPanelSettings sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 ) : userRole === "DMC Operational Manager" ? (
-                                  <Engineering sx={{ fontSize: 32, color: "white" }} />
+                                  <Engineering sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 ) : userRole === "DMC Assistant Operational Manager" ? (
-                                  <SupportAgent sx={{ fontSize: 32, color: "white" }} />
+                                  <SupportAgent sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 ) : (
-                                  <Person sx={{ fontSize: 32, color: "white" }} />
+                                  <Person sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
                                 )}
                               </Avatar>
                             </Grow>
 
                             <Fade in={true} timeout={1000}>
-                              <Stack spacing={1}>
-                                <Stack direction="row" alignItems="center" spacing={2}>
-                                  <Stack direction="row" alignItems="center" spacing={1.5}>
-                                    {userRole === "Sales Head(DMC)" ? (
-                                      <AccountBalance sx={{ fontSize: 32, color: "white" }} />
-                                    ) : userRole === "Sales Manager (DMC)" ? (
-                                      <BarChart sx={{ fontSize: 32, color: "white" }} />
-                                    ) : userRole === "Assistant Manager (DMC)" ? (
-                                      <Settings sx={{ fontSize: 32, color: "white" }} />
-                                    ) : userRole === "Operational Head(DMC)" ? (
-                                      <Dashboard sx={{ fontSize: 32, color: "white" }} />
-                                    ) : userRole === "DMC Operational Manager" ? (
-                                      <Analytics sx={{ fontSize: 32, color: "white" }} />
-                                    ) : userRole === "DMC Assistant Operational Manager" ? (
-                                      <Monitor sx={{ fontSize: 32, color: "white" }} />
-                                    ) : (
-                                      <WorkOutline sx={{ fontSize: 32, color: "white" }} />
-                                    )}
-                                    <Typography
-                                      variant="h4"
-                                      component="h1"
-                                      sx={{
-                                        fontWeight: 700,
-                                        color: "white",
-                                        fontSize: { xs: "1.5rem", sm: "2rem" },
-                                        textShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                                      }}
-                                    >
-                                      {userRole === "Sales Head(DMC)"
-                                        ? "Executive Dashboard"
-                                        : userRole === "Sales Manager (DMC)"
-                                          ? "Manager Dashboard"
-                                          : userRole === "Assistant Manager (DMC)"
-                                            ? "Assistant Dashboard"
-                                            : userRole === "Operational Head(DMC)"
-                                              ? "Operational Dashboard"
-                                              : userRole === "DMC Operational Manager"
-                                                ? "Operational Manager Dashboard"
-                                                : userRole === "DMC Assistant Operational Manager"
-                                                  ? "Assistant Operational Dashboard"
-                                                  : "Agent Dashboard"}
-                                    </Typography>
-                                  </Stack>
-
+                              <Stack spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
+                                <Stack direction="row" alignItems="center" spacing={{ xs: 1, sm: 1.5 }} sx={{ flexWrap: "wrap" }}>
+                                  {userRole === "Sales Head(DMC)" ? (
+                                    <AccountBalance sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  ) : userRole === "Sales Manager (DMC)" ? (
+                                    <BarChart sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  ) : userRole === "Assistant Manager (DMC)" ? (
+                                    <Settings sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  ) : userRole === "Operational Head(DMC)" ? (
+                                    <Dashboard sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  ) : userRole === "DMC Operational Manager" ? (
+                                    <Analytics sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  ) : userRole === "DMC Assistant Operational Manager" ? (
+                                    <Monitor sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  ) : (
+                                    <WorkOutline sx={{ fontSize: { xs: 24, sm: 28, md: 32 }, color: "white" }} />
+                                  )}
+                                  <Typography
+                                    variant="h4"
+                                    component="h1"
+                                    sx={{
+                                      fontWeight: 700,
+                                      color: "white",
+                                      fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
+                                      textShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                      lineHeight: 1.2,
+                                      wordBreak: "break-word",
+                                    }}
+                                  >
+                                    {userRole === "Sales Head(DMC)"
+                                      ? "Executive Dashboard"
+                                      : userRole === "Sales Manager (DMC)"
+                                        ? "Manager Dashboard"
+                                        : userRole === "Assistant Manager (DMC)"
+                                          ? "Assistant Dashboard"
+                                          : userRole === "Operational Head(DMC)"
+                                            ? "Operational Dashboard"
+                                            : userRole === "DMC Operational Manager"
+                                              ? "Operational Manager Dashboard"
+                                              : userRole === "DMC Assistant Operational Manager"
+                                                ? "Assistant Operational Dashboard"
+                                                : "Agent Dashboard"}
+                                  </Typography>
+                                  
                                   <Chip
                                     label={
                                       userRole === "Sales Head(DMC)"
@@ -795,7 +693,7 @@ const DashboardLayout = () => {
                                                     : "rgba(255, 255, 255, 0.2)", // Default for blue bg
                                       color: "white",
                                       fontWeight: 600,
-                                      fontSize: "0.75rem",
+                                      fontSize: { xs: "0.65rem", sm: "0.7rem", md: "0.75rem" },
                                       border:
                                         userRole === "Sales Head(DMC)"
                                           ? "1px solid rgba(255, 255, 255, 0.4)" // Stronger border for red
@@ -816,14 +714,18 @@ const DashboardLayout = () => {
                                   />
                                 </Stack>
 
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                  <TrendingUp sx={{ fontSize: 16, color: "rgba(255, 255, 255, 0.8)" }} />
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
+                                  <TrendingUp sx={{ fontSize: { xs: 14, sm: 16 }, color: "rgba(255, 255, 255, 0.8)" }} />
                                   <Typography
                                     variant="body1"
                                     sx={{
                                       color: "rgba(255, 255, 255, 0.9)",
-                                      fontSize: "0.95rem",
+                                      fontSize: { xs: "0.8rem", sm: "0.9rem", md: "0.95rem" },
                                       fontWeight: 400,
+                                      lineHeight: 1.3,
+                                      wordBreak: "break-word",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
                                     }}
                                   >
                                     {userRole === "Sales Head(DMC)"
@@ -846,40 +748,47 @@ const DashboardLayout = () => {
                           </Stack>
 
                           <Fade in={true} timeout={1200}>
-                            <Stack direction="row" spacing={2} alignItems="center">
+                            <Stack 
+                              direction={{ xs: "column", sm: "row" }} 
+                              spacing={{ xs: 1.5, sm: 2 }} 
+                              alignItems={{ xs: "flex-start", sm: "center" }}
+                              sx={{ width: { xs: "100%", sm: "auto" } }}
+                            >
                               <Box
                                 sx={{
                                   background: "rgba(255, 255, 255, 0.1)",
                                   backdropFilter: "blur(10px)",
                                   borderRadius: "12px",
-                                  px: 3,
-                                  py: 1.5,
+                                  px: { xs: 2, sm: 3 },
+                                  py: { xs: 1, sm: 1.5 },
                                   border: "1px solid rgba(255, 255, 255, 0.2)",
+                                  width: { xs: "100%", sm: "auto" },
                                 }}
                               >
-                                <Stack direction="row" alignItems="center" spacing={1}>
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
                                   {userRole === "Sales Head(DMC)" ? (
-                                    <Diamond sx={{ fontSize: 18, color: "white" }} />
+                                    <Diamond sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                   ) : userRole === "Sales Manager (DMC)" ? (
-                                    <EmojiEvents sx={{ fontSize: 18, color: "white" }} />
+                                    <EmojiEvents sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                   ) : userRole === "Assistant Manager (DMC)" ? (
-                                    <Star sx={{ fontSize: 18, color: "white" }} />
+                                    <Star sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                   ) : userRole === "Operational Head(DMC)" ? (
-                                    <MilitaryTech sx={{ fontSize: 18, color: "white" }} />
+                                    <MilitaryTech sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                   ) : userRole === "DMC Operational Manager" ? (
-                                    <WorkspacePremium sx={{ fontSize: 18, color: "white" }} />
+                                    <WorkspacePremium sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                                                      ) : userRole === "DMC Assistant Operational Manager" ? (
-                                     <Verified sx={{ fontSize: 18, color: "white" }} />
+                                     <Verified sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                   ) : (
-                                    <Badge sx={{ fontSize: 18, color: "white" }} />
+                                    <Badge sx={{ fontSize: { xs: 16, sm: 18 }, color: "white" }} />
                                   )}
                                   <Typography
                                     variant="body2"
                                     sx={{
                                       color: "white",
                                       fontWeight: 600,
-                                      fontSize: "0.9rem",
+                                      fontSize: { xs: "0.8rem", sm: "0.85rem", md: "0.9rem" },
                                       textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                                      wordBreak: "break-word",
                                     }}
                                   >
                                     {userRole === "Sales Head(DMC)"
@@ -913,57 +822,85 @@ const DashboardLayout = () => {
                                         backdropFilter: "blur(10px)",
                                         border: "1px solid rgba(255, 255, 255, 0.25)",
                                         color: "white",
-                                        padding: "4px",
+                                        padding: { xs: "4px 8px", sm: "4px" },
                                         transition: "all 0.2s ease",
+                                        width: { xs: "auto", sm: "auto" },
+                                        minWidth: { xs: "auto", sm: "auto" },
+                                        justifyContent: { xs: "center", sm: "center" },
+                                        borderRadius: { xs: "20px", sm: "50%" },
                                         "&:hover": {
                                           background: "rgba(255, 255, 255, 0.25)",
                                         }
                                       }}
                                     >
-                                      <Avatar
-                                        src={adjustedImage || getProfilePictureUrl(profilePicture) || ""}
-                                        sx={{
-                                          width: 32,
-                                          height: 32,
-                                          fontSize: "1rem",
-                                          backgroundColor: "rgba(255, 255, 255, 0.2)",
-                                          color: "white",
-                                          animation: "profilePulse 3s ease-in-out infinite",
-                                          transition: "all 0.3s ease",
-                                          "&:hover": {
-                                            transform: "scale(1.15) rotate(5deg)",
-                                            boxShadow: "0 0 20px rgba(255, 255, 255, 0.4)",
-                                          },
-                                          "@keyframes profilePulse": {
-                                            "0%": {
-                                              boxShadow: "0 0 0 0 rgba(255, 255, 255, 0.3)",
+                                      <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%" }}>
+                                        <Avatar
+                                          src={adjustedImage || getProfilePictureUrl(profilePicture) || ""}
+                                          sx={{
+                                            width: { xs: 32, sm: 36 },
+                                            height: { xs: 32, sm: 36 },
+                                            fontSize: { xs: "1rem", sm: "1.1rem" },
+                                            backgroundColor: "rgba(255, 255, 255, 0.2)",
+                                            color: "white",
+                                            border: "2px solid rgba(255, 255, 255, 0.3)",
+                                            borderRadius: "50%",
+                                            overflow: "hidden",
+                                            objectFit: "cover",
+                                            animation: "profilePulse 3s ease-in-out infinite",
+                                            transition: "all 0.3s ease",
+                                            "&:hover": {
+                                              transform: "scale(1.05)",
+                                              boxShadow: "0 0 20px rgba(255, 255, 255, 0.4)",
                                             },
-                                            "50%": {
-                                              boxShadow: "0 0 0 8px rgba(255, 255, 255, 0.1)",
+                                            "& img": {
+                                              width: "100%",
+                                              height: "100%",
+                                              objectFit: "cover",
+                                              borderRadius: "50%",
                                             },
-                                            "100%": {
-                                              boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)",
-                                            },
-                                          },
-                                        }}
-                                      >
-                                        {!adjustedImage && !profilePicture && (
-                                          <AccountCircleOutlined
-                                            sx={{
-                                              fontSize: 24,
-                                              animation: "iconGlow 2s ease-in-out infinite alternate",
-                                              "@keyframes iconGlow": {
-                                                "0%": {
-                                                  filter: "brightness(1)",
-                                                },
-                                                "100%": {
-                                                  filter: "brightness(1.3)",
-                                                },
+                                            "@keyframes profilePulse": {
+                                              "0%": {
+                                                boxShadow: "0 0 0 0 rgba(255, 255, 255, 0.3)",
                                               },
-                                            }}
-                                          />
-                                        )}
-                                      </Avatar>
+                                              "50%": {
+                                                boxShadow: "0 0 0 8px rgba(255, 255, 255, 0.1)",
+                                              },
+                                              "100%": {
+                                                boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)",
+                                              },
+                                            },
+                                          }}
+                                        >
+                                          {!adjustedImage && !profilePicture && (
+                                            <AccountCircleOutlined
+                                              sx={{
+                                                fontSize: { xs: 20, sm: 24 },
+                                                animation: "iconGlow 2s ease-in-out infinite alternate",
+                                                "@keyframes iconGlow": {
+                                                  "0%": {
+                                                    filter: "brightness(1)",
+                                                  },
+                                                  "100%": {
+                                                    filter: "brightness(1.3)",
+                                                  },
+                                                },
+                                              }}
+                                            />
+                                          )}
+                                        </Avatar>
+                                        <Typography
+                                          variant="body2"
+                                          sx={{
+                                            color: "white",
+                                            fontSize: { xs: "0.75rem", sm: "0.9rem" },
+                                            fontWeight: 500,
+                                            display: { xs: "block", sm: "none" },
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
+                                          Profile
+                                        </Typography>
+                                      </Stack>
                                     </IconButton>
                                   </Tooltip>
 
