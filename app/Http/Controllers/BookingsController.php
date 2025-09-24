@@ -1196,14 +1196,18 @@ class BookingsController extends Controller
             }
             
             // Update tour status to Cancel
-            $tour->tour_status = 'Cancel-'.$tour->tour_status;
+            if($tour->tour_status == 'Definite'){
+                $tour->tour_status = 'Refund - Pending';
+            }else{
+                $tour->tour_status = 'Cancel-'.$tour->tour_status;
+            }
             $tour->save();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Tour cancelled successfully',
                 'tour_id' => $tour->display_id,
-                'new_status' => 'Cancel'
+                'new_status' => $tour->tour_status
             ]);
             
         } catch (\Exception $e) {
