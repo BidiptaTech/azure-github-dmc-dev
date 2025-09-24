@@ -108,27 +108,6 @@
             transform: translateY(-50%); 
             z-index: 5;
         }
-
-        /* Alert z-index fixes */
-        .alert {
-            z-index: 1050 !important;
-            position: relative;
-        }
-
-        .alert.fixed-alert {
-            position: fixed !important;
-            top: 20px !important;
-            right: 20px !important;
-            z-index: 9999 !important;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        /* Ensure x-alert component appears on top */
-        .container-xxl .alert:first-child {
-            z-index: 1050 !important;
-            position: relative;
-        }
         
         /* Spinning loader animation */
         @keyframes spin {
@@ -144,9 +123,7 @@
 
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
-        <div style="z-index: 1050; position: relative;">
-            <x-alert />
-        </div>
+        <x-alert />
         <!-- Header Section -->
         <div class="row mb-4">
             <div class="col-12">
@@ -168,7 +145,7 @@
         @if(isset($tour))
         <div class="row mb-4">
             <div class="col-12">
-                <div class="alert alert-warning border-0" style="z-index: 1050; position: relative;">
+                <div class="alert alert-warning border-0">
                     <div class="d-flex align-items-center">
                         <i class="ri-edit-line me-3" style="font-size: 2rem;"></i>
                         <div>
@@ -336,7 +313,7 @@
                             </div>
                             <div class="row mt-3">
                                 <div class="col-12">
-                                    <div class="alert alert-info" style="z-index: 1050; position: relative;">
+                                    <div class="alert alert-info">
                                         <i class="ri-information-line me-2"></i>
                                         <strong>Note:</strong> Tour information is read-only to maintain data integrity. You can edit hotels, attractions, guides, restaurants, and other services below.
                                     </div>
@@ -425,7 +402,7 @@
                             
                             <div class="row mt-3">
                                 <div class="col-12">
-                                    <div class="alert alert-success border-0" style="z-index: 1050; position: relative;">
+                                    <div class="alert alert-success border-0">
                                         <i class="ri-lightbulb-line me-2"></i>
                                         <strong>Quick Actions:</strong> Click any service button above to quickly add new services to your tour package. Each service will be configured based on your tour details.
                                     </div>
@@ -1637,11 +1614,11 @@
                     </div>
 
                     <!-- Information Alerts -->
-                    <div class="alert alert-info" id="no_nights_alert" style="z-index: 1050; position: relative;">
+                    <div class="alert alert-info" id="no_nights_alert">
                         <i class="ri-information-line me-2"></i>
                         No nights selected. Click on the nights above to select hotel stay.
                     </div>
-                    <div class="alert alert-info" id="no_hotels_alert" style="z-index: 1050; position: relative;">
+                    <div class="alert alert-info" id="no_hotels_alert">
                         <i class="ri-information-line me-2"></i>
                         No hotels selected yet. Choose your hotels above.
                     </div>
@@ -2298,7 +2275,7 @@
                                             <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                         </label>
                                         <div class="position-relative">
-                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="padding-left: 45px;">
+                                            <input type="date" class="form-control border-2" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly style="padding-left: 45px;">
                                             <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
@@ -2783,7 +2760,7 @@
                                 <!-- Vehicle + Service Type in one row -->
                                 <div class="col-12">
                                     <div class="row g-3">
-                                        <div class="col-md-6">
+                                        <div class="col-md-8">
                                             <label class="form-label fw-semibold">Vehicle</label>
                                             <select class="form-select vehicle-select" 
                                                     id="local_transfer_vehicle_id" 
@@ -2793,7 +2770,7 @@
                                             </select>
                                         </div>
 
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label fw-semibold">Service Type</label>
                                             <select class="form-select" 
                                                     id="local_transfer_service_type" 
@@ -2803,29 +2780,6 @@
                                                 <option value="Shared">Shared</option>
                                                 <option value="Private">Private</option>
                                             </select>
-                                        </div>
-
-                                        <!-- Manual Price Input for Point-to-Point -->
-                                        <div class="col-md-3" id="manual_price_field_container" style="display: none;">
-                                            <label class="form-label fw-semibold">
-                                                <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price
-                                            </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       id="local_transfer_manual_price" 
-                                                       name="manual_price" 
-                                                       step="0.01" 
-                                                       min="0" 
-                                                       placeholder="0.00"
-                                                       onchange="updateLocalTransferPricing()"
-                                                       oninput="updateLocalTransferPricing()">
-                                            </div>
-                                            <small class="form-text text-muted">
-                                                <i class="ri-information-line me-1"></i>
-                                                Override vehicle price for point-to-point
-                                            </small>
                                         </div>
                                     </div>
                                     
@@ -2860,7 +2814,6 @@
                                         <!-- Hidden fields for local transfer pricing -->
                                         <input type="hidden" name="local_transfer_base_price" id="local_transfer_base_price" value="0">
                                         <input type="hidden" name="local_transfer_total_price" id="local_transfer_total_price" value="0">
-                                        <input type="hidden" name="local_transfer_manual_price_submitted" id="local_transfer_manual_price_submitted" value="">
                                     </div>
                                 </div>
                             </div>
@@ -2994,7 +2947,7 @@
                                             <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                         </label>
                                         <div class="position-relative">
-                                            <input type="date" class="form-control border-2" id="modal_dropoff_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" disabled style="padding-left: 45px;">
+                                            <input type="date" class="form-control border-2" id="modal_dropoff_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                             <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
@@ -3190,52 +3143,27 @@
     // Function to update service type options based on vehicle sharable property
     function updateServiceTypeOptions(vehicleData, serviceTypeSelectId) {
         const serviceTypeSelect = document.getElementById(serviceTypeSelectId);
-        if (!serviceTypeSelect) {
-            console.log('Service type select not found for ID:', serviceTypeSelectId);
-            return;
-        }
+        if (!serviceTypeSelect) return;
 
-        console.log('updateServiceTypeOptions called with:', serviceTypeSelectId);
         console.log('Vehicle data updateServiceTypeOptions:', vehicleData);
-        console.log('vehicleData.sharable:', vehicleData.sharable);
         
         // Clear existing options
         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
-        console.log('Cleared service type options');
         
-        // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
         if (vehicleData.sharable == 1) {
-            // Private only
-            console.log('Adding Private option only (sharable == 1)');
             const privateOption = document.createElement('option');
             privateOption.value = 'Private';
             privateOption.textContent = 'Private';
             serviceTypeSelect.appendChild(privateOption);
         }
         else if (vehicleData.sharable == 2) {
-            // Shared only
-            console.log('Adding Shared option only (sharable == 2)');
             const sharedOption = document.createElement('option');
             sharedOption.value = 'Shared';
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
+        
         }
-        else if (vehicleData.sharable == 3) {
-            // Both Private and Shared
-            console.log('Adding both Private and Shared options (sharable == 3)');
-            const privateOption = document.createElement('option');
-            privateOption.value = 'Private';
-            privateOption.textContent = 'Private';
-            serviceTypeSelect.appendChild(privateOption);
-
-            const sharedOption = document.createElement('option');
-            sharedOption.value = 'Shared';
-            sharedOption.textContent = 'Shared';
-            serviceTypeSelect.appendChild(sharedOption);
-        }
-        else {
-            // Default: show both options if sharable value is not set or invalid
-            console.log('Adding both options as default (sharable not 1, 2, or 3)');
+        else{
             const privateOption = document.createElement('option');
             privateOption.value = 'Private';
             privateOption.textContent = 'Private';
@@ -3247,7 +3175,7 @@
             serviceTypeSelect.appendChild(sharedOption);
         }
         serviceTypeSelect.disabled = false;
-        console.log('Service type options updated for local transfer');
+        console.log('Service type options updated for transport modal');
     }
 
     // Initialize on DOM content loaded
@@ -3266,29 +3194,21 @@
                          type === 'warning' ? 'alert-warning' : 'alert-info';
         
         const alertDiv = document.createElement('div');
-        alertDiv.className = `alert ${alertClass} alert-dismissible fade show fixed-alert`;
-        alertDiv.style.cssText = 'z-index: 9999 !important; position: fixed !important; top: 20px !important; right: 20px !important; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
         alertDiv.innerHTML = `
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        // Add to body instead of container for fixed positioning
-        document.body.appendChild(alertDiv);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
-        
-        // Also remove when manually dismissed
-        alertDiv.addEventListener('closed.bs.alert', function() {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        });
+        const container = document.querySelector('.container-xxl');
+        if (container) {
+            container.insertBefore(alertDiv, container.firstChild);
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
     }
     
     // Service addition functions
@@ -4152,24 +4072,10 @@
         const point_to_point_fields = document.getElementById('point_to_point_fields');
         const hourly_fields = document.getElementById('hourly_fields');
         
-        // Note: Vehicle results section will be shown/hidden by individual search functions
-        // Don't hide it here as it interferes with the search results display
-        
-        // Clear vehicle dropdown when switching service types
-        const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
-        if (vehicleSelect) {
-            vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-            vehicleSelect.disabled = true;
-        }
-        
-        // Hide manual price field when switching service types
-        const manualPriceContainer = document.getElementById('manual_price_field_container');
-        const manualPriceInput = document.getElementById('local_transfer_manual_price');
-        if (manualPriceContainer) {
-            manualPriceContainer.style.display = 'none';
-        }
-        if (manualPriceInput) {
-            manualPriceInput.value = '';
+        // Hide vehicle results section
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
         }
         
         // Show fields based on selected service type
@@ -4205,8 +4111,7 @@
         
         console.log('Searching vehicles for point to point:', { pickupLocation, dropoffLocation, pickupTime, pickupDate });
         
-        // For point-to-point, we don't need city validation as we show all vehicles
-        const city = document.getElementById('local_transfer_city').value;
+        // Note: City selection removed, using destination country instead
         const country = document.getElementById('user_country').value;
         const searchBtn = document.getElementById('local_transfer_point_to_point_search_btn');
         
@@ -4216,77 +4121,55 @@
             searchBtn.disabled = true;
         }
         
-        // Fetch vehicles from API - for point-to-point, show all vehicles regardless of city
-        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
+        // Fetch vehicles from API using the same route as create.blade.php
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
             .then(response => response.json())
             .then(data => {
-                console.log('Vehicle search response (all vehicles for point-to-point):', data);
+                console.log('Vehicle search response (city-based):', data);
                 
                 const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
                 const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
                 
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
-                    console.log('Success: Found vehicles for point-to-point, showing results section');
-                    
                     // Show the vehicle results section
                     if (vehicleResultsSection) {
                         vehicleResultsSection.style.display = 'block';
-                        vehicleResultsSection.style.visibility = 'visible';
-                        console.log('Vehicle results section shown for point-to-point');
                         vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    } else {
-                        console.error('Vehicle results section not found!');
                     }
                     
                     // Populate vehicle dropdown
                     if (vehicleSelect) {
                         vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                        console.log('Starting to populate vehicle dropdown for point-to-point with', data.vehicles.length, 'vehicles');
-                        
-                        data.vehicles.forEach((vehicle, index) => {
+                        data.vehicles.forEach(vehicle => {
                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                             
                             // Debug logging for vehicle data
-                            console.log(`Vehicle ${index + 1}:`, vehicle);
+                            console.log('Vehicle:', vehicle);
                             
-                            try {
-                                const vehicleDataString = JSON.stringify(vehicle);
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                                    data-vehicle-name="${vehicle.vehicle_name}" 
-                                    data-vehicle-type="${vehicle.vehicle_type}" 
-                                    data-seating-capacity="${vehicle.seating_capacity}"
-                                    data-private-price="${vehicle.private_price || ''}" 
-                                    data-shared-price="${vehicle.shared_price || ''}" 
-                                    data-service-type="${vehicle.service_type || ''}" 
-                                    data-cost-per-hour="${vehicle.cost_per_hour || ''}" 
-                                    data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}" 
-                                    data-sharable="${vehicle.sharable || '0'}" 
-                                    data-vehicle="${vehicleDataString}">
-                                    ${vehicleInfo}
-                                </option>`;
-                            } catch (error) {
-                                console.error('Error stringifying vehicle data:', error);
-                                console.log('Problematic vehicle object:', vehicle);
-                                // Fallback: create option without data-vehicle attribute
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}">
-                                    ${vehicleInfo}
-                                </option>`;
-                            }
+                            const option = document.createElement('option');
+                            option.value = vehicle.vehicle_id;
+                            option.textContent = vehicleInfo;
+                            option.setAttribute('data-private-price', vehicle.private_price || '');
+                            option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                            option.setAttribute('data-service-type', vehicle.service_type || '');
+                            option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                            option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                            option.setAttribute('data-sharable', vehicle.sharable || '0');
+                            option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                            vehicleSelect.appendChild(option);
                         });
                         
                         // Enable the vehicle select
                         vehicleSelect.disabled = false;
-                        console.log('Vehicle dropdown populated successfully for point-to-point');
+                        console.log('Vehicle dropdown populated successfully (city-based)');
                         
                         // Update vehicle details and pricing
                         updateLocalTransferVehicleDetails();
-                    } else {
-                        console.error('Vehicle select dropdown not found!');
                     }
                     
-                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown for point-to-point`);
+                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
                 } else {
-                    showNotification('No vehicles available. Please contact support.', 'warning');
+                    showNotification('No vehicles available for this city. Please try a different city.', 'warning');
                     if (vehicleResultsSection) {
                         vehicleResultsSection.style.display = 'none';
                     }
@@ -4322,8 +4205,7 @@
         
         console.log('Searching vehicles for hourly:', { pickupLocation, pickupTime, pickupDate });
         
-        // For hourly service, we don't need city validation as we show all vehicles
-        const city = document.getElementById('local_transfer_city').value;
+        // Note: City selection removed, using destination country instead
         const country = document.getElementById('user_country').value;
         const searchBtn = document.getElementById('local_transfer_hourly_search_btn');
         
@@ -4333,62 +4215,42 @@
             searchBtn.disabled = true;
         }
         
-        // Fetch vehicles from API - for hourly service, show all vehicles regardless of city
-        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
+        // Fetch vehicles from API using the same route as create.blade.php
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
             .then(response => response.json())
             .then(data => {
-                console.log('Vehicle search response (all vehicles for hourly):', data);
+                console.log('Vehicle search response (city-based) for hourly:', data);
                 
                 const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
                 const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
                 
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
-                    console.log('Success: Found vehicles for hourly service, showing results section');
-                    
                     // Show the vehicle results section
                     if (vehicleResultsSection) {
                         vehicleResultsSection.style.display = 'block';
-                        vehicleResultsSection.style.visibility = 'visible';
-                        console.log('Vehicle results section shown for hourly service');
                         vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    } else {
-                        console.error('Vehicle results section not found for hourly service!');
                     }
                     
                     // Populate vehicle dropdown
                     if (vehicleSelect) {
                         vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                        console.log('Starting to populate vehicle dropdown for hourly service with', data.vehicles.length, 'vehicles');
-                        
-                        data.vehicles.forEach((vehicle, index) => {
+                        data.vehicles.forEach(vehicle => {
                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                             
                             // Debug logging for vehicle data
-                            console.log(`Hourly Vehicle ${index + 1}:`, vehicle);
+                            console.log('Vehicle:', vehicle);
                             
-                            try {
-                                const vehicleDataString = JSON.stringify(vehicle);
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                                    data-vehicle-name="${vehicle.vehicle_name}" 
-                                    data-vehicle-type="${vehicle.vehicle_type}" 
-                                    data-seating-capacity="${vehicle.seating_capacity}"
-                                    data-private-price="${vehicle.private_price || ''}" 
-                                    data-shared-price="${vehicle.shared_price || ''}" 
-                                    data-service-type="${vehicle.service_type || ''}" 
-                                    data-cost-per-hour="${vehicle.cost_per_hour || ''}" 
-                                    data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}" 
-                                    data-sharable="${vehicle.sharable || '0'}" 
-                                    data-vehicle="${vehicleDataString}">
-                                    ${vehicleInfo}
-                                </option>`;
-                            } catch (error) {
-                                console.error('Error stringifying vehicle data for hourly service:', error);
-                                console.log('Problematic vehicle object:', vehicle);
-                                // Fallback: create option without data-vehicle attribute
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}">
-                                    ${vehicleInfo}
-                                </option>`;
-                            }
+                            const option = document.createElement('option');
+                            option.value = vehicle.vehicle_id;
+                            option.textContent = vehicleInfo;
+                            option.setAttribute('data-private-price', vehicle.private_price || '');
+                            option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                            option.setAttribute('data-service-type', vehicle.service_type || '');
+                            option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                            option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                            option.setAttribute('data-sharable', vehicle.sharable || '0');
+                            option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                            vehicleSelect.appendChild(option);
                         });
                         
                         // Enable the vehicle select
@@ -4397,13 +4259,11 @@
                         
                         // Update vehicle details and pricing
                         updateLocalTransferVehicleDetails();
-                    } else {
-                        console.error('Vehicle select dropdown not found for hourly service!');
                     }
                     
-                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown for hourly service`);
+                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown`);
                 } else {
-                    showNotification('No vehicles available. Please contact support.', 'warning');
+                    showNotification('No vehicles available for this city. Please try a different city.', 'warning');
                     if (vehicleResultsSection) {
                         vehicleResultsSection.style.display = 'none';
                     }
@@ -4587,7 +4447,7 @@
     function searchVehiclesForTransportModalPointToPoint() {
         console.log('Searching Point-to-Point vehicles for transport modal');
         
-        // For point-to-point transport modal, we show all vehicles regardless of city
+        // Get the selected city from the dropdown
         const city = document.getElementById('modal_entryport_transport_city').value;
         const country = document.getElementById('modal_transport_country').value;
         const searchBtn = document.getElementById('transport_search_btn');
@@ -4595,7 +4455,13 @@
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         
-        console.log('Using Point-to-Point endpoint for transport modal - showing all vehicles');
+        console.log('Using Point-to-Point endpoint for city:', city, 'country:', country);
+        
+        // Check if city is selected
+        if (!city || city.trim() === '') {
+            showNotification('Please select a city first', 'warning');
+            return;
+        }
 
         // Show loading state
         if (searchBtn) {
@@ -4603,10 +4469,10 @@
             searchBtn.disabled = true;
         }
 
-        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
+        fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?city=${encodeURIComponent(city)}`)
             .then(response => response.json())
             .then(data => {
-                console.log('Point-to-Point vehicle search response for transport modal (all vehicles):', data);
+                console.log('Point-to-Point vehicle search response for transport modal:', data);
                 
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                     // Show the vehicle results section
@@ -4662,7 +4528,7 @@
                         console.log(`Populated ${data.vehicles.length} vehicles for Point-to-Point transport modal`);
                     }
                 } else {
-                    alert('No vehicles available. Please contact support.');
+                    alert('No vehicles available for this city. Please try a different city.');
                 }
                 
                 // Reset search button
@@ -4673,8 +4539,7 @@
             })
             .catch(error => {
                 console.error('Error searching Point-to-Point vehicles:', error);
-                console.error('Error details:', error.message);
-                showNotification('Error searching vehicles. Please try again.', 'error');
+                alert('Error searching vehicles. Please try again.');
                 if (searchBtn) {
                     searchBtn.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
                     searchBtn.disabled = false;
@@ -4714,36 +4579,19 @@
             sharable: selectedOption.dataset.sharable,
         };        
         console.log('Vehicle data from updateServiceTypeOptionsForTransport:', vehicleData);
-        
-        // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
         if(vehicleData.sharable == 1){
-            // Private only
             const privateOption = document.createElement('option');
             privateOption.value = 'Private';
             privateOption.textContent = 'Private';
             serviceTypeSelect.appendChild(privateOption);
         }
         else if(vehicleData.sharable == 2){
-            // Shared only
-            const sharedOption = document.createElement('option');
-            sharedOption.value = 'Shared';
-            sharedOption.textContent = 'Shared';
-            serviceTypeSelect.appendChild(sharedOption);
-        }
-        else if(vehicleData.sharable == 3){
-            // Both Private and Shared
-            const privateOption = document.createElement('option');
-            privateOption.value = 'Private';
-            privateOption.textContent = 'Private';
-            serviceTypeSelect.appendChild(privateOption);
-
             const sharedOption = document.createElement('option');
             sharedOption.value = 'Shared';
             sharedOption.textContent = 'Shared';
             serviceTypeSelect.appendChild(sharedOption);
         }
         else{
-            // Default: show both options if sharable value is not set or invalid
             const privateOption = document.createElement('option');
             privateOption.value = 'Private';
             privateOption.textContent = 'Private';
@@ -4939,91 +4787,17 @@
     function updateLocalTransferVehicleDetails() {
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         const serviceTypeSelect = document.getElementById('local_transfer_service_type');
-        const manualPriceContainer = document.getElementById('manual_price_field_container');
-        
-        console.log('updateLocalTransferVehicleDetails called');
-        console.log('vehicleSelect:', vehicleSelect);
-        console.log('serviceTypeSelect:', serviceTypeSelect);
-        console.log('vehicleSelect.value:', vehicleSelect ? vehicleSelect.value : 'null');
-        
-        // Check if point-to-point is selected and show/hide manual price field
-        const isPointToPoint = document.getElementById('is_point_to_point') ? 
-            document.getElementById('is_point_to_point').value === '1' : false;
-        const serviceTypeSelection = document.querySelector('input[name="service_type_selection"]:checked');
-        const isPointToPointSelected = serviceTypeSelection && serviceTypeSelection.value === 'point_to_point';
-        
-        if (manualPriceContainer) {
-            if ((isPointToPoint || isPointToPointSelected) && vehicleSelect && vehicleSelect.value) {
-                manualPriceContainer.style.display = 'block';
-            } else {
-                manualPriceContainer.style.display = 'none';
-            }
-        }
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            console.log('selectedOption:', selectedOption);
-            console.log('data-vehicle attribute:', selectedOption.getAttribute('data-vehicle'));
-            
-            let vehicleData = {};
-            try {
-                const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
-                console.log('Raw data-vehicle attribute length:', dataVehicleAttr ? dataVehicleAttr.length : 'null');
-                console.log('Raw data-vehicle attribute first 100 chars:', dataVehicleAttr ? dataVehicleAttr.substring(0, 100) : 'null');
-                
-                if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
-                    vehicleData = JSON.parse(dataVehicleAttr);
-                    console.log('Successfully parsed data-vehicle attribute');
-                } else {
-                    console.log('data-vehicle attribute is empty, using fallback');
-                    // Fallback: try to get data from individual data attributes
-                    vehicleData = {
-                        id: selectedOption.value,
-                        vehicle_name: selectedOption.dataset.vehicleName || '',
-                        vehicle_type: selectedOption.dataset.vehicleType || '',
-                        seating_capacity: selectedOption.dataset.seatingCapacity || '',
-                        base_price: selectedOption.dataset.privatePrice || '',
-                        sharable_base_price: selectedOption.dataset.sharedPrice || '',
-                        service_type: selectedOption.dataset.serviceType || '',
-                        sharable: selectedOption.dataset.sharable || ''
-                    };
-                }
-            } catch (error) {
-                console.error('Error parsing vehicle data:', error);
-                console.log('Raw data-vehicle attribute:', selectedOption.getAttribute('data-vehicle'));
-                console.log('Using fallback method with individual data attributes');
-                
-                // Fallback: get data from individual data attributes
-                vehicleData = {
-                    id: selectedOption.value,
-                    vehicle_name: selectedOption.dataset.vehicleName || '',
-                    vehicle_type: selectedOption.dataset.vehicleType || '',
-                    seating_capacity: selectedOption.dataset.seatingCapacity || '',
-                    base_price: selectedOption.dataset.privatePrice || '',
-                    sharable_base_price: selectedOption.dataset.sharedPrice || '',
-                    service_type: selectedOption.dataset.serviceType || '',
-                    sharable: selectedOption.dataset.sharable || ''
-                };
-            }
-            
-            console.log('parsed vehicleData:', vehicleData);
-            console.log('vehicleData.sharable:', vehicleData.sharable);
-            console.log('vehicleData.sharable type:', typeof vehicleData.sharable);
-            
-            // Ensure sharable is a number for comparison
-            if (vehicleData.sharable) {
-                vehicleData.sharable = parseInt(vehicleData.sharable) || 0;
-            }
-            console.log('converted vehicleData.sharable:', vehicleData.sharable);
+            const vehicleData = JSON.parse(selectedOption.getAttribute('data-vehicle') || '{}');
             
             // Update service type options based on vehicle sharable property
             updateServiceTypeOptions(vehicleData, 'local_transfer_service_type');
             
             serviceTypeSelect.disabled = false;
             updateLocalTransferPricing();
-        } else {
-            console.log('Conditions not met for updateLocalTransferVehicleDetails');
         }
     }
 
@@ -5692,7 +5466,6 @@
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         const serviceTypeSelect = document.getElementById('local_transfer_service_type');
         const passengersInput = document.getElementById('local_transfer_passengers');
-        const manualPriceInput = document.getElementById('local_transfer_manual_price');
         const priceDisplay = document.getElementById('local_transfer_price_display');
         const priceDetails = document.getElementById('local_transfer_price_details');
         
@@ -5725,59 +5498,33 @@
             const serviceType = serviceTypeSelect.value;
             const validatedPassengers = parseInt(passengersInput.value) || 1;
             
-            // Check if manual price is provided (for point-to-point)
-            const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
-            const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
-            
-            // Get correct price based on service type or use manual price
+            // Get correct price based on service type
             let basePrice = 0;
             let totalPrice = 0;
-            
-            if (isManualPriceUsed) {
-                // Use manual price for point-to-point
-                basePrice = manualPrice;
-                totalPrice = manualPrice;
-            } else {
-                // Use vehicle's default pricing
-                if (serviceType == 'Private') {
-                    basePrice = parseFloat(vehicleData.privatePrice) || 0;
-                    totalPrice = basePrice;
-                } else if (serviceType == 'Shared') {
-                    basePrice = parseFloat(vehicleData.sharedPrice) || 0;
-                    totalPrice = basePrice * validatedPassengers;
-                }
+            if (serviceType == 'Private') {
+                basePrice = parseFloat(vehicleData.privatePrice) || 0;
+                totalPrice = basePrice;
+            } else if (serviceType == 'Shared') {
+                basePrice = parseFloat(vehicleData.sharedPrice) || 0;
+                totalPrice = basePrice*validatedPassengers;
             }
             
             // Format price details
-            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
-            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
-            
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">
-                        <i class="${priceSourceIcon} me-1"></i>
-                        ${priceSource}: $${basePrice.toFixed(2)}
-                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
-                    </div>
+                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
                     <div class="col-md-4">Service: ${serviceType}</div>
                     <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
                     Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom price for point-to-point service' : ''}
                 </div>
             `;
             
             // Update hidden fields
             document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
             document.getElementById('local_transfer_total_price').value = totalPrice.toFixed(2);
-            
-            // Update manual price hidden field
-            const manualPriceHidden = document.getElementById('local_transfer_manual_price_submitted');
-            if (manualPriceHidden) {
-                manualPriceHidden.value = isManualPriceUsed ? manualPrice.toFixed(2) : '';
-            }
             
             priceDisplay.style.display = 'block';
         } else {
@@ -6001,19 +5748,7 @@
         // Get selected vehicle details
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        let vehicleData = {};
-        
-        if (selectedOption) {
-            const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
-            if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
-                try {
-                    vehicleData = JSON.parse(dataVehicleAttr);
-                } catch (error) {
-                    console.warn('Invalid JSON in data-vehicle attribute:', dataVehicleAttr);
-                    vehicleData = {};
-                }
-            }
-        }
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
@@ -6107,19 +5842,7 @@
         // Get selected vehicle details
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        let vehicleData = {};
-        
-        if (selectedOption) {
-            const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
-            if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
-                try {
-                    vehicleData = JSON.parse(dataVehicleAttr);
-                } catch (error) {
-                    console.warn('Invalid JSON in data-vehicle attribute:', dataVehicleAttr);
-                    vehicleData = {};
-                }
-            }
-        }
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
@@ -6257,19 +5980,7 @@
         // Get selected vehicle details
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-        let vehicleData = {};
-        
-        if (selectedOption) {
-            const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
-            if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
-                try {
-                    vehicleData = JSON.parse(dataVehicleAttr);
-                } catch (error) {
-                    console.warn('Invalid JSON in data-vehicle attribute:', dataVehicleAttr);
-                    vehicleData = {};
-                }
-            }
-        }
+        const vehicleData = selectedOption ? JSON.parse(selectedOption.getAttribute('data-vehicle')) : {};
         
         console.log('Vehicle data for local transfer:', vehicleData);
         
