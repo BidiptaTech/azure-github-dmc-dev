@@ -29,7 +29,7 @@ const DateSelect = ({ onChange, value }) => {
         numberOfMonths={2}
         offsetY={10}
         format="DD/MM/YYYY" // Display format
-        minDate={new DateObject()} // Minimum date is today
+        minDate={new DateObject()} 
         editable={false}
         placeholder="Select arrival date"
       />

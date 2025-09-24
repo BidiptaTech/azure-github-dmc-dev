@@ -36,8 +36,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
       // Use the endpoints.getCities function which already handles authentication
       const response = await endpoints.getCities(country.name);
       
-      // Log the raw API response for debugging
-      console.log('Raw API response:', response.data);
+     
       
       let formattedCities = [];
       
@@ -81,7 +80,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
         setError("Invalid response format from server");
       }
       
-      console.log('Formatted cities:', formattedCities);
+     
       setCityList(formattedCities);
       setSuggestions(formattedCities.slice(0, 5));
       // Don't show dropdown by default - only when user types
@@ -188,9 +187,7 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
   }, []);
 
   const handleOptionClick = (item) => {
-    console.log('🏙️ CitySearch - City clicked:', item);
-    console.log('🏙️ CitySearch - City name:', item.name);
-    console.log('🏙️ CitySearch - City address:', item.address);
+   
     
     // Close dropdown immediately
     setIsDropdownVisible(false);
@@ -201,10 +198,10 @@ const CitySearch = ({ selectedCountry, onCitySelect, initialValue = null }) => {
     
     // Call the onCitySelect callback if provided
     if (onCitySelect) {
-      console.log('🏙️ CitySearch - Calling onCitySelect with:', item);
+     
       onCitySelect(item);
     } else {
-      console.log('🏙️ CitySearch - No onCitySelect callback provided');
+      alert('🏙️ CitySearch - No onCitySelect callback provided');
     }
     
     // Remove focus to prevent any further interactions
