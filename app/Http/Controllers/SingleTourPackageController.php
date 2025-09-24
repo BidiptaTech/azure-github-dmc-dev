@@ -2855,6 +2855,25 @@ class SingleTourPackageController extends Controller
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
                                 
+                                // Handle date formatting based on port type
+                                if ($type === 'entry_port' && isset($transport['bookingDate'])) {
+                                    // For entry_port, use bookingDate and extract first date
+                                    $dateRange = $transport['bookingDate'];
+                                    if (preg_match('/(\w{3} \d{1,2}), (\d{4})/', $dateRange, $matches)) {
+                                        $firstDate = $matches[1] . ', ' . $matches[2];
+                                        $transport['bookingDate'] = date('Y-m-d', strtotime($firstDate));
+                                        $transport['pickupdate'] = $transport['bookingDate'];
+                                    }
+                                } elseif ($type === 'exit_port' && isset($transport['exitpickupdate'])) {
+                                    // For exit_port, use exitpickupdate and extract second date
+                                    $dateRange = $transport['exitpickupdate'];
+                                    if (preg_match('/- (\w{3} \d{1,2}), (\d{4})/', $dateRange, $matches)) {
+                                        $secondDate = $matches[1] . ', ' . $matches[2];
+                                        $transport['bookingDate'] = date('Y-m-d', strtotime($secondDate));
+                                        $transport['exitpickupdate'] = $transport['bookingDate'];
+                                    }
+                                }
+                                
                                 \Log::info("Processing individual {$type} transport", [
                                     'transport_id' => $transport['id'] ?? 'no_id',
                                     'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
@@ -2863,6 +2882,7 @@ class SingleTourPackageController extends Controller
                                     'pickup_coords' => $transport['PickupPlaceid'] ?? 'no_coords',
                                     'dropoff_coords' => $transport['DropoffPlaceid'] ?? 'no_coords',
                                     'booking_type' => $transport['bookingType'] ?? 'no_booking_type',
+                                    'booking_date' => $transport['bookingDate'] ?? 'no_date',
                                     'full_transport_data' => $transport
                                 ]);
                                 

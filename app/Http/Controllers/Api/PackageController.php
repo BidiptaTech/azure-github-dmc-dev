@@ -795,6 +795,10 @@ class PackageController extends Controller
                 'message' => 'Tour not found'
             ], 404);
         }
+        $dmc_id = $tour->dmc_id;
+        $userDMC = User::where('userId', $dmc_id)->first();
+        $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+        $auto_cancel_date = Carbon::parse($payload[0]['check_in_time'])->subDays($auto_cancel_day)->toDateString();
         
         // Convert date format from DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
         $checkInDate = $this->formatDateForDatabase($payload[0]['check_in_time']);
@@ -802,6 +806,8 @@ class PackageController extends Controller
         
         $tour->check_in_time = $checkInDate;
         $tour->check_out_time = $checkOutDate;
+        $tour->auto_cancel_date = $auto_cancel_date;
+
         $tour->save();
         
         // Get all existing orders for this tour_id
