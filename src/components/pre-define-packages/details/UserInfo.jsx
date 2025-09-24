@@ -279,7 +279,7 @@ const selectedDate = searchParams?.date ?
       dispatch(bookPackage(finalBookingData));
       
       // Log the complete booking data to console for debugging
-      console.log('Complete booking data with agent_id:', finalBookingData);
+      // console.log('Complete booking data with agent_id:', finalBookingData);
       
       // Re-enable the button after 6 seconds
       setTimeout(() => {

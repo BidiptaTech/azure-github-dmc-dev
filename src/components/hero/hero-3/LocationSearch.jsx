@@ -58,7 +58,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
       // Check if the country has actually changed to avoid unnecessary updates
       const currentCountry = selectedItem?.name;
       if (currentCountry !== dmcCountry.name) {
-        console.log('🌍 LocationSearch - Auto-selecting country:', dmcCountry.name);
+        // console.log('🌍 LocationSearch - Auto-selecting country:', dmcCountry.name);
         setSearchValue(dmcCountry.name);
         setSelectedItem(dmcCountry);
         
@@ -69,7 +69,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = null }) => {
       }
     } else if (!selectedDmcData && selectedItem) {
       // If DMC data is cleared, clear the selection
-      console.log('🌍 LocationSearch - Clearing selection due to no DMC data');
+      // console.log('🌍 LocationSearch - Clearing selection due to no DMC data');
       setSelectedItem(null);
       setSearchValue("");
       if (onLocationSelect) {
