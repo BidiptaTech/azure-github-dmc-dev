@@ -97,7 +97,7 @@ class JobSheetController extends Controller
             $drivers = [];
             $vehicles = [];
             $tomorrow = Carbon::tomorrow()->toDateString(); // e.g., '2025-06-12'
-            if (in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138])) {
+            if (in_array($user->role_id, [11, 34, 66, 108, 124, 128, 131, 132, 134, 135, 137, 138])) {
                 
                 if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
@@ -105,7 +105,7 @@ class JobSheetController extends Controller
                 elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 66){
+                elseif($user->role_id == 66 || $user->role_id == 124){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
@@ -726,14 +726,14 @@ class JobSheetController extends Controller
             
             // Get user's dmcId based on role
             $dmcId = null;
-            if (in_array($user->role_id, [11, 20, 34, 65, 99, 108, 128, 131, 132, 134, 135, 137, 138])) {
+            if (in_array($user->role_id, [11, 20, 34, 65, 99, 108, 124, 128, 131, 132, 134, 135, 137, 138])) {
                 if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
                 elseif($user->role_id == 34 || in_array($user->role_id, [128, 131, 132, 134, 135, 137, 138])){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 65){
+                elseif($user->role_id == 65 || $user->role_id == 124){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
@@ -1120,11 +1120,13 @@ class JobSheetController extends Controller
             $order_data = $order->data; // Already an array
         }
         
-        $pickup = $order_data[0]['entrypickup'];
+        // Safely extract data with null coalescing
+        $firstOrderData = $order_data[0] ?? [];
+        $pickup = $firstOrderData['entrypickup'] ?? null;
         $dropoff = null;
         $type = $order->type;
-        $entry_time = $order_data[0]['entrytime'];
-        $entrypickup = $order_data[0]['entrypickup'];
+        $entry_time = $firstOrderData['entrytime'] ?? null;
+        $entrypickup = $firstOrderData['entrypickup'] ?? null;
 
         $existingJobsheet = Jobsheet::where('date', $date)
             ->where('type', $request->order_type)
@@ -1231,20 +1233,14 @@ class JobSheetController extends Controller
                 }
             }
             
-            // Start with a base query
+            // Start with a base query - only join tables that exist and have proper relationships
             $query = Jobsheet::select(
                 'jobsheets.*',
                 'tours.display_id as tour_display_id',
-                'drivers.name as driver_name',
-                'vehicles.vehicle_name',
-                'guides.name as guide_name',
                 'users.name as dmc_name'
             )
-            ->leftJoin('tours', 'jobsheets.tour_id', '=', 'tours.tour_id')
-            ->leftJoin('drivers', 'jobsheets.driver_id', '=', 'drivers.driver_id')
-            ->leftJoin('vehicles', 'jobsheets.vehicle_id', '=', 'vehicles.vehicle_id')
-            ->leftJoin('guides', 'jobsheets.guide_id', '=', 'guides.guide_id')
-            ->leftJoin('users', 'jobsheets.dmc_id', '=', 'users.userId');
+            ->leftJoin('tours', \DB::raw('CAST(jobsheets.tour_id AS VARCHAR)'), '=', \DB::raw('CAST(tours.tour_id AS VARCHAR)'))
+            ->leftJoin('users', \DB::raw('CAST(jobsheets.dmc_id AS VARCHAR)'), '=', \DB::raw('CAST(users."userId" AS VARCHAR)'));
             
             // Apply filters
             if ($dmcId) {
@@ -1298,22 +1294,32 @@ class JobSheetController extends Controller
             
             // Format data for DataTables
             $formattedData = $jobsheets->map(function($jobsheet) {
-                $data = json_decode($jobsheet->data, true);
+                $data = json_decode($jobsheet->data, true) ?? [];
+                
+                // Extract data from JSON column
                 $pickup = $data['pickup'] ?? 'N/A';
                 $dropoff = $data['dropoff'] ?? 'N/A';
+                $type = $data['type'] ?? 'N/A';
+                $serviceType = $data['service_type'] ?? 'N/A';
+                $journeyTime = $data['journey_time'] ?? 'N/A';
+                
+                // Get driver, vehicle, guide info from JSON data
+                $driverName = $data['driver_name'] ?? 'Not Assigned';
+                $vehicleName = $data['vehicle_name'] ?? 'Not Assigned';
+                $guideName = $data['guide_name'] ?? 'Not Assigned';
                 
                 return [
                     'jobsheet_id' => $jobsheet->jobsheet_id,
                     'tour_id' => $jobsheet->tour_display_id ?? $jobsheet->tour_id,
                     'date' => $jobsheet->date,
-                    'type' => $jobsheet->type,
-                    'service_type' => $jobsheet->service_type,
-                    'journey_time' => $jobsheet->journey_time,
+                    'type' => $type,
+                    'service_type' => $serviceType,
+                    'journey_time' => $journeyTime,
                     'pickup' => $pickup,
                     'dropoff' => $dropoff,
-                    'driver' => $jobsheet->driver_name ?? 'Not Assigned',
-                    'vehicle' => $jobsheet->vehicle_name ?? 'Not Assigned',
-                    'guide' => $jobsheet->guide_name ?? 'Not Assigned',
+                    'driver' => $driverName,
+                    'vehicle' => $vehicleName,
+                    'guide' => $guideName,
                     'actions' => '
                         <button class="btn btn-sm btn-info view-details" data-id="'.$jobsheet->jobsheet_id.'">
                             <i class="fas fa-eye"></i> View
@@ -1348,16 +1354,10 @@ class JobSheetController extends Controller
             $jobsheet = Jobsheet::select(
                 'jobsheets.*',
                 'tours.display_id as tour_display_id',
-                'drivers.name as driver_name',
-                'vehicles.vehicle_name',
-                'guides.name as guide_name',
                 'users.name as dmc_name'
             )
-            ->leftJoin('tours', 'jobsheets.tour_id', '=', 'tours.tour_id')
-            ->leftJoin('drivers', 'jobsheets.driver_id', '=', 'drivers.driver_id')
-            ->leftJoin('vehicles', 'jobsheets.vehicle_id', '=', 'vehicles.vehicle_id')
-            ->leftJoin('guides', 'jobsheets.guide_id', '=', 'guides.guide_id')
-            ->leftJoin('users', 'jobsheets.dmc_id', '=', 'users.userId')
+            ->leftJoin('tours', \DB::raw('CAST(jobsheets.tour_id AS VARCHAR)'), '=', \DB::raw('CAST(tours.tour_id AS VARCHAR)'))
+            ->leftJoin('users', \DB::raw('CAST(jobsheets.dmc_id AS VARCHAR)'), '=', \DB::raw('CAST(users."userId" AS VARCHAR)'))
             ->where('jobsheets.jobsheet_id', $id)
             ->first();
             
@@ -1613,14 +1613,14 @@ class JobSheetController extends Controller
             $dmcId = null;
             $type = $request->query('type', 'driver'); // Default to driver orders, can be 'guide'
             // Determine the DMC ID based on user role
-            if (in_array($user->role_id, [11, 20, 34, 65, 66, 99, 108, 128, 131, 132, 134, 135, 137, 138])) {
+            if (in_array($user->role_id, [11, 20, 34, 65, 66, 99, 108, 124, 128, 131, 132, 134, 135, 137, 138])) {
                 if($user->role_id == 11 || $user->role_id == 20){
                     $dmcId = $user->userId;
                 }
                 elseif($user->role_id == 34 || in_array($user->role_id, [128, 131, 132, 134, 135, 137, 138])){
                     $dmcId = $user->created_by;
                 }
-                elseif($user->role_id == 65 || $user->role_id == 66){
+                elseif($user->role_id == 65 || $user->role_id == 66 || $user->role_id == 124){
                     $operation_head = User::where('userId', $user->created_by)->first();
                     $dmcId = $operation_head ? $operation_head->created_by : null;
                 }
