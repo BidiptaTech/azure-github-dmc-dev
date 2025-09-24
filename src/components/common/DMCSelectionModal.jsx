@@ -59,39 +59,53 @@ import {
 
 const StyledDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
-    borderRadius: '20px',
+    borderRadius: { xs: '16px', sm: '20px', md: '24px' },
     padding: '0px',
-    width: '80%',
-    maxWidth: 'none',
-    minWidth: '900px',
-    maxHeight: '90vh',
-    boxShadow: '0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.2)',
+    width: { xs: '96%', sm: '92%', md: '88%', lg: '85%' },
+    maxWidth: { xs: '96vw', sm: '92vw', md: '88vw', lg: '1300px' },
+    minWidth: { xs: '360px', sm: '620px', md: '820px', lg: '920px' },
+    maxHeight: { xs: '96vh', sm: '92vh', md: '88vh', lg: '92vh' },
+    margin: { xs: '12px', sm: '20px', md: '32px', lg: '40px' },
+    boxShadow: '0 32px 64px 8px rgba(0,0,0,0.18), 0 16px 48px 12px rgba(0,0,0,0.15), 0 8px 24px -8px rgba(0,0,0,0.25)',
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(20px)',
   },
 }));
 
 const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   color: 'white',
-  padding: '24px 32px',
-  borderRadius: '20px 20px 0 0',
+  padding: { xs: '20px 24px', sm: '24px 28px', md: '28px 32px' },
+  borderRadius: { xs: '16px 16px 0 0', sm: '20px 20px 0 0', md: '24px 24px 0 0' },
   position: 'relative',
+  minHeight: { xs: '80px', sm: '90px', md: '100px' },
+  display: 'flex',
+  alignItems: 'center',
   '& .MuiIconButton-root': {
     color: 'white',
     position: 'absolute',
-    right: '20px',
+    right: { xs: '16px', sm: '20px', md: '24px' },
     top: '50%',
     transform: 'translateY(-50%)',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: { xs: '10px', sm: '12px', md: '14px' },
+    borderRadius: '50%',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    transition: 'all 0.3s ease',
     '&:hover': {
-      backgroundColor: 'rgba(255,255,255,0.2)',
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      transform: 'translateY(-50%) scale(1.05)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
     },
   },
 }));
 
 const DMCCard = styled(Card)(({ theme, selected }) => ({
-  height: '100px',
+  height: { xs: '120px', sm: '110px', md: '100px' },
   width: '100%',
-  borderRadius: '16px',
+  borderRadius: { xs: '16px', sm: '18px', md: '16px' },
   border: selected ? '3px solid #667eea' : '2px solid #e8eaf6',
   background: selected 
     ? 'linear-gradient(135deg, #f3f4ff 0%, #e8eaf6 100%)' 
@@ -99,39 +113,90 @@ const DMCCard = styled(Card)(({ theme, selected }) => ({
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   cursor: 'pointer',
   position: 'relative',
-  overflow: 'visible',
+  overflow: 'hidden',
+  minHeight: { xs: '120px', sm: '110px', md: '100px' },
+  maxHeight: { xs: '120px', sm: '110px', md: '100px' },
+  // Enhanced shadows for small screens only
+  boxShadow: { 
+    xs: selected 
+      ? '0 8px 32px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0,0,0,0.05)'
+      : '0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
+    sm: selected 
+      ? '0 8px 32px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0,0,0,0.05)'
+      : '0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
+    md: selected 
+      ? '0 8px 16px rgba(102, 126, 234, 0.2)'
+      : '0 4px 12px rgba(0,0,0,0.1)',
+  },
   '&:hover': {
-    transform: 'translateY(-8px) scale(1.02)',
-    boxShadow: selected 
-      ? '0 20px 40px rgba(102, 126, 234, 0.3)' 
-      : '0 16px 32px rgba(0,0,0,0.15)',
+    transform: { 
+      xs: 'translateY(-3px) scale(1.01)', 
+      sm: 'translateY(-4px) scale(1.02)', 
+      md: 'translateY(-8px) scale(1.02)' 
+    },
+    boxShadow: { 
+      xs: selected 
+        ? '0 12px 40px rgba(102, 126, 234, 0.25)'
+        : '0 8px 32px rgba(102, 126, 234, 0.12)',
+      sm: selected 
+        ? '0 20px 48px rgba(102, 126, 234, 0.3)'
+        : '0 16px 40px rgba(102, 126, 234, 0.15)',
+      md: selected 
+        ? '0 20px 40px rgba(102, 126, 234, 0.3)'
+        : '0 16px 32px rgba(0,0,0,0.15)'
+    },
     border: '3px solid #667eea',
   },
+  '&:active': {
+    transform: { xs: 'translateY(-1px) scale(0.98)', sm: 'translateY(-1px) scale(0.99)', md: 'scale(0.99)' },
+  },
+  // Remove the ::before pseudo-element for large screens to keep original look
   '&::before': selected ? {
-    content: '""',
+    content: { xs: '""', sm: '""', md: 'none' },
     position: 'absolute',
-    top: '-2px',
-    left: '-2px',
-    right: '-2px',
-    bottom: '-2px',
-    borderRadius: '18px',
+    top: '-3px',
+    left: '-3px',
+    right: '-3px',
+    bottom: '-3px',
+    borderRadius: { xs: '19px', sm: '21px' },
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     zIndex: -1,
+    opacity: 0.1,
   } : {},
 }));
 
 const SelectionBadge = styled(Box)(({ theme }) => ({
   position: 'absolute',
-  top: '-8px',
-  right: '-8px',
+  top: { xs: '-10px', sm: '-10px', md: '-8px' },
+  right: { xs: '-10px', sm: '-10px', md: '-8px' },
   backgroundColor: '#4caf50',
   borderRadius: '50%',
-  width: '24px',
-  height: '24px',
+  width: { xs: '28px', sm: '28px', md: '24px' },
+  height: { xs: '28px', sm: '28px', md: '24px' },
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
+  boxShadow: { 
+    xs: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
+    sm: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
+    md: '0 4px 12px rgba(76, 175, 80, 0.4)'
+  },
   zIndex: 10,
+  border: { xs: '2px solid white', sm: '2px solid white', md: 'none' },
+  backdropFilter: { xs: 'blur(10px)', sm: 'blur(10px)', md: 'none' },
+  // Only animate on small screens
+  animation: { xs: 'pulse 2s infinite', sm: 'pulse 2s infinite', md: 'none' },
+  '@keyframes pulse': {
+    '0%': {
+      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
+    },
+    '50%': {
+      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.6), 0 2px 8px rgba(0,0,0,0.1)',
+    },
+    '100%': {
+      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
+    },
+  },
 }));
 
 const StyledAlert = styled(Alert)(({ theme }) => ({
@@ -145,12 +210,24 @@ const StyledAlert = styled(Alert)(({ theme }) => ({
 }));
 
 const FilterBox = styled(Paper)(({ theme }) => ({
-  padding: '16px 20px',
-  borderRadius: '12px',
-  background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-  border: '1px solid #dee2e6',
-  marginBottom: '24px',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+  padding: { xs: '16px 20px', sm: '18px 24px', md: '20px 28px' },
+  borderRadius: { xs: '12px', sm: '14px', md: '16px' },
+  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+  border: '2px solid rgba(102, 126, 234, 0.1)',
+  marginBottom: { xs: '32px', sm: '36px', md: '40px' },
+  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.08), 0 2px 8px rgba(0,0,0,0.04)',
+  overflow: 'hidden',
+  position: 'relative',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '3px',
+    background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+    borderRadius: '16px 16px 0 0',
+  },
 }));
 
 // Remove the fallbackDMCOptions array completely
@@ -193,6 +270,19 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     return []; // Return empty array instead of fallback data
   }, [apiDMCs]);
 
+  // Debug logging for modal open state
+  // React.useEffect(() => {
+  //   console.log('🎯 DMCSelectionModal: open prop changed to:', open);
+  //   if (open) {
+  //     console.log('🎯 DMCSelectionModal: Modal should be visible now');
+  //     console.log('🎯 DMCSelectionModal: DMC Options available:', dmcOptions.length);
+  //     console.log('🎯 DMCSelectionModal: Loading state:', dmcLoading);
+  //     console.log('🎯 DMCSelectionModal: Error state:', dmcError);
+  //   } else {
+  //     console.log('🚪 DMCSelectionModal: Modal should be closed now');
+  //   }
+  // }, [open, dmcOptions, dmcLoading, dmcError]);
+
   // Console logging for testing current state
   // React.useEffect(() => {
   //   if (open) {
@@ -200,8 +290,9 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
   //     console.log('🔍 DMC Modal: Selected DMC Logo:', selectedDmcLogo);
   //     console.log('🔍 DMC Modal: Selected DMC Company Name:', selectedDmcCompanyName);
   //     console.log('🔍 DMC Modal: Available DMC Options:', dmcOptions);
+  //     console.log('🔍 DMC Modal: Current selectedDMC state:', selectedDMC);
   //   }
-  // }, [open, selectedDmcLogo, selectedDmcCompanyName, dmcOptions]);
+  // }, [open, selectedDmcLogo, selectedDmcCompanyName, dmcOptions, selectedDMC]);
 
   // Single selection handlers (for Book Tour)
   const handleSelectionChange = (event) => {
@@ -211,10 +302,10 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     // Find the selected DMC data
     const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiId);
     
-    // console.log('📝 Radio button clicked - UI ID:', uiId);
-    // console.log('📝 API userId field:', selectedDmcData?.originalData?.userId);
-    // console.log('📝 Using userId as dmcId:', selectedDmcData?.dmcId);
-    // console.log('📝 Selected DMC Data:', selectedDmcData);
+    console.log('📝 Radio button clicked - UI ID:', uiId);
+    console.log('📝 API userId field:', selectedDmcData?.originalData?.userId);
+    console.log('📝 Using userId as dmcId:', selectedDmcData?.dmcId);
+    console.log('📝 Selected DMC Data:', selectedDmcData);
     
     // Dispatch to Redux store with actual dmcId (can be null)
     dispatch(setSelectedDmcId({
@@ -225,7 +316,9 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
     // console.log('✅ DMC ID dispatched to Redux store');
   };
 
-  const handleDMCCardClick = (uiId) => {
+  const handleDMCCardClick = (uiId, event) => {
+    console.log('🎯 DMC Card clicked - UI ID:', uiId, 'Event:', event);
+    
     const uiIdString = uiId.toString();
     
     if (multiSelect) {
@@ -255,10 +348,9 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       // Find the selected DMC data
       const selectedDmcData = dmcOptions.find(dmc => dmc.id.toString() === uiIdString);
       
-      // console.log('🎯 DMC Card clicked - UI ID:', uiId);
-      // console.log('🎯 API userId field:', selectedDmcData?.originalData?.userId);
-      // console.log('🎯 Using userId as dmcId:', selectedDmcData?.dmcId);
-      // console.log('🎯 Selected DMC Data:', selectedDmcData);
+      console.log('🎯 API userId field:', selectedDmcData?.originalData?.userId);
+      console.log('🎯 Using userId as dmcId:', selectedDmcData?.dmcId);
+      console.log('🎯 Selected DMC Data:', selectedDmcData);
       
       // Dispatch to Redux store with actual dmcId (can be null)
       dispatch(setSelectedDmcId({
@@ -266,13 +358,14 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
         dmcData: selectedDmcData
       }));
       
-      // console.log('✅ DMC ID dispatched to Redux store via card click');
+      console.log('✅ DMC ID dispatched to Redux store via card click');
     }
   };
 
 
 
   const handleFilterChange = (event) => {
+    console.log('🔍 Filter change triggered:', event.target.value);
     setFilterText(event.target.value);
   };
 
@@ -307,6 +400,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
   };
 
   const handleClose = () => {
+    console.log('🚪 DMC Modal closing - handleClose called');
     onClose();
     setSelectedDMC('');
     setFilterText('');
@@ -342,15 +436,42 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
       onClose={handleClose}
       maxWidth={false}
       fullWidth={false}
+      disableScrollLock={false}
+      disableEscapeKeyDown={false}
+      BackdropProps={{
+        style: {
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        }
+      }}
     >
       <StyledDialogTitle>
-        <Box display="flex" alignItems="center">
-          <TravelIcon sx={{ mr: 2, fontSize: 32 }} />
-          <Box>
-            <Typography variant="h4" component="div" fontWeight="bold" sx={{ fontSize: '1.5rem' }}>
+        <Box display="flex" alignItems="center" flexDirection={{ xs: 'column', sm: 'row' }} gap={{ xs: 1, sm: 0 }}>
+          <TravelIcon sx={{ 
+            mr: { xs: 0, sm: 2 }, 
+            fontSize: { xs: 24, sm: 28, md: 32 },
+            mb: { xs: 1, sm: 0 }
+          }} />
+          <Box textAlign={{ xs: 'center', sm: 'left' }}>
+            <Typography 
+              variant="h4" 
+              component="div" 
+              fontWeight="bold" 
+              sx={{ 
+                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+                lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
+              }}
+            >
               {multiSelect ? 'Choose Your DMC Partners' : 'Choose Your DMC Partner'}
             </Typography>
-            <Typography variant="body2" sx={{ color: 'white', mt: 0.5 }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'white', 
+                mt: 0.5,
+                fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
+                lineHeight: { xs: 1.4, sm: 1.5, md: 1.6 }
+              }}
+            >
               {multiSelect 
                 ? 'Select multiple destination management companies for your enquiry' 
                 : 'Select the perfect destination management company for your journey'
@@ -363,16 +484,42 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
         </IconButton>
       </StyledDialogTitle>
 
-      <DialogContent sx={{ padding: '32px', maxHeight: '60vh', overflowY: 'auto', backgroundColor: '#fafbfc' }}>
+      <DialogContent 
+        onClick={() => console.log('📋 DialogContent clicked - modal is interactive')}
+        sx={{ 
+          padding: { xs: '24px', sm: '28px', md: '32px', lg: '40px' }, 
+          maxHeight: { xs: '70vh', sm: '65vh', md: '65vh', lg: '65vh' }, 
+          overflowY: 'auto', 
+          backgroundColor: 'linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%)',
+          pointerEvents: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0,0,0,0.05)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(102, 126, 234, 0.3)',
+            borderRadius: '3px',
+            '&:hover': {
+              background: 'rgba(102, 126, 234, 0.5)',
+            },
+          },
+        }}>
         {searchCriteria && (
           <StyledAlert 
             severity="info" 
-            sx={{ mb: 4, mt: 3 }}
+            sx={{ 
+              mb: { xs: 2, sm: 3, md: 4 }, 
+              mt: { xs: 1, sm: 2, md: 3 },
+              padding: { xs: '12px', sm: '14px', md: '16px' }
+            }}
           >
-            <Box display="flex" alignItems="center" justifyContent="center" width="100%">
-              <LocationIcon sx={{ mr: 2, fontSize: 24 }} />
-              <Typography variant="h6" fontWeight="600">
-                Available DMCs in: <Chip label={getLocationText()} sx={{ ml: 1, fontWeight: 'bold', backgroundColor: '#1976d2', color: 'white' }} />
+            <Box display="flex" alignItems="center" justifyContent="center" width="100%" flexDirection={{ xs: 'column', sm: 'row' }} gap={{ xs: 1, sm: 0 }}>
+              <LocationIcon sx={{ mr: { xs: 0, sm: 2 }, fontSize: { xs: 20, sm: 22, md: 24 } }} />
+              <Typography variant="h6" fontWeight="600" sx={{ fontSize: { xs: '1rem', sm: '1.1rem', md: '1.25rem' }, textAlign: { xs: 'center', sm: 'left' } }}>
+                Available DMCs in: <Chip label={getLocationText()} sx={{ ml: { xs: 0, sm: 1 }, mt: { xs: 1, sm: 0 }, fontWeight: 'bold', backgroundColor: '#1976d2', color: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' } }} />
                 {/* {multiSelect && selectedDmcIds.length > 0 && (
                   <Badge 
                     badgeContent={selectedDmcIds.length} 
@@ -414,6 +561,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
               placeholder="Search DMCs by name..."
               value={filterText}
               onChange={handleFilterChange}
+              onClick={() => console.log('🔍 Search input clicked - input is interactive')}
               size="small"
               disabled={dmcLoading}
               InputProps={{
@@ -466,9 +614,9 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                   value={selectedDMC}
                   onChange={handleSelectionChange}
                 >
-                  <Grid container spacing={3}>
+                  <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
                     {filteredDMCs.map((dmc) => (
-                      <Grid item xs={12} sm={6} md={4} lg={2} xl={1.5} key={dmc.id}>
+                      <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={dmc.id}>
                         <FormControlLabel
                           value={dmc.id.toString()}
                           control={<Radio sx={{ display: 'none' }} />}
@@ -476,7 +624,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                             <DMCCard 
                               selected={isDMCSelected(dmc)} 
                               elevation={isDMCSelected(dmc) ? 8 : 2}
-                              onClick={() => handleDMCCardClick(dmc.id)}
+                              onClick={(e) => handleDMCCardClick(dmc.id, e)}
                             >
                               {isDMCSelected(dmc) && (
                                 <SelectionBadge>
@@ -484,14 +632,23 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                 </SelectionBadge>
                               )}
                               
-                              <CardContent sx={{ padding: '16px 12px !important', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                              <CardContent sx={{ 
+                                padding: { xs: '12px 10px', sm: '14px 10px', md: '16px 12px' } + ' !important', 
+                                height: '100%', 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                justifyContent: 'space-between',
+                                minHeight: { xs: '120px', sm: '110px', md: '100px' },
+                                maxHeight: { xs: '120px', sm: '110px', md: '100px' },
+                                overflow: 'hidden'
+                              }}>
                                 {/* Logo and DMC Name - Same Line */}
                                 <Box display="flex" alignItems="center" justifyContent="center" mb={1} gap={0.5}>
-                                  {dmc.logo ? (
+                                  {dmc.logo && dmc.logo.trim() !== '' ? (
                                     <Box
                                       sx={{
-                                        width: 32,
-                                        height: 32,
+                                        width: { xs: 36, sm: 32, md: 36 },
+                                        height: { xs: 36, sm: 32, md: 36 },
                                         borderRadius: '50%',
                                         overflow: 'hidden',
                                         border: isDMCSelected(dmc) ? '2px solid #667eea' : '2px solid #90a4ae',
@@ -500,6 +657,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                         justifyContent: 'center',
                                         backgroundColor: 'white',
                                         position: 'relative',
+                                        flexShrink: 0,
                                       }}
                                     >
                                       <img
@@ -509,40 +667,51 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                           width: '100%',
                                           height: '100%',
                                           objectFit: 'cover',
+                                          display: 'block',
                                         }}
                                         onError={(e) => {
-                                          // Fallback to icon if image fails to load
+                                          // Hide image and show fallback icon
                                           e.target.style.display = 'none';
-                                          e.target.nextSibling.style.display = 'flex';
+                                          const fallback = e.target.nextElementSibling;
+                                          if (fallback) {
+                                            fallback.style.display = 'flex';
+                                          }
+                                        }}
+                                        onLoad={(e) => {
+                                          // Hide fallback when image loads successfully
+                                          const fallback = e.target.nextElementSibling;
+                                          if (fallback) {
+                                            fallback.style.display = 'none';
+                                          }
                                         }}
                                       />
                                       <Avatar
                                         sx={{
                                           display: 'none',
                                           bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                          width: 28,
-                                          height: 28,
+                                          width: { xs: 32, sm: 28, md: 32 },
+                                          height: { xs: 32, sm: 28, md: 32 },
                                           background: isDMCSelected(dmc) 
                                             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                             : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                         }}
                                       >
-                                        <BusinessIcon sx={{ fontSize: 14 }} />
+                                        <BusinessIcon sx={{ fontSize: { xs: 12, sm: 14, md: 16 } }} />
                                       </Avatar>
                                     </Box>
                                   ) : (
-                                    <Box sx={{ position: 'relative' }}>
+                                    <Box sx={{ position: 'relative', flexShrink: 0 }}>
                                       <Avatar
                                         sx={{
                                           bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                          width: 32,
-                                          height: 32,
+                                          width: { xs: 36, sm: 32, md: 36 },
+                                          height: { xs: 36, sm: 32, md: 36 },
                                           background: isDMCSelected(dmc) 
                                             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                             : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                         }}
                                       >
-                                        <BusinessIcon sx={{ fontSize: 16 }} />
+                                        <BusinessIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
                                       </Avatar>
                                     </Box>
                                   )}
@@ -552,8 +721,8 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                       fontWeight="700" 
                                       color={isDMCSelected(dmc) ? '#667eea' : '#333'}
                                       sx={{ 
-                                        fontSize: '0.8rem',
-                                        lineHeight: 1.2,
+                                        fontSize: { xs: '0.8rem', sm: '0.75rem', md: '0.8rem' },
+                                        lineHeight: { xs: 1.1, sm: 1.15, md: 1.2 },
                                         textAlign: 'left',
                                         wordWrap: 'break-word',
                                       }}
@@ -567,23 +736,23 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                 {/* Location Section - Under the logo and name */}
                                 <Box display="flex" alignItems="center" justifyContent="center">
                                   <Chip
-                                    icon={<LocationIcon sx={{ fontSize: 12 }} />}
+                                    icon={<LocationIcon sx={{ fontSize: { xs: 10, sm: 11, md: 12 } }} />}
                                     label={dmc.location}
                                     size="small"
                                     sx={{
                                       backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e8f5e8',
                                       color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                      fontSize: '0.68rem',
+                                      fontSize: { xs: '0.7rem', sm: '0.64rem', md: '0.68rem' },
                                       fontWeight: 600,
-                                      height: '22px',
+                                      height: { xs: '20px', sm: '20px', md: '22px' },
                                       border: isDMCSelected(dmc) ? 'none' : '1px solid #4caf50',
                                       '& .MuiChip-icon': {
                                         color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                        fontSize: 12,
+                                        fontSize: { xs: 10, sm: 11, md: 12 },
                                       },
                                       '& .MuiChip-label': {
-                                        px: 1,
-                                        fontSize: '0.68rem',
+                                        px: { xs: 0.5, sm: 0.75, md: 1 },
+                                        fontSize: { xs: '0.6rem', sm: '0.64rem', md: '0.68rem' },
                                       },
                                       '&:hover': {
                                         backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#c8e6c9',
@@ -610,13 +779,13 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                 </RadioGroup>
                               ) : (
                   // Multi-select mode without checkboxes - just card clicks
-                  <Grid container spacing={3}>
+                  <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
                     {filteredDMCs.map((dmc) => (
-                      <Grid item xs={12} sm={6} md={4} lg={2} xl={1.5} key={dmc.id}>
+                      <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={dmc.id}>
                         <DMCCard 
                           selected={isDMCSelected(dmc)} 
                           elevation={isDMCSelected(dmc) ? 8 : 2}
-                          onClick={() => handleDMCCardClick(dmc.id)}
+                          onClick={(e) => handleDMCCardClick(dmc.id, e)}
                         >
                           {isDMCSelected(dmc) && (
                             <SelectionBadge>
@@ -624,14 +793,23 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                             </SelectionBadge>
                           )}
                           
-                          <CardContent sx={{ padding: '16px 12px !important', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <CardContent sx={{ 
+                            padding: { xs: '12px 10px', sm: '14px 10px', md: '16px 12px' } + ' !important', 
+                            height: '100%', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            justifyContent: 'space-between',
+                            minHeight: { xs: '120px', sm: '110px', md: '100px' },
+                            maxHeight: { xs: '120px', sm: '110px', md: '100px' },
+                            overflow: 'hidden'
+                          }}>
                             {/* Logo and DMC Name - Same Line */}
                             <Box display="flex" alignItems="center" justifyContent="center" mb={1} gap={0.5}>
-                              {dmc.logo ? (
+                              {dmc.logo && dmc.logo.trim() !== '' ? (
                                 <Box
                                   sx={{
-                                    width: 32,
-                                    height: 32,
+                                    width: { xs: 36, sm: 32, md: 36 },
+                                    height: { xs: 36, sm: 32, md: 36 },
                                     borderRadius: '50%',
                                     overflow: 'hidden',
                                     border: isDMCSelected(dmc) ? '2px solid #667eea' : '2px solid #90a4ae',
@@ -640,6 +818,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                     justifyContent: 'center',
                                     backgroundColor: 'white',
                                     position: 'relative',
+                                    flexShrink: 0,
                                   }}
                                 >
                                   <img
@@ -649,40 +828,51 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                       width: '100%',
                                       height: '100%',
                                       objectFit: 'cover',
+                                      display: 'block',
                                     }}
                                     onError={(e) => {
-                                      // Fallback to icon if image fails to load
+                                      // Hide image and show fallback icon
                                       e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'flex';
+                                      const fallback = e.target.nextElementSibling;
+                                      if (fallback) {
+                                        fallback.style.display = 'flex';
+                                      }
+                                    }}
+                                    onLoad={(e) => {
+                                      // Hide fallback when image loads successfully
+                                      const fallback = e.target.nextElementSibling;
+                                      if (fallback) {
+                                        fallback.style.display = 'none';
+                                      }
                                     }}
                                   />
                                   <Avatar
                                     sx={{
                                       display: 'none',
                                       bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                      width: 28,
-                                      height: 28,
+                                      width: { xs: 32, sm: 28, md: 32 },
+                                      height: { xs: 32, sm: 28, md: 32 },
                                       background: isDMCSelected(dmc) 
                                         ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                         : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                     }}
                                   >
-                                    <BusinessIcon sx={{ fontSize: 14 }} />
+                                    <BusinessIcon sx={{ fontSize: { xs: 12, sm: 14, md: 16 } }} />
                                   </Avatar>
                                 </Box>
                               ) : (
-                                <Box sx={{ position: 'relative' }}>
+                                <Box sx={{ position: 'relative', flexShrink: 0 }}>
                                   <Avatar
                                     sx={{
                                       bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                      width: 32,
-                                      height: 32,
+                                      width: { xs: 36, sm: 32, md: 36 },
+                                      height: { xs: 36, sm: 32, md: 36 },
                                       background: isDMCSelected(dmc) 
                                         ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                         : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                     }}
                                   >
-                                    <BusinessIcon sx={{ fontSize: 16 }} />
+                                    <BusinessIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
                                   </Avatar>
                                 </Box>
                               )}
@@ -692,7 +882,7 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                   fontWeight="700" 
                                   color={isDMCSelected(dmc) ? '#667eea' : '#333'}
                                   sx={{ 
-                                    fontSize: '0.8rem',
+                                    fontSize: { xs: '0.8rem', sm: '0.75rem', md: '0.8rem' },
                                     lineHeight: 1.2,
                                     textAlign: 'left',
                                     wordWrap: 'break-word',
@@ -713,17 +903,17 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                 sx={{
                                   backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e8f5e8',
                                   color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                  fontSize: '0.68rem',
+                                  fontSize: { xs: '0.7rem', sm: '0.64rem', md: '0.68rem' },
                                   fontWeight: 600,
-                                  height: '22px',
+                                  height: { xs: '20px', sm: '20px', md: '22px' },
                                   border: isDMCSelected(dmc) ? 'none' : '1px solid #4caf50',
                                   '& .MuiChip-icon': {
                                     color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                    fontSize: 12,
+                                    fontSize: { xs: 10, sm: 11, md: 12 },
                                   },
                                   '& .MuiChip-label': {
                                     px: 1,
-                                    fontSize: '0.68rem',
+                                    fontSize: { xs: '0.7rem', sm: '0.64rem', md: '0.68rem' },
                                   },
                                   '&:hover': {
                                     backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#c8e6c9',
@@ -843,21 +1033,37 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
 
       <Divider sx={{ borderColor: '#e0e0e0' }} />
 
-      <DialogActions sx={{ padding: '24px 32px', backgroundColor: '#fafbfc' }}>
+      <DialogActions sx={{ 
+        padding: { xs: '24px 28px', sm: '28px 32px', md: '32px 40px' }, 
+        backgroundColor: 'linear-gradient(135deg, #fafbfc 0%, #f1f5f9 100%)',
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 3, sm: 2 },
+        borderTop: '1px solid rgba(102, 126, 234, 0.1)',
+        '& > *': {
+          margin: { xs: '0 !important', sm: '0 !important' },
+          width: { xs: '100%', sm: 'auto' },
+          minWidth: { xs: '100%', sm: '140px' },
+        }
+      }}>
         <Button 
           onClick={handleClose}
           variant="outlined"
           size="large"
           sx={{ 
-            borderRadius: '12px',
+            borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             textTransform: 'none',
             fontWeight: 600,
-            minWidth: '120px',
-            borderColor: '#667eea',
+            borderColor: 'rgba(102, 126, 234, 0.3)',
             color: '#667eea',
+            fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
+            padding: { xs: '12px 20px', sm: '14px 24px', md: '16px 28px' },
+            border: '2px solid',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               borderColor: '#5a67d8',
-              backgroundColor: 'rgba(102, 126, 234, 0.04)',
+              backgroundColor: 'rgba(102, 126, 234, 0.08)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
             },
           }}
         >
@@ -872,21 +1078,28 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
             (multiSelect ? selectedDmcIds.length === 0 : !selectedDMC)
           }
           sx={{
-            borderRadius: '12px',
+            borderRadius: { xs: '12px', sm: '14px', md: '16px' },
             textTransform: 'none',
             fontWeight: 600,
-            minWidth: '160px',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3), 0 2px 8px rgba(0,0,0,0.1)',
+            fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' },
+            padding: { xs: '12px 24px', sm: '14px 28px', md: '16px 32px' },
+            border: 'none',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               background: 'linear-gradient(135deg, #5a67d8 0%, #6b46a3 100%)',
-              boxShadow: '0 12px 32px rgba(102, 126, 234, 0.6)',
+              boxShadow: '0 12px 48px rgba(102, 126, 234, 0.4), 0 4px 16px rgba(0,0,0,0.15)',
               transform: 'translateY(-2px)',
             },
+            '&:active': {
+              transform: 'translateY(0px)',
+            },
             '&:disabled': {
-              background: '#e0e0e0',
-              color: '#9e9e9e',
+              background: 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+              color: 'rgba(0,0,0,0.38)',
               boxShadow: 'none',
+              transform: 'none',
             },
           }}
         >

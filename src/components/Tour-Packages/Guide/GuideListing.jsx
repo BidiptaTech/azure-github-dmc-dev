@@ -256,7 +256,7 @@ const TooltipContent = ({ guide }) => {
   );
 };
 
-const GuideListing = ({ value, onChange, disabled }) => {
+const GuideListing = ({ value, onChange, disabled, selectedGuideName }) => {
   const dispatch = useDispatch();
   const guides = useSelector((state) => state.tourguide.Guides) || [];
   const searchParams = useSelector((state) => state.tourguide.searchParams);
@@ -265,6 +265,7 @@ const GuideListing = ({ value, onChange, disabled }) => {
   console.log('GuideListing debug:', value);
   console.log('GuideListing - Received value details:', {
     value: value,
+    selectedGuideName: selectedGuideName,
     valueType: typeof value,
     isNull: value === null,
     isUndefined: value === undefined,
@@ -292,6 +293,27 @@ const GuideListing = ({ value, onChange, disabled }) => {
 
   // Find selected guide once
   const selectedGuide = useMemo(() => {
+    console.log('GuideListing - selectedGuide useMemo:', {
+      selectedGuideName,
+      value,
+      hasSelectedGuideName: !!selectedGuideName
+    });
+    
+    // If we have a selectedGuideName, create a display object
+    if (selectedGuideName) {
+      const displayObject = {
+        id: value,
+        guide_name: selectedGuideName,
+        // Add other required properties with default values
+        dmc_day_rate: 0,
+        travClicks_day_rate: 0,
+        dmc_id: null,
+        travclicks_dmc_id: null
+      };
+      console.log('GuideListing - Created display object:', displayObject);
+      return displayObject;
+    }
+    
     if (!value || !filteredGuides || filteredGuides.length === 0) {
       console.log('GuideListing - No selected guide because:', {
         noValue: !value,
@@ -316,8 +338,10 @@ const GuideListing = ({ value, onChange, disabled }) => {
       availableIds: filteredGuides.map(g => ({ id: g.id, name: g.guide_name }))
     });
     
-    return foundGuide || null;
-  }, [filteredGuides, value]);
+    const result = foundGuide || null;
+    console.log('GuideListing - Final selectedGuide result:', result);
+    return result;
+  }, [filteredGuides, value, selectedGuideName]);
 
   // Handle guide selection - fix unnecessary dispatch calls
   const handleGuideSelect = useCallback((event, newValue) => {
@@ -429,7 +453,8 @@ const GuideListing = ({ value, onChange, disabled }) => {
   // Memoize isOptionEqualToValue function
   const isOptionEqualToValue = useCallback((option, value) => {
     if (!option || !value) return false;
-    return option.id === value.id;
+    // Handle both regular guide objects and display objects created from selectedGuideName
+    return option.id === value.id || (option.guide_name && value.guide_name && option.guide_name === value.guide_name);
   }, []);
 
   // Function to get keys for options
@@ -450,6 +475,10 @@ const GuideListing = ({ value, onChange, disabled }) => {
         disabled={disabled || filteredGuides.length === 0}
         renderOption={renderOption}
         renderInput={renderInput}
+        renderValue={(option) => {
+          if (!option) return '';
+          return option.guide_name || '';
+        }}
         sx={{
           '& .MuiAutocomplete-input': {
             height: '12px',

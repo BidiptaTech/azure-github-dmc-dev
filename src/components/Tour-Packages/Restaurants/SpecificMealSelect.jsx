@@ -173,15 +173,31 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
     calculateTotalPrice();
   }, [selectedMealIndex, selectedMealIndexes, selectedMealParts, specificMealType, paxCounts]);
 
-  // Reset internal state when selectedMealType changes
+  // Initialize with existing value if available
   useEffect(() => {
-    setSpecificMealType("");
+    console.log('SpecificMealSelect - Initializing with value:', value);
+    
+    if (value && typeof value === 'object' && value.specificMealType) {
+      console.log('Setting specificMealType from value:', value.specificMealType);
+      setSpecificMealType(value.specificMealType);
+      setTotalPrice(value.totalPrice || 0);
+      
+      // If we have items, restore the confirmed meal parts
+      if (value.items && Array.isArray(value.items) && value.items.length > 0) {
+        console.log('Restoring confirmed meal parts:', value.items);
+        setConfirmedMealParts(value.items);
+      }
+    } else {
+      // Only reset if no value is provided
+      console.log('Resetting SpecificMealSelect state');
+      setSpecificMealType("");
     setSelectedMealIndex(null);
     setSelectedMealIndexes([]);
     setSelectedMealParts([]);
     setIsConfirmDisabled(true);
     setTotalPrice(0);
-  }, [selectedMealType]);
+    }
+  }, [value,selectedMealType]); // Remove selectedMealType dependency to prevent conflicts
 
   // Format currency helper function
   const formatCurrency = (amount) => {
@@ -460,6 +476,25 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
             '& .MuiSelect-select': {
               fontSize: '0.8rem'
             }
+          }}
+          renderValue={(selected) => {
+            if (!selected) return <em>Select a meal type</em>;
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                {getIconForMealType(selected)}
+                <Typography sx={{ ml: 1, fontSize: '0.8rem', flex: 1 }}>{selected}</Typography>
+                {value && value.totalPrice && (
+                  <Typography sx={{ fontSize: '0.7rem', color: '#4caf50', fontWeight: 500 }}>
+                    ${value.totalPrice}
+                  </Typography>
+                )}
+                {value && value.items && value.items.length > 0 && (
+                  <Typography sx={{ ml: 1, fontSize: '0.65rem', color: '#666', fontStyle: 'italic' }}>
+                    ({value.items.length} item{value.items.length !== 1 ? 's' : ''})
+                  </Typography>
+                )}
+              </Box>
+            );
           }}
         >
           <MenuItem value="" sx={{ fontSize: '0.8rem' }}>

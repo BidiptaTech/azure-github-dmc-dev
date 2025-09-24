@@ -1,41 +1,141 @@
-import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-import { Sidebar, Menu, MenuItem, SubMenu } from "react-pro-sidebar";
-import {
-  homeItems,
-  blogItems,
-  pageItems,
-  dashboardItems,
-  categorieMobileItems,
-  categorieMegaMenuItems,
-} from "../../data/mainMenuData";
-import { isActiveLink } from "../../utils/linkActiveChecker";
-import Social from "../common/social/Social";
-import ContactInfo from "./ContactInfo";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser } from "@/slice/common/authSlices";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
-import LogoutIcon from '@mui/icons-material/Logout';
 import { setAgentId as setAgentIdEdit } from "@/slice/common/EditSlice";
+import { resetPackages } from "../../slice/tour-packages/prePackagesSlice";
+import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
+import * as commonActions from "../../slice/common/commonSlice";
+import {
+  Box,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Divider,
+  Avatar,
+  IconButton,
+  Paper,
+} from '@mui/material';
+import {
+  Dashboard as DashboardIcon,
+  Explore as ExploreIcon,
+  Email as EmailIcon,
+  Inventory as InventoryIcon,
+  Logout as LogoutIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
+// Modal components are now imported and used by the parent header component
+import Social from "../common/social/Social";
 
-const MobileMenu = () => {
+const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, onOpenPackagesSearchModal }) => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const { userRole } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
-  const [isActiveParent, setIsActiveParent] = useState(false);
-  const [isActiveNestedParentTwo, setisActiveNestedParentTwo] = useState(false);
-  const [isActiveNestedParent, setisActiveNestedParent] = useState(false);
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-  const navigate = useNavigate();
 
-  // Check if the user is a manager or sales head
-  const isManagerOrSalesHead = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)"|| userRole === "Assistant Manager (DMC)";
+  // Modal states are now managed by the parent header component
+
+  // Get DMC count and selected DMC from Redux state
+  const dmcCount = useSelector((state) => state.dmc.dmcCount);
+  const dmcCountLoading = useSelector((state) => state.dmc.dmcCountLoading);
+  const selectedDmcId = useSelector((state) => state.dmc.dmcId);
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData);
+  const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
+
+  // Determine packages path based on user role
+  const packagesPath = userRole === "Agent" 
+    ? "/dashboard/pre-define-packages" 
+    : "/dashboard/db-dashboard/tour-packages";
+
+  // Automatically fetch DMC count when component mounts
+  useEffect(() => {
+    dispatch(fetchDMCCount());
+  }, [dispatch]);
+
+  // Modal state tracking is now handled by the parent header component
+
+  // Auto-open functionality is now handled by the parent header component
+
+  // Simple function to close mobile menu
+  const closeMobileMenu = () => {
+    console.log('🚪 Closing mobile menu');
+    if (onMenuClose) {
+      onMenuClose();
+    }
+  };
+
+  // === Menu Handlers ===
+  const handleDashboardClick = () => {
+    console.log('📱 Dashboard clicked');
+    closeMobileMenu();
+    navigate("/dashboard/db-dashboard");
+  };
+
+  const handleBookTourClick = () => {
+    console.log('📱 Book Tour clicked');
+    if (dmcCountLoading) return;
+    
+    // Close mobile menu first, then open modal with a small delay
+    closeMobileMenu();
+    setTimeout(() => {
+      console.log('📱 Opening search modal via parent');
+      onOpenSearchModal();
+      console.log('✅ Book Tour search modal opened');
+    }, 150);
+  };
+
+  // Modal handlers are now managed by the parent header component
+
+  const handleBookEnquiryClick = () => {
+    console.log('📱 Quick Enquiry clicked');
+    if (dmcCountLoading) return;
+    
+    // Close mobile menu first, then open modal with a small delay
+    closeMobileMenu();
+    setTimeout(() => {
+      console.log('📱 Opening enquiry search modal via parent');
+      onOpenEnquirySearchModal();
+      console.log('✅ Quick Enquiry search modal opened');
+    }, 150);
+  };
+
+  const handlePackagesClick = () => {
+    console.log('📱 Packages clicked');
+    dispatch(resetPackages());
+    dispatch(commonActions.setGuestCounts({
+      Adults: 1, Children: 0, Infants: 0,
+      maleCount: 0, femaleCount: 0, ages: []
+    }));
+    
+    if (dmcCountLoading) return;
+    
+    if (userRole !== "Agent") {
+      closeMobileMenu();
+      navigate(packagesPath, { 
+        state: { selectedDMC: null, searchCriteria: null } 
+      });
+      return;
+    }
+    
+    // Close mobile menu first, then open modal with a small delay
+    closeMobileMenu();
+    setTimeout(() => {
+      console.log('📱 Opening packages search modal via parent');
+      onOpenPackagesSearchModal();
+      console.log('✅ Packages search modal opened');
+    }, 150);
+  };
 
   const handleLogout = async () => {
-    dispatch(clearSelectedDmc()); // Clear DMC selection on logout
+    console.log('📱 Logout clicked');
+    closeMobileMenu();
+    dispatch(clearSelectedDmc());
     dispatch(setAgentIdEdit(null));
     const result = await dispatch(logoutUser());
     if (logoutUser.fulfilled.match(result)) {
@@ -43,132 +143,148 @@ const MobileMenu = () => {
     }
   };
 
-  useEffect(() => {
-    categorieMegaMenuItems.map((megaMenu) => {
-      megaMenu?.menuCol?.map((megaCol) => {
-        megaCol?.menuItems?.map((item) => {
-          item?.menuList?.map((list) => {
-            if (list.routePath?.split("/")[1] == pathname.split("/")[1]) {
-              setIsActiveParent(true);
-              setisActiveNestedParentTwo(item?.title);
-              setisActiveNestedParent(megaMenu?.id);
-            }
-          });
-        });
-      });
-    });
-  }, []);
+  // All modal handlers are now managed by the parent header component
+
+  // Check if the user is a manager or sales head
+  const isManagerOrSalesHead = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)";
+
+  // Menu items configuration
+  const menuItems = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: <DashboardIcon />,
+      onClick: handleDashboardClick,
+      active: pathname === "/dashboard/db-dashboard",
+      show: true
+    },
+    {
+      id: 'book-tour',
+      label: 'Book Tour',
+      icon: <ExploreIcon />,
+      onClick: handleBookTourClick,
+      active: pathname === "/dashboard/db-dashboard/home_1",
+      show: !isManagerOrSalesHead
+    },
+    {
+      id: 'quick-enquiry',
+      label: 'Quick Enquiry',
+      icon: <EmailIcon />,
+      onClick: handleBookEnquiryClick,
+      active: pathname === "/dashboard/db-dashboard/home_2",
+      show: !isManagerOrSalesHead
+    },
+    {
+      id: 'packages',
+      label: 'Packages',
+      icon: <InventoryIcon />,
+      onClick: handlePackagesClick,
+      active: pathname === packagesPath,
+      show: !(userRole === "Operational Head(DMC)" || userRole === "DMC Operational Manager" || userRole === "DMC Assistant Operational Manager")
+    }
+  ];
 
   return (
-    <>
-      <div className="pro-header d-flex align-items-center justify-between border-bottom-light">
-        <Link to="/">
-          <img
+    <Box sx={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        p: 2,
+        borderBottom: '1px solid #e0e0e0'
+      }}>
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <Avatar
             src={dmcLogo}
-            style={{ width: "70px", height: "50px", borderRadius: "10px" }}
-            alt="brand"
+            sx={{ width: 50, height: 50, borderRadius: 2 }}
+            variant="rounded"
           />
         </Link>
-        {/* End logo */}
+        <IconButton onClick={closeMobileMenu} size="small">
+          <CloseIcon />
+        </IconButton>
+      </Box>
 
-        <div
-          className="fix-icon"
-          data-bs-dismiss="offcanvas"
-          aria-label="Close"
-        >
-          <i className="icon icon-close"></i>
-        </div>
-        {/* icon close */}
-      </div>
-      {/* End pro-header */}
-
-      <Sidebar width="400" backgroundColor="#fff">
-        <Menu style={{ padding: "10px 0" }}>
-          <MenuItem
-            onClick={() => navigate("/dashboard/db-dashboard")}
-            className={
-              pathname === "/dashboard/db-dashboard" ? "menu-active-link" : ""
-            }
-            style={{ margin: "5px 0" }}
-          >
-            Dashboard
-          </MenuItem>
-          
-          {/* Only show Book Tour for non-manager roles */}
-          {!isManagerOrSalesHead && (
-            <MenuItem
-              onClick={() => navigate("/dashboard/db-dashboard/home_1")}
-              className={
-                pathname === "/dashboard/db-dashboard/home_1"
-                  ? "menu-active-link"
-                  : ""
-              }
-              style={{ margin: "5px 0" }}
-            >
-              Book Tour
-            </MenuItem>
-          )}
-          
-          {/* Only show Book An Enquiry for non-manager roles */}
-          {!isManagerOrSalesHead && (
-            <MenuItem
-              onClick={() => navigate("/dashboard/db-dashboard/home_2")}
-              className={
-                pathname === "/dashboard/db-dashboard/home_2"
-                  ? "menu-active-link"
-                  : ""
-              }
-              style={{ margin: "5px 0" }}
-            >
-              Quick Enquiry
-            </MenuItem>
-          )}
-          
-          <MenuItem
-            onClick={() => navigate("/dashboard/db-dashboard/create-package")}
-            className={
-              pathname === "/dashboard/db-dashboard/create-package"
-                ? "menu-active-link"
-                : ""
-            }
-            style={{ margin: "5px 0" }}
-          >
-            Create Package
-          </MenuItem>
-
-          {isAuthenticated && (
-            <MenuItem
-              onClick={handleLogout}
-              style={{ 
-                margin: "15px 0 5px 0",
-                display: "flex", 
-                alignItems: "center", 
-                padding: "10px 15px",
-                background: "#ff4747",
-                color: "white",
-                borderRadius: "4px",
-                fontWeight: "500"
+      {/* Menu Items */}
+      <List sx={{ flex: 1, pt: 1 }}>
+        {menuItems.filter(item => item.show).map((item) => (
+          <ListItem key={item.id} disablePadding sx={{ px: 1 }}>
+            <ListItemButton
+              onClick={item.onClick}
+              selected={item.active}
+              sx={{
+                borderRadius: 2,
+                mx: 1,
+                my: 0.5,
+                '&.Mui-selected': {
+                  backgroundColor: '#e3f2fd',
+                  color: '#1976d2',
+                  '& .MuiListItemIcon-root': {
+                    color: '#1976d2',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                },
               }}
             >
-              <LogoutIcon style={{ fontSize: "20px", marginRight: "8px" }} /> Logout
-            </MenuItem>
-          )}
-        </Menu>
-      </Sidebar>
+              <ListItemIcon sx={{ color: item.active ? '#1976d2' : '#666' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={item.label}
+                primaryTypographyProps={{
+                  fontWeight: item.active ? 600 : 400,
+                  fontSize: '0.95rem'
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
 
-      <div className="mobile-footer px-20 py-5 border-top-light"></div>
-
-      <div className="pro-footer">
-        <ContactInfo />
-        <div className="mt-10">
-          <h5 className="text-16 fw-500 mb-10">Follow us on social media</h5>
-          <div className="d-flex x-gap-20 items-center">
+      {/* Footer */}
+      <Box sx={{ borderTop: '1px solid #e0e0e0', p: 2 }}>
+          {isAuthenticated && (
+          <>
+            <Divider sx={{ mb: 2 }} />
+            <ListItem disablePadding>
+              <ListItemButton
+              onClick={handleLogout}
+                sx={{
+                  borderRadius: 2,
+                  backgroundColor: '#ff4747',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#d32f2f',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'white' }}>
+                  <LogoutIcon />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Logout"
+                  primaryTypographyProps={{
+                    fontWeight: 500
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          </>
+        )}
+        
+        <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Follow us on social media
+          </Typography>
             <Social />
-          </div>
-        </div>
-      </div>
-      {/* End pro-footer */}
-    </>
+        </Box>
+      </Box>
+
+      {/* Modals are now rendered by the parent header component */}
+    </Box>
   );
 };
 

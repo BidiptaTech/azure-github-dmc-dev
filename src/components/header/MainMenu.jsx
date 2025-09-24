@@ -112,9 +112,16 @@ const MainMenu = ({ style = "" }) => {
       });
     } else {
       // Multiple DMCs - proceed with normal DMC selection modal
+      console.log('📋 MainMenu: Opening DMC modal with searchData:', searchData);
       setSearchCriteria({ country: searchData });
       setIsSearchModalOpen(false);
       setIsDMCModalOpen(true);
+      console.log('✅ MainMenu: DMC modal state set to true');
+      
+      // Debug: Check modal state after a brief delay
+      setTimeout(() => {
+        console.log('🔍 MainMenu: Checking DMC modal state after delay');
+      }, 100);
     }
   };
 
@@ -265,7 +272,7 @@ const MainMenu = ({ style = "" }) => {
 
   return (
     <>
-    <nav className="menu js-navList">
+    <nav className="menu js-navList  lg:d-block">
       <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex" }}>
         <li
           className={`menu-item ${

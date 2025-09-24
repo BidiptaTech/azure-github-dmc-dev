@@ -1033,63 +1033,58 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     // Remove from Redux state if the section has guide data (either has an original ID or guide selection)
     const hasOriginalId = sectionToRemove?.originalData?.id;
     const hasGuideId = sectionToRemove?.guide;
+    console.log("Guide - Has original ID:", hasOriginalId);
+    console.log("Guide - Section to remove:", sectionToRemove);
     
     if (hasOriginalId || hasGuideId) {
       // Clone the existing services array
       const currentServices = [...existingServices];
+      console.log("Guide - Current services before removal:", currentServices);
       
-      // Filter out guide services that contain this booking
-      const filteredServices = currentServices.map(service => {
+      // Filter out the specific guide service
+      const filteredServices = currentServices.filter(service => {
         // Check if this is a guide service
         if (service.type === "guide") {
-          // Check if this service contains data that matches our booking
+          // For existing services with booking_id, match by booking_id
+          if (sectionToRemove.originalData?.booking_id && service.booking_id) {
+            const shouldRemove = service.booking_id === sectionToRemove.originalData.booking_id;
+            console.log(`Guide - Checking booking_id match: ${service.booking_id} === ${sectionToRemove.originalData.booking_id} = ${shouldRemove}`);
+            return !shouldRemove;
+          }
+          
+          // For new services without booking_id, match by guide data
           if (service.data && Array.isArray(service.data)) {
-            // Remove the specific booking with matching ID and booking_id (if available)
-            const filteredData = service.data.filter(dataItem => {
-              // Match by booking_id first (most reliable)
-              if (sectionToRemove.originalData?.booking_id && dataItem.booking_id) {
-                return !(dataItem.id === sectionToRemove.originalData.id && 
-                        dataItem.booking_id === sectionToRemove.originalData.booking_id);
+            const hasMatchingData = service.data.some(dataItem => {
+              // Match by guide_id and dayIndex
+              if (sectionToRemove.guide && dataItem.guide_id) {
+                const matchesGuide = dataItem.guide_id === sectionToRemove.guide;
+                const matchesDay = dataItem.dayIndex === dayIndex;
+                console.log(`Guide - Checking data match: guide_id ${dataItem.guide_id} === ${sectionToRemove.guide} && dayIndex ${dataItem.dayIndex} === ${dayIndex} = ${matchesGuide && matchesDay}`);
+                return matchesGuide && matchesDay;
               }
-              
-              // Match by ID as fallback
-              if (sectionToRemove.originalData?.id && dataItem.id === sectionToRemove.originalData.id) {
-                return false;
-              }
-              
-              // Match by guide ID and dayIndex as final fallback for new bookings
-              if (sectionToRemove.guide && 
-                  dataItem.guide_id === sectionToRemove.guide &&
-                  dataItem.dayIndex === dayIndex) {
-                return false;
-              }
-              
-              return true;
+              return false;
             });
             
-            if (filteredData.length === 0) {
-              // If no data left, mark for removal
-              return null;
-            } else {
-              // Create a new service with filtered data (immutable update)
-              return {
-                ...service,
-                data: filteredData
-              };
+            if (hasMatchingData) {
+              console.log("Guide - Found matching data, removing service");
+              return false; // Remove this service
             }
           }
         }
         
-        // Keep all other services as-is
-        return service;
-      }).filter(service => service !== null); // Remove services marked as null
+        // Keep all other services
+        return true;
+      });
+      
+      console.log("Guide - Filtered services after removal:", filteredServices);
       
       // Only dispatch if there's an actual change
-      if (filteredServices.length !== currentServices.length || 
-          JSON.stringify(filteredServices) !== JSON.stringify(currentServices)) {
-        console.log("Guide - Removing booking from Redux:", sectionToRemove);
-        console.log("Guide - Updated services:", filteredServices);
+      if (filteredServices.length !== currentServices.length) {
+        console.log("Guide - Removing guide service from Redux");
+        console.log(`Guide - Services count: ${currentServices.length} -> ${filteredServices.length}`);
         dispatch(setAllServices(filteredServices));
+      } else {
+        console.log("Guide - No matching service found to remove");
       }
     }
   };
@@ -1325,7 +1320,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
           const completionStatus = getCompletionStatus(section);
           const isExpanded = expandedSections.includes(sectionIndex);
           const outOfTourDates = isBookingOutOfTourDates(section);
-          
+          console.log("sectionIndexguide1323", section);
           console.log(`Rendering section ${sectionIndex}:`, {
             guideId: section.guide,
             guideName: section.guide_name,
@@ -1600,6 +1595,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
                             <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <GuideListing 
                                 value={section.guide}
+                                selectedGuideName={section?.guide_name}
                                 onChange={(field, value) => handleInputChange(sectionIndex, field, value)}
                                 disabled={status === 'loading' || !isGuideListingEnabled}
                               />

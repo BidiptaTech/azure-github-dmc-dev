@@ -98,7 +98,7 @@ const HeaderDashBoard = () => {
                   />
                 </div>
 
-                <div className="d-none xl:d-flex x-gap-20 items-center pl-20">
+                <div className="d-flex xl:d-none x-gap-20 items-center pl-20">
                   <div>
                     <button
                       className="d-flex items-center icon-menu text-20"
