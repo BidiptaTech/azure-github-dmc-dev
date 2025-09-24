@@ -916,106 +916,107 @@ class BookingListController extends Controller
         $agent_ids = collect();
         $tourId = Crypt::decrypt($tourId);
         // Similar logic to index method for filtering bookings based on user role
-        switch ($user->role_id) {
-            case 10: // Master DMC
-                $dmc_ids = User::where('master_dmc_id', $user->userId)
-                                ->where('role_id', 11) // DMCs
-                                ->pluck('userId');
+        // switch ($user->role_id) {
+        //     case 10: // Master DMC
+        //         $dmc_ids = User::where('master_dmc_id', $user->userId)
+        //                         ->where('role_id', 11) // DMCs
+        //                         ->pluck('userId');
         
-                $sales_heads = User::whereIn('created_by', $dmc_ids)
-                                    ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
-                                    ->pluck('userId');
+        //         $sales_heads = User::whereIn('created_by', $dmc_ids)
+        //                             ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
+        //                             ->pluck('userId');
         
-                $sales_managers = User::whereIn('created_by', $sales_heads)
-                                        ->whereIn('role_id', [12, 37])
-                                        ->pluck('userId');
+        //         $sales_managers = User::whereIn('created_by', $sales_heads)
+        //                                 ->whereIn('role_id', [12, 37])
+        //                                 ->pluck('userId');
         
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                                            ->where('role_id', 38)
-                                            ->pluck('userId');
+        //         $assistant_managers = User::whereIn('created_by', $sales_managers)
+        //                                     ->where('role_id', 38)
+        //                                     ->pluck('userId');
         
-                $all_ids = collect($dmc_ids)
-                    ->merge($sales_heads)
-                    ->merge($sales_managers)
-                    ->merge($assistant_managers)
-                    ->unique()
-                    ->filter();
+        //         $all_ids = collect($dmc_ids)
+        //             ->merge($sales_heads)
+        //             ->merge($sales_managers)
+        //             ->merge($assistant_managers)
+        //             ->unique()
+        //             ->filter();
         
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
-                break;
+        //         $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+        //         break;
                 
-            case 11: // DMC
-                $dmc_id = $user->userId;
+        //     case 11: // DMC
+        //         $dmc_id = $user->userId;
 
-                $sales_heads = User::where('created_by', $dmc_id)
-                    ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
-                    ->pluck('userId');
+        //         $sales_heads = User::where('created_by', $dmc_id)
+        //             ->whereIn('role_id', [33, 128, 129, 130, 134, 135, 136, 138])
+        //             ->pluck('userId');
 
-                $sales_managers = User::whereIn('created_by', $sales_heads)
-                    ->whereIn('role_id', [12, 37])
-                    ->pluck('userId');
+        //         $sales_managers = User::whereIn('created_by', $sales_heads)
+        //             ->whereIn('role_id', [12, 37])
+        //             ->pluck('userId');
 
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                    ->where('role_id', 38)
-                    ->pluck('userId');
+        //         $assistant_managers = User::whereIn('created_by', $sales_managers)
+        //             ->where('role_id', 38)
+        //             ->pluck('userId');
 
-                $all_ids = collect([$dmc_id])
-                    ->merge($sales_heads)
-                    ->merge($sales_managers)
-                    ->merge($assistant_managers)
-                    ->unique()
-                    ->filter();
+        //         $all_ids = collect([$dmc_id])
+        //             ->merge($sales_heads)
+        //             ->merge($sales_managers)
+        //             ->merge($assistant_managers)
+        //             ->unique()
+        //             ->filter();
 
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
-                break;
+        //         $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+        //         break;
 
-            case 33: // Sales Head
-            case 128:
-            case 129:
-            case 130:
-            case 134:
-            case 135:
-            case 136:
-            case 138:
-                $sh_id = $user->userId;
+        //     case 33: // Sales Head
+        //     case 128:
+        //     case 129:
+        //     case 130:
+        //     case 134:
+        //     case 135:
+        //     case 136:
+        //     case 138:
+        //         $sh_id = $user->userId;
 
-                $sales_managers = User::where('created_by', $sh_id)
-                    ->whereIn('role_id', [12, 37])
-                    ->pluck('userId');
+        //         $sales_managers = User::where('created_by', $sh_id)
+        //             ->whereIn('role_id', [12, 37])
+        //             ->pluck('userId');
 
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                    ->where('role_id', 38)
-                    ->pluck('userId');
+        //         $assistant_managers = User::whereIn('created_by', $sales_managers)
+        //             ->where('role_id', 38)
+        //             ->pluck('userId');
 
-                $all_ids = collect([$sh_id])
-                    ->merge($sales_managers)
-                    ->merge($assistant_managers)
-                    ->unique()
-                    ->filter();
+        //         $all_ids = collect([$sh_id])
+        //             ->merge($sales_managers)
+        //             ->merge($assistant_managers)
+        //             ->unique()
+        //             ->filter();
 
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
-                break;
+        //         $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+        //         break;
+        //         dd($agent_ids);
 
-            case 12: // Sales Manager
-            case 37:
-                $sm_id = $user->userId;
+        //     case 12: // Sales Manager
+        //     case 37:
+        //         $sm_id = $user->userId;
 
-                $assistant_managers = User::where('created_by', $sm_id)
-                    ->where('role_id', 38)
-                    ->pluck('userId');
+        //         $assistant_managers = User::where('created_by', $sm_id)
+        //             ->where('role_id', 38)
+        //             ->pluck('userId');
 
-                $all_ids = collect([$sm_id])
-                    ->merge($assistant_managers)
-                    ->unique()
-                    ->filter();
+        //         $all_ids = collect([$sm_id])
+        //             ->merge($assistant_managers)
+        //             ->unique()
+        //             ->filter();
 
-                $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
-                break;
+        //         $agent_ids = Agent::whereIn('sales_manager_dmc', $all_ids)->pluck('agent_id');
+        //         break;
 
-            case 38: // Assistant Manager
-                $agent_ids = Agent::where('sales_manager_dmc', $user->userId)->pluck('agent_id');
-                break;
-        }
+        //     case 38: // Assistant Manager
+        //         $agent_ids = Agent::where('sales_manager_dmc', $user->userId)->pluck('agent_id');
+        //         break;
+        // }
         
         // Fetch all bookings for the specified tour
         $bookings = Order::with(['tour'])

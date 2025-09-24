@@ -834,13 +834,17 @@
                                         <i class="ri-eye-line"></i> View
                                     </a>
                                     
+                                    @php
+                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                    @endphp
+                                    @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-success btn-sm rounded-pill"
                                        onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
                                        style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
-                                    
+                                    @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="btn btn-outline-warning btn-sm rounded-pill">
@@ -1885,6 +1889,12 @@
                                                     <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
                                                         <i class="ri-check-circle-fill me-1"></i>
                                                         <small><strong>Approved Booking</strong></small>
+                                                        @if($attractionOrder->reference_id)
+                                                            <br><small class="text-muted">Ref: {{ $attractionOrder->reference_id }}</small>
+                                                        @endif
+                                                        @if($attractionOrder->display_due_date)
+                                                            <br><small class="text-muted">Due: {{ $attractionOrder->display_due_date }}</small>
+                                                        @endif
                                                     </div>
                                                     @endif
                                                 </div>
@@ -9305,6 +9315,8 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                             `<div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
                                 <i class="ri-check-circle-fill me-1"></i>
                                 <small><strong>Approved Booking</strong></small>
+                                ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
+                                ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
                             </div>` :
                             `<div class="d-flex gap-2" id="attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}">
                                 <!-- Buttons will be dynamically added based on user role -->
