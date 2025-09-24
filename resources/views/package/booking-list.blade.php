@@ -325,7 +325,7 @@
                                         <i class="fas fa-eye"></i> View
                                     </button>
                                     
-                                    @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
+                                    @if(in_array(auth()->user()->role_id, [33,34, 37, 38, 124,125, 128, 129, 130,132,133, 134, 135, 136, 137,138]) && in_array($booking->status, ['1', '2']))
                                         <button type="button" class="btn btn-sm btn-danger ms-1" data-booking-id="{{ $booking->booking_id }}">
                                             <i class="fas fa-times"></i> Cancel
                                         </button>
@@ -908,7 +908,7 @@
 <!-- Cancel Booking Modals - Simplified -->
 @if(isset($bookings) && count($bookings) > 0)
     @foreach($bookings as $booking)
-        @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]) && in_array($booking->status, ['1', '2']))
+        @if(in_array(auth()->user()->role_id, [33,34, 37, 38, 124,125, 128, 129, 130,132,133, 134, 135, 136, 137,138]) && in_array($booking->status, ['1', '2']))
         <form id="cancelBookingForm{{ $booking->booking_id }}" action="{{ route('package.cancel-booking', $booking->booking_id) }}" method="POST" style="display: none;">
             @csrf
             <input type="hidden" name="booking_id" value="{{ $booking->booking_id }}">

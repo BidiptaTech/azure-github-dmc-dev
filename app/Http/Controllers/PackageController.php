@@ -930,7 +930,7 @@ class PackageController extends Controller
 
             // Check if user has permission to cancel (sales head roles)
             $user = Auth::user();
-            if (!in_array($user->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {
+            if (!in_array($user->role_id, [33,34, 37, 38,124,125, 128, 129, 130,132,133, 134, 135, 136, 137,138])) {
                 return redirect()->route('predefined.package.booking.list')
                     ->with('error', 'You do not have permission to cancel bookings.');
             }
