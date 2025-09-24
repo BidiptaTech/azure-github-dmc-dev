@@ -91,7 +91,7 @@ const transformParams = (params) => {
     }
   });
 
-  console.log("Transformed params:", transformed);
+  
   return transformed;
 };
 
@@ -128,7 +128,7 @@ export const fetchPackages = createAsyncThunk(
         ...(selectedDmcId && { dmc_id: selectedDmcId })
       };
 
-      console.log('🎯 PrePackagesSlice - Updated search params:', updatedSearchParams);
+      
 
       const response = await packageAPI.fetchPackages(updatedSearchParams);
       // console.log('🎯 PrePackagesSlice - API response:', response);

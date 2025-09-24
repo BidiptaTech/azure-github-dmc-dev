@@ -9,6 +9,8 @@ import {
   Paper,
   styled,
   Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import LocationSearch from '../hero/hero-3/LocationSearch';
@@ -58,19 +60,30 @@ const TitleSection = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   marginTop: theme.spacing(4),
   marginBottom: theme.spacing(4),
+  [theme.breakpoints.down('md')]: {
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+  },
 }));
 
 const IconContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   marginBottom: theme.spacing(2),
+  [theme.breakpoints.down('md')]: {
+    marginBottom: theme.spacing(1),
+  },
 }));
+
 
 const PreDefinePackages = () => {
   const dispatch = useDispatch();
   const { searchParams } = useSelector(state => state.prePackages);
   const { isAuthenticated, userRole } = useSelector(state => state.auth);
   const showAgentSelector = isAuthenticated && userRole !== 'Agent';
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(null);
@@ -142,9 +155,7 @@ const PreDefinePackages = () => {
   };
   
   const handleLocationSelect = (location) => {
-    console.log('🌍 Location selected:', location);
-    console.log('🌍 Location name:', location?.name);
-    console.log('🌍 Is initializing:', isInitializing);
+    
     
     // Check if this is the same location as already selected
     const isSameLocation = selectedLocation?.name === location?.name;
@@ -153,17 +164,13 @@ const PreDefinePackages = () => {
     
     // Only reset city if the location actually changed AND we're not initializing
     if (!isSameLocation && !isInitializing) {
-      console.log('🌍 Resetting city due to location change');
+     
       setSelectedCity(null);
-    } else {
-      console.log('🌍 Same location selected or initializing, keeping city');
     }
   };
 
   const handleCitySelect = (city) => {
-    console.log('🏙️ City selected:', city);
-    console.log('🏙️ City name:', city?.name);
-    console.log('🏙️ City address:', city?.address);
+  
     setSelectedCity(city);
   };
 
@@ -176,12 +183,11 @@ const PreDefinePackages = () => {
   };
 
   const validateForm = () => {
-    console.log('✅ Validation - selectedLocation:', selectedLocation);
-    console.log('✅ Validation - selectedCity:', selectedCity);
+ 
     
     // Validate location selection
     if (!selectedLocation) {
-      console.log('❌ Validation failed: No location selected');
+     
       setSnackbarMessage("Please select a location");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -190,14 +196,14 @@ const PreDefinePackages = () => {
 
     // Validate city selection
     if (!selectedCity) {
-      console.log('❌ Validation failed: No city selected');
+     
       setSnackbarMessage("Please select a city");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
     
-    console.log('✅ Validation passed');
+   
 
     // Validate agent selection only if the agent selector is shown
     if (showAgentSelector && !selectedAgent) {
@@ -316,10 +322,7 @@ const PreDefinePackages = () => {
       searchParams.agent_id = selectedAgent?.id;
     }
     
-    // Debug: Log the search parameters
-    console.log('🔍 Search Parameters:', searchParams);
-    console.log('🔍 Selected Location:', selectedLocation);
-    console.log('🔍 Selected City:', selectedCity);
+
     
     // Set search status to true
     setHasSearched(true);
@@ -343,75 +346,82 @@ const PreDefinePackages = () => {
 
   return (
     <StyledContainer maxWidth="lg">
-     
-     
-     
-      <Box p={4} sx={{ position: 'relative', zIndex: 1 }}>
+      <Box sx={{ position: 'relative', zIndex: 1 }}>
         <TitleSection>
           <IconContainer>
-           
-            {/* <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} /> */}
-            {/* <LuggageIcon sx={{ fontSize: 36, color: 'primary.main', mr: 1, mt: 3 }} /> */}
             <Typography 
-              variant="h3" 
+              variant={isMobile ? "h4" : "h3"}
               component="h1" 
               sx={{ 
                 fontWeight: 700, 
                 color: 'white',
-                mt: 3,
-                color: 'white',
-                mt: 3,
-                color: 'white',
-                mt: 3,
-                color: 'white',
-                mt: 3,
+                mt: isMobile ? 2 : 3,
                 letterSpacing: '0.5px',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                flexDirection: isMobile ? 'column' : 'row',
+                textAlign: isMobile ? 'center' : 'left',
+                gap: isMobile ? 1 : 0
               }}
             >
-              Fixed Itinerary Packages
-              
-              
-              
-              <ExploreIcon sx={{ ml: 1, fontSize: 28 }} />
+              {isMobile ? 'Fixed Itinerary' : 'Fixed Itinerary Packages'}
+              <ExploreIcon sx={{ ml: isMobile ? 0 : 1, fontSize: isMobile ? 24 : 28 }} />
             </Typography>
           </IconContainer>
-          <Divider sx={{ width: '100px', height: '4px', backgroundColor: 'secondary.main', mb: 3 }} />
-         
-         
-         
-          <Typography variant="subtitle1" color="#ece9f1" textAlign="center">
+          <Divider sx={{ 
+            width: isMobile ? '60px' : '100px', 
+            height: '4px', 
+            backgroundColor: 'secondary.main', 
+            mb: isMobile ? 2 : 3 
+          }} />
+          <Typography 
+            variant={isMobile ? "body1" : "subtitle1"} 
+            color="#ece9f1" 
+            textAlign="center"
+            sx={{ px: isMobile ? 2 : 0 }}
+          >
             Discover our exclusive pre-arranged travel experiences
           </Typography>
         </TitleSection>
 
         <Paper elevation={3} sx={{ borderRadius: '8px', overflow: 'visible', mb: 4 }}>
           <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">
-            <div className="button-grid items-center" style={{ display: 'flex', flexWrap: 'nowrap' }}>
-              <div style={{ flex: '1', minWidth: '0' }}>
-                
-                
-                
+            <div className="button-grid items-center" style={{ 
+              display: 'flex', 
+              flexWrap: isMobile ? 'wrap' : 'nowrap',
+              gap: isMobile ? '16px' : '0'
+            }}>
+              <div style={{ 
+                flex: isMobile ? '1 1 100%' : '1', 
+                minWidth: '0',
+                marginBottom: isMobile ? '8px' : '0'
+              }}>
                 <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
               </div>
               
-              <div style={{ flex: '1', minWidth: '0' }}>
+              <div style={{ 
+                flex: isMobile ? '1 1 100%' : '1', 
+                minWidth: '0',
+                marginBottom: isMobile ? '8px' : '0'
+              }}>
                 <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
-               
-               
-               
               </div>
 
               {showAgentSelector && (
-                <div style={{ flex: '1', minWidth: '0' }}>
+                <div style={{ 
+                  flex: isMobile ? '1 1 100%' : '1', 
+                  minWidth: '0',
+                  marginBottom: isMobile ? '8px' : '0'
+                }}>
                   <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
                 </div>
               )}
 
-             
-
-              <div style={{ flex: '1.2', minWidth: '0' }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
+              <div style={{ 
+                flex: isMobile ? '1 1 100%' : '1.2', 
+                minWidth: '0',
+                marginBottom: isMobile ? '8px' : '0'
+              }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
                 <div>
                   <h4 className="text-15 fw-500 ls-2 lh-16">
                     Select Date
@@ -420,27 +430,32 @@ const PreDefinePackages = () => {
                 </div>
               </div>
 
-              <div style={{ flex: '1', minWidth: '0' }}>
+              <div style={{ 
+                flex: isMobile ? '1 1 100%' : '1', 
+                minWidth: '0',
+                marginBottom: isMobile ? '8px' : '0'
+              }}>
                 <GuestSearch onGuestChange={handleGuestChange} guestCounts={guestCounts} />
               </div>
 
-              <div className="button-item" style={{ width: 'auto', padding: '0 15px', display: 'flex', alignItems: 'flex-end' }}>
+              <div className="button-item" style={{ 
+                width: isMobile ? '100%' : 'auto', 
+                padding: isMobile ? '0' : '0 15px', 
+                display: 'flex', 
+                alignItems: 'flex-end',
+                marginTop: isMobile ? '8px' : '0'
+              }}>
                 <button
                   className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
                   onClick={handleSubmit}
-                 
-                 
-                 
-                  style={{ whiteSpace: 'nowrap', marginBottom: '5px' }}
+                  style={{ 
+                    whiteSpace: 'nowrap', 
+                    marginBottom: '5px',
+                    width: isMobile ? '100%' : 'auto'
+                  }}
                 >
-                
-                
-                
                   <i className="icon-search text-20 mr-10" />
-                  Search Packages
-                  
-                  
-                  
+                  {isMobile ? 'Search' : 'Search Packages'}
                 </button>
               </div>
             </div>
@@ -526,6 +541,26 @@ const PreDefinePackages = () => {
           position: absolute !important;
           transform: none !important;
           top: 100% !important;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+          .MuiGrid-item {
+            margin-bottom: 8px;
+          }
+          
+          .searchMenu-loc, 
+          .searchMenu-date, 
+          .searchMenu-guests {
+            margin-bottom: 16px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .MuiContainer-root {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
         }
       `}</style>
     </StyledContainer>

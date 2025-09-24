@@ -179,8 +179,8 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
 
     // Create enhanced itinerary with services for each day
     const enhancedItinerary = itineraryDates.map(dayInfo => {
-      console.log('dayInfo', dayInfo);
-      console.log('dayInfo', dayInfo);
+      // console.log('dayInfo', dayInfo);
+      // console.log('dayInfo', dayInfo);
       // Start with basic day info
       const enhancedDay = {
        
@@ -401,11 +401,7 @@ import { resetBookingStatus } from '../../../slice/tour-packages/prePackagesSlic
       }
     };
 
-    // Debug: Log the booking data to see what guides are being sent
-    console.log('Booking Data - Guides by Day:', guidesByDay);
-    console.log('Booking Data - Selected Guides:', bookingData.selected.guides);
-    console.log('Booking Data - Enhanced Itinerary:', bookingData.booking_details.itinerary);
-    console.log('Booking Data - Using Agent ID:', effectiveAgentId);
+   
 
     // Save booking data to state and open the user info modal
     setBookingData(bookingData);
