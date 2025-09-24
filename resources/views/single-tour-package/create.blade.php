@@ -6762,10 +6762,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing content
         personSelector.innerHTML = '';
         
-        // Get current guest count from the form
+        // Get current guest count from the form (tour pax)
         const adults = parseInt(document.getElementById('adults').value) || 0;
         const children = parseInt(document.getElementById('children').value) || 0;
-        const totalGuests = adults + children;
+        const tourPax = adults + children;
         
         // Use the passed extraBedAvailable parameter, fallback to selectedBedInfo if not provided
         const isExtraBedAvailable = extraBedAvailable !== undefined ? extraBedAvailable : (window.selectedBedInfo && window.selectedBedInfo.extraBedAvailable);
@@ -6775,7 +6775,7 @@ document.addEventListener('DOMContentLoaded', function() {
             guestCountInfo.style.display = 'block';
         }
         if (currentGuestCount) {
-            currentGuestCount.textContent = totalGuests;
+            currentGuestCount.textContent = tourPax;
         }
         if (maxOccupancyDisplay) {
             // Update display to show max occupancy including extra bed
@@ -6783,13 +6783,12 @@ document.addEventListener('DOMContentLoaded', function() {
             maxOccupancyDisplay.textContent = `${maxOccupancy}${isExtraBedAvailable ? ' (+1 extra bed)' : ''}`;
         }
         
-        // Determine the range for person selection
-        // If extra bed is available, allow maxOccupancy + 1 persons
-        // Otherwise, limit to maxOccupancy
+        // Apply the person selection rules:
+        // Selection range = min(tour pax, max occupancy [+ extra bed if available])
         const maxWithExtraBed = isExtraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
-        // Always show up to maxWithExtraBed options, regardless of totalGuests
-        // This allows users to select extra bed even if they have fewer total guests
-        const maxSelectable = maxWithExtraBed;
+        const maxSelectable = Math.min(tourPax, maxWithExtraBed);
+        
+        console.log(`Person selection rules applied: tour pax=${tourPax}, max occupancy=${maxOccupancy}, extra bed=${isExtraBedAvailable}, max selectable=${maxSelectable}`);
         
         // Create person symbols with icons
         for (let i = 1; i <= maxSelectable; i++) {
@@ -6810,8 +6809,8 @@ document.addEventListener('DOMContentLoaded', function() {
             personSymbol.setAttribute('data-persons', i);
             
             // Set default selection to current guest count (or 1 if no guests)
-            // If total guests exceed max occupancy, default to max occupancy
-            const defaultSelection = totalGuests > 0 ? Math.min(totalGuests, maxOccupancy) : 1;
+            // Apply the same rules: min(tour pax, max occupancy [+ extra bed if available])
+            const defaultSelection = tourPax > 0 ? Math.min(tourPax, maxWithExtraBed) : 1;
             if (i === defaultSelection) {
                 personSymbol.classList.add('selected');
                 if (selectedPersonsInput) {
@@ -6852,32 +6851,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const maxOccupancy = parseInt(bedInfo.maxOccupancy) || 0;
         const extraBedAvailable = bedInfo.extraBedAvailable || false;
         
-        // Validate person count against max occupancy and extra bed rules
-        if (numPersons > maxOccupancy) {
-            if (extraBedAvailable && numPersons === maxOccupancy + 1) {
-                // Allow 1 extra person if extra bed is available
-                console.log(`Extra bed allocated for ${numPersons} persons (max occupancy: ${maxOccupancy})`);
-            } else if (extraBedAvailable && numPersons > maxOccupancy + 1) {
-                // Show error if exceeding max occupancy + extra bed limit
-                showNotification('Maximum occupancy reached including extra bed.', 'error');
+        // Get tour pax (total guests from the form)
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const tourPax = adults + children;
+        
+        // Apply the person selection rules: min(tour pax, max occupancy [+ extra bed if available])
+        const maxWithExtraBed = extraBedAvailable ? maxOccupancy + 1 : maxOccupancy;
+        const maxAllowed = Math.min(tourPax, maxWithExtraBed);
+        
+        // Validate against the rules
+        if (numPersons > maxAllowed) {
+            if (numPersons > tourPax) {
+                showNotification(`Cannot select more than ${tourPax} persons (tour pax limit).`, 'error');
                 return;
-            } else if (!extraBedAvailable) {
-                // Show error if no extra bed available and exceeding max occupancy
-                showNotification(`Maximum occupancy is ${maxOccupancy} persons. No extra bed available.`, 'error');
+            } else if (numPersons > maxWithExtraBed) {
+                showNotification(`Maximum occupancy is ${maxOccupancy}${extraBedAvailable ? ' (+1 extra bed)' : ''} persons.`, 'error');
                 return;
             }
         }
         
-        // Additional validation: Check if selected persons exceed total guest count
-        const adults = parseInt(document.getElementById('adults').value) || 0;
-        const children = parseInt(document.getElementById('children').value) || 0;
-        const totalGuests = adults + children;
-        
-        if (numPersons > totalGuests) {
-            // Allow extra bed allocation even if it exceeds current guest count
-            // This handles cases where users want to allocate extra bed for future guests
-            console.log(`Allocating ${numPersons} persons (${totalGuests} current guests + ${numPersons - totalGuests} extra bed)`);
-        }
+        console.log(`Person selection validated: ${numPersons} persons (tour pax: ${tourPax}, max occupancy: ${maxOccupancy}, extra bed: ${extraBedAvailable}, max allowed: ${maxAllowed})`);
         
         // Update visual selection
         const symbols = personSelector.querySelectorAll('.person-symbol');
@@ -7998,7 +7992,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </select>
                                          
                                          <!-- Guide Price Display Section -->
-                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none; width: 1307px;" >
+                                         <div id="day${day}_guide_1_price_display" class="mt-3" style="display: none;" >
                                              <div class="p-3 rounded-3" style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px;">
                                                  <h6 class="text-primary mb-3 fw-bold">
                                                      <i class="ri-user-line me-2"></i>Guide Pricing: <span id="day${day}_guide_1_guide_name">Guide Name</span>
@@ -10947,7 +10941,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <option value="">Select Duration</option>
                             </select>
                             <!-- Guide Price Display Section -->
-                            <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none; width: 1307px;">
+                            <div id="day${day}_guide_${newIndex}_price_display" class="mt-3" style="display: none;">
                                 <div class="card border-0" style="background-color: #e3f2fd;">
                                     <div class="card-body p-3">
                                         <h6 class="card-title text-primary mb-3">

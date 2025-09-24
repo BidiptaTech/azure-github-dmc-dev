@@ -643,8 +643,11 @@ class PackageController extends Controller
     public function predefinedPackageBookingList()
     {
         $user = Auth::user();
-
-        if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 137 || $user->role_id == 138){
+        if($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || 
+        $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 131 || $user->role_id == 132 ||
+         $user->role_id == 133 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 ||
+          $user->role_id == 137 || $user->role_id == 138 || $user->role_id == 126 || $user->role_id == 124 ||
+           $user->role_id == 127 || $user->role_id == 125){
             if($user->role_id == 11 || $user->role_id == 20){
                 $dmc_id = $user->userId;
             }
@@ -927,7 +930,7 @@ class PackageController extends Controller
 
             // Check if user has permission to cancel (sales head roles)
             $user = Auth::user();
-            if (!in_array($user->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138])) {
+            if (!in_array($user->role_id, [33,34, 37, 38,124,125, 128, 129, 130,132,133, 134, 135, 136, 137,138])) {
                 return redirect()->route('predefined.package.booking.list')
                     ->with('error', 'You do not have permission to cancel bookings.');
             }
