@@ -328,7 +328,7 @@ const PackageCard = ({ packageData }) => {
                 <>
                   {attractions.slice(0, 2).map((attraction, index) => (
                     <Box 
-                      key={attraction.attraction_id || index}
+                      key={`attraction-${packageData.package_id}-${attraction.attraction_id || 'unknown'}-${index}`}
                       component="img"
                       src={attraction.image || '/img/activities/1.png'}
                       sx={{ 
@@ -342,6 +342,7 @@ const PackageCard = ({ packageData }) => {
                   ))}
                   {attractions.length > 2 && (
                     <Box 
+                      key={`more-attractions-${packageData.package_id}`}
                       sx={{ 
                         width: 36, 
                         height: 36, 
@@ -361,6 +362,7 @@ const PackageCard = ({ packageData }) => {
                 </>
               ) : (
                 <Box 
+                  key={`no-attractions-${packageData.package_id}`}
                   sx={{ 
                     display: 'flex',
                     alignItems: 'center',
@@ -447,6 +449,7 @@ const PackageCard = ({ packageData }) => {
             {/* Combine Airport Pickup and Dropoff into a single chip */}
             {(hasArrivalPickup || hasDepartureService) && (
               <Chip 
+                key={`airport-service-${packageData.package_id}`}
                 icon={<FlightIcon sx={{ fontSize: '0.7rem !important' }} />} 
                 label={
                   hasArrivalPickup && hasDepartureService
@@ -463,6 +466,7 @@ const PackageCard = ({ packageData }) => {
             {/* Tour Guide chip */}
             {hasTourGuides && (
               <Chip 
+                key={`tour-guide-${packageData.package_id}`}
                 icon={<ExploreIcon sx={{ fontSize: '0.7rem !important' }} />} 
                 label="Tour Guide" 
                 size="small" 
@@ -473,6 +477,7 @@ const PackageCard = ({ packageData }) => {
             {/* Transfers chip */}
             {hasTransfers && (
               <Chip 
+                key={`transfers-${packageData.package_id}`}
                 icon={<DirectionsBusIcon sx={{ fontSize: '0.7rem !important' }} />} 
                 label="Transfers" 
                 size="small" 
@@ -483,6 +488,7 @@ const PackageCard = ({ packageData }) => {
             {/* No services message */}
             {!hasArrivalPickup && !hasDepartureService && !hasTourGuides && !hasTransfers && (
               <Typography 
+                key={`no-services-${packageData.package_id}`}
                 variant="caption" 
                 color="text.secondary" 
                 sx={{ 
@@ -828,7 +834,7 @@ const ListingCards = ({ hasSearched = false }) => {
           </Paper>
           <Grid container spacing={3}>
             {[1, 2, 3].map(item => (
-              <LoadingSkeleton key={item} />
+              <LoadingSkeleton key={`skeleton-${item}`} />
             ))}
           </Grid>
         </Box>
@@ -950,7 +956,7 @@ const ListingCards = ({ hasSearched = false }) => {
         <Box sx={{ position: 'relative' }}>
           <Grid container spacing={3}>
             {packages.map((packageItem, index) => (
-              <Grid item xs={12} sm={6} md={4} key={packageItem.package_id || index}>
+              <Grid item xs={12} sm={6} md={4} key={`package-${packageItem.package_id || `temp-${index}`}`}>
                 <PackageCard packageData={packageItem} />
               </Grid>
             ))}

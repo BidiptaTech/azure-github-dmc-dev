@@ -142,9 +142,7 @@ const PreDefinePackages = () => {
   };
   
   const handleLocationSelect = (location) => {
-    console.log('🌍 Location selected:', location);
-    console.log('🌍 Location name:', location?.name);
-    console.log('🌍 Is initializing:', isInitializing);
+    
     
     // Check if this is the same location as already selected
     const isSameLocation = selectedLocation?.name === location?.name;
@@ -153,17 +151,13 @@ const PreDefinePackages = () => {
     
     // Only reset city if the location actually changed AND we're not initializing
     if (!isSameLocation && !isInitializing) {
-      console.log('🌍 Resetting city due to location change');
+     
       setSelectedCity(null);
-    } else {
-      console.log('🌍 Same location selected or initializing, keeping city');
     }
   };
 
   const handleCitySelect = (city) => {
-    console.log('🏙️ City selected:', city);
-    console.log('🏙️ City name:', city?.name);
-    console.log('🏙️ City address:', city?.address);
+  
     setSelectedCity(city);
   };
 
@@ -176,12 +170,11 @@ const PreDefinePackages = () => {
   };
 
   const validateForm = () => {
-    console.log('✅ Validation - selectedLocation:', selectedLocation);
-    console.log('✅ Validation - selectedCity:', selectedCity);
+ 
     
     // Validate location selection
     if (!selectedLocation) {
-      console.log('❌ Validation failed: No location selected');
+     
       setSnackbarMessage("Please select a location");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -190,14 +183,14 @@ const PreDefinePackages = () => {
 
     // Validate city selection
     if (!selectedCity) {
-      console.log('❌ Validation failed: No city selected');
+     
       setSnackbarMessage("Please select a city");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
     
-    console.log('✅ Validation passed');
+   
 
     // Validate agent selection only if the agent selector is shown
     if (showAgentSelector && !selectedAgent) {
@@ -316,10 +309,7 @@ const PreDefinePackages = () => {
       searchParams.agent_id = selectedAgent?.id;
     }
     
-    // Debug: Log the search parameters
-    console.log('🔍 Search Parameters:', searchParams);
-    console.log('🔍 Selected Location:', selectedLocation);
-    console.log('🔍 Selected City:', selectedCity);
+
     
     // Set search status to true
     setHasSearched(true);
