@@ -170,7 +170,7 @@ $(document).ready(function() {
             tourGuideOrdersData = []; // Reset the export data
             
             initialOrders.forEach(function(item, index) {
-                console.log("item = ", item);
+                console.log("item = ", item.tour.tour_id);
                 // Handle data as array or object (flexibility for different data structures)
                 const orderData = item.data || {};
                 let dataItem;
@@ -206,7 +206,7 @@ $(document).ready(function() {
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
                         <td>
-                            <select class="form-control guide-select" name="guide_id[${index}]" data-order-id="${item.booking_id || ''}" data-tour-id="${item.tour_id || ''}">
+                            <select class="form-control guide-select" name="guide_id[${index}]" data-order-id="${item.booking_id || ''}" data-tour-id="${item.tour.tour_id || ''}">
                                 <option value="">Select Guide</option>
                                 ${(function() {
                                     let options = '';
@@ -262,6 +262,7 @@ $(document).ready(function() {
                     const orders = response.data;
                     let tableHTML = '';
                     tourGuideOrdersData = []; // Reset the export data
+                    console.log("orders = ", orders);
                     
                     if (orders && orders.length > 0) {
                         orders.forEach(function(item, index) {
@@ -278,14 +279,12 @@ $(document).ready(function() {
                                 dataItem = {};
                             }
 
-                            
-                            console.log("item.tour.tour_id = ", item.tour.tour_id);
                             // Store data for export
                             const $select = $(`select[data-order-id="${item.booking_id}"]`);
                             const selectedGuideName = $select.find('option:selected').text() || 'Not Assigned';
                             tourGuideOrdersData.push({
                                 order_id: item.booking_id || item.id || 'N/A',
-                                tour_id: item.tour.tour_id || 'N/A',
+                                tour_id: item.tour_id || 'N/A',
                                 order_type: item.type || 'N/A',
                                 pickup_time: dataItem.entrytime || 'N/A',
                                 pickup_location: dataItem.entrypickup || 'N/A',
