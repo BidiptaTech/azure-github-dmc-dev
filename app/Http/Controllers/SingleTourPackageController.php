@@ -2252,6 +2252,7 @@ class SingleTourPackageController extends Controller
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
             $city = $request->input('city');
+            $showAllVehicles = $request->input('show_all', false); // New parameter for point-to-point and hourly services
             
             if (!$dmcId) {
                 return response()->json([
@@ -2260,20 +2261,25 @@ class SingleTourPackageController extends Controller
                 ], 403);
             }
 
-            if (!$city) {
+            // For point-to-point and hourly services, city is not required
+            if (!$showAllVehicles && !$city) {
                 return response()->json([
                     'success' => false,
                     'message' => 'City is required'
                 ], 400);
             }
 
-            // Fetch vehicles for the current DMC and city
-            $vehicles = Vehicle::where('dmc_id', $dmcId)
-                ->where('city', $city)
+            // Build query for vehicles
+            $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable')
-                ->orderBy('vehicle_name')
-                ->get();
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
+            
+            // Only filter by city if not showing all vehicles
+            if (!$showAllVehicles && $city) {
+                $query->where('city', $city);
+            }
+            
+            $vehicles = $query->orderBy('vehicle_name')->get();
 
             $vehiclesData = $vehicles->map(function ($vehicle) {
                 return [
@@ -2299,7 +2305,8 @@ class SingleTourPackageController extends Controller
                 'vehicles' => $vehiclesData,
                 'total_vehicles' => count($vehiclesData),
                 'city' => $city,
-                'dmc_id' => $dmcId
+                'dmc_id' => $dmcId,
+                'show_all_vehicles' => $showAllVehicles
             ]);
 
         } catch (\Exception $e) {

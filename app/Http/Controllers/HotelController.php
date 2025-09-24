@@ -3420,7 +3420,7 @@ class HotelController extends Controller
             'tour_id' => $tourId,
             'data' => [$bookingData],
             'type' => 'hotel',
-            'bookingType' => 'enquiry',
+            'bookingType' => 'booking',
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
