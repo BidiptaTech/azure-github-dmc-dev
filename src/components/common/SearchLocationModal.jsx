@@ -96,12 +96,12 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     borderRadius: { xs: '12px', sm: '14px', md: '16px' },
     backgroundColor: 'white',
-    border: '2px solid rgba(102, 126, 234, 0.1)',
+   // border: '2px solid rgba(102, 126, 234, 0.1)',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    '&:hover': {
-      borderColor: 'rgba(102, 126, 234, 0.3)',
-      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.12)',
-    },
+    // '&:hover': {
+    //   borderColor: 'rgba(102, 126, 234, 0.3)',
+    //   boxShadow: '0 8px 32px rgba(102, 126, 234, 0.12)',
+    // },
     '&.Mui-focused': {
       borderColor: '#667eea',
       boxShadow: '0 8px 32px rgba(102, 126, 234, 0.25)',
@@ -386,7 +386,7 @@ const SearchLocationModal = ({ open, onClose, onSearch }) => {
                   )}
                   renderInput={(params) => (
                     <StyledTextField
-                      {...params}
+                      {...params} 
                       label="Select Country"
                       InputProps={{
                         ...params.InputProps,
