@@ -121,15 +121,15 @@ const WhyChooseUs = () => {
         <Grid container spacing={3} alignItems="center">
           {/* Left Side - Images */}
           <Grid item xs={12} md={6}>
-            <Box sx={{ position: 'relative', height: '600px' }}>
+            <Box sx={{ position: 'relative', height: { xs: '400px', sm: '500px', md: '600px' } }}>
               {/* Top Left Image - Castle */}
               <Box
                 sx={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  width: '280px',
-                  height: '280px',
+                  width: { xs: '200px', sm: '240px', md: '280px' },
+                  height: { xs: '200px', sm: '240px', md: '280px' },
                   borderRadius: '30%',
                   overflow: 'hidden',
                   boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
@@ -158,8 +158,8 @@ const WhyChooseUs = () => {
                   position: 'absolute',
                   bottom: 0,
                   left: 0,
-                  width: '280px',
-                  height: '280px',
+                  width: { xs: '200px', sm: '240px', md: '280px' },
+                  height: { xs: '200px', sm: '240px', md: '280px' },
                   borderRadius: '50%',
                   overflow: 'hidden',
                   boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
@@ -189,8 +189,8 @@ const WhyChooseUs = () => {
                   top: '50%',
                   right: 0,
                   transform: 'translateY(-50%)',
-                  width: '320px',
-                  height: '600px',
+                  width: { xs: '240px', sm: '280px', md: '320px' },
+                  height: { xs: '400px', sm: '500px', md: '600px' },
                   borderRadius: '10%',
                   overflow: 'hidden',
                   boxShadow: '0 20px 40px rgba(0,0,0,0.2)',

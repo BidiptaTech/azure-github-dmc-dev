@@ -143,8 +143,8 @@ const InstagramFeed = () => {
                   key={post.id}
                   sx={{
                     position: 'relative',
-                    minWidth: { xs: '280px', sm: '320px', md: '260px' },
-                    height: '200px',
+                    minWidth: { xs: '250px', sm: '280px', md: '260px' },
+                    height: { xs: '160px', sm: '180px', md: '200px' },
                     borderRadius: '12px',
                     overflow: 'hidden',
                     cursor: 'pointer',
