@@ -99,98 +99,59 @@ const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
 }));
 
 const DMCCard = styled(Card)(({ theme, selected }) => ({
-  height: { xs: '100px', sm: '95px', md: '90px' },
+  height: { xs: '90px', sm: '95px', md: '100px' },
   width: '100%',
-  borderRadius: { xs: '12px', sm: '14px', md: '12px' },
+  borderRadius: { xs: '12px', sm: '14px', md: '16px' },
   border: selected ? '2px solid #667eea' : '1px solid #e8eaf6',
   background: selected 
-    ? 'linear-gradient(135deg, #f3f4ff 0%, #e8eaf6 100%)' 
+    ? 'linear-gradient(135deg, #f8f9ff 0%, #e8eaf6 100%)' 
     : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   cursor: 'pointer',
   position: 'relative',
   overflow: 'hidden',
-  minHeight: { xs: '100px', sm: '95px', md: '90px' },
-  maxHeight: { xs: '100px', sm: '95px', md: '90px' },
-  // Enhanced shadows for small screens only
-  boxShadow: { 
-    xs: selected 
-      ? '0 8px 32px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0,0,0,0.05)'
-      : '0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
-    sm: selected 
-      ? '0 8px 32px rgba(102, 126, 234, 0.15), 0 2px 8px rgba(0,0,0,0.05)'
-      : '0 4px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
-    md: selected 
-      ? '0 8px 16px rgba(102, 126, 234, 0.2)'
-      : '0 4px 12px rgba(0,0,0,0.1)',
-  },
+  minHeight: { xs: '90px', sm: '95px', md: '100px' },
+  maxHeight: { xs: '90px', sm: '95px', md: '100px' },
+  boxShadow: selected 
+    ? '0 8px 32px rgba(102, 126, 234, 0.25), 0 4px 16px rgba(0,0,0,0.1)'
+    : '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)',
   '&:hover': {
-    transform: { 
-      xs: 'translateY(-3px) scale(1.01)', 
-      sm: 'translateY(-4px) scale(1.02)', 
-      md: 'translateY(-8px) scale(1.02)' 
-    },
-    boxShadow: { 
-      xs: selected 
-        ? '0 12px 40px rgba(102, 126, 234, 0.25)'
-        : '0 8px 32px rgba(102, 126, 234, 0.12)',
-      sm: selected 
-        ? '0 20px 48px rgba(102, 126, 234, 0.3)'
-        : '0 16px 40px rgba(102, 126, 234, 0.15)',
-      md: selected 
-        ? '0 20px 40px rgba(102, 126, 234, 0.3)'
-        : '0 16px 32px rgba(0,0,0,0.15)'
-    },
-    border: '3px solid #667eea',
+    transform: 'translateY(-4px) scale(1.02)',
+    boxShadow: selected 
+      ? '0 16px 48px rgba(102, 126, 234, 0.35), 0 8px 24px rgba(0,0,0,0.15)'
+      : '0 12px 40px rgba(102, 126, 234, 0.2), 0 6px 20px rgba(0,0,0,0.1)',
+    border: selected ? '3px solid #667eea' : '2px solid #667eea',
   },
   '&:active': {
-    transform: { xs: 'translateY(-1px) scale(0.98)', sm: 'translateY(-1px) scale(0.99)', md: 'scale(0.99)' },
+    transform: 'translateY(-2px) scale(0.98)',
   },
-  // Remove the ::before pseudo-element for large screens to keep original look
-  '&::before': selected ? {
-    content: { xs: '""', sm: '""', md: 'none' },
-    position: 'absolute',
-    top: '-3px',
-    left: '-3px',
-    right: '-3px',
-    bottom: '-3px',
-    borderRadius: { xs: '19px', sm: '21px' },
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    zIndex: -1,
-    opacity: 0.1,
-  } : {},
 }));
 
 const SelectionBadge = styled(Box)(({ theme }) => ({
   position: 'absolute',
-  top: { xs: '-10px', sm: '-10px', md: '-8px' },
-  right: { xs: '-10px', sm: '-10px', md: '-8px' },
+  top: { xs: '-8px', sm: '-8px', md: '-6px' },
+  right: { xs: '-8px', sm: '-8px', md: '-6px' },
   backgroundColor: '#4caf50',
   borderRadius: '50%',
-  width: { xs: '28px', sm: '28px', md: '24px' },
-  height: { xs: '28px', sm: '28px', md: '24px' },
+  width: { xs: '32px', sm: '32px', md: '28px' },
+  height: { xs: '32px', sm: '32px', md: '28px' },
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  boxShadow: { 
-    xs: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
-    sm: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
-    md: '0 4px 12px rgba(76, 175, 80, 0.4)'
-  },
+  boxShadow: '0 4px 16px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
   zIndex: 10,
-  border: { xs: '2px solid white', sm: '2px solid white', md: 'none' },
-  backdropFilter: { xs: 'blur(10px)', sm: 'blur(10px)', md: 'none' },
-  // Only animate on small screens
-  animation: { xs: 'pulse 2s infinite', sm: 'pulse 2s infinite', md: 'none' },
+  border: '3px solid white',
+  backdropFilter: 'blur(10px)',
+  animation: 'pulse 2s infinite',
   '@keyframes pulse': {
     '0%': {
-      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
+      boxShadow: '0 4px 16px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
     },
     '50%': {
-      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.6), 0 2px 8px rgba(0,0,0,0.1)',
+      boxShadow: '0 4px 16px rgba(76, 175, 80, 0.6), 0 2px 8px rgba(0,0,0,0.1)',
     },
     '100%': {
-      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
+      boxShadow: '0 4px 16px rgba(76, 175, 80, 0.4), 0 2px 8px rgba(0,0,0,0.1)',
     },
   },
 }));
@@ -581,9 +542,9 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                   value={selectedDMC}
                   onChange={handleSelectionChange}
                 >
-                  <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
+                  <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
                     {filteredDMCs.map((dmc) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={dmc.id}>
+                      <Grid item xs={12} sm={6} md={4} lg={3} xl={2.4} key={dmc.id}>
                         <FormControlLabel
                           value={dmc.id.toString()}
                           control={<Radio sx={{ display: 'none' }} />}
@@ -595,36 +556,38 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                             >
                               {isDMCSelected(dmc) && (
                                 <SelectionBadge>
-                                  <CheckIcon sx={{ color: 'white', fontSize: 16 }} />
+                                  <CheckIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 18, md: 16 } }} />
                                 </SelectionBadge>
                               )}
                               
                               <CardContent sx={{ 
-                                padding: { xs: '8px 6px', sm: '10px 8px', md: '12px 10px' } + ' !important', 
+                                padding: { xs: '8px', sm: '10px', md: '12px' } + ' !important', 
                                 height: '100%', 
                                 display: 'flex', 
                                 flexDirection: 'column', 
                                 justifyContent: 'space-between',
-                                minHeight: { xs: '100px', sm: '95px', md: '90px' },
-                                maxHeight: { xs: '100px', sm: '95px', md: '90px' },
+                                minHeight: { xs: '90px', sm: '95px', md: '100px' },
+                                maxHeight: { xs: '90px', sm: '95px', md: '100px' },
                                 overflow: 'hidden'
                               }}>
-                                {/* Logo and DMC Name - Same Line */}
-                                <Box display="flex" alignItems="center" justifyContent="center" mb={0.5} gap={0.5}>
+                                {/* Header Section with Logo and Name */}
+                                <Box display="flex" alignItems="flex-start" gap={1} mb={1}>
+                                  {/* Logo */}
                                   {dmc.logo && dmc.logo.trim() !== '' ? (
                                     <Box
                                       sx={{
-                                        width: { xs: 28, sm: 26, md: 28 },
-                                        height: { xs: 28, sm: 26, md: 28 },
-                                        borderRadius: '50%',
+                                        width: { xs: 32, sm: 34, md: 36 },
+                                        height: { xs: 32, sm: 34, md: 36 },
+                                        borderRadius: '8px',
                                         overflow: 'hidden',
-                                        border: isDMCSelected(dmc) ? '2px solid #667eea' : '1px solid #90a4ae',
+                                        border: isDMCSelected(dmc) ? '2px solid #667eea' : '1px solid #e0e0e0',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         backgroundColor: 'white',
                                         position: 'relative',
                                         flexShrink: 0,
+                                        boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
                                       }}
                                     >
                                       <img
@@ -637,7 +600,6 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                           display: 'block',
                                         }}
                                         onError={(e) => {
-                                          // Hide image and show fallback icon
                                           e.target.style.display = 'none';
                                           const fallback = e.target.nextElementSibling;
                                           if (fallback) {
@@ -645,7 +607,6 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                           }
                                         }}
                                         onLoad={(e) => {
-                                          // Hide fallback when image loads successfully
                                           const fallback = e.target.nextElementSibling;
                                           if (fallback) {
                                             fallback.style.display = 'none';
@@ -656,14 +617,14 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                         sx={{
                                           display: 'none',
                                           bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                          width: { xs: 24, sm: 22, md: 24 },
-                                          height: { xs: 24, sm: 22, md: 24 },
+                                          width: '100%',
+                                          height: '100%',
                                           background: isDMCSelected(dmc) 
                                             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                             : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                         }}
                                       >
-                                        <BusinessIcon sx={{ fontSize: { xs: 10, sm: 12, md: 14 } }} />
+                                        <BusinessIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
                                       </Avatar>
                                     </Box>
                                   ) : (
@@ -671,58 +632,67 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                       <Avatar
                                         sx={{
                                           bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                          width: { xs: 28, sm: 26, md: 28 },
-                                          height: { xs: 28, sm: 26, md: 28 },
+                                          width: { xs: 32, sm: 34, md: 36 },
+                                          height: { xs: 32, sm: 34, md: 36 },
+                                          borderRadius: '8px',
                                           background: isDMCSelected(dmc) 
                                             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                             : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
+                                          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
                                         }}
                                       >
-                                        <BusinessIcon sx={{ fontSize: { xs: 12, sm: 14, md: 16 } }} />
+                                        <BusinessIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
                                       </Avatar>
                                     </Box>
                                   )}
-                                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                  
+                                  {/* Company Name */}
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography 
-                                      variant="subtitle2" 
-                                      fontWeight="600" 
-                                      color={isDMCSelected(dmc) ? '#667eea' : '#333'}
+                                      variant="subtitle1" 
+                                      fontWeight="700" 
+                                      color={isDMCSelected(dmc) ? '#667eea' : '#1a1a1a'}
                                       sx={{ 
-                                        fontSize: { xs: '0.7rem', sm: '0.75rem', md: '0.8rem' },
-                                        lineHeight: { xs: 1.1, sm: 1.15, md: 1.2 },
+                                        fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
+                                        lineHeight: 1.1,
                                         textAlign: 'left',
                                         wordWrap: 'break-word',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
                                       }}
                                     >
                                       {dmc.name}
                                     </Typography>
-                                   
                                   </Box>
                                 </Box>
                                 
-                                {/* Location Section - Under the logo and name */}
-                                <Box display="flex" alignItems="center" justifyContent="center">
+                                {/* Location Section */}
+                                <Box display="flex" alignItems="center" justifyContent="flex-start">
                                   <Chip
-                                    icon={<LocationIcon sx={{ fontSize: { xs: 8, sm: 9, md: 10 } }} />}
+                                    icon={<LocationIcon sx={{ fontSize: { xs: 10, sm: 11, md: 12 } }} />}
                                     label={dmc.location}
                                     size="small"
                                     sx={{
-                                      backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e8f5e8',
-                                      color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                      fontSize: { xs: '0.6rem', sm: '0.65rem', md: '0.7rem' },
+                                      backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#f0f9ff',
+                                      color: isDMCSelected(dmc) ? 'white' : '#0369a1',
+                                      fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
                                       fontWeight: 600,
-                                      height: { xs: '18px', sm: '18px', md: '20px' },
-                                      border: isDMCSelected(dmc) ? 'none' : '1px solid #4caf50',
+                                      height: { xs: '20px', sm: '22px', md: '24px' },
+                                      borderRadius: '10px',
+                                      border: isDMCSelected(dmc) ? 'none' : '1px solid #0ea5e9',
                                       '& .MuiChip-icon': {
-                                        color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                        fontSize: { xs: 8, sm: 9, md: 10 },
+                                        color: isDMCSelected(dmc) ? 'white' : '#0369a1',
+                                        fontSize: { xs: 10, sm: 11, md: 12 },
                                       },
                                       '& .MuiChip-label': {
-                                        px: { xs: 0.5, sm: 0.75, md: 1 },
-                                        fontSize: { xs: '0.55rem', sm: '0.6rem', md: '0.65rem' },
+                                        px: { xs: 0.75, sm: 1, md: 1.25 },
+                                        fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
                                       },
                                       '&:hover': {
-                                        backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#c8e6c9',
+                                        backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e0f2fe',
                                       },
                                     }}
                                   />
@@ -746,9 +716,9 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                 </RadioGroup>
                               ) : (
                   // Multi-select mode without checkboxes - just card clicks
-                  <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
+                  <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
                     {filteredDMCs.map((dmc) => (
-                      <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={dmc.id}>
+                      <Grid item xs={12} sm={6} md={4} lg={3} xl={2.4} key={dmc.id}>
                         <DMCCard 
                           selected={isDMCSelected(dmc)} 
                           elevation={isDMCSelected(dmc) ? 8 : 2}
@@ -756,36 +726,38 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                         >
                           {isDMCSelected(dmc) && (
                             <SelectionBadge>
-                              <CheckIcon sx={{ color: 'white', fontSize: 16 }} />
+                              <CheckIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 18, md: 16 } }} />
                             </SelectionBadge>
                           )}
                           
                           <CardContent sx={{ 
-                            padding: { xs: '8px 6px', sm: '10px 8px', md: '12px 10px' } + ' !important', 
+                            padding: { xs: '8px', sm: '10px', md: '12px' } + ' !important', 
                             height: '100%', 
                             display: 'flex', 
                             flexDirection: 'column', 
                             justifyContent: 'space-between',
-                            minHeight: { xs: '100px', sm: '95px', md: '90px' },
-                            maxHeight: { xs: '100px', sm: '95px', md: '90px' },
+                            minHeight: { xs: '90px', sm: '95px', md: '100px' },
+                            maxHeight: { xs: '90px', sm: '95px', md: '100px' },
                             overflow: 'hidden'
                           }}>
-                            {/* Logo and DMC Name - Same Line */}
-                            <Box display="flex" alignItems="center" justifyContent="center" mb={0.5} gap={0.5}>
+                            {/* Header Section with Logo and Name */}
+                            <Box display="flex" alignItems="flex-start" gap={1} mb={1}>
+                              {/* Logo */}
                               {dmc.logo && dmc.logo.trim() !== '' ? (
                                 <Box
                                   sx={{
-                                    width: { xs: 28, sm: 26, md: 28 },
-                                    height: { xs: 28, sm: 26, md: 28 },
-                                    borderRadius: '50%',
+                                    width: { xs: 32, sm: 34, md: 36 },
+                                    height: { xs: 32, sm: 34, md: 36 },
+                                    borderRadius: '8px',
                                     overflow: 'hidden',
-                                    border: isDMCSelected(dmc) ? '2px solid #667eea' : '1px solid #90a4ae',
+                                    border: isDMCSelected(dmc) ? '2px solid #667eea' : '1px solid #e0e0e0',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     backgroundColor: 'white',
                                     position: 'relative',
                                     flexShrink: 0,
+                                    boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
                                   }}
                                 >
                                   <img
@@ -798,7 +770,6 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                       display: 'block',
                                     }}
                                     onError={(e) => {
-                                      // Hide image and show fallback icon
                                       e.target.style.display = 'none';
                                       const fallback = e.target.nextElementSibling;
                                       if (fallback) {
@@ -806,7 +777,6 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                       }
                                     }}
                                     onLoad={(e) => {
-                                      // Hide fallback when image loads successfully
                                       const fallback = e.target.nextElementSibling;
                                       if (fallback) {
                                         fallback.style.display = 'none';
@@ -817,14 +787,14 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                     sx={{
                                       display: 'none',
                                       bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                      width: { xs: 24, sm: 22, md: 24 },
-                                      height: { xs: 24, sm: 22, md: 24 },
+                                      width: '100%',
+                                      height: '100%',
                                       background: isDMCSelected(dmc) 
                                         ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                         : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
                                     }}
                                   >
-                                    <BusinessIcon sx={{ fontSize: { xs: 10, sm: 12, md: 14 } }} />
+                                    <BusinessIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
                                   </Avatar>
                                 </Box>
                               ) : (
@@ -832,62 +802,72 @@ const DMCSelectionModal = ({ open, onClose, onSelect, searchCriteria, multiSelec
                                   <Avatar
                                     sx={{
                                       bgcolor: isDMCSelected(dmc) ? '#667eea' : '#90a4ae',
-                                      width: { xs: 28, sm: 26, md: 28 },
-                                      height: { xs: 28, sm: 26, md: 28 },
+                                      width: { xs: 32, sm: 34, md: 36 },
+                                      height: { xs: 32, sm: 34, md: 36 },
+                                      borderRadius: '8px',
                                       background: isDMCSelected(dmc) 
                                         ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                         : 'linear-gradient(135deg, #90a4ae 0%, #78909c 100%)',
+                                      boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
                                     }}
                                   >
-                                    <BusinessIcon sx={{ fontSize: { xs: 12, sm: 14, md: 16 } }} />
+                                    <BusinessIcon sx={{ fontSize: { xs: 14, sm: 16, md: 18 } }} />
                                   </Avatar>
                                 </Box>
                               )}
-                              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              
+                              {/* Company Name */}
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
                                 <Typography 
-                                  variant="subtitle2" 
-                                  fontWeight="600" 
-                                  color={isDMCSelected(dmc) ? '#667eea' : '#333'}
+                                  variant="subtitle1" 
+                                  fontWeight="700" 
+                                  color={isDMCSelected(dmc) ? '#667eea' : '#1a1a1a'}
                                   sx={{ 
-                                    fontSize: { xs: '0.7rem', sm: '0.75rem', md: '0.8rem' },
-                                    lineHeight: 1.2,
+                                    fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
+                                    lineHeight: 1.1,
                                     textAlign: 'left',
                                     wordWrap: 'break-word',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
                                   }}
                                 >
                                   {dmc.name}
                                 </Typography>
-                               
                               </Box>
                             </Box>
                             
-                            {/* Location Section - Under the logo and name */}
-                            <Box display="flex" alignItems="center" justifyContent="center">
+                            {/* Location Section */}
+                            <Box display="flex" alignItems="center" justifyContent="flex-start">
                               <Chip
-                                icon={<LocationIcon sx={{ fontSize: { xs: 8, sm: 9, md: 10 } }} />}
+                                icon={<LocationIcon sx={{ fontSize: { xs: 10, sm: 11, md: 12 } }} />}
                                 label={dmc.location}
                                 size="small"
                                 sx={{
-                                  backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e8f5e8',
-                                  color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                  fontSize: { xs: '0.6rem', sm: '0.65rem', md: '0.7rem' },
+                                  backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#f0f9ff',
+                                  color: isDMCSelected(dmc) ? 'white' : '#0369a1',
+                                  fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
                                   fontWeight: 600,
-                                  height: { xs: '18px', sm: '18px', md: '20px' },
-                                  border: isDMCSelected(dmc) ? 'none' : '1px solid #4caf50',
+                                  height: { xs: '20px', sm: '22px', md: '24px' },
+                                  borderRadius: '10px',
+                                  border: isDMCSelected(dmc) ? 'none' : '1px solid #0ea5e9',
                                   '& .MuiChip-icon': {
-                                    color: isDMCSelected(dmc) ? 'white' : '#2e7d32',
-                                    fontSize: { xs: 8, sm: 9, md: 10 },
+                                    color: isDMCSelected(dmc) ? 'white' : '#0369a1',
+                                    fontSize: { xs: 10, sm: 11, md: 12 },
                                   },
                                   '& .MuiChip-label': {
-                                    px: { xs: 0.5, sm: 0.75, md: 1 },
-                                    fontSize: { xs: '0.55rem', sm: '0.6rem', md: '0.65rem' },
+                                    px: { xs: 0.75, sm: 1, md: 1.25 },
+                                    fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
                                   },
                                   '&:hover': {
-                                    backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#c8e6c9',
+                                    backgroundColor: isDMCSelected(dmc) ? '#667eea' : '#e0f2fe',
                                   },
                                 }}
                               />
                             </Box>
+
                           </CardContent>
                         </DMCCard>
                       </Grid>

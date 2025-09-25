@@ -45,22 +45,22 @@ const Index = () => {
     const enquirySubmitted = localStorage.getItem('enquirySubmitted');
     const enquiryData = localStorage.getItem('enquiryData');
     
-    console.log('Component mount - checking localStorage:', { enquirySubmitted, hasEnquiryData: !!enquiryData });
-    console.log('Current Redux enquiry state:', { enquiryId, multiEnqId, tourId, id });
+    // console.log('Component mount - checking localStorage:', { enquirySubmitted, hasEnquiryData: !!enquiryData });
+    // console.log('Current Redux enquiry state:', { enquiryId, multiEnqId, tourId, id });
     
     if (enquirySubmitted === 'true' && enquiryData) {
       // Only show modal if we have both the flag and the actual enquiry data
       try {
         const parsedData = JSON.parse(enquiryData);
-        console.log('Found valid enquiry data, showing modal:', parsedData);
+        // console.log('Found valid enquiry data, showing modal:', parsedData);
         
         // Additional check: ensure we have a valid enquiry ID in Redux state
         const hasValidEnquiryId = multiEnqId || enquiryId || tourId || id;
         if (hasValidEnquiryId) {
-          console.log('Valid enquiry ID found in Redux, showing modal');
+          // console.log('Valid enquiry ID found in Redux, showing modal');
           setShowThankYouModal(true);
         } else {
-          console.log('No valid enquiry ID in Redux state, not showing modal');
+          //console.log('No valid enquiry ID in Redux state, not showing modal');
         }
         
         // Clear the flag when showing the modal to ensure it's a one-time display
@@ -189,6 +189,9 @@ const Index = () => {
             <h1 className="z-2 text-50 lg:text-40 md:text-30 sm:text-28 xs:text-24 fw-600">
               <span className="gradient-text">Discover Your Dream Destination</span>
             </h1>
+            {/* <h3 className="z-2 text-40 lg:text-30 md:text-20 sm:text-18 xs:text-16 fw-600">
+              <span style={{color: "orange"}}>with Quick Enquiry</span>
+            </h3> */}
           </div>
         );
       case "bookingEnquiries":
