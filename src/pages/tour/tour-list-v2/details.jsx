@@ -106,7 +106,7 @@ const RestaurantsDetails = () => {
                   style={{
                     minHeight: "40px",
                     position: "relative",
-                    left: "-100px", // Moves it 100px to the left
+                    left: "-100px", 
                   }}
                   onClick={() =>
                     navigate("/dashboard/db-dashboard/restaurants")
