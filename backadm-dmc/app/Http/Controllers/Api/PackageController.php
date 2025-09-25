@@ -745,31 +745,31 @@ class PackageController extends Controller
      * @param string $date Date string in various formats
      * @return string Date in YYYY-MM-DD format
      */
-    private function formatDateForDatabase($date)
-    {
-        if (empty($date)) {
-            return null;
-        }
-        
-        // If it's already in YYYY-MM-DD format, return it
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-        
-        // Try to parse DD/MM/YYYY format
-        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
-            return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
-        }
-        
-        // Try to parse using DateTime
-        try {
-            $dateObj = new \DateTime($date);
-            return $dateObj->format('Y-m-d');
-        } catch (\Exception $e) {
-            // If all else fails, return the original string
-            return $date;
-        }
+
+private function formatDateForDatabase($date)
+{
+    if (empty($date)) {
+        return null;
     }
+
+    // If already YYYY-MM-DD
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        return $date;
+    }
+
+    // Handle DD/MM/YYYY explicitly
+    if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date)) {
+        return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+    }
+
+    // If none of the above, try parsing normally
+    try {
+        return Carbon::parse($date)->format('Y-m-d');
+    } catch (\Exception $e) {
+        return $date; // or null depending on your preference
+    }
+}
+
     
     public function updateCustomPackage(Request $request){
         $payload = $request->all(); // this is the outer array
