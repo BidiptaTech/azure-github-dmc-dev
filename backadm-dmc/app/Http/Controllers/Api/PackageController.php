@@ -796,6 +796,12 @@ class PackageController extends Controller
             ], 404);
         }
         $dmc_id = $tour->dmc_id;
+        if(!$dmc_id){
+            return response()->json([
+                'status' => false,
+                'message' => 'DMC ID for this tour not found'
+            ], 404);
+        }
         $userDMC = User::where('userId', $dmc_id)->first();
         $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
         $auto_cancel_date = Carbon::parse($payload[0]['check_in_time'])->subDays($auto_cancel_day)->toDateString();
@@ -803,13 +809,19 @@ class PackageController extends Controller
         // Convert date format from DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
         $checkInDate = $this->formatDateForDatabase($payload[0]['check_in_time']);
         $checkOutDate = $this->formatDateForDatabase($payload[0]['check_out_time']);
+
         
         $tour->check_in_time = $checkInDate;
         $tour->check_out_time = $checkOutDate;
         $tour->auto_cancel_date = $auto_cancel_date;
+        $tour->adult = $payload[0]["guests"]["adults"];
+        $tour->child = $payload[0]["guests"]["children"];
+        $tour->infant = $payload[0]["guests"]["infants"];
+        $tour->male_count = $payload[0]["guests"]["maleCount"];
+        $tour->female_count = $payload[0]["guests"]["femaleCount"];
+        $tour->child_ages = $payload[0]["guests"]["childrenAges"];
 
         $tour->save();
-        
         // Get all existing orders for this tour_id
         $existingOrders = Order::where('tour_id', $tourId)->get();
         $existingBookingIds = $existingOrders->pluck('booking_id')->toArray();
