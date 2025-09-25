@@ -139,6 +139,23 @@ const StyledCard = styled(Card)(({ theme, selected, serviceType }) => {
           background: `linear-gradient(90deg, ${colorScheme.main}, ${colorScheme.light})`,
         }
       : {},
+    // Mobile-specific styling
+    [theme.breakpoints.down('sm')]: {
+      backgroundColor: selected
+        ? `${colorScheme.main}15`
+        : "rgba(255, 255, 255, 0.95)",
+      backdropFilter: "blur(10px)",
+      border: selected
+        ? `2px solid ${colorScheme.main}`
+        : "2px solid rgba(102, 126, 234, 0.3)",
+      boxShadow: selected
+        ? `0 6px 24px ${colorScheme.main}25`
+        : "0 4px 16px rgba(102, 126, 234, 0.2)",
+      "&:hover": {
+        boxShadow: `0 8px 28px ${colorScheme.main}30`,
+        transform: "translateY(-3px)",
+      },
+    },
   };
 });
 
@@ -161,6 +178,16 @@ const CategoryBadge = styled(Chip)(({ theme, serviceType }) => {
     "&:hover": {
       backgroundColor: `${colorScheme.main}26`,
       transform: "scale(1.05)",
+    },
+    // Mobile-specific styling
+    [theme.breakpoints.down('sm')]: {
+      backgroundColor: "rgba(102, 126, 234, 0.2)",
+      color: "#667eea",
+      fontSize: "9px",
+      padding: "3px 6px",
+      fontWeight: 700,
+      backdropFilter: "blur(5px)",
+      border: "1px solid rgba(102, 126, 234, 0.3)",
     },
   };
 });
@@ -1393,21 +1420,54 @@ const BookingEnquiries = ({
   };
 
   return (
-    <Box sx={{ maxWidth: "1200px", margin: "0 auto", mt: 4 }}>
-      <Box sx={{ px: 4, py: 2.5 }}>
-        <Box sx={{ textAlign: "center", mb: 5 }}>
-          <Typography variant="h4" component="h3" sx={{ fontWeight: 600 }}>
+    <Box sx={{ 
+      maxWidth: "1200px", 
+      margin: "0 auto", 
+      mt: { xs: 0, sm: 1, md: 2 },
+      px: { xs: 0.5, sm: 1, md: 2 }
+    }}>
+      <Box sx={{ 
+        py: { xs: 0.5, sm: 1, md: 1.5 }
+      }}>
+        <Box sx={{ 
+          textAlign: "center", 
+          mb: { xs: 1, sm: 2, md: 3 },
+          px: { xs: 0.5, sm: 1, md: 0 }
+        }}>
+          <Typography 
+            variant="h4" 
+            component="h3" 
+            sx={{ 
+              fontWeight: 600,
+              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
+              color: { xs: '#ff6b6b', sm: '#ff6b6b', md: 'text.primary' },
+              background: { xs: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', sm: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', md: 'none' },
+              WebkitBackgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
+              WebkitTextFillColor: { xs: 'transparent', sm: 'transparent', md: 'unset' },
+              backgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
+              textShadow: { xs: '0 2px 4px rgba(255, 107, 107, 0.3)', sm: '0 2px 4px rgba(255, 107, 107, 0.3)', md: 'none' }
+            }}
+          >
             Booking Enquiries
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography 
+            variant="body1" 
+            color="text.secondary" 
+            sx={{ 
+              mt: 0.25,
+              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
+              color: { xs: '#666', sm: '#666', md: 'text.secondary' },
+              fontWeight: { xs: 500, sm: 500, md: 400 }
+            }}
+          >
             Select your preferred services and customize your travel experience
           </Typography>
           <HeadingLine />
         </Box>
 
-        <Grid container spacing={4} alignItems="flex-start">
+        <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="flex-start">
           {Object.keys(bookingOptions).map((option) => (
-            <Grid item xs={12} md={6} key={option}>
+            <Grid item xs={12} sm={12} md={6} lg={6} key={option}>
               <StyledCard
                 selected={bookingOptions[option]}
                 serviceType={option}
@@ -1423,19 +1483,25 @@ const BookingEnquiries = ({
                     serviceType={option}
                   />
                 </Tooltip>
-                <CardContent sx={{ flexGrow: 1 }}>
+                <CardContent sx={{ flexGrow: 1, p: { xs: 1, sm: 2, md: 3 } }}>
                   <Box
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      flexWrap: { xs: "wrap", sm: "nowrap" },
+                      gap: { xs: 1, sm: 0 }
                     }}
                   >
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <Box sx={{ 
+                      display: "flex", 
+                      alignItems: "center",
+                      flex: { xs: "1 1 100%", sm: "1 1 auto" },
+                      minWidth: 0
+                    }}>
                       <Box
                         sx={{
-                          mr: 1,
-                          mt: 2,
+                          mr: { xs: 0.5, sm: 1 },
                           color: serviceColors[option]?.main || "primary.main",
                           transition: "all 0.3s ease",
                           transform: bookingOptions[option]
@@ -1448,7 +1514,14 @@ const BookingEnquiries = ({
                       <Typography
                         variant="h6"
                         component="h4"
-                        sx={{ fontWeight: 600 }}
+                        sx={{ 
+                          fontWeight: 600,
+                          fontSize: { xs: '0.875rem', sm: '1rem', md: '1.25rem' },
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1
+                        }}
                       >
                         {getCardTitle(option)}
                         <Tooltip
@@ -1463,13 +1536,15 @@ const BookingEnquiries = ({
                     </Box>
                     <FormControlLabel
                       sx={{
-                        mt: 3,
+                        mt: { xs: 0, sm: 0 },
+                        flexShrink: 0
                       }}
                       control={
                         <Switch
                           checked={bookingOptions[option]}
                           onChange={() => handleToggleChange(option)}
                           color="primary"
+                          size="small"
                           sx={{
                             "& .MuiSwitch-switchBase.Mui-checked": {
                               color: serviceColors[option]?.main,
@@ -1481,15 +1556,22 @@ const BookingEnquiries = ({
                           }}
                         />
                       }
-                      label={bookingOptions[option] ? "Yes" : "No"}
+                      label={
+                        <Typography sx={{ 
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          fontWeight: 500
+                        }}>
+                          {bookingOptions[option] ? "Yes" : "No"}
+                        </Typography>
+                      }
                     />
                   </Box>
 
                   {bookingOptions[option] && expandedSections[option] && (
                     <Box
                       sx={{
-                        mt: 2.5,
-                        pt: 2.5,
+                        mt: { xs: 1, sm: 1.5, md: 2.5 },
+                        pt: { xs: 1, sm: 1.5, md: 2.5 },
                         borderTop: "1px solid #f0f0f0",
                         animation: "fadeIn 0.4s ease-in-out",
                         "@keyframes fadeIn": {
@@ -1504,7 +1586,7 @@ const BookingEnquiries = ({
                         },
                       }}
                     >
-                      <Grid container spacing={2}>
+                      <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
                         {option === "hotel" && (
                           <>
                             <Grid item xs={12}>

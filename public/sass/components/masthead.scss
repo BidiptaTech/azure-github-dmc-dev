@@ -106,6 +106,10 @@
       @include media-below(sm) {
         padding-bottom: 20px;
       }
+
+      @media (max-width: 767px) {
+        padding-top: 0px;
+      }
     }
 
     &__images {

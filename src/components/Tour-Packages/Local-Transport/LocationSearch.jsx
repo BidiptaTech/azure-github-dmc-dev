@@ -158,9 +158,9 @@ const SearchBar = ({
 
   return (
     <Box sx={{ width: '100%', px: 1.5, py: 1.5 }}>
-      <Grid container spacing={2}>
+      <Grid container spacing={{ xs: 1.5, sm: 1.5, md: 1.5 }} alignItems="flex-end">
         {/* Pick-up Location */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6}>
           <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Pick Up Location
           </Typography>
@@ -194,7 +194,7 @@ const SearchBar = ({
         </Grid>
 
         {/* Drop-off Location */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} sm={6}>
           <Typography variant="body2" sx={{ mb: 0.8, fontWeight: 700, fontSize: '0.85rem', color: '#000' }}>
             Drop Off Location
           </Typography>

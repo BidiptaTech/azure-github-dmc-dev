@@ -22,6 +22,13 @@ const StyledModal = styled(Modal)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  padding: theme.spacing(2),
+  // Mobile responsive adjustments
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(1),
+    alignItems: 'flex-start',
+    paddingTop: theme.spacing(4)
+  }
 }));
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -35,6 +42,20 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   backgroundColor: '#fff',
   outline: 'none',
   overflow: 'hidden',
+  // Mobile and tablet responsive styling
+  [theme.breakpoints.down('md')]: {
+    padding: theme.spacing(3, 3, 3),
+    margin: theme.spacing(1.5),
+    maxWidth: '500px',
+    borderRadius: theme.spacing(1.5),
+  },
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(2, 2, 2),
+    margin: theme.spacing(1),
+    maxWidth: '100%',
+    borderRadius: theme.spacing(1),
+    boxShadow: '0 8px 25px rgba(0, 0, 0, 0.2)',
+  }
 }));
 
 const GradientHeader = styled(Box)(({ theme }) => ({
@@ -51,12 +72,29 @@ const CloseButton = styled(IconButton)(({ theme }) => ({
   top: theme.spacing(1.5),
   right: theme.spacing(1.5),
   color: theme.palette.grey[500],
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    top: theme.spacing(1),
+    right: theme.spacing(1),
+    padding: theme.spacing(0.5),
+    '& .MuiSvgIcon-root': {
+      fontSize: '1.2rem'
+    }
+  }
 }));
 
 const StatusChip = styled(Chip)(({ theme }) => ({
   padding: theme.spacing(0.5, 1),
   fontWeight: 600,
   boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
+  // Mobile responsive styling
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(0.25, 0.75),
+    fontSize: '0.875rem',
+    '& .MuiChip-label': {
+      padding: theme.spacing(0.25, 0.5)
+    }
+  }
 }));
 
 // Removed ProgressWrapper since we no longer need countdown progress
@@ -143,56 +181,98 @@ const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard',
             <CloseIcon />
           </CloseButton>
           
-          <Box sx={{ textAlign: 'center', mb: 4, mt: 2 }}>
-            <CheckCircleIcon sx={{ fontSize: 60, color: 'success.main', mb: 2 }} />
-            <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+          <Box sx={{ 
+            textAlign: 'center', 
+            mb: { xs: 3, sm: 4 }, 
+            mt: { xs: 1, sm: 2 } 
+          }}>
+            <CheckCircleIcon sx={{ 
+              fontSize: { xs: 48, sm: 60 }, 
+              color: 'success.main', 
+              mb: { xs: 1.5, sm: 2 } 
+            }} />
+            <Typography 
+              variant="h5" 
+              fontWeight={700} 
+              sx={{ 
+                mb: { xs: 0.5, sm: 1 },
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.5rem' }
+              }}
+            >
               Booking Submitted Successfully!
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography 
+              variant="body1" 
+              color="text.secondary"
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '1rem' }
+              }}
+            >
               Your booking enquiry has been received and is being processed.
             </Typography>
           </Box>
           
-          <Divider sx={{ mb: 3 }} />
+          <Divider sx={{ mb: { xs: 2, sm: 3 } }} />
           
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 2, sm: 3 } }}>
+            <Typography 
+              variant="subtitle1" 
+              fontWeight={600} 
+              sx={{ 
+                mb: { xs: 0.5, sm: 1 },
+                fontSize: { xs: '0.875rem', sm: '1rem' }
+              }}
+            >
               Booking Reference
             </Typography>
             <Chip
               label={getReferenceId()}
               color="primary"
               sx={{ 
-                fontSize: '1.1rem', 
-                padding: '20px 15px',
+                fontSize: { xs: '0.875rem', sm: '1.1rem' }, 
+                padding: { xs: '12px 10px', sm: '20px 15px' },
                 fontWeight: 700,
                 boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-                cursor: 'default'
+                cursor: 'default',
+                maxWidth: '100%',
+                wordBreak: 'break-all'
               }}
             />
           </Box>
           
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 2, sm: 3 } }}>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                mb: { xs: 0.5, sm: 1 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}
+            >
               Status
             </Typography>
             <StatusChip
-              icon={<CheckCircleIcon />}
+              icon={<CheckCircleIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />}
               label="Enquiry Submitted"
               color="success"
             />
           </Box>
           
-          <Box sx={{ mt: 4, textAlign: 'end' }}>
+          <Box sx={{ 
+            mt: { xs: 3, sm: 4 }, 
+            textAlign: { xs: 'center', sm: 'end' } 
+          }}>
             <Button
               variant="contained"
               color="primary"
               onClick={handleCloseModal}
               sx={{ 
-                px: 3, 
-                py: 1, 
+                px: { xs: 2, sm: 3 }, 
+                py: { xs: 0.75, sm: 1 }, 
                 borderRadius: 2,
                 boxShadow: '0 4px 10px rgba(53, 84, 209, 0.25)',
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                minWidth: { xs: '120px', sm: 'auto' }
               }}
             >
               Close

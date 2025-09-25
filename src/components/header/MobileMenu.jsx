@@ -275,12 +275,12 @@ const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, 
           </>
         )}
         
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
+        {/* <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             Follow us on social media
           </Typography>
             <Social />
-        </Box>
+        </Box> */}
       </Box>
 
       {/* Modals are now rendered by the parent header component */}
