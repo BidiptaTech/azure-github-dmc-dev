@@ -186,6 +186,25 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
           backgroundColor: 'white',
           boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
           maxWidth: '100%', // Ensure container doesn't exceed viewport
+          // Responsive scrolling behavior
+          '@media (max-width: 768px)': {
+            overflowX: 'auto',
+            overflowY: 'visible',
+            '&::-webkit-scrollbar': {
+              height: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: '#f1f1f1',
+              borderRadius: '3px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#c1c1c1',
+              borderRadius: '3px',
+              '&:hover': {
+                backgroundColor: '#a8a8a8',
+              },
+            },
+          },
           // On large screens, enable horizontal scrolling when content overflows
           '@media (min-width: 1200px)': {
             overflowX: 'auto',
@@ -209,20 +228,34 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
         }}
       >
         <Table sx={{ 
-          minWidth: 1200, // Increased minimum width to ensure all columns are visible
+          minWidth: { xs: 1000, sm: 1200, md: 1200 }, // Responsive minimum width
           // Ensure table takes full width but allows horizontal scroll when needed
           width: '100%',
           tableLayout: 'auto'
         }}>
           <TableHead sx={{ backgroundColor: '#f0f4f8' }}>
             <TableRow>
-              <TableCell align="center" sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
+              <TableCell align="center" sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 100, sm: 120 }, 
+                width: { xs: 100, sm: 120 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                   <Settings fontSize="small" />
-                  Actions
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                    Actions
+                  </Box>
                 </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 150, width: 150 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 120, sm: 150 }, 
+                width: { xs: 120, sm: 150 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'bookingId'}
                   direction={orderBy === 'bookingId' ? order : 'asc'}
@@ -230,11 +263,22 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <ConfirmationNumber fontSize="small" />
-                    Booking ID / DMC
+                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                      Booking ID / DMC
+                    </Box>
+                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                      ID
+                    </Box>
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 100, sm: 120 }, 
+                width: { xs: 100, sm: 120 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'startDate'}
                   direction={orderBy === 'startDate' ? order : 'asc'}
@@ -246,7 +290,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 100, sm: 120 }, 
+                width: { xs: 100, sm: 120 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'endDate'}
                   direction={orderBy === 'endDate' ? order : 'asc'}
@@ -258,7 +308,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 80, width: 80 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 60, sm: 80 }, 
+                width: { xs: 60, sm: 80 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'pax'}
                   direction={orderBy === 'pax' ? order : 'asc'}
@@ -270,7 +326,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 150, width: 150 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 120, sm: 150 }, 
+                width: { xs: 120, sm: 150 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'destination'}
                   direction={orderBy === 'destination' ? order : 'asc'}
@@ -282,7 +344,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 150, width: 150 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 120, sm: 150 }, 
+                width: { xs: 120, sm: 150 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'customerName'}
                   direction={orderBy === 'customerName' ? order : 'asc'}
@@ -295,7 +363,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 </TableSortLabel>
               </TableCell>
               {userRole !== 'Agent' && (
-                <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
+                <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 100, sm: 120 }, 
+                width: { xs: 100, sm: 120 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                   <TableSortLabel
                     active={orderBy === 'agentId'}
                     direction={orderBy === 'agentId' ? order : 'asc'}
@@ -308,19 +382,37 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                   </TableSortLabel>
                 </TableCell>
               )}
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 100, sm: 120 }, 
+                width: { xs: 100, sm: 120 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Payment fontSize="small" />
                   Payment
                 </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 100, width: 100 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 80, sm: 100 }, 
+                width: { xs: 80, sm: 100 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Info fontSize="small" />
                   Status
                 </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', color: '#37474f', minWidth: 120, width: 120 }}>
+              <TableCell sx={{ 
+                fontWeight: 'bold', 
+                color: '#37474f', 
+                minWidth: { xs: 100, sm: 120 }, 
+                width: { xs: 100, sm: 120 },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+              }}>
                 <TableSortLabel
                   active={orderBy === 'createdAt'}
                   direction={orderBy === 'createdAt' ? order : 'asc'}
@@ -345,12 +437,21 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 }}
               >
                 <TableCell align="center">
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: { xs: 0.5, sm: 1 }, 
+                    justifyContent: 'center',
+                    flexDirection: { xs: 'column', sm: 'row' }
+                  }}>
                     <Tooltip title="View Details">
                       <IconButton
                         size="small"
                         color="primary"
-                        sx={{ bgcolor: 'rgba(67, 97, 238, 0.1)' }}
+                        sx={{ 
+                          bgcolor: 'rgba(67, 97, 238, 0.1)',
+                          minWidth: { xs: '32px', sm: '40px' },
+                          minHeight: { xs: '32px', sm: '40px' }
+                        }}
                         onClick={() => handleViewClick(row)}
                       >
                         <Visibility fontSize="small" />
@@ -363,7 +464,9 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                           size="small" 
                           color="error" 
                           sx={{ 
-                            bgcolor: 'rgba(244, 67, 54, 0.1)'
+                            bgcolor: 'rgba(244, 67, 54, 0.1)',
+                            minWidth: { xs: '32px', sm: '40px' },
+                            minHeight: { xs: '32px', sm: '40px' }
                           }}
                           onClick={() => handleCancelClick(row)}
                         >
@@ -376,7 +479,11 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#2c3e50' }}>
+                    <Typography variant="body2" sx={{ 
+                      fontWeight: 500, 
+                      color: '#2c3e50',
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                    }}>
                       {row.bookingId}
                     </Typography>
                     {row.dmc_data && row.dmc_data.dmc_company_name && (
@@ -390,15 +497,15 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                           size="small"
                           variant="outlined"
                           sx={{
-                            height: '20px',
-                            fontSize: '0.7rem',
+                            height: { xs: '18px', sm: '20px' },
+                            fontSize: { xs: '0.65rem', sm: '0.7rem' },
                             fontStyle: 'italic',
                             color: '#7f8c8d',
                             borderColor: '#bdc3c7',
                             backgroundColor: 'rgba(189, 195, 199, 0.1)',
                             '& .MuiChip-label': {
-                              px: 1,
-                              maxWidth: '180px',
+                              px: { xs: 0.5, sm: 1 },
+                              maxWidth: { xs: '120px', sm: '180px' },
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap'
@@ -411,14 +518,18 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <CalendarToday fontSize="small" color="action" sx={{ mr: 1, opacity: 0.6 }} />
-                    {row.startDate}
+                    <CalendarToday fontSize="small" color="action" sx={{ mr: { xs: 0.5, sm: 1 }, opacity: 0.6 }} />
+                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      {row.startDate}
+                    </Typography>
                   </Box>
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <CalendarToday fontSize="small" color="action" sx={{ mr: 1, opacity: 0.6 }} />
-                    {row.endDate}
+                    <CalendarToday fontSize="small" color="action" sx={{ mr: { xs: 0.5, sm: 1 }, opacity: 0.6 }} />
+                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      {row.endDate}
+                    </Typography>
                   </Box>
                 </TableCell>
                 <TableCell>
@@ -430,14 +541,18 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <LocationOn fontSize="small" color="error" sx={{ mr: 0.5 }} />
-                    <Typography variant="body2">{row.destination}</Typography>
+                    <LocationOn fontSize="small" color="error" sx={{ mr: { xs: 0.25, sm: 0.5 } }} />
+                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      {row.destination}
+                    </Typography>
                   </Box>
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Person fontSize="small" color="action" sx={{ mr: 1, opacity: 0.6 }} />
-                    <Typography variant="body2">{row.customerName}</Typography>
+                    <Person fontSize="small" color="action" sx={{ mr: { xs: 0.5, sm: 1 }, opacity: 0.6 }} />
+                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      {row.customerName}
+                    </Typography>
                   </Box>
                 </TableCell>
                 {userRole !== 'Agent' && (
@@ -449,13 +564,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                         variant="outlined"
                         color="primary"
                         sx={{
-                          fontSize: '0.75rem',
-                          height: '24px',
+                          fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                          height: { xs: '20px', sm: '24px' },
                           backgroundColor: '#e3f2fd',
                           borderColor: '#1976d2',
                           color: '#1976d2',
                           '& .MuiChip-label': {
-                            px: 1,
+                            px: { xs: 0.5, sm: 1 },
                             fontWeight: 500
                           },
                           '&:hover': {
@@ -467,24 +582,36 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                     </Box>
                   </TableCell>
                 )}
-                <TableCell sx={{ minWidth: 120, width: 120 }}>
+                <TableCell sx={{ minWidth: { xs: 100, sm: 120 }, width: { xs: 100, sm: 120 } }}>
                   <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', mr: 0.5, fontSize: '10px' }}>
+                    <Typography variant="body2" sx={{ 
+                      fontWeight: 500, 
+                      color: 'success.main', 
+                      mr: 0.5, 
+                      fontSize: { xs: '8px', sm: '10px' }
+                    }}>
                       SGD
                     </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    <Typography variant="body2" sx={{ 
+                      fontWeight: 500,
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                    }}>
                       {row.payment}
                     </Typography>
                   </Box>
                 </TableCell>
-                <TableCell sx={{ minWidth: 100, width: 100 }}>
+                <TableCell sx={{ minWidth: { xs: 80, sm: 100 }, width: { xs: 80, sm: 100 } }}>
                   <StatusChip status={row.status} />
                 </TableCell>
-                <TableCell sx={{ minWidth: 120, width: 120 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TableCell sx={{ minWidth: { xs: 100, sm: 120 }, width: { xs: 100, sm: 120 } }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
                     <CalendarToday fontSize="small" color="action" sx={{ opacity: 0.6 }} />
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#2c3e50' }}>
+                      <Typography variant="body2" sx={{ 
+                        fontWeight: 500, 
+                        color: '#2c3e50',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      }}>
                         {row.createdAt ? row.createdAt.split(' ').slice(0, 3).join(' ') : 'Not specified'}
                       </Typography>
                       {row.createdAt && row.createdAt.includes(' ') && (
@@ -493,13 +620,13 @@ const PackagesTable = ({ data = [], emptyMessage = "No packages available", user
                           size="small"
                           variant="outlined"
                           sx={{
-                            height: '18px',
-                            fontSize: '0.65rem',
+                            height: { xs: '16px', sm: '18px' },
+                            fontSize: { xs: '0.6rem', sm: '0.65rem' },
                             color: '#7f8c8d',
                             borderColor: '#bdc3c7',
                             backgroundColor: 'rgba(189, 195, 199, 0.1)',
                             '& .MuiChip-label': {
-                              px: 0.5,
+                              px: { xs: 0.25, sm: 0.5 },
                               fontWeight: 500
                             }
                           }}

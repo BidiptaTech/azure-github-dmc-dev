@@ -94,6 +94,7 @@ const RestaurantsDetails = () => {
                 ← Back To Listing
               </button> */}
               <div
+                className="back-button-container"
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
@@ -101,7 +102,7 @@ const RestaurantsDetails = () => {
                 }}
               >
                 <button
-                  className="button px-4 py-2 bg-blue-1 text-white rounded"
+                  className="button px-4 py-2 bg-blue-1 text-white rounded back-button-responsive"
                   style={{
                     minHeight: "40px",
                     position: "relative",
@@ -114,6 +115,54 @@ const RestaurantsDetails = () => {
                   ← Back To Listing
                 </button>
               </div>
+              
+              <style jsx global>{`
+                .back-button-responsive {
+                  left: -100px;
+                  font-size: 14px;
+                  padding: 12px 24px;
+                  min-height: 40px;
+                  transition: all 0.3s ease;
+                  boxShadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                  border: none;
+                  cursor: pointer;
+                  display: flex;
+                  alignItems: center;
+                  gap: 6px;
+                  whiteSpace: nowrap;
+                  zIndex: 10;
+                }
+                
+                /* Tablet styles */
+                @media (max-width: 768px) {
+                  .back-button-responsive {
+                    left: -50px;
+                    font-size: 12px;
+                    padding: 10px 18px;
+                    min-height: 36px;
+                  }
+                }
+                
+                /* Mobile styles */
+                @media (max-width: 480px) {
+                  .back-button-responsive {
+                    left: -20px;
+                    font-size: 11px;
+                    padding: 8px 14px;
+                    min-height: 32px;
+                  }
+                }
+                
+                /* Extra small mobile */
+                @media (max-width: 360px) {
+                  .back-button-responsive {
+                    left: -10px;
+                    font-size: 10px;
+                    padding: 6px 12px;
+                    min-height: 28px;
+                  }
+                }
+              `}</style>
               <h1 className="text-30 fw-600">{restaurantsDetails?.name}</h1>
               <div className="row x-gap-20 y-gap-20 items-center pt-10">
                 {/* <div className="col-auto">
