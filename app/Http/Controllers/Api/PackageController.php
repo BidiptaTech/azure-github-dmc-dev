@@ -745,31 +745,31 @@ class PackageController extends Controller
      * @param string $date Date string in various formats
      * @return string Date in YYYY-MM-DD format
      */
-    private function formatDateForDatabase($date)
-    {
-        if (empty($date)) {
-            return null;
-        }
-        
-        // If it's already in YYYY-MM-DD format, return it
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-        
-        // Try to parse DD/MM/YYYY format
-        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
-            return sprintf('%04d-%02d-%02d', $matches[3], $matches[2], $matches[1]);
-        }
-        
-        // Try to parse using DateTime
-        try {
-            $dateObj = new \DateTime($date);
-            return $dateObj->format('Y-m-d');
-        } catch (\Exception $e) {
-            // If all else fails, return the original string
-            return $date;
-        }
+
+private function formatDateForDatabase($date)
+{
+    if (empty($date)) {
+        return null;
     }
+
+    // If already YYYY-MM-DD
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        return $date;
+    }
+
+    // Handle DD/MM/YYYY explicitly
+    if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date)) {
+        return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+    }
+
+    // If none of the above, try parsing normally
+    try {
+        return Carbon::parse($date)->format('Y-m-d');
+    } catch (\Exception $e) {
+        return $date; // or null depending on your preference
+    }
+}
+
     
     public function updateCustomPackage(Request $request){
         $payload = $request->all(); // this is the outer array
@@ -796,6 +796,12 @@ class PackageController extends Controller
             ], 404);
         }
         $dmc_id = $tour->dmc_id;
+        if(!$dmc_id){
+            return response()->json([
+                'status' => false,
+                'message' => 'DMC ID for this tour not found'
+            ], 404);
+        }
         $userDMC = User::where('userId', $dmc_id)->first();
         $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
         $auto_cancel_date = Carbon::parse($payload[0]['check_in_time'])->subDays($auto_cancel_day)->toDateString();
@@ -803,13 +809,19 @@ class PackageController extends Controller
         // Convert date format from DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
         $checkInDate = $this->formatDateForDatabase($payload[0]['check_in_time']);
         $checkOutDate = $this->formatDateForDatabase($payload[0]['check_out_time']);
+
         
         $tour->check_in_time = $checkInDate;
         $tour->check_out_time = $checkOutDate;
         $tour->auto_cancel_date = $auto_cancel_date;
+        $tour->adult = $payload[0]["guests"]["adults"];
+        $tour->child = $payload[0]["guests"]["children"];
+        $tour->infant = $payload[0]["guests"]["infants"];
+        $tour->male_count = $payload[0]["guests"]["maleCount"];
+        $tour->female_count = $payload[0]["guests"]["femaleCount"];
+        $tour->child_ages = $payload[0]["guests"]["childrenAges"];
 
         $tour->save();
-        
         // Get all existing orders for this tour_id
         $existingOrders = Order::where('tour_id', $tourId)->get();
         $existingBookingIds = $existingOrders->pluck('booking_id')->toArray();

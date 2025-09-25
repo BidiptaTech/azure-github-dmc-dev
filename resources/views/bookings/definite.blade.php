@@ -920,14 +920,14 @@
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment History
                                         </button>
-                                    @else
+                                    @else  
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                                 <i class="fas fa-history me-1"></i> Payment History
                                             </button>
                                         @endif
 
-                                        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 10, 11, 12, 24, 28, 33, 37, 38]))
+                                        @if(in_array(auth()->user()->role_id, [11, 12, 24, 28, 33, 37, 38, 128, 129, 130, 135, 136, 138]))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
                                                     <i class="fas fa-plus-circle me-1"></i> Add Payment
@@ -14364,6 +14364,8 @@ function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex
                 entrytime: rawData.entry_time || travelPointDetails.entry_time,
                 pickup_location: rawData.pickup_location || travelPointDetails.pickup_location,
                 drop_location: rawData.drop_location || travelPointDetails.drop_location,
+                entrypickup: travelPointDetails.entrypickup || rawData.entrypickup || rawData.pickup_location || travelPointDetails.pickup_location,
+                entrydropoff: travelPointDetails.entrydropoff || rawData.entrydropoff || rawData.drop_location || travelPointDetails.drop_location,
                 type: travelPointDetails.type || 'Standard',
                 adults: rawData.adults || '0',
                 children: rawData.children || '0',
@@ -14482,11 +14484,11 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <div class="row">
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Pickup Location</small>
-                                        <div class="fw-medium">${travelPointData.pickup_location || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.entrypickup || travelPointData.pickup_location || 'N/A'}</div>
                                     </div>
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Drop Location</small>
-                                        <div class="fw-medium">${travelPointData.drop_location || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.entrydropoff || travelPointData.drop_location || 'N/A'}</div>
                                     </div>
                                     <div class="col-md-6 mb-2">
                                         <small class="text-muted">City</small>
@@ -15885,7 +15887,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Pickup Point</small>
                                         <div class="fw-medium d-flex align-items-center">
                                             <i class="ri-map-pin-line text-success me-2"></i>
-                                            ${travelPointData.pickupPoint || 'N/A'}
+                                            ${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}
                                         </div>
                                         <small class="text-success">Origin</small>
                                     </div>
@@ -15893,7 +15895,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Dropoff Point</small>
                                         <div class="fw-medium d-flex align-items-center">
                                             <i class="ri-map-pin-2-line text-danger me-2"></i>
-                                            ${travelPointData.dropoffPoint || 'N/A'}
+                                            ${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}
                                         </div>
                                         <small class="text-danger">Destination</small>
                                     </div>
@@ -15901,9 +15903,9 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <!-- Route Direction Visual -->
                                 <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
                                     <div class="text-center">
-                                        <span class="badge bg-success me-2">${travelPointData.pickupPoint || 'Pickup'}</span>
+                                        <span class="badge bg-success me-2">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
                                         <i class="ri-arrow-right-line text-primary mx-2"></i>
-                                        <span class="badge bg-danger">${travelPointData.dropoffPoint || 'Dropoff'}</span>
+                                        <span class="badge bg-danger">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -16014,7 +16016,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.reference_id || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
