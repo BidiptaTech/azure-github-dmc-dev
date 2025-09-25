@@ -77,9 +77,31 @@ const DropdownMenu = styled(Paper)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   width: 'calc(100% + 6px)',
   left: '-2px',
-  maxHeight: '250px',
+  maxHeight: '150px',
+  height: '300px',
   overflowY: 'auto',
   border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  // Custom scrollbar styling
+  '&::-webkit-scrollbar': {
+    width: '8px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: alpha(theme.palette.grey[300], 0.3),
+    borderRadius: '4px',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: alpha(theme.palette.primary.main, 0.6),
+    borderRadius: '4px',
+    '&:hover': {
+      background: alpha(theme.palette.primary.main, 0.8),
+    },
+  },
+  '&::-webkit-scrollbar-thumb:hover': {
+    background: alpha(theme.palette.primary.main, 0.8),
+  },
+  // Firefox scrollbar styling
+  scrollbarWidth: 'thin',
+  scrollbarColor: `${alpha(theme.palette.primary.main, 0.6)} ${alpha(theme.palette.grey[300], 0.3)}`,
 }));
 
 const TicketItem = styled(Box)(({ theme, isSelected }) => ({
@@ -169,13 +191,25 @@ const AnimatedAvatar = styled(Avatar)(({ theme }) => ({
 
 // Sidebar styles for the modal
 const ModalSidebar = styled(Box)(({ theme }) => ({
-  width: '280px',
-  borderLeft: `1px solid ${theme.palette.divider}`,
+  width: { xs: '100%', md: '280px' },
+  borderLeft: { xs: 'none', md: `1px solid ${theme.palette.divider}` },
+  borderTop: { xs: `1px solid ${theme.palette.divider}`, md: 'none' },
   backgroundColor: alpha(theme.palette.primary.main, 0.02),
-  height: '100%',
+  height: { xs: '40vh', md: '100%' },
   padding: theme.spacing(2),
   display: 'flex',
   flexDirection: 'column',
+  order: { xs: 1, md: 2 },
+  minHeight: { xs: '200px', md: 'auto' },
+  // Keep original desktop layout
+  '@media (min-width: 900px)': {
+    width: '280px',
+    borderLeft: `1px solid ${theme.palette.divider}`,
+    borderTop: 'none',
+    height: '100%',
+    order: 2,
+    minHeight: 'auto'
+  }
 }));
 
 const SidebarHeader = styled(Box)(({ theme }) => ({
@@ -615,44 +649,157 @@ const TicketSelection = ({
         onClose={() => setIsModalOpen(false)}
         maxWidth="lg"
         fullWidth
+        fullScreen={false}
         TransitionComponent={Zoom}
+        sx={{
+          // Only apply responsive changes for mobile and tablet
+          '& .MuiDialog-paper': {
+            '@media (max-width: 900px)': {
+              margin: '8px',
+              maxHeight: 'calc(100vh - 16px)',
+              width: 'calc(100vw - 16px)',
+              overflow: 'hidden',
+              // Custom scrollbar for mobile/tablet
+              '&::-webkit-scrollbar': {
+                width: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: alpha('#3554D1', 0.1),
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: alpha('#3554D1', 0.6),
+                borderRadius: '4px',
+                '&:hover': {
+                  background: alpha('#3554D1', 0.8),
+                },
+              },
+              // Firefox scrollbar styling
+              scrollbarWidth: 'thin',
+              scrollbarColor: `${alpha('#3554D1', 0.6)} ${alpha('#3554D1', 0.1)}`,
+            }
+          }
+        }}
       >
-        <DialogTitle sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Box display="flex" alignItems="center">
-              <ConfirmationNumberIcon color="primary" sx={{ mr: 1.5, fontSize: 28 }} />
-            <Typography variant="h6">
-              {isPackage(selectedTicket) ? 'Confirm Package Selection' : 'Confirm Ticket Selection'}
+        <DialogTitle sx={{ 
+          px: { xs: 2, sm: 3 }, 
+          py: { xs: 1.5, sm: 2 }, 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          borderBottom: '1px solid', 
+          borderColor: 'divider',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 0 },
+          // Keep original desktop layout
+          '@media (min-width: 900px)': {
+            px: 3,
+            py: 2,
+            flexDirection: 'row',
+            gap: 0
+          }
+        }}>
+            <Box display="flex" alignItems="center" flexWrap="wrap" gap={1}>
+              <ConfirmationNumberIcon color="primary" sx={{ mr: 1.5, fontSize: { xs: 24, sm: 28 } }} />
+              <Typography variant="h6" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                {isPackage(selectedTicket) ? 'Confirm Package Selection' : 'Confirm Ticket Selection'}
               </Typography>
-            {!isPackage(selectedTicket) && (
+              {!isPackage(selectedTicket) && (
                 <Chip 
-                icon={<LanguageIcon />}
-                label={nriStatus === "nri" ? "Foreigner Pricing" : "Local Pricing"}
-                color="primary" 
-                size="small" 
-                sx={{ ml: 1.5 }} 
-              />
-            )}
-            {isPackage(selectedTicket) && (
-                <Chip 
-                icon={<ListIcon />}
-                label={`${selectedTicket.attractions?.length || 0} Attractions`}
-                color="secondary" 
+                  icon={<LanguageIcon />}
+                  label={nriStatus === "nri" ? "Foreigner Pricing" : "Local Pricing"}
+                  color="primary" 
                   size="small" 
-                  sx={{ ml: 1.5 }} 
+                  sx={{ 
+                    ml: { xs: 0, sm: 1.5 },
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                  }} 
+                />
+              )}
+              {isPackage(selectedTicket) && (
+                <Chip 
+                  icon={<ListIcon />}
+                  label={`${selectedTicket.attractions?.length || 0} Attractions`}
+                  color="secondary" 
+                  size="small" 
+                  sx={{ 
+                    ml: { xs: 0, sm: 1.5 },
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                  }} 
                 />
               )}
             </Box>
-          <IconButton onClick={() => setIsModalOpen(false)} size="small">
-            <CloseIcon />
-          </IconButton>
+            <IconButton 
+              onClick={() => setIsModalOpen(false)} 
+              size="small"
+              sx={{ 
+                position: { xs: 'absolute', sm: 'static' },
+                top: { xs: 8, sm: 'auto' },
+                right: { xs: 8, sm: 'auto' }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
         </DialogTitle>
         
          
-        <DialogContent sx={{ p: 0, display: 'flex', height: '600px' }}>   
+        <DialogContent sx={{ 
+          p: 0, 
+          display: 'flex', 
+          height: { xs: 'calc(100vh - 120px)', sm: 'calc(100vh - 140px)', md: '600px' },
+          flexDirection: { xs: 'column', md: 'row' },
+          overflow: 'hidden',
+          // Enable scrolling for mobile/tablet
+          '@media (max-width: 900px)': {
+            overflowY: 'auto',
+            // Custom scrollbar styling for mobile/tablet
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: alpha('#3554D1', 0.1),
+              borderRadius: '3px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: alpha('#3554D1', 0.5),
+              borderRadius: '3px',
+              '&:hover': {
+                background: alpha('#3554D1', 0.7),
+              },
+            },
+            // Firefox scrollbar styling
+            scrollbarWidth: 'thin',
+            scrollbarColor: `${alpha('#3554D1', 0.5)} ${alpha('#3554D1', 0.1)}`,
+          },
+          // Keep original desktop layout
+          '@media (min-width: 900px)': {
+            height: '600px',
+            flexDirection: 'row',
+            overflow: 'hidden'
+          }
+        }}>   
           {selectedTicket && (
             <>
               {/* Main Content Area */}
-              <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
+              <Box sx={{ 
+                p: { xs: 2, sm: 3 }, 
+                flex: 1, 
+                overflowY: 'auto',
+                order: { xs: 2, md: 1 },
+                maxHeight: { xs: '60vh', md: 'none' },
+                // Remove individual scrolling for mobile since parent handles it
+                '@media (max-width: 900px)': {
+                  overflowY: 'visible',
+                  maxHeight: 'none'
+                },
+                // Keep original desktop layout
+                '@media (min-width: 900px)': {
+                  p: 3,
+                  order: 1,
+                  maxHeight: 'none',
+                  overflowY: 'auto'
+                }
+              }}>
               <Box 
                 display="flex" 
                 alignItems="center" 
@@ -769,9 +916,9 @@ const TicketSelection = ({
                 </Typography>
               </Box>
 
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1, sm: 2 }}>
                 {['adult', 'child', 'senior'].map(priceType => (
-                    <Grid item xs={12} sm={4} key={`${priceType}-${nriStatus}`}>
+                    <Grid item xs={12} sm={6} md={4} key={`${priceType}-${nriStatus}`}>
                     <Fade in={true} timeout={500}>
                       <PriceCard>
                         <PriceCardHeader type={priceType}>
@@ -890,7 +1037,7 @@ const TicketSelection = ({
                       <ListIcon sx={{ mr: 1 }} />
                       Included Attractions
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={{ xs: 1, sm: 2 }}>
                       {selectedTicket.attractions.map((attraction, index) => (
                         <Grid item xs={12} sm={6} md={4} key={`attraction-${attraction.attraction_id}`}>
                           <Paper 
@@ -951,19 +1098,19 @@ const TicketSelection = ({
                 )}
                 
                 {/* Description sections */}
-                <Grid container spacing={2} mt={1}>
+                <Grid container spacing={{ xs: 1, sm: 2 }} mt={1}>
                   {selectedTicket.description && (
-                    <Grid item xs={12} md={isPackage(selectedTicket) ? 12 : 4}>
+                    <Grid item xs={12} sm={12} md={isPackage(selectedTicket) ? 12 : 4}>
                       {renderDescription(stripPTags(selectedTicket.description), "description")}
                     </Grid>
                   )}
                   {!isPackage(selectedTicket) && selectedTicket.remarks && (
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} sm={6} md={4}>
                       {renderDescription(stripPTags(selectedTicket.remarks), "remarks")}
                     </Grid>
                   )}
                   {!isPackage(selectedTicket) && selectedTicket.terms_conditions && (
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} sm={6} md={4}>
                       {renderDescription(stripPTags(selectedTicket.terms_conditions), "terms")}
                     </Grid>
                   )}
@@ -981,7 +1128,34 @@ const TicketSelection = ({
                   </Box>
                 </SidebarHeader>
                 
-                <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
+                <Box sx={{ 
+                  overflow: 'auto', 
+                  flexGrow: 1,
+                  maxHeight: '400px',
+                  // Custom scrollbar styling for sidebar
+                  '&::-webkit-scrollbar': {
+                    width: '6px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: alpha('#3554D1', 0.1),
+                    borderRadius: '3px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: alpha('#3554D1', 0.4),
+                    borderRadius: '3px',
+                    '&:hover': {
+                      background: alpha('#3554D1', 0.6),
+                    },
+                  },
+                  // Firefox scrollbar styling
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: `${alpha('#3554D1', 0.4)} ${alpha('#3554D1', 0.1)}`,
+                  // Remove individual scrolling for mobile since parent handles it
+                  '@media (max-width: 900px)': {
+                    overflow: 'visible',
+                    maxHeight: 'none'
+                  }
+                }}>
                   {allOptions.map((item, index) => (
                     <Paper
                       key={item.ticket_id}
@@ -1092,12 +1266,36 @@ const TicketSelection = ({
           )}
         </DialogContent>
         
-        <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <DialogActions sx={{ 
+          p: { xs: 2, sm: 2 }, 
+          borderTop: '1px solid', 
+          borderColor: 'divider',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 0 },
+          '& > *': {
+            width: { xs: '100%', sm: 'auto' }
+          },
+          // Keep original desktop layout
+          '@media (min-width: 900px)': {
+            p: 2,
+            flexDirection: 'row',
+            gap: 0,
+            '& > *': {
+              width: 'auto'
+            }
+          }
+        }}>
           <Button 
             variant="outlined" 
             color="primary" 
             onClick={() => setIsModalOpen(false)}
             startIcon={<CancelIcon />}
+            fullWidth={{ xs: true, sm: false }}
+            sx={{
+              '@media (min-width: 900px)': {
+                width: 'auto'
+              }
+            }}
           >
             Cancel
           </Button>
@@ -1106,6 +1304,12 @@ const TicketSelection = ({
             color="primary" 
             onClick={handleConfirmSelection}
             startIcon={<CheckCircleIcon />}
+            fullWidth={{ xs: true, sm: false }}
+            sx={{
+              '@media (min-width: 900px)': {
+                width: 'auto'
+              }
+            }}
           >
             Confirm Selection
           </Button>
@@ -1147,3 +1351,8 @@ const TicketSelection = ({
 };
 
 export default TicketSelection;
+
+
+
+
+

@@ -403,6 +403,9 @@ const index = () => {
   
   // Show Checkout button and price summary only if all required selections are made
   const showCheckout = selectedTicket !== null;
+  
+  // Check if all required tasks are completed for button to be enabled
+  const isBookingReady = selectedDate && selectedTime && selectedTicket;
 
   return (
     <>
@@ -543,31 +546,38 @@ const index = () => {
         </div>
       )}
 
-      {showCheckout && (
-        <div className="col-12">
-          <button
-            className="button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
-            onClick={handleBookNow}
-            style={{
-              transition: "all 0.3s ease",
-              boxShadow: "0 4px 10px rgba(53, 84, 209, 0.25)",
-              fontWeight: "600",
-              letterSpacing: "0.5px",
-              marginTop: "15px"
-            }}
-            onMouseOver={(e) => {
+      <div className="col-12">
+        <button
+          className={`button -dark-1 py-15 px-35 h-60 col-12 rounded-4 text-white ${
+            isBookingReady ? 'bg-blue-1' : 'bg-light-3 text-light-1'
+          }`}
+          onClick={isBookingReady ? handleBookNow : undefined}
+          disabled={!isBookingReady}
+          style={{
+            transition: "all 0.3s ease",
+            boxShadow: isBookingReady ? "0 4px 10px rgba(53, 84, 209, 0.25)" : "none",
+            fontWeight: "600",
+            letterSpacing: "0.5px",
+            marginTop: "15px",
+            cursor: isBookingReady ? "pointer" : "not-allowed",
+            opacity: isBookingReady ? 1 : 0.6
+          }}
+          onMouseOver={(e) => {
+            if (isBookingReady) {
               e.currentTarget.style.transform = "translateY(-2px)";
               e.currentTarget.style.boxShadow = "0 6px 15px rgba(53, 84, 209, 0.35)";
-            }}
-            onMouseOut={(e) => {
+            }
+          }}
+          onMouseOut={(e) => {
+            if (isBookingReady) {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.boxShadow = "0 4px 10px rgba(53, 84, 209, 0.25)";
-            }}
-          >
-            Check Out
-          </button>
-        </div>
-      )}
+            }
+          }}
+        >
+          {isBookingReady ? "Check Out" : "Complete all selections to proceed"}
+        </button>
+      </div>
      
       <ToastContainer />
     </>
