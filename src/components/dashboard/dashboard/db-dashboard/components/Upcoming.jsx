@@ -218,7 +218,7 @@ const truncateName = (name, maxLength = 10) => {
   return `${base.trim()}...`;
 };
 
-export default function Pending() {
+export default function Pending({ filters = {} }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -375,17 +375,88 @@ export default function Pending() {
   // if (status === "failed") return <p>Error: {error}</p>;
   const [sortedLists, setSortedLists] = useState([]); // State for sorted data
   const totalPages = Math.ceil(sortedLists.length / rowsPerPage);
-  // Update sortedLists when lists change
+  // Filter function
+  const filterData = (data) => {
+    if (!filters || Object.keys(filters).length === 0) return data;
+    
+    return data.filter(item => {
+      // Booking ID filter
+      if (filters.searchId && !item.display_id?.toLowerCase().includes(filters.searchId.toLowerCase())) {
+        return false;
+      }
+      
+      // Customer name filter
+      if (filters.customerName && !item.customer_name?.toLowerCase().includes(filters.customerName.toLowerCase())) {
+        return false;
+      }
+      
+      // Country filter
+      if (filters.country) {
+        const destination = item.destination || '';
+        const countryMatch = destination.toLowerCase().includes(filters.country.toLowerCase());
+        if (!countryMatch) return false;
+      }
+      
+      
+      // Check-in date filter
+      if (filters.checkInDate) {
+        const checkInDate = item.check_in_time;
+        if (checkInDate) {
+          const [day, month, year] = checkInDate.split('/');
+          const itemDate = new Date(`${year}-${month}-${day}`);
+          const filterDate = new Date(filters.checkInDate);
+          if (itemDate.toDateString() !== filterDate.toDateString()) {
+            return false;
+          }
+        }
+      }
+      
+      // Check-out date filter
+      if (filters.checkOutDate) {
+        const checkOutDate = item.check_out_time;
+        if (checkOutDate) {
+          const [day, month, year] = checkOutDate.split('/');
+          const itemDate = new Date(`${year}-${month}-${day}`);
+          const filterDate = new Date(filters.checkOutDate);
+          if (itemDate.toDateString() !== filterDate.toDateString()) {
+            return false;
+          }
+        }
+      }
+      
+      // Status filter
+      if (filters.status) {
+        if (filters.status === "Cancel") {
+          // For "Cancel" status, check if tour_status starts with "cancel" (case insensitive)
+          if (!item.tour_status?.toLowerCase().startsWith("cancel")) {
+            return false;
+          }
+        } else {
+          // For other statuses, exact match
+          if (item.tour_status !== filters.status) {
+            return false;
+          }
+        }
+      }
+      
+      
+      return true;
+    });
+  };
+
+  // Update sortedLists when lists or filters change
   useEffect(() => {
     const newLists = Array.isArray(upcomingTours) ? upcomingTours : [];
-    setSortedLists(newLists);
+    const filteredLists = filterData(newLists);
+    setSortedLists(filteredLists);
     
-    // console.log('Lists updated in Upcoming.jsx:', {
-    //   listsLength: newLists.length,
-    //   totalPages: Math.ceil(newLists.length / rowsPerPage),
-    //   currentPage: page + 1
-    // });
-  }, [upcomingTours, rowsPerPage, page]);
+    console.log('Lists updated in Upcoming.jsx:', {
+      listsLength: newLists.length,
+      filteredLength: filteredLists.length,
+      totalPages: Math.ceil(filteredLists.length / rowsPerPage),
+      currentPage: page + 1
+    });
+  }, [upcomingTours, rowsPerPage, page, filters]);
   
   // Auto-fetch more data when reaching the last page
   useEffect(() => {
