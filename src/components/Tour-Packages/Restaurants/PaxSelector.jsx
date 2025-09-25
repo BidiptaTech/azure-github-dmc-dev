@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Grid, 
   Box,
@@ -134,9 +134,15 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
     Children: effectiveChildren
   });
 
+  // Use a ref to track if we're updating from selectedPax to prevent loops
+  const isUpdatingFromPropsRef = useRef(false);
+
   // Update guest counts when selectedPax changes
   useEffect(() => {
     if (selectedPax) {
+      console.log('Restaurant PaxSelector updating from selectedPax:', selectedPax);
+      isUpdatingFromPropsRef.current = true; // Set flag to prevent onPaxChange call
+      
       setGuestCounts({
         Adults: selectedPax.Adults || effectiveAdults,
         Children: selectedPax.Children || effectiveChildren
@@ -145,12 +151,19 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
   }, [selectedPax, effectiveAdults, effectiveChildren]);
 
   useEffect(() => {
+    // Skip calling onPaxChange if we're updating from selectedPax props
+    if (isUpdatingFromPropsRef.current) {
+      isUpdatingFromPropsRef.current = false;
+      return;
+    }
+
     // Only call onPaxChange if the values are actually different from the current props
     const currentPax = selectedPax || { Adults: 0, Children: 0 };
     if (
       currentPax.Adults !== guestCounts.Adults ||
       currentPax.Children !== guestCounts.Children
     ) {
+      console.log('Restaurant PaxSelector calling onPaxChange:', { from: currentPax, to: guestCounts });
       onPaxChange(guestCounts);
     }
   }, [guestCounts, onPaxChange, selectedPax]);

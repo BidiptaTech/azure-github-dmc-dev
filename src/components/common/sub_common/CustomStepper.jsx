@@ -106,6 +106,7 @@ const LoadingDots = () => {
 
 export default function CustomStepper() {
   const id = useSelector((state) => state.hotels.id);
+  const tourId = useSelector((state) => state.steps.id);
   const { currentStep, stepStatus1 } = useSelector(
     (state) => state.steps
   );
@@ -240,7 +241,7 @@ export default function CustomStepper() {
     if (currentStepKey) {
       const isLastStep = currentStep === steps.length - 1;
       const confirmationTitle = isLastStep 
-        ? "Are you sure all of your services are completed?"
+        ? `Are you sure all of your services are completed for this tour DMC-ORD${tourId}  ?`
         : `Are you sure all of your ${steps[currentStep].label} booking is completed?`;
       
       const willDelete = await swal({

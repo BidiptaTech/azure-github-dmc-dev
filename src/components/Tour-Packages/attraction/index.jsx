@@ -115,6 +115,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const hasDispatchedAllAttractionsRef = useRef(false);
   const currentServicesRef = useRef([]);
   const isInitializingRef = useRef(false);
+  const hasDataConflictsRef = useRef(false);
 
   console.log("formsection", formSections);
   
@@ -150,18 +151,56 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
 
     console.log('Initializing form sections from attractionspack:', attractionspack);
     isInitializingRef.current = true;
+    
+    // Check for data conflicts that could cause infinite loops (for logging only)
+    const hasDataConflicts = attractionspack.some(attractionService => {
+      const attractionData = attractionService.data?.[0];
+      if (!attractionData) return false;
+      
+      // Check if adult/child counts from attractionspack don't match search form data
+      const searchAdults = tour?.adult || 0;
+      const searchChildren = tour?.child || 0;
+      const attractionAdults = Number(attractionData.adultCount) || 0;
+      const attractionChildren = Number(attractionData.childCount) || 0;
+      
+      const hasMismatch = (searchAdults !== attractionAdults) || (searchChildren !== attractionChildren);
+      
+      if (hasMismatch) {
+        console.warn('Data mismatch detected but proceeding with initialization:', {
+          searchForm: { adults: searchAdults, children: searchChildren },
+          attractionData: { adults: attractionAdults, children: attractionChildren },
+          attractionId: attractionData.AttractionId
+        });
+      }
+      
+      return hasMismatch;
+    });
+    
+    // Store the conflict status for use in auto-dispatch logic
+    hasDataConflictsRef.current = hasDataConflicts;
+    if (hasDataConflicts) {
+      console.log('Data conflicts detected - will proceed with initialization but skip auto-dispatch');
+    }
 
-    // Filter attractions that match the current bookingDate (following restaurant pattern)
+    // Filter attractions - show all for first dayIndex, match by bookingDate for other days
     const dayAttractions = attractionspack.filter(attractionService => {
       const attractionData = attractionService.data?.[0];
       console.log('Attraction data:', attractionData);
 
-      // Match by bookingDate since attractionspack uses bookingDate
-      return attractionData && attractionData.bookingDate === bookingDate;
+      if (!attractionData) return false;
+
+      // For first dayIndex (dayIndex === 0), show all attractions regardless of bookingDate
+      if (dayIndex === 0) {
+        console.log('First dayIndex - showing all attractions regardless of bookingDate');
+        return true;
+      }
+
+      // For other dayIndexes, match by bookingDate
+      return attractionData.bookingDate === bookingDate;
     });
 
     if (dayAttractions.length === 0) {
-      console.log(`No attractions found for bookingDate ${bookingDate}`);
+      console.log(`No attractions found for dayIndex ${dayIndex}${dayIndex === 0 ? ' (showing all dates)' : ` (bookingDate: ${bookingDate})`}`);
       isInitializingRef.current = false; // Ensure flag is reset when no attractions found
       return;
     }
@@ -218,7 +257,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       isInitializingRef.current = false;
       console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [attractionspack, dayIndex, bookingDate]);
+  }, [attractionspack, dayIndex, bookingDate, tour]); // Added tour to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {
@@ -350,6 +389,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     hasDispatchedAllAttractionsRef.current = false;
     currentServicesRef.current = [];
     isInitializingRef.current = false;
+    hasDataConflictsRef.current = false;
   }, [dayIndex]);
 
   // Cleanup effect
@@ -360,6 +400,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       hasDispatchedAllAttractionsRef.current = false;
       currentServicesRef.current = [];
       isInitializingRef.current = false;
+      hasDataConflictsRef.current = false;
     };
   }, []);
 
@@ -1199,10 +1240,15 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }, 5000);
   }, [formSections, existingServices, validateBookings, dispatch, currentMode, getBookingSummary, agentId, tourId, dayIndex]);
 
+  // Ref to track if we're already processing to prevent infinite loops
+  const isProcessingRef = useRef(false);
+  const lastFormSectionsRef = useRef([]);
+  const lastAttractionspackRef = useRef([]);
+  
   // Effect to automatically dispatch completed attraction bookings to Redux
   useEffect(() => {
-    // Skip if no form sections or during loading
-    if (formSections.length === 0 || !attractions || attractions.length === 0) return;
+    // Skip if no form sections, during loading, or already processing
+    if (formSections.length === 0 || !attractions || attractions.length === 0 || isProcessingRef.current) return;
     
     // Skip auto-dispatch if we have attractionspack data (to prevent duplicates)
     // Only auto-dispatch when there's no attractionspack data (new bookings)
@@ -1210,6 +1256,34 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       console.log('Attraction - Skipping auto-dispatch because attractionspack data exists');
       return;
     }
+    
+    // Check for data conflicts that could cause infinite loops using the ref
+    if (hasDataConflictsRef.current) {
+      console.log('Attraction - Data conflicts detected, skipping auto-dispatch to prevent infinite loops');
+      return;
+    }
+    
+    // Check if form sections have actually changed to prevent unnecessary re-runs
+    const currentFormSectionsString = JSON.stringify(formSections.map(s => ({
+      attraction: s.attraction,
+      timeSlot: s.timeSlot,
+      ticketType: s.ticketType,
+      pax: s.pax
+    })));
+    const lastFormSectionsString = JSON.stringify(lastFormSectionsRef.current);
+    
+    if (currentFormSectionsString === lastFormSectionsString) {
+      console.log('Attraction - Form sections unchanged, skipping auto-dispatch');
+      return;
+    }
+    
+    // Update the ref with current form sections
+    lastFormSectionsRef.current = formSections.map(s => ({
+      attraction: s.attraction,
+      timeSlot: s.timeSlot,
+      ticketType: s.ticketType,
+      pax: s.pax
+    }));
     
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section, index) => {
@@ -1233,6 +1307,9 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     
     // If we found new complete sections, update Redux
     if (newCompleteSections.length > 0) {
+      // Set processing flag to prevent multiple simultaneous executions
+      isProcessingRef.current = true;
+      
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
         `${section.attraction}-${section.timeSlot}-${section.ticketType}-${dayIndex}`
@@ -1247,16 +1324,28 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
-        // Call handleBookNow
-        handleBookNow();
-        
-        // Mark these sections as saved
-        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        try {
+          // Call handleBookNow
+          handleBookNow();
+          
+          // Mark these sections as saved
+          setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        } catch (error) {
+          console.error('Error in auto dispatch:', error);
+        } finally {
+          // Reset processing flag after a delay to allow for state updates
+          setTimeout(() => {
+            isProcessingRef.current = false;
+          }, 1000);
+        }
       }, 500);
       
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        isProcessingRef.current = false;
+      };
     }
-  }, [formSections, handleBookNow, attractions, savedSectionIds, dayIndex, attractionspack]);
+  }, [formSections, attractions, savedSectionIds, dayIndex, attractionspack, tour]); // Added tour to dependencies
 
   const getCompletionStatus = (section) => {
     const steps = [
@@ -1762,8 +1851,9 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                             </Box>
                             <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                               <PaxSelector
-                                initialAdults={searchParams?.adults || 1}
-                                initialChildren={searchParams?.children || 0}
+                                selectedPax={section.pax}
+                                initialAdults={section.pax?.Adults || searchParams?.adults || 1}
+                                initialChildren={section.pax?.Children || searchParams?.children || 0}
                                 onPaxChange={(value) => handleInputChange(sectionIndex, 'pax', value)}
                                 disabled={!section.attraction}
                               />
