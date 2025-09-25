@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Grid, 
   Box,
@@ -141,23 +141,55 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   // Track the original total adult count
   const [originalAdultCount, setOriginalAdultCount] = useState(defaultAdults);
 
-  useEffect(() => {
-    setGuestCounts({
-      Adults: defaultAdults,
-      Children: defaultChildren,
-      Seniors: 0
-    });
-
-    setMaxValues({
-      Adults: defaultAdults,
-      Children: defaultChildren,
-      Seniors: defaultAdults
-    });
-
-    setOriginalAdultCount(defaultAdults);
-  }, [defaultAdults, defaultChildren]);
+  // Use a ref to track if we're updating from selectedPax to prevent loops
+  const isUpdatingFromPropsRef = useRef(false);
 
   useEffect(() => {
+    // If selectedPax is provided, use it instead of defaults
+    if (selectedPax && (selectedPax.Adults || selectedPax.Children || selectedPax.Seniors)) {
+      console.log('PaxSelector updating from selectedPax:', selectedPax);
+      isUpdatingFromPropsRef.current = true; // Set flag to prevent onPaxChange call
+      
+      setGuestCounts({
+        Adults: selectedPax.Adults || 0,
+        Children: selectedPax.Children || 0,
+        Seniors: selectedPax.Seniors || 0
+      });
+      
+      // Set max values based on the total from selectedPax
+      const totalFromSelected = (selectedPax.Adults || 0) + (selectedPax.Seniors || 0);
+      setMaxValues({
+        Adults: Math.max(totalFromSelected, defaultAdults),
+        Children: selectedPax.Children || defaultChildren,
+        Seniors: Math.max(totalFromSelected, defaultAdults)
+      });
+      
+      setOriginalAdultCount(Math.max(totalFromSelected, defaultAdults));
+    } else {
+      // Use defaults when no selectedPax
+      setGuestCounts({
+        Adults: defaultAdults,
+        Children: defaultChildren,
+        Seniors: 0
+      });
+
+      setMaxValues({
+        Adults: defaultAdults,
+        Children: defaultChildren,
+        Seniors: defaultAdults
+      });
+
+      setOriginalAdultCount(defaultAdults);
+    }
+  }, [defaultAdults, defaultChildren, selectedPax]);
+
+  useEffect(() => {
+    // Skip calling onPaxChange if we're updating from selectedPax props
+    if (isUpdatingFromPropsRef.current) {
+      isUpdatingFromPropsRef.current = false;
+      return;
+    }
+
     // Only call onPaxChange if the values are actually different from the current props
     const currentPax = selectedPax || { Adults: 0, Children: 0, Seniors: 0 };
     if (
@@ -165,6 +197,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
       currentPax.Children !== guestCounts.Children ||
       currentPax.Seniors !== guestCounts.Seniors
     ) {
+      console.log('PaxSelector calling onPaxChange:', { from: currentPax, to: guestCounts });
       onPaxChange(guestCounts);
     }
   }, [guestCounts, onPaxChange, selectedPax]);
