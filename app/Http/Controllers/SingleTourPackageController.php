@@ -1307,7 +1307,7 @@ class SingleTourPackageController extends Controller
         try {
             if(Auth::user()->role_id == 11){
                 $dmcId = Auth::user()->userId;
-            }elseif(in_array(Auth::user()->role_id, [33, 34])){
+            }elseif(in_array(Auth::user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138])){
                 $user = User::where('userId', Auth::user()->userId)->first();
                 $dmcId = $user->created_by;
             }elseif(in_array(Auth::user()->role_id, [37, 124])){
@@ -1378,7 +1378,7 @@ class SingleTourPackageController extends Controller
             $hotelId = $request->input('hotel_id');
             if(Auth::user()->role_id == 11){
                 $dmcId = Auth::user()->userId;
-            }elseif(in_array(Auth::user()->role_id, [33, 34])){
+            }elseif(in_array(Auth::user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138])){
                 $user = User::where('userId', Auth::user()->userId)->first();
                 $dmcId = $user->created_by;
             }elseif(in_array(Auth::user()->role_id, [37, 124])){
