@@ -266,13 +266,13 @@ const PopularDestinations = () => {
                     <Box
                       sx={{
                         position: 'relative',
-                        width: '220px',
-                        height: '220px',
+                        width: { xs: '180px', sm: '200px', md: '220px' },
+                        height: { xs: '180px', sm: '200px', md: '220px' },
                         borderRadius: '50%',
                         overflow: 'hidden',
                         boxShadow: '0 15px 35px rgba(0,0,0,0.15)',
                         mb: 3,
-                        border: '4px solid white'
+                        border: { xs: '3px solid white', md: '4px solid white' }
                       }}
                     >
                       <Box
@@ -307,9 +307,9 @@ const PopularDestinations = () => {
                           left: '50%',
                           transform: 'translateX(-50%)',
                           bgcolor: 'white',
-                          borderRadius: '20px',
-                          px: 3,
-                          py: 1,
+                          borderRadius: { xs: '15px', md: '20px' },
+                          px: { xs: 2, sm: 2.5, md: 3 },
+                          py: { xs: 0.8, sm: 0.9, md: 1 },
                           boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
                           border: '1px solid #f0f0f0'
                         }}
@@ -319,7 +319,7 @@ const PopularDestinations = () => {
                           sx={{
                             fontWeight: 'bold',
                             color: theme.palette.primary.main,
-                            fontSize: '16px',
+                            fontSize: { xs: '14px', sm: '15px', md: '16px' },
                             textAlign: 'center'
                           }}
                         >
