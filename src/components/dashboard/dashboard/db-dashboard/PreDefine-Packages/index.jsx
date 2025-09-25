@@ -792,11 +792,13 @@ const PreDefinePackages = () => {
                 <Box sx={{
                     mb: 2,
                     display: 'flex',
-                    alignItems: 'center',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'stretch', sm: 'center' },
                     justifyContent: 'space-between',
                     backgroundColor: '#f8f9fa',
                     borderRadius: '8px',
-                    padding: '10px 15px'
+                    padding: { xs: '12px', sm: '10px 15px' },
+                    gap: { xs: 2, sm: 0 }
                 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <DateRange sx={{ color: '#4361ee', mr: 1 }} />
@@ -961,10 +963,11 @@ const PreDefinePackages = () => {
                         display: 'flex', 
                         justifyContent: 'center', 
                         alignItems: 'center',
-                        mt: 3, 
-                        mb: 2,
-                        py: 2,
-                        minHeight: '60px' // Ensure it has some height for intersection observer
+                        mt: { xs: 2, sm: 3 }, 
+                        mb: { xs: 1, sm: 2 },
+                        py: { xs: 1.5, sm: 2 },
+                        px: { xs: 2, sm: 0 },
+                        minHeight: { xs: '50px', sm: '60px' } // Ensure it has some height for intersection observer
                     }}
                 >
                     {bookingListsPagination.hasMore && filteredData.length > 0 ? (
@@ -1001,7 +1004,11 @@ const PreDefinePackages = () => {
     };
 
     return (
-        <Box sx={{ width: "100%" }}>
+        <Box sx={{ 
+            width: "100%",
+            px: { xs: 1, sm: 2, md: 0 },
+            mx: { xs: 0, sm: 0, md: 0 }
+        }}>
             <Card sx={{ 
                 mb: 3, 
                 overflow: 'visible',  // Allow content to overflow for horizontal scrolling
@@ -1020,10 +1027,10 @@ const PreDefinePackages = () => {
                         background: 'linear-gradient(to right, #f5f7fa, #f9fcff)',
                         '& .MuiTab-root': {
                             fontWeight: 600,
-                            py: 2.5,
+                            py: { xs: 1.5, sm: 2, md: 2.5 },
                             textTransform: 'none',
-                            fontSize: '0.95rem',
-                            minHeight: '64px',
+                            fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.95rem' },
+                            minHeight: { xs: '48px', sm: '56px', md: '64px' },
                             transition: 'all 0.2s',
                             '&:hover': {
                                 backgroundColor: 'rgba(67, 97, 238, 0.04)',
@@ -1031,7 +1038,15 @@ const PreDefinePackages = () => {
                             '&.Mui-selected': {
                                 color: '#4361ee',
                                 fontWeight: 700,
-                            }
+                            },
+                            // Responsive icon and text layout
+                            '& .MuiTab-iconWrapper': {
+                                marginBottom: { xs: 0, sm: 0 },
+                                marginRight: { xs: 0.5, sm: 1 },
+                            },
+                            // Stack icon and text vertically on mobile
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            gap: { xs: 0.5, sm: 0 },
                         }
                     }}
                 >
@@ -1059,18 +1074,43 @@ const PreDefinePackages = () => {
             <TabPanel value={tabValue} index={0}>
                 <Card sx={{ 
                     mb: 3, 
-                    p: 3, 
+                    p: { xs: 2, sm: 2.5, md: 3 }, 
                     boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                     overflow: 'visible',
                     '@media (min-width: 1200px)': {
                         overflow: 'visible'
                     }
                 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
-                            <DonutLarge sx={{ mr: 1, color: '#4361ee' }} /> Currently Ongoing Packages
+                    <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between', 
+                        alignItems: { xs: 'stretch', sm: 'center' }, 
+                        mb: 2,
+                        gap: { xs: 2, sm: 0 }
+                    }}>
+                        <Typography variant="h6" sx={{ 
+                            fontWeight: 'bold', 
+                            color: '#2c3e50', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                            mb: { xs: 1, sm: 0 }
+                        }}>
+                            <DonutLarge sx={{ mr: 1, color: '#4361ee', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} /> 
+                            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                Currently Ongoing Packages
+                            </Box>
+                            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                Ongoing
+                            </Box>
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            gap: { xs: 0.5, sm: 1 },
+                            flexWrap: 'wrap',
+                            justifyContent: { xs: 'center', sm: 'flex-end' }
+                        }}>
                             {showSearchInput ? (
                                 <TextField
                                     size="small"
@@ -1084,7 +1124,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1101,7 +1144,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1118,7 +1164,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1128,8 +1177,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleSearch}
                                 color={showSearchInput ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showSearchInput ? "Close" : "Search"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showSearchInput ? "Close" : "Search"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showSearchInput ? "✕" : "🔍"}
+                                </Box>
                             </Button>
                             <Button
                                 startIcon={<Badge />}
@@ -1137,8 +1196,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleDmcFilter}
                                 color={showDmcFilter ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showDmcFilter ? "Close" : "DMC Filter"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showDmcFilter ? "Close" : "DMC Filter"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showDmcFilter ? "✕" : "🏢"}
+                                </Box>
                             </Button>
                             <Button
                                 startIcon={<ConfirmationNumber />}
@@ -1146,8 +1215,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleBookingIdFilter}
                                 color={showBookingIdFilter ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showBookingIdFilter ? "Close" : "Booking ID"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showBookingIdFilter ? "Close" : "Booking ID"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showBookingIdFilter ? "✕" : "🎫"}
+                                </Box>
                             </Button>
                             {/* <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button> */}
                             <DateFilter
@@ -1177,12 +1256,56 @@ const PreDefinePackages = () => {
                     {renderActiveFilters()}
 
                     <Box sx={{ mb: 2 }}>
-                        <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                            <Chip icon={<Hotel />} label="Hotels" size="small" variant="outlined" />
-                            <Chip icon={<DirectionsCar />} label="Transport" size="small" variant="outlined" />
-                            <Chip icon={<Attractions />} label="Attractions" size="small" variant="outlined" />
+                        <Stack 
+                            direction="row" 
+                            spacing={{ xs: 1, sm: 2 }} 
+                            sx={{ 
+                                mb: 3,
+                                flexWrap: 'wrap',
+                                gap: { xs: 1, sm: 2 }
+                            }}
+                        >
+                            <Chip 
+                                icon={<Hotel />} 
+                                label="Hotels" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
+                            <Chip 
+                                icon={<DirectionsCar />} 
+                                label="Transport" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
+                            <Chip 
+                                icon={<Attractions />} 
+                                label="Attractions" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
                             {/* <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" /> */}
-                            <Chip icon={<EmojiPeople />} label="Tour Guide" size="small" variant="outlined" />
+                            <Chip 
+                                icon={<EmojiPeople />} 
+                                label="Tour Guide" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
                         </Stack>
                     </Box>
                     {renderContent(getCurrentFilteredData(), "No ongoing packages at the moment")}
@@ -1192,18 +1315,43 @@ const PreDefinePackages = () => {
             <TabPanel value={tabValue} index={1}>
                 <Card sx={{ 
                     mb: 3, 
-                    p: 3, 
+                    p: { xs: 2, sm: 2.5, md: 3 }, 
                     boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                     overflow: 'visible',
                     '@media (min-width: 1200px)': {
                         overflow: 'visible'
                     }
                 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
-                            <Upcoming sx={{ mr: 1, color: '#4361ee' }} /> Upcoming Packages
+                    <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between', 
+                        alignItems: { xs: 'stretch', sm: 'center' }, 
+                        mb: 2,
+                        gap: { xs: 2, sm: 0 }
+                    }}>
+                        <Typography variant="h6" sx={{ 
+                            fontWeight: 'bold', 
+                            color: '#2c3e50', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                            mb: { xs: 1, sm: 0 }
+                        }}>
+                            <Upcoming sx={{ mr: 1, color: '#4361ee', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} /> 
+                            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                Upcoming Packages
+                            </Box>
+                            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                Upcoming
+                            </Box>
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            gap: { xs: 0.5, sm: 1 },
+                            flexWrap: 'wrap',
+                            justifyContent: { xs: 'center', sm: 'flex-end' }
+                        }}>
                             {showSearchInput ? (
                                 <TextField
                                     size="small"
@@ -1217,7 +1365,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1234,7 +1385,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1251,7 +1405,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1261,8 +1418,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleSearch}
                                 color={showSearchInput ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showSearchInput ? "Close" : "Search"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showSearchInput ? "Close" : "Search"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showSearchInput ? "✕" : "🔍"}
+                                </Box>
                             </Button>
                             <Button
                                 startIcon={<Badge />}
@@ -1270,8 +1437,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleDmcFilter}
                                 color={showDmcFilter ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showDmcFilter ? "Close" : "DMC Filter"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showDmcFilter ? "Close" : "DMC Filter"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showDmcFilter ? "✕" : "🏢"}
+                                </Box>
                             </Button>
                             <Button
                                 startIcon={<ConfirmationNumber />}
@@ -1279,8 +1456,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleBookingIdFilter}
                                 color={showBookingIdFilter ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showBookingIdFilter ? "Close" : "Booking ID"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showBookingIdFilter ? "Close" : "Booking ID"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showBookingIdFilter ? "✕" : "🎫"}
+                                </Box>
                             </Button>
                             {/* <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button> */}
                             <DateFilter
@@ -1310,12 +1497,56 @@ const PreDefinePackages = () => {
                     {renderActiveFilters()}
 
                     <Box sx={{ mb: 2 }}>
-                        <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                            <Chip icon={<Hotel />} label="Hotels" size="small" variant="outlined" />
-                            <Chip icon={<DirectionsCar />} label="Transport" size="small" variant="outlined" />
-                            <Chip icon={<Attractions />} label="Attractions" size="small" variant="outlined" />
+                        <Stack 
+                            direction="row" 
+                            spacing={{ xs: 1, sm: 2 }} 
+                            sx={{ 
+                                mb: 3,
+                                flexWrap: 'wrap',
+                                gap: { xs: 1, sm: 2 }
+                            }}
+                        >
+                            <Chip 
+                                icon={<Hotel />} 
+                                label="Hotels" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
+                            <Chip 
+                                icon={<DirectionsCar />} 
+                                label="Transport" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
+                            <Chip 
+                                icon={<Attractions />} 
+                                label="Attractions" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
                             {/* <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" /> */}
-                            <Chip icon={<EmojiPeople />} label="Tour Guide" size="small" variant="outlined" />
+                            <Chip 
+                                icon={<EmojiPeople />} 
+                                label="Tour Guide" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
                         </Stack>
                     </Box>
                     {renderContent(getCurrentFilteredData(), "No upcoming packages scheduled")}
@@ -1325,18 +1556,43 @@ const PreDefinePackages = () => {
             <TabPanel value={tabValue} index={2}>
                 <Card sx={{ 
                     mb: 3, 
-                    p: 3, 
+                    p: { xs: 2, sm: 2.5, md: 3 }, 
                     boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                     overflow: 'visible',
                     '@media (min-width: 1200px)': {
                         overflow: 'visible'
                     }
                 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', display: 'flex', alignItems: 'center' }}>
-                            <History sx={{ mr: 1, color: '#4361ee' }} /> Past Packages
+                    <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between', 
+                        alignItems: { xs: 'stretch', sm: 'center' }, 
+                        mb: 2,
+                        gap: { xs: 2, sm: 0 }
+                    }}>
+                        <Typography variant="h6" sx={{ 
+                            fontWeight: 'bold', 
+                            color: '#2c3e50', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                            mb: { xs: 1, sm: 0 }
+                        }}>
+                            <History sx={{ mr: 1, color: '#4361ee', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} /> 
+                            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                Past Packages
+                            </Box>
+                            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                Past
+                            </Box>
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ 
+                            display: 'flex', 
+                            gap: { xs: 0.5, sm: 1 },
+                            flexWrap: 'wrap',
+                            justifyContent: { xs: 'center', sm: 'flex-end' }
+                        }}>
                             {showSearchInput ? (
                                 <TextField
                                     size="small"
@@ -1350,7 +1606,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1367,7 +1626,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1384,7 +1646,10 @@ const PreDefinePackages = () => {
                                             </InputAdornment>
                                         ),
                                     }}
-                                    sx={{ minWidth: '250px' }}
+                                    sx={{ 
+                                        minWidth: { xs: '100%', sm: '200px', md: '250px' },
+                                        maxWidth: { xs: '100%', sm: '300px' }
+                                    }}
                                     autoFocus
                                 />
                             ) : null}
@@ -1394,8 +1659,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleSearch}
                                 color={showSearchInput ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showSearchInput ? "Close" : "Search"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showSearchInput ? "Close" : "Search"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showSearchInput ? "✕" : "🔍"}
+                                </Box>
                             </Button>
                             <Button
                                 startIcon={<Badge />}
@@ -1403,8 +1678,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleDmcFilter}
                                 color={showDmcFilter ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showDmcFilter ? "Close" : "DMC Filter"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showDmcFilter ? "Close" : "DMC Filter"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showDmcFilter ? "✕" : "🏢"}
+                                </Box>
                             </Button>
                             <Button
                                 startIcon={<ConfirmationNumber />}
@@ -1412,8 +1697,18 @@ const PreDefinePackages = () => {
                                 size="small"
                                 onClick={toggleBookingIdFilter}
                                 color={showBookingIdFilter ? "primary" : "inherit"}
+                                sx={{
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                    px: { xs: 1, sm: 2 },
+                                    minWidth: { xs: 'auto', sm: 'auto' }
+                                }}
                             >
-                                {showBookingIdFilter ? "Close" : "Booking ID"}
+                                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                                    {showBookingIdFilter ? "Close" : "Booking ID"}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                                    {showBookingIdFilter ? "✕" : "🎫"}
+                                </Box>
                             </Button>
                             {/* <Button startIcon={<FilterList />} variant="outlined" size="small">Filter</Button> */}
                             <DateFilter
@@ -1443,12 +1738,56 @@ const PreDefinePackages = () => {
                     {renderActiveFilters()}
 
                     <Box sx={{ mb: 2 }}>
-                        <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                            <Chip icon={<Hotel />} label="Hotels" size="small" variant="outlined" />
-                            <Chip icon={<DirectionsCar />} label="Transport" size="small" variant="outlined" />
-                            <Chip icon={<Attractions />} label="Attractions" size="small" variant="outlined" />
+                        <Stack 
+                            direction="row" 
+                            spacing={{ xs: 1, sm: 2 }} 
+                            sx={{ 
+                                mb: 3,
+                                flexWrap: 'wrap',
+                                gap: { xs: 1, sm: 2 }
+                            }}
+                        >
+                            <Chip 
+                                icon={<Hotel />} 
+                                label="Hotels" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
+                            <Chip 
+                                icon={<DirectionsCar />} 
+                                label="Transport" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
+                            <Chip 
+                                icon={<Attractions />} 
+                                label="Attractions" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
                             {/* <Chip icon={<Restaurant />} label="Restaurants" size="small" variant="outlined" /> */}
-                            <Chip icon={<EmojiPeople />} label="Tour Guide" size="small" variant="outlined" />
+                            <Chip 
+                                icon={<EmojiPeople />} 
+                                label="Tour Guide" 
+                                size="small" 
+                                variant="outlined"
+                                sx={{
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    height: { xs: '28px', sm: '32px' }
+                                }}
+                            />
                         </Stack>
                     </Box>
                     {renderContent(getCurrentFilteredData(), "No past package history available")}

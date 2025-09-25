@@ -1,5 +1,57 @@
 @import "../../public/sass/main.scss";
 
+// Responsive back button container
+.back-button-container {
+  // Mobile styles (max-width: 768px)
+  @media (max-width: 768px) {
+    padding: 10px !important;
+    justify-content: flex-start;
+    width: 100%;
+  }
+  
+  // Tablet styles (769px - 1024px)
+  @media (min-width: 769px) and (max-width: 1024px) {
+    padding: 15px !important;
+    justify-content: flex-start;
+  }
+  
+  // Desktop styles (min-width: 1025px) - keep original
+  @media (min-width: 1025px) {
+    padding: 20px !important;
+    justify-content: flex-start;
+  }
+}
+
+// Responsive back button styles
+.back-button-responsive {
+  // Mobile styles (max-width: 768px)
+  @media (max-width: 768px) {
+    left: 0px !important; // Reset position for mobile
+    min-height: 36px !important;
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+    width: 100%;
+    max-width: 200px;
+    position: relative !important;
+  }
+  
+  // Tablet styles (769px - 1024px)
+  @media (min-width: 769px) and (max-width: 1024px) {
+    left: -50px !important; // Reduced offset for tablet
+    min-height: 38px !important;
+    padding: 10px 20px !important;
+    position: relative !important;
+  }
+  
+  // Desktop styles (min-width: 1025px) - keep original
+  @media (min-width: 1025px) {
+    left: -100px !important; // Original desktop position
+    min-height: 40px !important;
+    padding: 12px 24px !important;
+    position: relative !important;
+  }
+}
+
 // Custom slide-up animation for pre-define packages page
 .slide-up-animation {
   opacity: 0;

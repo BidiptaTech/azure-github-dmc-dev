@@ -101,6 +101,7 @@ const TourSingleV1Dynamic = () => {
                 Back
               </button> */}
               <div
+                className="back-button-container"
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
@@ -108,7 +109,7 @@ const TourSingleV1Dynamic = () => {
                 }}
               >
                 <button
-                  className="button px-4 py-2 bg-blue-1 text-white rounded"
+                  className="button px-4 py-2 bg-blue-1 text-white rounded back-button-responsive"
                   style={{
                     minHeight: "40px",
                     position: "relative",
