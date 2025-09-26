@@ -146,18 +146,25 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
 
     console.log('Initializing form sections from guidespack:', guidespack);
 
-    // Filter guides that match the current bookingDate for form sections
-    // If dayIndex is missing, use bookingDate for filtering
+    // Filter guides - show all for first dayIndex, match by bookingDate for other days
     const dayGuides = guidespack.filter(guideService => {
       const guideData = guideService.data?.[0];
       
+      if (!guideData) return false;
+
+      // For first dayIndex (dayIndex === 0), show all guides regardless of bookingDate
+      if (dayIndex === 0) {
+        console.log('First dayIndex - showing all guides regardless of bookingDate');
+        return true;
+      }
+      
       // If we have dayIndex, use it for filtering (backward compatibility)
-      if (guideData && guideData.dayIndex === dayIndex) {
+      if (guideData.dayIndex === dayIndex) {
         return true;
       }
       
       // If dayIndex is missing, filter by bookingDate
-      if (guideData && guideData.bookingDate) {
+      if (guideData.bookingDate) {
         // Format dates for comparison
         const guideDateFormatted = formatDateToString(guideData.bookingDate);
         const currentDateFormatted = formatDateToString(date);
@@ -175,7 +182,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     });
 
     if (dayGuides.length === 0) {
-      console.log(`No guides found for date ${bookingDate} or dayIndex ${dayIndex}`);
+      console.log(`No guides found for dayIndex ${dayIndex}${dayIndex === 0 ? ' (showing all dates)' : ` (bookingDate: ${bookingDate})`}`);
       return;
     }
 
@@ -946,10 +953,13 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     dispatch(setAllServices(updatedServices));
   }, [guides, currentMode, agentId, tourId, dayIndex, existingServices, dispatch, getBookingSummary, getSelectedGuide]);
   
+  // Ref to track if we're already processing to prevent infinite loops
+  const isProcessingRef = useRef(false);
+  
   // Effect to automatically dispatch completed guide bookings to Redux
   useEffect(() => {
-    // Skip if no form sections or during loading
-    if (formSections.length === 0 || status === 'loading') return;
+    // Skip if no form sections, during loading, or already processing
+    if (formSections.length === 0 || status === 'loading' || isProcessingRef.current) return;
     
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section, index) => {
@@ -973,6 +983,9 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     
     // If we found new complete sections, update Redux
     if (newCompleteSections.length > 0) {
+      // Set processing flag to prevent multiple simultaneous executions
+      isProcessingRef.current = true;
+      
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
         `${section.guide}-${section.pickUpTime}-${section.hourlyPackage}-${dayIndex}`
@@ -987,16 +1000,28 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
-        // Call handleBookNow
-        handleBookNow();
-        
-        // Mark these sections as saved
-        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        try {
+          // Call handleBookNow
+          handleBookNow();
+          
+          // Mark these sections as saved
+          setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        } catch (error) {
+          console.error('Error in auto dispatch:', error);
+        } finally {
+          // Reset processing flag after a delay to allow for state updates
+          setTimeout(() => {
+            isProcessingRef.current = false;
+          }, 1000);
+        }
       }, 500);
       
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        isProcessingRef.current = false;
+      };
     }
-  }, [formSections, handleBookNow, status, savedSectionIds, dispatchBookingUpdateToRedux]);
+  }, [formSections, status, savedSectionIds, dayIndex]);
 
   const handleAddMore = () => {
     const newIndex = formSections.length;

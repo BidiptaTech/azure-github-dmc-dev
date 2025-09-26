@@ -128,6 +128,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const hasDispatchedAllRestaurantsRef = useRef(false);
   const currentServicesRef = useRef([]);
   const isInitializingRef = useRef(false);
+  const hasDataConflictsRef = useRef(false);
   
   // Initialize form sections with stable default values
   const defaultSection = useMemo(() => ({
@@ -173,19 +174,58 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
 
     console.log('Initializing form sections from restaurantspack:', restaurantspack);
     
+    // Check for data conflicts that could cause infinite loops (for logging only)
+    const hasDataConflicts = restaurantspack.some(restaurantService => {
+      const restaurantData = restaurantService.data?.[0];
+      if (!restaurantData) return false;
+      
+      // Check if adult/child counts from restaurantspack don't match search form data
+      const searchAdults = tour?.adult || 0;
+      const searchChildren = tour?.child || 0;
+      const restaurantAdults = Number(restaurantData.adultCount) || 0;
+      const restaurantChildren = Number(restaurantData.childCount) || 0;
+      
+      const hasMismatch = (searchAdults !== restaurantAdults) || (searchChildren !== restaurantChildren);
+      
+      if (hasMismatch) {
+        console.warn('Restaurant data mismatch detected but proceeding with initialization:', {
+          searchForm: { adults: searchAdults, children: searchChildren },
+          restaurantData: { adults: restaurantAdults, children: restaurantChildren },
+          restaurantId: restaurantData.RestaurantId
+        });
+      }
+      
+      return hasMismatch;
+    });
+    
+    // Store the conflict status for use in auto-dispatch logic
+    hasDataConflictsRef.current = hasDataConflicts;
+    if (hasDataConflicts) {
+      console.log('Restaurant data conflicts detected - will proceed with initialization but skip auto-dispatch');
+    }
+    
     // Set initialization flag to prevent handleInputChange from triggering during initialization
     isInitializingRef.current = true;
 
-    // Filter restaurants that match the current dayIndex for form sections
+    // Filter restaurants - show all for first dayIndex, match by bookingDate for other days
     const dayRestaurants = restaurantspack.filter(restaurantService => {
       const restaurantData = restaurantService.data?.[0];
-      // Match by bookingDate since restaurantspack uses bookingDate
-      return restaurantData && restaurantData.bookingDate === bookingDate;
+      
+      if (!restaurantData) return false;
+
+      // For first dayIndex (dayIndex === 0), show all restaurants regardless of bookingDate
+      if (dayIndex === 0) {
+        console.log('First dayIndex - showing all restaurants regardless of bookingDate');
+        return true;
+      }
+
+      // For other dayIndexes, match by bookingDate
+      return restaurantData.bookingDate === bookingDate;
     });
 
     if (dayRestaurants.length === 0) {
       isInitializingRef.current = false; // Ensure flag is reset when no restaurants found
-      console.log(`No restaurants found for bookingDate ${bookingDate}`);
+      console.log(`No restaurants found for dayIndex ${dayIndex}${dayIndex === 0 ? ' (showing all dates)' : ` (bookingDate: ${bookingDate})`}`);
       return;
     }
 
@@ -232,7 +272,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       isInitializingRef.current = false;
       console.log('Restaurant initialization completed, handleInputChange is now enabled');
     }, 100);
-  }, [restaurantspack, dayIndex, bookingDate]);
+  }, [restaurantspack, dayIndex, bookingDate, tour]); // Added tour to dependencies
 
   // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
   const dispatchAllRestaurantsToRedux = useCallback(() => {
@@ -317,6 +357,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     hasDispatchedAllRestaurantsRef.current = false;
     currentServicesRef.current = [];
     isInitializingRef.current = false;
+    hasDataConflictsRef.current = false;
   }, [dayIndex]);
 
   // Cleanup effect (following attraction pattern)
@@ -327,6 +368,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       hasDispatchedAllRestaurantsRef.current = false;
       currentServicesRef.current = [];
       isInitializingRef.current = false;
+      hasDataConflictsRef.current = false;
         };
   }, []);
 
@@ -1238,10 +1280,14 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     }, 5000);
   }, [formSections, existingServices, validateBookings, dispatch, getBookingSummary, restaurants, searchParams, currentMode]);
 
+  // Ref to track if we're already processing to prevent infinite loops
+  const isProcessingRef = useRef(false);
+  const lastFormSectionsRef = useRef([]);
+  
   // Effect to automatically dispatch completed restaurant bookings to Redux
   useEffect(() => {
-    // Skip if no form sections or during loading
-    if (formSections.length === 0 || status === 'loading') return;
+    // Skip if no form sections, during loading, or already processing
+    if (formSections.length === 0 || status === 'loading' || isProcessingRef.current) return;
     
     // Skip auto-dispatch if we have restaurantspack data (to prevent duplicates)
     // Only auto-dispatch when there's no restaurantspack data (new bookings)
@@ -1249,6 +1295,36 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       console.log('Restaurant - Skipping auto-dispatch because restaurantspack data exists');
       return;
     }
+    
+    // Check for data conflicts that could cause infinite loops using the ref
+    if (hasDataConflictsRef.current) {
+      console.log('Restaurant - Data conflicts detected, skipping auto-dispatch to prevent infinite loops');
+      return;
+    }
+    
+    // Check if form sections have actually changed to prevent unnecessary re-runs
+    const currentFormSectionsString = JSON.stringify(formSections.map(s => ({
+      restaurant: s.restaurant,
+      mealType: s.mealType,
+      specificMeal: s.specificMeal,
+      timeSlot: s.timeSlot,
+      pax: s.pax
+    })));
+    const lastFormSectionsString = JSON.stringify(lastFormSectionsRef.current);
+    
+    if (currentFormSectionsString === lastFormSectionsString) {
+      console.log('Restaurant - Form sections unchanged, skipping auto-dispatch');
+      return;
+    }
+    
+    // Update the ref with current form sections
+    lastFormSectionsRef.current = formSections.map(s => ({
+      restaurant: s.restaurant,
+      mealType: s.mealType,
+      specificMeal: s.specificMeal,
+      timeSlot: s.timeSlot,
+      pax: s.pax
+    }));
     
     // Find sections that are complete but not yet saved
     const newCompleteSections = formSections.filter((section) => {
@@ -1273,6 +1349,9 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
     
     // If we found new complete sections, update Redux
     if (newCompleteSections.length > 0) {
+      // Set processing flag to prevent multiple simultaneous executions
+      isProcessingRef.current = true;
+      
       // Get signatures for the new sections
       const newSectionSignatures = newCompleteSections.map(section => 
         `${section.restaurant}-${section.mealType}-${section.specificMeal}-${section.timeSlot}-${dayIndex}`
@@ -1287,16 +1366,28 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       
       // Wait a bit to avoid too many Redux updates
       const timeoutId = setTimeout(() => {
-        // Call handleBookNow
-        handleBookNow();
-        
-        // Mark these sections as saved
-        setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        try {
+          // Call handleBookNow
+          handleBookNow();
+          
+          // Mark these sections as saved
+          setSavedSectionIds(prev => [...prev, ...newSectionSignatures]);
+        } catch (error) {
+          console.error('Error in auto dispatch:', error);
+        } finally {
+          // Reset processing flag after a delay to allow for state updates
+          setTimeout(() => {
+            isProcessingRef.current = false;
+          }, 1000);
+        }
       }, 500);
       
-      return () => clearTimeout(timeoutId);
+      return () => {
+        clearTimeout(timeoutId);
+        isProcessingRef.current = false;
+      };
     }
-  }, [formSections, handleBookNow, status, savedSectionIds, restaurantspack]);
+  }, [formSections, status, savedSectionIds, restaurantspack, dayIndex, tour]); // Added tour to dependencies
 
   // Helper to check if a booking is out of current tour dates for the specific dayIndex
   const isBookingOutOfTourDates = (booking) => {

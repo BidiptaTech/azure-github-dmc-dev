@@ -61,6 +61,10 @@ const InnerPaper = styled(Paper)(({ theme }) => ({
   borderRadius: theme.spacing(2.5),
   position: 'relative',
   overflow: 'hidden',
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(2),
+    borderRadius: theme.spacing(2),
+  },
   '&::before': {
     content: '""',
     position: 'absolute',
@@ -170,6 +174,10 @@ const SectionCard = styled(Card)(({ theme }) => ({
   marginBottom: theme.spacing(3),
   border: '1px solid rgba(102, 126, 234, 0.1)',
   transition: 'all 0.3s ease',
+  [theme.breakpoints.down('sm')]: {
+    marginBottom: theme.spacing(2),
+    borderRadius: theme.spacing(1.5),
+  },
   '&:hover': {
     transform: 'translateY(-2px)',
     boxShadow: '0 12px 40px rgba(102, 126, 234, 0.15)',
@@ -249,7 +257,7 @@ const RegistrationForm = () => {
     idProof: null,
     password: ''
   });
-  console.log("formDataregister", formData);
+ // console.log("formDataregister", formData);
 
   // Add preview URLs for images
   const [imagePreviews, setImagePreviews] = useState({ agencyLogo: null, idProof: null });
@@ -300,7 +308,7 @@ const RegistrationForm = () => {
         setCountries(processedCountries);
         setLoadingCountries(false);
       } catch (error) {
-        console.error('Error fetching countries:', error);
+       // console.error('Error fetching countries:', error);
         // Fallback to some basic countries if API fails
         setCountries([
           { code: 'US', name: 'United States', dialCode: '+1', flag: '🇺🇸', cities: CITY_DATA.US, minLength: 10, maxLength: 10 },
@@ -479,23 +487,23 @@ const RegistrationForm = () => {
       // Hide loading state
       setUploadingFiles(prev => ({ ...prev, [name]: false }));
       
-      console.log(`File uploaded for ${name}:`, {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        lastModified: file.lastModified,
-        isFile: file instanceof File
-      });
+      // console.log(`File uploaded for ${name}:`, {
+      //   name: file.name,
+      //   size: file.size,
+      //   type: file.type,
+      //   lastModified: file.lastModified,
+      //   isFile: file instanceof File
+      // });
       
       // Verify file is properly stored in form data
       setTimeout(() => {
         const currentFile = formData[name];
-        console.log(`Verification - ${name} in formData:`, {
-          exists: !!currentFile,
-          isFile: currentFile instanceof File,
-          name: currentFile?.name,
-          size: currentFile?.size
-        });
+        // console.log(`Verification - ${name} in formData:`, {
+        //   exists: !!currentFile,
+        //   isFile: currentFile instanceof File,
+        //   name: currentFile?.name,
+        //   size: currentFile?.size
+        // });
       }, 100);
     }
   };
@@ -553,21 +561,21 @@ const RegistrationForm = () => {
           image: formData.idProof, // Pass the actual File object
         };
 
-        console.log("Transformed data for API:", {
-          ...transformedData,
-          agent_image: transformedData.agent_image ? {
-            name: transformedData.agent_image.name,
-            size: transformedData.agent_image.size,
-            type: transformedData.agent_image.type,
-            isFile: transformedData.agent_image instanceof File
-          } : null,
-          image: transformedData.image ? {
-            name: transformedData.image.name,
-            size: transformedData.image.size,
-            type: transformedData.image.type,
-            isFile: transformedData.image instanceof File
-          } : null
-        });
+        // console.log("Transformed data for API:", {
+        //   ...transformedData,
+        //   agent_image: transformedData.agent_image ? {
+        //     name: transformedData.agent_image.name,
+        //     size: transformedData.agent_image.size,
+        //     type: transformedData.agent_image.type,
+        //     isFile: transformedData.agent_image instanceof File
+        //   } : null,
+        //   image: transformedData.image ? {
+        //     name: transformedData.image.name,
+        //     size: transformedData.image.size,
+        //     type: transformedData.image.type,
+        //     isFile: transformedData.image instanceof File
+        //   } : null
+        // });
         
         // Validate that required files are present and are File objects
         if (!transformedData.agent_image || !(transformedData.agent_image instanceof File)) {
@@ -582,21 +590,21 @@ const RegistrationForm = () => {
           return;
         }
         
-        console.log('Files validation passed:', {
-          agent_image: {
-            name: transformedData.agent_image.name,
-            size: transformedData.agent_image.size,
-            type: transformedData.agent_image.type
-          },
-          image: {
-            name: transformedData.image.name,
-            size: transformedData.image.size,
-            type: transformedData.image.type
-          }
-        });
+        // console.log('Files validation passed:', {
+        //   agent_image: {
+        //     name: transformedData.agent_image.name,
+        //     size: transformedData.agent_image.size,
+        //     type: transformedData.agent_image.type
+        //   },
+        //   image: {
+        //     name: transformedData.image.name,
+        //     size: transformedData.image.size,
+        //     type: transformedData.image.type
+        //   }
+        // });
         
                   try {
-                    console.log("transformedDatafinal", transformedData);
+                   // console.log("transformedDatafinal", transformedData);
            
            const responseOTP = await dispatch(sendOTPSlice(transformedData)).unwrap();
            if (responseOTP.success) {
@@ -617,7 +625,7 @@ const RegistrationForm = () => {
               // Add any other data needed for OTP verification
               ...transformedData
             };
-            console.log('Passing user data for OTP:', userDataForOTP);
+            //console.log('Passing user data for OTP:', userDataForOTP);
             
             setTimeout(() => {
               setFormData({
@@ -650,7 +658,7 @@ const RegistrationForm = () => {
              toast.error(`❌ ${errorMessage}`);
            }
          } catch (error) {
-           console.error('Registration error:', error);
+           //console.error('Registration error:', error);
            const errorMessage = error.message || 'Network error. Please check your connection and try again.';
            toast.error(`❌ ${errorMessage}`);
          }
@@ -696,8 +704,8 @@ const RegistrationForm = () => {
       sx={{
         minHeight: '100vh',
         background: 'linear-gradient(145deg,rgb(208, 217, 255) 0%,rgb(237, 219, 255) 100%)',
-        py: 4,
-        px: 2,
+        py: { xs: 2, sm: 3, md: 4 },
+        px: { xs: 1, sm: 2, md: 2 },
         position: 'relative',
         '&::before': {
           content: '""',
@@ -712,15 +720,20 @@ const RegistrationForm = () => {
     >
       <GradientPaper
         sx={{
-           maxWidth: 900,
+          maxWidth: { xs: '100%', sm: 800, md: 900 },
           mx: 'auto',
-         position: 'relative',
+          position: 'relative',
           zIndex: 1,
         }}
       >
-        <InnerPaper>
+        <InnerPaper sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
           {/* Back Button */}
-          <Box sx={{ position: 'absolute', top: 20, left: 20 }}>
+          <Box sx={{ 
+            position: 'absolute', 
+            top: { xs: 10, sm: 15, md: 20 }, 
+            left: { xs: 10, sm: 15, md: 20 },
+            zIndex: 2
+          }}>
             <IconButton
               onClick={() => navigate('/')}
               sx={{
@@ -728,6 +741,8 @@ const RegistrationForm = () => {
                 color: 'white',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
                 transition: 'all 0.3s ease',
+                width: { xs: 36, sm: 40, md: 44 },
+                height: { xs: 36, sm: 40, md: 44 },
                 '&:hover': {
                   transform: 'translateX(-3px)',
                   boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
@@ -735,44 +750,46 @@ const RegistrationForm = () => {
                 },
               }}
             >
-              <ArrowBack />
+              <ArrowBack sx={{ fontSize: { xs: 18, sm: 20, md: 24 } }} />
             </IconButton>
           </Box>
 
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 3, md: 4 }, mt: { xs: 2, sm: 0 } }}>
             <Avatar
               sx={{
-                width: 80,
-                height: 80,
+                width: { xs: 60, sm: 70, md: 80 },
+                height: { xs: 60, sm: 70, md: 80 },
                 mx: 'auto',
                 mb: 2,
                 background: 'linear-gradient(135deg,rgb(0, 12, 63) 0%,rgb(27, 48, 241) 100%)',
               }}
             >
-              <PersonIcon sx={{ fontSize: 40 }} />
+              <PersonIcon sx={{ fontSize: { xs: 30, sm: 35, md: 40 } }} />
             </Avatar>
             
             <Typography
-              variant="h3"
+              variant="h4"
               gutterBottom
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
                 background: 'linear-gradient(135deg, rgb(2, 22, 116) 100%, rgb(2, 22, 116) 100%)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                mb: 1
+                mb: 1,
+                fontSize: { xs: '1.5rem', sm: '1.8rem', md: '2.2rem' }
               }}
             >
               Agent Registration
             </Typography>
             
             <Typography
-              variant="h6"
+              variant="body1"
               sx={{
                 color: '#4a5568',
-                fontWeight: 400,
+                fontWeight: 500,
                 mb: 3,
+                fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' }
               }}
             >
               Join our global network of travel professionals
@@ -823,14 +840,14 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <BusinessIcon />
-                  <Typography variant="h6" fontWeight={700} color="primary">
+                  <BusinessIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                     Basic Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                  <Grid item xs={12} md={6} lg={4}>
                     <StyledTextField
                       fullWidth
                       label="Agency Company *"
@@ -843,16 +860,16 @@ const RegistrationForm = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessIcon color="primary" />
+                            <BusinessIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                           </InputAdornment>
                         ),
                       }}
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={12} sm={6} md={3} lg={2}>
                     <FormControl fullWidth error={!!errors.salutation}>
-                      <InputLabel sx={{ fontWeight: 600, color: '#5a67d8' }}>Salutation *</InputLabel>
+                      <InputLabel sx={{ fontWeight: 600, color: '#5a67d8', fontSize: { xs: '0.9rem', md: '1rem' } }}>Salutation *</InputLabel>
                       <Select
                         value={formData.salutation}
                         onChange={(e) => handleInputChange('salutation', e.target.value)}
@@ -861,16 +878,17 @@ const RegistrationForm = () => {
                         sx={{
                           borderRadius: 1.5,
                           background: 'linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%)',
+                          fontSize: { xs: '0.9rem', md: '1rem' }
                         }}
                       >
-                        <MenuItem value="Mr.">👨 Mr.</MenuItem>
-                        <MenuItem value="Mrs.">👩 Mrs.</MenuItem>
+                        <MenuItem value="Mr." sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>👨 Mr.</MenuItem>
+                        <MenuItem value="Mrs." sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>👩 Mrs.</MenuItem>
                       </Select>
                       {errors.salutation && <FormHelperText>{errors.salutation}</FormHelperText>}
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12} sm={8}>
+                  <Grid item xs={12} sm={6} md={3} lg={3}>
                     <StyledTextField
                       fullWidth
                       label="Name *"
@@ -883,14 +901,14 @@ const RegistrationForm = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <PersonIcon color="primary" />
+                            <PersonIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                           </InputAdornment>
                         ),
                       }}
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid item xs={12} md={6} lg={3}>
                     <StyledTextField
                       fullWidth
                       label="Email Address *"
@@ -904,7 +922,7 @@ const RegistrationForm = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <EmailIcon color="primary" />
+                            <EmailIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                           </InputAdornment>
                         ),
                       }}
@@ -918,14 +936,14 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <LocationIcon />
-                  <Typography variant="h6" fontWeight={700} color="primary">
+                  <LocationIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                     Location Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                  <Grid item xs={12} sm={6} lg={4}>
                     <ColorfulAutocomplete
                       options={countries}
                       getOptionLabel={(option) => `${option.flag} ${option.name}`}
@@ -943,14 +961,14 @@ const RegistrationForm = () => {
                             ...params.InputProps,
                             startAdornment: (
                               <InputAdornment position="start">
-                                <FlagIcon color="primary" />
+                                <FlagIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                               </InputAdornment>
                             ),
                           }}
                         />
                       )}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ '& > span': { mr: 2 } }}>
+                        <Box component="li" {...props} sx={{ '& > span': { mr: 2 }, fontSize: { xs: '0.9rem', md: '1rem' } }}>
                           <span>{option.flag}</span>
                           {option.name}
                         </Box>
@@ -958,7 +976,7 @@ const RegistrationForm = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} lg={4}>
                     <ColorfulAutocomplete
                       options={availableCities}
                       value={formData.agentCity}
@@ -976,7 +994,7 @@ const RegistrationForm = () => {
                             ...params.InputProps,
                             startAdornment: (
                               <InputAdornment position="start">
-                                <LocationIcon color="primary" />
+                                <LocationIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                               </InputAdornment>
                             ),
                           }}
@@ -985,7 +1003,7 @@ const RegistrationForm = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid item xs={12} lg={4}>
                     <StyledTextField
                       fullWidth
                       label="Agent Address *"
@@ -996,11 +1014,11 @@ const RegistrationForm = () => {
                       error={!!errors.agentAddress}
                       helperText={errors.agentAddress}
                       multiline
-                      rows={2}
+                      rows={{ xs: 2, md: 2 }}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
-                            <LocationIcon color="primary" />
+                            <LocationIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                           </InputAdornment>
                         ),
                       }}
@@ -1014,14 +1032,14 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <PhoneIcon />
-                  <Typography variant="h6" fontWeight={700} color="primary">
+                  <PhoneIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                     Contact Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                  <Grid item xs={12} sm={6} lg={4}>
                     <ColorfulAutocomplete
                       options={countries}
                       getOptionLabel={(option) => `${option.flag} ${option.name} (${option.dialCode})`}
@@ -1039,14 +1057,14 @@ const RegistrationForm = () => {
                             ...params.InputProps,
                             startAdornment: (
                               <InputAdornment position="start">
-                                <PhoneIcon color="primary" />
+                                <PhoneIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                               </InputAdornment>
                             ),
                           }}
                         />
                       )}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props}>
+                        <Box component="li" {...props} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                           <span style={{ marginRight: 8 }}>{option.flag}</span>
                           {option.name} ({option.dialCode})
                         </Box>
@@ -1054,7 +1072,7 @@ const RegistrationForm = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} lg={4}>
                     <StyledTextField
                       fullWidth
                       label="Phone Number *"
@@ -1066,7 +1084,7 @@ const RegistrationForm = () => {
                       helperText={errors.phoneNumber}
                       InputProps={{
                         startAdornment: formData.countryCode && (
-                          <InputAdornment position="start" sx={{ color: '#667eea', fontWeight: 600 }}>
+                          <InputAdornment position="start" sx={{ color: '#667eea', fontWeight: 600, fontSize: { xs: '0.9rem', md: '1rem' } }}>
                             {formData.countryCode.dialCode}
                           </InputAdornment>
                         ),
@@ -1074,7 +1092,7 @@ const RegistrationForm = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12}>
+                  <Grid item xs={12} lg={4}>
                     <ColorfulAutocomplete
                       multiple
                       options={countries}
@@ -1089,6 +1107,7 @@ const RegistrationForm = () => {
                             label={`${option.flag} ${option.name}`}
                             {...getTagProps({ index })}
                             key={option.code}
+                            sx={{ fontSize: { xs: '0.8rem', md: '0.9rem' } }}
                           />
                         ))
                       }
@@ -1104,7 +1123,7 @@ const RegistrationForm = () => {
                             startAdornment: (
                               <>
                                 <InputAdornment position="start">
-                                  <PublicIcon color="primary" />
+                                  <PublicIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                                 </InputAdornment>
                                 {params.InputProps.startAdornment}
                               </>
@@ -1113,7 +1132,7 @@ const RegistrationForm = () => {
                         />
                       )}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props}>
+                        <Box component="li" {...props} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                           <span style={{ marginRight: 8 }}>{option.flag}</span>
                           {option.name}
                         </Box>
@@ -1128,14 +1147,14 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <BusinessIcon />
-                  <Typography variant="h6" fontWeight={700} color="primary">
+                  <BusinessIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                     Document Information
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                  <Grid item xs={12} sm={6} lg={6}>
                     <StyledTextField
                       fullWidth
                       label="ID Card *"
@@ -1148,7 +1167,7 @@ const RegistrationForm = () => {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} lg={6}>
                     <StyledTextField
                       fullWidth
                       label="Card Number *"
@@ -1168,29 +1187,34 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <UploadIcon />
-                  <Typography variant="h6" fontWeight={700} color="primary">
+                  <UploadIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                     File Uploads
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={3}>
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle1" gutterBottom fontWeight={600} color="primary">
+                    <Typography variant="subtitle1" gutterBottom fontWeight={600} color="primary" sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                       📄 Agency Logo (Optional)
                     </Typography>
-                    <ColorfulUploadBox error={!!errors.agencyLogo}>
-                      <CloudUploadIcon sx={{ fontSize: 48, color: '#4fd1c7', mb: 1 }} />
-                      <Typography variant="body1" gutterBottom fontWeight={600}>
+                    <ColorfulUploadBox error={!!errors.agencyLogo} sx={{ p: { xs: 2, md: 3 } }}>
+                      <CloudUploadIcon sx={{ fontSize: { xs: 36, md: 48 }, color: '#4fd1c7', mb: 1 }} />
+                      <Typography variant="body1" gutterBottom fontWeight={600} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                         {formData.agencyLogo ? formData.agencyLogo.name : 'Click to upload agency logo'}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                         Max size: 2MB | Image files only
                       </Typography>
                       <GradientButton
                         component="label"
                         startIcon={<CloudUploadIcon />}
-                        sx={{ mt: 2 }}
+                        sx={{ 
+                          mt: 2,
+                          fontSize: { xs: '0.8rem', md: '1rem' },
+                          px: { xs: 2, md: 3 },
+                          py: { xs: 1, md: 1.5 }
+                        }}
                       >
                         Choose File
                         <VisuallyHiddenInput
@@ -1204,7 +1228,13 @@ const RegistrationForm = () => {
                           <img
                             src={imagePreviews.agencyLogo}
                             alt="Agency Logo Preview"
-                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                            style={{ 
+                              width: { xs: 48, md: 64 }, 
+                              height: { xs: 48, md: 64 }, 
+                              objectFit: 'cover', 
+                              borderRadius: 8, 
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)' 
+                            }}
                           />
                           <IconButton
                             onClick={() => handleRemoveImage('agencyLogo')}
@@ -1214,41 +1244,46 @@ const RegistrationForm = () => {
                               right: -8,
                               backgroundColor: 'rgba(255, 255, 255, 0.9)',
                               border: '1px solid #e2e8f0',
-                              width: 24,
-                              height: 24,
+                              width: { xs: 20, md: 24 },
+                              height: { xs: 20, md: 24 },
                               '&:hover': {
                                 backgroundColor: 'rgba(255, 255, 255, 1)',
                               }
                             }}
                           >
-                            <CloseIcon sx={{ fontSize: 16, color: '#e53e3e' }} />
+                            <CloseIcon sx={{ fontSize: { xs: 12, md: 16 }, color: '#e53e3e' }} />
                           </IconButton>
                         </Box>
                       )}
                     </ColorfulUploadBox>
                     {errors.agencyLogo && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600 }}>
+                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                         {errors.agencyLogo}
                       </Typography>
                     )}
                   </Grid>
 
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle1" gutterBottom fontWeight={600} color="primary">
+                    <Typography variant="subtitle1" gutterBottom fontWeight={600} color="primary" sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                       🆔 ID Proof * (Required)
                     </Typography>
-                    <ColorfulUploadBox error={!!errors.idProof}>
-                      <CloudUploadIcon sx={{ fontSize: 48, color: '#4fd1c7', mb: 1 }} />
-                      <Typography variant="body1" gutterBottom fontWeight={600}>
+                    <ColorfulUploadBox error={!!errors.idProof} sx={{ p: { xs: 2, md: 3 } }}>
+                      <CloudUploadIcon sx={{ fontSize: { xs: 36, md: 48 }, color: '#4fd1c7', mb: 1 }} />
+                      <Typography variant="body1" gutterBottom fontWeight={600} sx={{ fontSize: { xs: '0.9rem', md: '1rem' } }}>
                         {formData.idProof ? formData.idProof.name : 'Click to upload ID proof'}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                         Max size: 2MB | Image files only
                       </Typography>
                       <GradientButton
                         component="label"
                         startIcon={<CloudUploadIcon />}
-                        sx={{ mt: 2 }}
+                        sx={{ 
+                          mt: 2,
+                          fontSize: { xs: '0.8rem', md: '1rem' },
+                          px: { xs: 2, md: 3 },
+                          py: { xs: 1, md: 1.5 }
+                        }}
                       >
                         Choose File
                         <VisuallyHiddenInput
@@ -1262,7 +1297,13 @@ const RegistrationForm = () => {
                           <img
                             src={imagePreviews.idProof}
                             alt="ID Proof Preview"
-                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+                            style={{ 
+                              width: { xs: 48, md: 64 }, 
+                              height: { xs: 48, md: 64 }, 
+                              objectFit: 'cover', 
+                              borderRadius: 8, 
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)' 
+                            }}
                           />
                           <IconButton
                             onClick={() => handleRemoveImage('idProof')}
@@ -1272,20 +1313,20 @@ const RegistrationForm = () => {
                               right: -8,
                               backgroundColor: 'rgba(255, 255, 255, 0.9)',
                               border: '1px solid #e2e8f0',
-                              width: 24,
-                              height: 24,
+                              width: { xs: 20, md: 24 },
+                              height: { xs: 20, md: 24 },
                               '&:hover': {
                                 backgroundColor: 'rgba(255, 255, 255, 1)',
                               }
                             }}
                           >
-                            <CloseIcon sx={{ fontSize: 16, color: '#e53e3e' }} />
+                            <CloseIcon sx={{ fontSize: { xs: 12, md: 16 }, color: '#e53e3e' }} />
                           </IconButton>
                         </Box>
                       )}
                     </ColorfulUploadBox>
                     {errors.idProof && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600 }}>
+                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block', fontWeight: 600, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                         {errors.idProof}
                       </Typography>
                     )}
@@ -1298,13 +1339,13 @@ const RegistrationForm = () => {
             <SectionCard>
               <CardContent>
                 <IconContainer>
-                  <LockIcon />
-                  <Typography variant="h6" fontWeight={700} color="primary">
+                  <LockIcon sx={{ fontSize: { xs: 20, md: 24 } }} />
+                  <Typography variant="h6" fontWeight={600} color="primary" sx={{ fontSize: { xs: '1rem', md: '1.1rem' } }}>
                     Security
                   </Typography>
                 </IconContainer>
 
-                <Grid container spacing={3}>
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
                   <Grid item xs={12}>
                     <StyledTextField
                       fullWidth
@@ -1319,7 +1360,7 @@ const RegistrationForm = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <LockIcon color="primary" />
+                            <LockIcon color="primary" sx={{ fontSize: { xs: 18, md: 20 } }} />
                           </InputAdornment>
                         ),
                         endAdornment: (
@@ -1329,7 +1370,7 @@ const RegistrationForm = () => {
                               edge="end"
                               sx={{ color: '#667eea' }}
                             >
-                              {showPassword ? <VisibilityOff /> : <Visibility />}
+                              {showPassword ? <VisibilityOff sx={{ fontSize: { xs: 18, md: 20 } }} /> : <Visibility sx={{ fontSize: { xs: 18, md: 20 } }} />}
                             </IconButton>
                           </InputAdornment>
                         ),
@@ -1341,31 +1382,33 @@ const RegistrationForm = () => {
             </SectionCard>
 
             {/* Submit Button */}
-            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+            <Box sx={{ mt: { xs: 3, md: 4 }, display: 'flex', justifyContent: 'center' }}>
               <GradientButton
                 type="submit"
                 size="large"
                 disabled={loading || success}
                 sx={{
-                  minWidth: 250,
-                  py: 2,
-                  fontSize: '1.2rem',
+                  minWidth: { xs: 200, sm: 250 },
+                  py: { xs: 1.5, md: 2 },
+                  fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
                   fontWeight: 700,
+                  width: { xs: '100%', sm: 'auto' },
+                  maxWidth: { xs: 300, sm: 'none' }
                 }}
               >
                 {loading ? (
                   <>
-                    <CircularProgress size={24} sx={{ mr: 2, color: 'white' }} />
+                    <CircularProgress size={{ xs: 20, md: 24 }} sx={{ mr: 2, color: 'white' }} />
                     Registering...
                   </>
                 ) : success ? (
                   <>
-                    <CheckCircle sx={{ mr: 1 }} />
+                    <CheckCircle sx={{ mr: 1, fontSize: { xs: 18, md: 20 } }} />
                     Registration Complete! 🎉
                   </>
                 ) : (
                   <>
-                    <PersonIcon sx={{ mr: 1 }} />
+                    <PersonIcon sx={{ mr: 1, fontSize: { xs: 18, md: 20 } }} />
                     Register Now
                   </>
                 )}
