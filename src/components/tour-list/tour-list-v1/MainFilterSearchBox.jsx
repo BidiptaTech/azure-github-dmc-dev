@@ -49,8 +49,8 @@ const MainFilterSearchBox = () => {
 
     const searchData = {
       location: selectedLocation,
-      date: selectedDate,
-      selectedDate: selectedDate,
+      date: selectedDate ? selectedDate.format("YYYY-MM-DD") : null,
+      selectedDate: selectedDate ? selectedDate.format("YYYY-MM-DD") : null,
       adults: guestCounts.Adults,
       children: guestCounts.Children,
       tour_id: tourdetails?.tour_id,

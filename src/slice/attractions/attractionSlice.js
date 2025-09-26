@@ -265,12 +265,12 @@ const attractionsSlice = createSlice({
     setSearchParams: (state, action) => {
       const serializedPayload = {
         ...action.payload,
-        date: action.payload.date
+        date: action.payload.date && action.payload.date.format
           ? action.payload.date.format("YYYY-MM-DD")
-          : null,
-        selectedDate: action.payload.selectedDate
+          : action.payload.date,
+        selectedDate: action.payload.selectedDate && action.payload.selectedDate.format
           ? action.payload.selectedDate.format("YYYY-MM-DD")
-          : null,
+          : action.payload.selectedDate,
       };
       state.searchParams = serializedPayload;
     },

@@ -29,7 +29,11 @@ import {
     Stack,
     TextField,
     InputAdornment,
-    CircularProgress
+    CircularProgress,
+    useMediaQuery,
+    useTheme,
+    Menu,
+    MenuItem
 } from "@mui/material";
 import {
     DonutLarge,
@@ -64,7 +68,8 @@ import {
     ConfirmationNumber,
     DateRange,
     FilterAltOff,
-    ClearAll
+    ClearAll,
+    Menu as MenuIcon
 } from "@mui/icons-material";
 import { TabPanel, a11yProps } from "./TabPanel";
 import PackagesTable from "./PackagesTable";
@@ -73,6 +78,8 @@ import DateFilter from "./DateFilter";
 
 const PreDefinePackages = () => {
     const dispatch = useDispatch();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const {
         bookingLists,
         bookingListsLoading,
@@ -83,6 +90,14 @@ const PreDefinePackages = () => {
     const { userRole } = useSelector((state) => state.auth);
 
     const [tabValue, setTabValue] = useState(0);
+    const [anchorEl, setAnchorEl] = useState(null);
+
+    // Tab configuration
+    const tabs = [
+        { icon: <DonutLarge />, label: 'Ongoing' },
+        { icon: <Upcoming />, label: 'Upcoming' },
+        { icon: <History />, label: 'Past' }
+    ];
 
     // Organize booking list data by status
     const [processedData, setProcessedData] = useState({
@@ -722,6 +737,9 @@ const PreDefinePackages = () => {
 
     const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
+        if (isMobile) {
+            setAnchorEl(null); // Close dropdown after selection on mobile
+        }
         setSearchTerm('');
         setShowSearchInput(false);
         setDmcFilterTerm('');
@@ -731,6 +749,14 @@ const PreDefinePackages = () => {
         // Clear date filter when changing tabs
         setDateRange(null);
         setIsDateFilterActive(false);
+    };
+
+    const handleMenuClick = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
     };
 
     const handleSearchChange = (event) => {
@@ -836,6 +862,58 @@ const PreDefinePackages = () => {
         }
         return null;
     };
+
+    // Mobile Dropdown Menu Component
+    const MobileDropdownMenu = () => (
+        <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+            sx={{
+                '& .MuiPaper-root': {
+                    mt: 1,
+                    borderRadius: 2,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                    minWidth: 200,
+                },
+            }}
+        >
+            {tabs.map((tab, index) => (
+                <MenuItem
+                    key={index}
+                    selected={tabValue === index}
+                    onClick={(e) => handleTabChange(e, index)}
+                    sx={{
+                        py: 1.5,
+                        px: 2,
+                        '&.Mui-selected': {
+                            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(67, 97, 238, 0.15)',
+                            },
+                        },
+                        '&:hover': {
+                            backgroundColor: 'rgba(67, 97, 238, 0.05)',
+                        },
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box sx={{ color: tabValue === index ? '#4361ee' : 'inherit' }}>
+                            {tab.icon}
+                        </Box>
+                        <Box
+                            sx={{
+                                fontWeight: tabValue === index ? 700 : 600,
+                                color: tabValue === index ? '#4361ee' : 'inherit',
+                            }}
+                        >
+                            {tab.label}
+                        </Box>
+                    </Box>
+                </MenuItem>
+            ))}
+        </Menu>
+    );
 
     // Render loading state or error message
     const renderContent = (filteredData, emptyMessage) => {
@@ -1009,67 +1087,88 @@ const PreDefinePackages = () => {
             px: { xs: 1, sm: 2, md: 0 },
             mx: { xs: 0, sm: 0, md: 0 }
         }}>
-            <Card sx={{ 
-                mb: 3, 
-                overflow: 'visible',  // Allow content to overflow for horizontal scrolling
-                '@media (min-width: 1200px)': {
-                    overflow: 'visible'  // Ensure large screens allow overflow
-                }
-            }}>
-                <Tabs
-                    value={tabValue}
-                    onChange={handleTabChange}
-                    aria-label="package tabs"
-                    indicatorColor="primary"
-                    textColor="primary"
-                    variant="fullWidth"
-                    sx={{
-                        background: 'linear-gradient(to right, #f5f7fa, #f9fcff)',
-                        '& .MuiTab-root': {
-                            fontWeight: 600,
-                            py: { xs: 1.5, sm: 2, md: 2.5 },
-                            textTransform: 'none',
-                            fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.95rem' },
-                            minHeight: { xs: '48px', sm: '56px', md: '64px' },
-                            transition: 'all 0.2s',
-                            '&:hover': {
-                                backgroundColor: 'rgba(67, 97, 238, 0.04)',
-                            },
-                            '&.Mui-selected': {
-                                color: '#4361ee',
-                                fontWeight: 700,
-                            },
-                            // Responsive icon and text layout
-                            '& .MuiTab-iconWrapper': {
-                                marginBottom: { xs: 0, sm: 0 },
-                                marginRight: { xs: 0.5, sm: 1 },
-                            },
-                            // Stack icon and text vertically on mobile
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            gap: { xs: 0.5, sm: 0 },
-                        }
-                    }}
-                >
-                    <Tab
-                        icon={<DonutLarge />}
-                        label="Ongoing"
-                        iconPosition="start"
-                        {...a11yProps(0)}
-                    />
-                    <Tab
-                        icon={<Upcoming />}
-                        label="Upcoming"
-                        iconPosition="start"
-                        {...a11yProps(1)}
-                    />
-                    <Tab
-                        icon={<History />}
-                        label="Past"
-                        iconPosition="start"
-                        {...a11yProps(2)}
-                    />
-                </Tabs>
-            </Card>
+            {/* Mobile Header with Menu Button */}
+            {isMobile && (
+                <Card sx={{ mb: 3, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <IconButton
+                            onClick={handleMenuClick}
+                            sx={{
+                                backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(67, 97, 238, 0.2)',
+                                },
+                            }}
+                        >
+                            <MenuIcon sx={{ color: '#4361ee' }} />
+                        </IconButton>
+                        <Box>
+                            <Box sx={{ fontWeight: 600, fontSize: '1.1rem', color: '#4361ee' }}>
+                                {tabs[tabValue]?.label}
+                            </Box>
+                        </Box>
+                    </Box>
+                </Card>
+            )}
+
+            {/* Desktop Tabs */}
+            {!isMobile && (
+                <Card sx={{ 
+                    mb: 3, 
+                    overflow: 'visible',  // Allow content to overflow for horizontal scrolling
+                    '@media (min-width: 1200px)': {
+                        overflow: 'visible'  // Ensure large screens allow overflow
+                    }
+                }}>
+                    <Tabs
+                        value={tabValue}
+                        onChange={handleTabChange}
+                        aria-label="package tabs"
+                        indicatorColor="primary"
+                        textColor="primary"
+                        variant="fullWidth"
+                        sx={{
+                            background: 'linear-gradient(to right, #f5f7fa, #f9fcff)',
+                            '& .MuiTab-root': {
+                                fontWeight: 600,
+                                py: { xs: 1.5, sm: 2, md: 2.5 },
+                                textTransform: 'none',
+                                fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.95rem' },
+                                minHeight: { xs: '48px', sm: '56px', md: '64px' },
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(67, 97, 238, 0.04)',
+                                },
+                                '&.Mui-selected': {
+                                    color: '#4361ee',
+                                    fontWeight: 700,
+                                },
+                                // Responsive icon and text layout
+                                '& .MuiTab-iconWrapper': {
+                                    marginBottom: { xs: 0, sm: 0 },
+                                    marginRight: { xs: 0.5, sm: 1 },
+                                },
+                                // Stack icon and text vertically on mobile
+                                flexDirection: { xs: 'column', sm: 'row' },
+                                gap: { xs: 0.5, sm: 0 },
+                            }
+                        }}
+                    >
+                        {tabs.map((tab, index) => (
+                            <Tab
+                                key={index}
+                                icon={tab.icon}
+                                label={tab.label}
+                                iconPosition="start"
+                                {...a11yProps(index)}
+                            />
+                        ))}
+                    </Tabs>
+                </Card>
+            )}
+
+            {/* Mobile Dropdown Menu */}
+            {isMobile && <MobileDropdownMenu />}
 
             <TabPanel value={tabValue} index={0}>
                 <Card sx={{ 
