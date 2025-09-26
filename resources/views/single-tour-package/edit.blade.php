@@ -195,23 +195,23 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" required value="{{ $customer_info['fullName'] ?? '' }}">
+                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" required value="{{ $customer_info['email'] ?? '' }}">
+                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Country Code</label>
-                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required value="{{ $customer_info['countryCode'] ?? '' }}">
+                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
                                 </div>
                                 <div class="col-md-9">
                                     <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required value="{{ $customer_info['phone'] ?? '' }}">
+                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 1</label>
-                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" required value="{{ $customer_info['address1'] ?? '' }}">
+                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 2</label>

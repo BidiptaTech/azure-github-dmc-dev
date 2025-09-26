@@ -350,17 +350,16 @@ class SingleTourPackageController extends Controller
             ->get();
         $firstOrder = $orders->first();
         $customer_info = [];
-        if($firstOrder){
-            
-            $customer_info['fullName'] = $firstOrder->data[0]['fullName'];
-            $customer_info['email'] = $firstOrder->data[0]['email'];
-            $customer_info['phone'] = $firstOrder->data[0]['phone'];
-            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'];
-            $customer_info['address1'] = $firstOrder->data[0]['address1'];
-            $customer_info['address2'] = $firstOrder->data[0]['address2'];
-            $customer_info['state'] = $firstOrder->data[0]['state'];
-            $customer_info['zip'] = $firstOrder->data[0]['zip'];
-            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'];
+        if($firstOrder && $firstOrder->data){
+            $customer_info['fullName'] = $firstOrder->data[0]['fullName'] ?? '';
+            $customer_info['email'] = $firstOrder->data[0]['email'] ?? '';
+            $customer_info['phone'] = $firstOrder->data[0]['phone'] ?? '';
+            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'] ?? '';
+            $customer_info['address1'] = $firstOrder->data[0]['address1'] ?? '';
+            $customer_info['address2'] = $firstOrder->data[0]['address2'] ?? '';
+            $customer_info['state'] = $firstOrder->data[0]['state'] ?? '';
+            $customer_info['zip'] = $firstOrder->data[0]['zip'] ?? '';
+            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'] ?? '';
         }
         // Group orders by type and process the data
         $ordersByType = [];

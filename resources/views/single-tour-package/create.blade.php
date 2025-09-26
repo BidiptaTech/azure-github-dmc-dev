@@ -1952,9 +1952,9 @@
                     updatePackageTotalPriceDisplay();
                 }
 
-                // Function to collect transport data (including entry/exit ports)
+                // Function to collect transport data (including entry/exit ports) - CLEAN VERSION
                 function updateTransportDataField() {
-                        console.log('=== STARTING TRANSPORT DATA COLLECTION ===');
+                    console.log('=== STARTING CLEAN TRANSPORT DATA COLLECTION ===');
                     
                     // Get customer information from the Customer Information form
                     const customerData = getCustomerData();
@@ -1973,19 +1973,17 @@
                         is_point_to_point: {{ $isPointToPoint ? 'true' : 'false' }}
                     };
                     
-                    // Get all transport selections - handle both single and multiple transport patterns
-                    // Include all pickup field types: zone selects, location inputs for point-to-point and hourly
-                    const allPickupSelects = document.querySelectorAll('select[name*="_pickup_zone_id"]');
-                    const allPickupLocationInputs = document.querySelectorAll('input[name*="_pickup_location"]');
-                    const allDropoffLocationInputs = document.querySelectorAll('input[name*="_dropoff_location"]');
-                    // Only include pickup fields for processing, dropoff fields will be handled separately
-                    const allPickupFields = [...allPickupSelects, ...allPickupLocationInputs];
-                    console.log(`Found ${allPickupSelects.length} pickup zone selects and ${allPickupLocationInputs.length} pickup location inputs:`, Array.from(allPickupFields).map(s => s.name));
+                    // CLEAN COLLECTION APPROACH: Process all vehicles by type to avoid duplication
+                    console.log('=== STARTING CLEAN VEHICLE COLLECTION ===');
                     
                     // Collect data from additional entry port vehicles (created by addMoreEntryPorts) - Skip index 0 as it's handled in main collection
                     console.log('=== COLLECTING ADDITIONAL ENTRY PORT VEHICLES (INDEX > 0) ===');
                     const additionalEntryVehicles = document.querySelectorAll('select[name*="_entry_"][name*="_vehicle_id"]');
-                    console.log(`Found ${additionalEntryVehicles.length} total entry port vehicles:`, Array.from(additionalEntryVehicles).map(s => s.name));
+                    console.log(`Found ${additionalEntryVehicles.length} total entry port vehicles:`, Array.from(additionalEntryVehicles).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
+                    
+                    // Debug: Show all entry-related vehicle selects on the page
+                    const allEntrySelects = document.querySelectorAll('select[name*="entry"][name*="vehicle"]');
+                    console.log('All entry vehicle selects found:', Array.from(allEntrySelects).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
                     
                     additionalEntryVehicles.forEach(vehicleSelect => {
                         if (vehicleSelect.value) {
@@ -2091,7 +2089,11 @@
                     // Collect data from additional exit port vehicles (created by addMoreExitPorts) - Skip index 0 as it's handled in main collection
                     console.log('=== COLLECTING ADDITIONAL EXIT PORT VEHICLES (INDEX > 0) ===');
                     const additionalExitVehicles = document.querySelectorAll('select[name*="_exit_"][name*="_vehicle_id"]');
-                    console.log(`Found ${additionalExitVehicles.length} total exit port vehicles:`, Array.from(additionalExitVehicles).map(s => s.name));
+                    console.log(`Found ${additionalExitVehicles.length} total exit port vehicles:`, Array.from(additionalExitVehicles).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
+                    
+                    // Debug: Show all exit-related vehicle selects on the page
+                    const allExitSelects = document.querySelectorAll('select[name*="exit"][name*="vehicle"]');
+                    console.log('All exit vehicle selects found:', Array.from(allExitSelects).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
                     
                     additionalExitVehicles.forEach(vehicleSelect => {
                         if (vehicleSelect.value) {
@@ -2245,7 +2247,11 @@
                     // 1. Collect Point-to-Point Transport Data
                     console.log('=== COLLECTING POINT-TO-POINT TRANSPORTS ===');
                     const pointToPointFields = document.querySelectorAll('input[name*="transport"][name*="pickup_location"]:not([name*="hourly"])');
-                    console.log(`Found ${pointToPointFields.length} point-to-point pickup fields`);
+                    console.log(`Found ${pointToPointFields.length} point-to-point pickup fields:`, Array.from(pointToPointFields).map(f => ({ name: f.name, value: f.value, hasValue: !!f.value })));
+                    
+                    // Debug: Show all transport-related vehicle selects on the page
+                    const allTransportSelects = document.querySelectorAll('select[name*="transport"][name*="vehicle"]');
+                    console.log('All transport vehicle selects found:', Array.from(allTransportSelects).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
                     
                     pointToPointFields.forEach(field => {
                         if (field.value) {
@@ -2515,7 +2521,135 @@
                         }
                     });
                     
-                    // 4. Collect Main Entry/Exit Port Transport Data (index 0 vehicles)
+                    // 4. Collect ALL Transport Vehicles (Comprehensive Collection)
+                    console.log('=== COLLECTING ALL TRANSPORT VEHICLES (COMPREHENSIVE) ===');
+                    const allTransportVehicles = document.querySelectorAll('select[name*="transport"][name*="vehicle_id"]:not([name*="entry"]):not([name*="exit"])');
+                    console.log(`Found ${allTransportVehicles.length} transport vehicle selects:`, Array.from(allTransportVehicles).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
+                    
+                    allTransportVehicles.forEach(vehicleSelect => {
+                        if (vehicleSelect.value) {
+                            console.log(`Processing transport vehicle: ${vehicleSelect.name} = ${vehicleSelect.value}`);
+                            const nameMatch = vehicleSelect.name.match(/day(\d+)_transport(?:_(\d+))?_vehicle_id/);
+                            if (nameMatch) {
+                                const day = nameMatch[1];
+                                const transportIndex = nameMatch[2];
+                                const fieldSuffix = transportIndex ? `_${transportIndex}` : '';
+                                
+                                console.log(`Processing transport for day ${day}, index ${transportIndex || '0'}`);
+                                
+                                // Get service type to determine transport type
+                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_transport${fieldSuffix}_service_type"]`);
+                                if (!serviceTypeSelect || !serviceTypeSelect.value) {
+                                    console.log(`Skipping transport vehicle ${vehicleSelect.name} - no service type selected`);
+                                    return;
+                                }
+                                
+                                const serviceType = serviceTypeSelect.value;
+                                console.log(`Transport service type: ${serviceType}`);
+                                
+                                // Skip if already processed by specific collection above
+                                const transportId = `day${day}_transport${fieldSuffix}`;
+                                if (processedFields.has(transportId)) {
+                                    console.log(`Skipping ${transportId} - already processed`);
+                                    return;
+                                }
+                                processedFields.add(transportId);
+                                
+                                // Get common fields
+                                const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
+                                const passengerCount = parseInt(document.getElementById(`day${day}_transport${fieldSuffix}_passengers`)?.value || 0);
+                                const totalPrice = parseFloat(document.getElementById(`day${day}_transport${fieldSuffix}_total_price`)?.value || 0);
+                                
+                                // Create transport data based on service type
+                                let transportData = {
+                                    id: `transport-${serviceType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                    Mode: "dmc",
+                                    dmc_id: parseInt(document.getElementById('dmc_id')?.value || "4"),
+                                    vehicles_id: parseInt(vehicleSelect.value) || 0,
+                                    vehicles_name: vehicle.text,
+                                    image: vehicle.dataset.image || "",
+                                    vehicle_type: vehicle.dataset.vehicle_type || "",
+                                    vehicle_model: vehicle.dataset.vehicle_model || "",
+                                    model_year: vehicle.dataset.model_year || "",
+                                    seating_capacity: parseInt(vehicle.dataset.seating_capacity) || 0,
+                                    type: serviceType,
+                                    adults: passengerCount,
+                                    children: 0,
+                                    totalPrice: totalPrice,
+                                    Tax: parseFloat(document.getElementById(`day${day}_transport${fieldSuffix}_tax`)?.value || "0.00"),
+                                    distance: parseFloat(document.getElementById(`day${day}_transport${fieldSuffix}_distance`)?.value || "0"),
+                                    componentDayIndex: parseInt(day) - 1,
+                                    fullName: customerData.fullName,
+                                    email: customerData.email,
+                                    phone: customerData.phone,
+                                    countryCode: customerData.countryCode,
+                                    address1: customerData.address1,
+                                    address2: customerData.address2,
+                                    state: customerData.state,
+                                    zip: customerData.zip,
+                                    specialRequests: customerData.specialRequests
+                                };
+                                
+                                // Add service-specific fields
+                                if (serviceType === 'point_to_point') {
+                                    const pickupLocation = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_pickup_location"]`);
+                                    const dropoffLocation = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_dropoff_location"]`);
+                                    const timeSelect = document.querySelector(`select[name="day${day}_transport${fieldSuffix}_additional_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_additional_date"]`);
+                                    
+                                    transportData.travel_type = "travel_point";
+                                    transportData.entrypickup = pickupLocation?.value || "";
+                                    transportData.entrydropoff = dropoffLocation?.value || "";
+                                    transportData.entrytime = timeSelect?.value || "";
+                                    transportData.pickupdate = dateInput?.value || getTourDateForDay(day);
+                                    transportData.bookingDate = dateInput?.value || getTourDateForDay(day);
+                                } else if (serviceType === 'hourly') {
+                                    const pickupLocation = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_hourly_pickup_location"]`);
+                                    const timeSelect = document.querySelector(`select[name="day${day}_transport${fieldSuffix}_hourly_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_hourly_date"]`);
+                                    const hoursInput = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_hourly_hours"]`);
+                                    
+                                    transportData.travel_type = "travel_hourly";
+                                    transportData.entrypickup = pickupLocation?.value || "";
+                                    transportData.entrytime = timeSelect?.value || "";
+                                    transportData.pickupdate = dateInput?.value || getTourDateForDay(day);
+                                    transportData.bookingDate = dateInput?.value || getTourDateForDay(day);
+                                    transportData.hours = parseInt(hoursInput?.value || 0);
+                                } else if (serviceType === 'local_transfer') {
+                                    const pickupZoneSelect = document.querySelector(`select[name="day${day}_transport${fieldSuffix}_pickup_zone_id"]`);
+                                    const dropoffZoneSelect = document.querySelector(`select[name="day${day}_transport${fieldSuffix}_dropoff_zone_id"]`);
+                                    const timeSelect = document.querySelector(`select[name="day${day}_transport${fieldSuffix}_pickup_time"]`);
+                                    const dateInput = document.querySelector(`input[name="day${day}_transport${fieldSuffix}_date"]`);
+                                    
+                                    if (pickupZoneSelect && dropoffZoneSelect) {
+                                        const pickupZone = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
+                                        const dropoffZone = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
+                                        
+                                        transportData.travel_type = "local_transfer";
+                                        transportData.entrypickup = pickupZone?.text || "";
+                                        transportData.entrydropoff = dropoffZone?.text || "";
+                                        transportData.PickupPlaceid = {
+                                            lat: pickupZone?.dataset?.lat || "",
+                                            lng: pickupZone?.dataset?.lng || ""
+                                        };
+                                        transportData.DropoffPlaceid = {
+                                            lat: dropoffZone?.dataset?.lat || "",
+                                            lng: dropoffZone?.dataset?.lng || ""
+                                        };
+                                        transportData.entrytime = timeSelect?.value || "";
+                                        transportData.pickupdate = dateInput?.value || getTourDateForDay(day);
+                                        transportData.bookingDate = dateInput?.value || getTourDateForDay(day);
+                                    }
+                                }
+                                
+                                transportDataArray.push(transportData);
+                                console.log(`✅ Added comprehensive transport: ${transportData.vehicles_name} (${serviceType})`, transportData);
+                                console.log(`✅ Transport array now has ${transportDataArray.length} vehicles`);
+                            }
+                        }
+                    });
+                    
+                    // 5. Collect Main Entry/Exit Port Transport Data (index 0 vehicles)
                     console.log('=== COLLECTING MAIN ENTRY/EXIT PORT TRANSPORTS (INDEX 0) ===');
                     
                     // Collect main entry/exit vehicles (index 0) that weren't collected above
@@ -2553,11 +2687,29 @@
                                     dropoffZone = dropoffField?.options[dropoffField.selectedIndex];
                                 }
                                 
-                                // For main entry/exit vehicles, use the correct naming pattern with _0_ index
-                                const vehicleSelect = document.querySelector(`select[name="day${day}_${section}_0_vehicle_id"]`) || document.querySelector(`select[name="day${day}_${section}${fieldSuffix}_vehicle_id"]`);
-                                const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_service_type"]`) || document.querySelector(`select[name="day${day}_${section}_0_service_type"]`);
+                                // Process ALL vehicles for this entry/exit port (not just index 0)
+                                // Find all vehicle selects for this day and section
+                                const allVehicleSelects = document.querySelectorAll(`select[name*="day${day}_${section}"][name*="vehicle_id"]`);
+                                console.log(`Found ${allVehicleSelects.length} vehicle selects for ${section} port on day ${day}:`, Array.from(allVehicleSelects).map(s => ({ name: s.name, value: s.value, hasValue: !!s.value })));
+                                
+                                // Process each vehicle select that has a value
+                                allVehicleSelects.forEach((vehicleSelect, vehicleIndex) => {
+                                    if (!vehicleSelect.value) {
+                                        console.log(`Skipping vehicle select ${vehicleSelect.name} - no value selected`);
+                                        return;
+                                    }
+                                    
+                                    // Extract the vehicle index from the name (e.g., day1_entry_2_vehicle_id -> index 2)
+                                    const vehicleNameMatch = vehicleSelect.name.match(/day\d+_(?:entry|exit)_(\d+)_vehicle_id/);
+                                    const currentVehicleIndex = vehicleNameMatch ? vehicleNameMatch[1] : '0';
+                                    
+                                    console.log(`Processing ${section} port vehicle ${currentVehicleIndex} for day ${day}`);
+                                    
+                                    // Get the corresponding service type select for this vehicle
+                                    const serviceTypeSelect = document.querySelector(`select[name="day${day}_${section}_${currentVehicleIndex}_service_type"]`) || 
+                                                             document.querySelector(`select[name="day${day}_${section}_service_type"]`);
                                 // Handle different time and date field names for entry vs exit
-                                const timeFieldName = section === 'exit' ? `day${day}_${section}${fieldSuffix}_time` : `day${day}_${section}${fieldSuffix}_pickup_time`;
+                                    const timeFieldName = section === 'exit' ? `day${day}_${section}_time` : `day${day}_${section}_pickup_time`;
                                 const timeSelect = document.querySelector(`select[name="${timeFieldName}"]`);
                                 
                                 // Date field handling - try section-specific date first, then fallback to travel_dates
@@ -2574,7 +2726,7 @@
                                     dateInput = document.getElementById('travel_dates');
                                 }
                                 
-                                console.log(`🔍 Related fields for ${section} port:`, {
+                                    console.log(`🔍 Related fields for ${section} port vehicle ${currentVehicleIndex}:`, {
                                     dropoffField: dropoffField?.name || 'NOT_FOUND',
                                     dropoffValue: dropoffField?.value || 'NO_VALUE',
                                     vehicleSelect: vehicleSelect?.name || 'NOT_FOUND',
@@ -2587,14 +2739,14 @@
                                 });
                                 
                                 if (vehicleSelect?.value && serviceTypeSelect?.value && dropoffField?.value) {
-                                    console.log(`✅ All required fields found for ${section} port - proceeding with data creation`);
+                                        console.log(`✅ All required fields found for ${section} port vehicle ${currentVehicleIndex} - proceeding with data creation`);
                                     const vehicle = vehicleSelect.options[vehicleSelect.selectedIndex];
-                                    // For main entry/exit vehicles, get passenger count from the correct field
-                                    const passengerField = document.getElementById(`day${day}_${section}_0_passengers`);
+                                        // Get passenger count from the correct field for this vehicle index
+                                        const passengerField = document.getElementById(`day${day}_${section}_${currentVehicleIndex}_passengers`);
                                     const passengerCount = parseInt(passengerField?.value || document.getElementById('adult_count')?.value || 0);
                                     const childCount = parseInt(document.getElementById('child_count')?.value || 0);
-                                    // For main entry/exit vehicles, use the correct naming pattern with _0_ index
-                                    const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
+                                        // Get total price for this specific vehicle
+                                        const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_${currentVehicleIndex}_total_price`)?.value || 0);
                                     
                                     if (section === 'entry') {
                                         const transportData = {
@@ -2688,8 +2840,8 @@
                                         adults: parseInt(passengerCount) || 0,
                                             children: parseInt(childCount) || 0,
                                             totalPrice: parseFloat(totalPrice) || 0,
-                                        Tax: parseFloat(document.getElementById(`day${day}_${section}_0_tax`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_tax`)?.value || "0.00"),
-                                        distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
+                                            Tax: parseFloat(document.getElementById(`day${day}_${section}_${currentVehicleIndex}_tax`)?.value || "0.00"),
+                                            distance: parseFloat(document.getElementById(`day${day}_${section}_${currentVehicleIndex}_distance`)?.value || "0"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
                                             city: pickupZone.dataset.city || "Singapore",
@@ -2706,14 +2858,16 @@
                                         };
                                         exitPortArray.push(transportData);
                                         console.log(`✅ Added exit port transport: ${transportData.vehicles_name}`, transportData);
+                                            console.log(`✅ Exit port array now has ${exitPortArray.length} vehicles`);
                                     }
                                 } else {
-                                    console.log(`❌ Missing required fields for ${section} port:`, {
+                                        console.log(`❌ Missing required fields for ${section} port vehicle ${currentVehicleIndex}:`, {
                                         vehicleSelect: vehicleSelect?.value || 'MISSING',
                                         serviceTypeSelect: serviceTypeSelect?.value || 'MISSING',
                                         dropoffField: dropoffField?.value || 'MISSING'
                                     });
                                 }
+                                }); // End of allVehicleSelects.forEach
                             }
                         }
                     });
@@ -5210,10 +5364,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadTransportZonesForCity(day, cityName, index) {
+        console.log('loadTransportZonesForCity called with:', day, cityName, index);
         const pickupSelect = document.querySelector(`[name="day${day}_transport_${index}_pickup_zone_id"]`) || 
-                           document.querySelector(`[name="day${day}_transport_pickup_zone_id"]`);
+        document.querySelector(`[name="day${day}_transport_pickup_zone_id"]`);
         const dropoffSelect = document.querySelector(`[name="day${day}_transport_${index}_dropoff_zone_id"]`) || 
-                            document.querySelector(`[name="day${day}_transport_dropoff_zone_id"]`);
+        document.querySelector(`[name="day${day}_transport_dropoff_zone_id"]`);
         const cityMessage = document.getElementById(`day${day}_transport_city_message_${index}`);
         
         if (cityName) {
@@ -7540,7 +7695,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="50" value="" 
+                                                        <input type="number" class="form-control" id="day${day}_entry_0_passengers" name="day${day}_entry_0_passengers" min="1" max="${(parseInt(document.getElementById('adults').value) || 0) + (parseInt(document.getElementById('children').value) || 0)}" value="${(parseInt(document.getElementById('adults').value) || 0) + (parseInt(document.getElementById('children').value) || 0)}" 
                                                         oninput="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')"
                                                         onchange="validatePassengerCapacity(${day}, 'entry_0'); updatePricing(${day}, 'entry_0')">
                                                     </div>
@@ -7744,7 +7899,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_exit_passengers" name="day${day}_exit_passengers" min="1" max="50" value="" 
+                                                        <input type="number" class="form-control" id="day${day}_exit_passengers" name="day${day}_exit_passengers" min="1" max="${(parseInt(document.getElementById('adults').value) || 0) + (parseInt(document.getElementById('children').value) || 0)}" value="${(parseInt(document.getElementById('adults').value) || 0) + (parseInt(document.getElementById('children').value) || 0)}" 
                                                         oninput="validatePassengerCapacity(${day}, 'exit'); updatePricing(${day}, 'exit')"
                                                         onchange="validatePassengerCapacity(${day}, 'exit'); updatePricing(${day}, 'exit')">
                                                     </div>
@@ -8180,7 +8335,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                          
                          <div class="transports-container" id="day${day}_transports_container">
-                            <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="1">
+                            <div class="card border-warning shadow-sm transport-item mb-3">
                             <div class="card-body">
                                 <!-- City Selection for Transport -->
                                 <div class="row mb-3">
@@ -8188,28 +8343,28 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <label class="form-label fw-semibold">
                                             <i class="ri-building-line me-1"></i>City
                                         </label>
-                                        <select class="form-select transport-city-select" name="day${day}_transport_city_1" id="day${day}_transport_city_1" onchange="loadTransportZonesForCity(${day}, this.value, 1)">
+                                        <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0)">
                                             <option value="">Select City</option>
                                         </select>
-                                        <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_1">Please select a city first.</small>
+                                        <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_0">Please select a city first.</small>
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div class="d-flex gap-3">
                                         <div class="form-check">
-                                            <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_service_type" id="day${day}_transport_point_to_point" value="point_to_point" onchange="handleTransportServiceTypeChange(${day}, 'point_to_point')">
+                                            <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_service_type" id="day${day}_transport_0_point_to_point" value="point_to_point" onchange="handleTransportServiceTypeChange(${day}, 'point_to_point',0)">
                                             <label class="form-check-label fw-semibold" for="day${day}_transport_point_to_point">
                                                 <i class="ri-route-line me-1"></i>Point To Point
                                             </label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_service_type" id="day${day}_transport_hourly" value="hourly" onchange="handleTransportServiceTypeChange(${day}, 'hourly')">
+                                            <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_service_type_0" id="day${day}_transport_0_hourly" value="hourly" onchange="handleTransportServiceTypeChange(${day}, 'hourly', 0)">
                                             <label class="form-check-label fw-semibold" for="day${day}_transport_hourly">
                                                 <i class="ri-time-line me-1"></i>Hourly
                                             </label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_service_type" id="day${day}_transport_local_transfer" value="local_transfer" onchange="handleTransportServiceTypeChange(${day}, 'local_transfer')" checked>
+                                            <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_service_type" id="day${day}_transport_0_local_transfer" value="local_transfer" onchange="handleTransportServiceTypeChange(${day}, 'local_transfer' 0)" checked>
                                             <label class="form-check-label fw-semibold text-success" for="day${day}_transport_local_transfer">
                                                 <i class="ri-car-line me-1"></i>Local Transfer
                                             </label>
@@ -8297,11 +8452,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_pickup_location" id="day${day}_transport_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_0_pickup_location" id="day${day}_transport_0_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
                                                  <i class="ri-search-line position-absolute text-success location-icon"></i>
-                                                 <input type="hidden" name="day${day}_transport_pickup_lat" id="day${day}_transport_pickup_lat">
-                                                 <input type="hidden" name="day${day}_transport_pickup_lng" id="day${day}_transport_pickup_lng">
-                                                 <input type="hidden" name="day${day}_transport_pickup_place_id" id="day${day}_transport_pickup_place_id">
+                                                 <input type="hidden" name="day${day}_transport_0_pickup_lat" id="day${day}_transport_0_pickup_lat">
+                                                 <input type="hidden" name="day${day}_transport_0_pickup_lng" id="day${day}_transport_0_pickup_lng">
+                                                 <input type="hidden" name="day${day}_transport_0_pickup_place_id" id="day${day}_transport_0_pickup_place_id">
                                              </div>
                                          </div>
                                      </div>
@@ -8311,11 +8466,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                              </label>
                                              <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_dropoff_location" id="day${day}_transport_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_dropoff_location" id="day${day}_transport_0_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
                                                  <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
-                                                 <input type="hidden" name="day${day}_transport_dropoff_lat" id="day${day}_transport_dropoff_lat">
-                                                 <input type="hidden" name="day${day}_transport_dropoff_lng" id="day${day}_transport_dropoff_lng">
-                                                 <input type="hidden" name="day${day}_transport_dropoff_place_id" id="day${day}_transport_dropoff_place_id">
+                                                 <input type="hidden" name="day${day}_transport_0_dropoff_lat" id="day${day}_transport_0_dropoff_lat">
+                                                 <input type="hidden" name="day${day}_transport_0_dropoff_lng" id="day${day}_transport_0_dropoff_lng">
+                                                 <input type="hidden" name="day${day}_transport_0_dropoff_place_id" id="day${day}_transport_0_dropoff_place_id">
                                              </div>
                                          </div>
                                      </div>
@@ -8325,7 +8480,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_transport_additional_pickup_time" style="padding-left: 45px;">
+                                                 <select class="form-select border-2" name="day${day}_transport_additional_pickup_time" style="padding-left: 45px;" onchange="enableSearchButton(${day}, 'transport_additional',0)">
                                                      <option value="">Select time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -8370,7 +8525,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                              </label>
                                              <div class="position-relative location-input">
-                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_hourly_pickup_location" id="day${day}_transport_hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
+                                                 <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_hourly_pickup_location" id="day${day}_transport_0_hourly_pickup_location" placeholder="Search for pickup location..." style="padding-left: 45px;">
                                                  <i class="ri-search-line position-absolute text-success location-icon"></i>
                                                  <input type="hidden" name="day${day}_transport_hourly_pickup_lat" id="day${day}_transport_hourly_pickup_lat">
                                                  <input type="hidden" name="day${day}_transport_hourly_pickup_lng" id="day${day}_transport_hourly_pickup_lng">
@@ -8486,8 +8641,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <label class="form-label fw-semibold">Number of Passengers3</label>
                                                     <div class="input-group">
                                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                        <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" value=""
-
+                                                        <input type="number" class="form-control" id="day${day}_transport_passengers" name="day${day}_transport_passengers" min="1" max="${(parseInt(document.getElementById('adults').value) || 0) + (parseInt(document.getElementById('children').value) || 0)}" value="${(parseInt(document.getElementById('adults').value) || 0) + (parseInt(document.getElementById('children').value) || 0)}"
                                                          oninput="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport')"
                                                          onchange="validatePassengerCapacity(${day}, 'transport'); updatePricing(${day}, 'transport')">
                                                     </div>
@@ -11032,8 +11186,9 @@ document.addEventListener('DOMContentLoaded', function() {
      
      window.addMoreTransports = function(day) {
          const container = document.getElementById(`day${day}_transports_container`);
-         const existingTransports = container.querySelectorAll('.transport-item');
-         const newIndex = existingTransports.length + 1;
+         // Count only additional transport items (those with data-transport-index), not the initial one
+         const additionalTransports = container.querySelectorAll('.transport-item[data-transport-index]');
+         const newIndex = additionalTransports.length + 1;
          
          const newTransportHTML = `
              <div class="card border-warning shadow-sm transport-item mb-3" data-transport-index="${newIndex}">
@@ -11081,7 +11236,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </label>
                              </div>
                              <div class="form-check">
-                                 <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_local_transfer" value="local_transfer" onchange="handleTransportServiceTypeChange(${day}, 'local_transfer', ${newIndex})" checked>
+                                 <input class="form-check-input transport-service-type" type="radio" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_${newIndex}_local_transfer" value="local_transfer" onchange="handleTransportServiceTypeChange(${day}, 'local_transfer', ${newIndex})">
                                  <label class="form-check-label fw-semibold text-success" for="day${day}_transport_${newIndex}_local_transfer">
                                      <i class="ri-car-line me-1"></i>Local Transfer
                                  </label>
@@ -11177,7 +11332,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
                                  <div class="position-relative">
-                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 45px;">
+                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 45px;" onchange="enableSearchButton(${day}, 'transport_${newIndex}_additional', '${newIndex}')">
                                          <option value="">Select time</option>
                                          ${generateTimeOptions()}
                                      </select>
@@ -11249,7 +11404,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  <option value="">Choose vehicle</option>
                              </select>
                          </div>
-                                 <div class="col-md-4">
+                         <div class="col-md-4">
                              <label class="form-label fw-semibold">Service Type</label>
                              <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
                                  <option value="">Select service type</option>
@@ -12253,7 +12408,7 @@ document.addEventListener('DOMContentLoaded', function() {
  // loadZonesForCity function removed - zones now loaded per transport section based on city selection
  
 // Function to enable search button when pickup time changes
-function enableSearchButton(day, section) {
+function enableSearchButton(day, section, index=null) {
     const searchBtn = document.getElementById(`day${day}_${section}_search_btn`);
     if (!searchBtn) return;
     
@@ -12434,7 +12589,8 @@ function enableSearchButton(day, section) {
      
          // For point_to_point, only need city (pickup time is optional)
     if (transportType === 'point_to_point') {
-        const citySelect = document.getElementById('city');
+        // For transport sections, use the transport city select
+        const citySelect = document.getElementById(`day${day}_transport_city_${index}`);
         
         if (citySelect && citySelect.value) {
             searchBtn.disabled = false;
@@ -12448,7 +12604,8 @@ function enableSearchButton(day, section) {
             console.log('Search button disabled for point_to_point - missing city');
         }
     } else if (transportType === 'hourly') {
-        const citySelect = document.getElementById('city');
+        // For transport sections, use the transport city select
+        const citySelect = document.getElementById(`day${day}_transport_city_1`);
         
         if (citySelect && citySelect.value) {
             searchBtn.disabled = false;
@@ -15230,7 +15387,7 @@ window.saveService = function(day, type) {
 }
 
 // New functions for the search-based interface
- function searchVehicles(day, section) {
+ function searchVehicles(day, section, index=null) {
      console.log(`Searching vehicles for day ${day}, section ${section}`);
      
      // Check if Point-to-Point mode is enabled
@@ -15328,9 +15485,12 @@ window.saveService = function(day, type) {
      // For point_to_point and hourly, use city-based endpoint
      if (transportType === 'point_to_point' || transportType === 'hourly') {
          // Get city from the transport city select for this day
-         const transportCitySelect = document.getElementById(`day${day}_transport_city_1`);
+         const transportCitySelect = document.getElementById(`day${day}_transport_city_${index}`);
          const exitport_city = document.getElementById("modal_exit_city");
-         if ((!transportCitySelect || !transportCitySelect.value) && (!exitport_city || !exitport_city.value)) {
+         console.log('transportCitySelect from this:', transportCitySelect, transportCitySelect.value, exitport_city, exitport_city.value);
+
+         if ((!transportCitySelect || transportCitySelect.value.trim() === '') &&
+         (!exitport_city || exitport_city.value.trim() === '')) {
              alert('Please select a city in the transport section first');
              return;
          }
@@ -16786,7 +16946,7 @@ window.saveService = function(day, type) {
                      
                      // Find the specific transport item container
                      let transportItem;
-                     if (index === 1) {
+                     if (index === 0) {
                          // For the main transport form (index 1), look for the transport container
                          transportItem = document.querySelector(`#day${day}_transports_container`);
                      } else {
@@ -16846,7 +17006,7 @@ window.saveService = function(day, type) {
                      
                      // Update search button state based on new transport type
                      setTimeout(() => {
-                         if (index === 1) {
+                         if (index === 0) {
                              enableSearchButton(day, 'transport');
                          } else {
                              enableSearchButton(day, `transport_${index}`);
@@ -17543,7 +17703,7 @@ window.saveService = function(day, type) {
                 });
 
 // Transport Service Type Handling Functions
-function handleTransportServiceTypeChange(day, serviceType) {
+function handleTransportServiceTypeChange(day, serviceType, index=null) {
     console.log(`Transport service type changed to: ${serviceType} for day ${day}`);
     
     // Get all field containers for this day using direct element IDs
@@ -17880,21 +18040,52 @@ function validatePassengerCapacity(day, section) {
     }
     
     const passengerCount = parseInt(passengerInput.value) || 0;
+    
+    // For entry ports, transport, and exit ports, use adult+child count as maximum instead of vehicle capacity
+    if (section === 'entry' || section.includes('entry_') || section === 'transport' || section === 'exit' || section.includes('exit_')) {
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const maxPassengers = adults + children;
+        
+        console.log('Entry/Transport/Exit passenger validation:', {
+            section: section,
+            passengerCount: passengerCount,
+            adults: adults,
+            children: children,
+            maxPassengers: maxPassengers
+        });
+        
+        if (passengerCount > maxPassengers) {
+            // Show error and reset to max capacity
+            let sectionName = 'service';
+            if (section === 'transport') sectionName = 'transport';
+            else if (section === 'exit' || section.includes('exit_')) sectionName = 'exit port';
+            else sectionName = 'entry port';
+            
+            showNotification(`Passenger count (${passengerCount}) exceeds tour capacity (${maxPassengers} passengers). Maximum allowed is ${maxPassengers}.`, 'error');
+            passengerInput.value = maxPassengers;
+            passengerInput.focus();
+            return false;
+        }
+    } else {
+        // For non-entry ports, use vehicle capacity as before
     const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
     const vehicleCapacity = parseInt(selectedOption.dataset.seatingCapacity) || parseInt(selectedOption.getAttribute('data-seatingCapacity')) || 0;
     
-    console.log('Passenger capacity validation:', {
+        console.log('Vehicle capacity validation:', {
         passengerCount: passengerCount,
         vehicleCapacity: vehicleCapacity,
         selectedOption: selectedOption,
         dataAttributes: selectedOption ? Object.fromEntries([...selectedOption.attributes].map(attr => [attr.name, attr.value])) : 'NO_OPTION'
     });
+        
     if (passengerCount > vehicleCapacity) {
         // Show error and reset to max capacity
         showNotification(`Passenger count (${passengerCount}) exceeds vehicle capacity (${vehicleCapacity} seats). Please select a larger vehicle or reduce passenger count.`, 'error');
         passengerInput.value = vehicleCapacity;
         passengerInput.focus();
         return false;
+        }
     }
     
     // Clear any previous error styling
