@@ -21654,19 +21654,23 @@ window.filterTable = function() {
         let show = true;
         
         if (searchTerm && !tourDetails.includes(searchTerm)) {
+            console.log('Search term not found', searchTerm, tourDetails);
             show = false;
         }
         
         // Status filter - use data attribute for accurate filtering
         if (statusFilter && executionStatus !== statusFilter) {
+            console.log('Status filter not found', statusFilter, executionStatus);
             show = false;
         }
         
         if (destinationFilter && destination !== destinationFilter) {
+            console.log('Destination filter not found', destinationFilter, destination);
             show = false;
         }
         
         if (agentFilter && agent !== agentFilter) {
+            console.log('Agent filter not found', agentFilter, agent);
             show = false;
         }
         
@@ -21694,6 +21698,7 @@ window.filterTable = function() {
             }
             
             if (!dateInRange) {
+                console.log('Date range filter not found', dateStart, dateEnd, createdAt, updatedAt);
                 show = false;
             }
         }
