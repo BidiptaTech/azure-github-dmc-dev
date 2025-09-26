@@ -228,7 +228,7 @@
                                 <div class="col-12">
                                     <label class="form-label">Special Requests</label>
                                     <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
-                                </div>
+                                </div>  
                             </div>
                         </div>
                     </div>

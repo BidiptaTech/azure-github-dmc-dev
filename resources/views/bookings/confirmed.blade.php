@@ -14305,6 +14305,8 @@ function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex
                 entrytime: rawData.entry_time || travelPointDetails.entry_time,
                 pickup_location: rawData.pickup_location || travelPointDetails.pickup_location,
                 drop_location: rawData.drop_location || travelPointDetails.drop_location,
+                entrypickup: travelPointDetails.entrypickup || rawData.entrypickup || rawData.pickup_location || travelPointDetails.pickup_location,
+                entrydropoff: travelPointDetails.entrydropoff || rawData.entrydropoff || rawData.drop_location || travelPointDetails.drop_location,
                 type: travelPointDetails.type || 'Standard',
                 adults: rawData.adults || '0',
                 children: rawData.children || '0',
@@ -14423,11 +14425,11 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <div class="row">
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Pickup Location</small>
-                                        <div class="fw-medium">${travelPointData.pickup_location || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.entrypickup || travelPointData.pickup_location || 'N/A'}</div>
                                     </div>
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Drop Location</small>
-                                        <div class="fw-medium">${travelPointData.drop_location || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.entrydropoff || travelPointData.drop_location || 'N/A'}</div>
                                     </div>
                                     <div class="col-md-6 mb-2">
                                         <small class="text-muted">City</small>
@@ -15826,7 +15828,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Pickup Point</small>
                                         <div class="fw-medium d-flex align-items-center">
                                             <i class="ri-map-pin-line text-success me-2"></i>
-                                            ${travelPointData.pickupPoint || 'N/A'}
+                                            ${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}
                                         </div>
                                         <small class="text-success">Origin</small>
                                     </div>
@@ -15834,7 +15836,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Dropoff Point</small>
                                         <div class="fw-medium d-flex align-items-center">
                                             <i class="ri-map-pin-2-line text-danger me-2"></i>
-                                            ${travelPointData.dropoffPoint || 'N/A'}
+                                            ${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}
                                         </div>
                                         <small class="text-danger">Destination</small>
                                     </div>
@@ -15842,9 +15844,9 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <!-- Route Direction Visual -->
                                 <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
                                     <div class="text-center">
-                                        <span class="badge bg-success me-2">${travelPointData.pickupPoint || 'Pickup'}</span>
+                                        <span class="badge bg-success me-2">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
                                         <i class="ri-arrow-right-line text-primary mx-2"></i>
-                                        <span class="badge bg-danger">${travelPointData.dropoffPoint || 'Dropoff'}</span>
+                                        <span class="badge bg-danger">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -15955,7 +15957,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.reference_id || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -21480,22 +21482,67 @@ window.filterTable = function() {
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
+    // Get existing DataTable instance if already initialized
+    // var table = $.fn.dataTable.isDataTable('.datatables-basic')
+    //     ? $('.datatables-basic').DataTable() // already initialized, just get it
+    //     : $('.datatables-basic').DataTable({  // initialize only if not already
+    //         responsive: true,
+    //         dom: 'lrtip',
+    //         buttons: ['copy','csv','excel','pdf','print'],
+    //         searching: false,
+    //         language: {
+    //             search: "DataTable Search:",
+    //             searchPlaceholder: "Search all columns...",
+    //             lengthMenu: "Show _MENU_ entries",
+    //             info: "Showing _START_ to _END_ of _TOTAL_ entries",
+    //             infoEmpty: "Showing 0 to 0 of 0 entries",
+    //             infoFiltered: "(filtered from _MAX_ total entries)",
+    //             paginate: {
+    //                 first: "First",
+    //                 last: "Last",
+    //                 next: "Next",
+    //                 previous: "Previous"
+    //             }
+    //         },
+    //         lengthMenu: [10, 25, 50, 100],
+    //         pageLength: 25,
+    //         columnDefs: [
+    //             { targets: [9], orderable: false, searchable: false },
+    //             { targets: [3], orderable: false },
+    //             { targets: [4], orderable: false }
+    //         ],
+    //         initComplete: function() {
+    //             console.log('DataTable initialized successfully');
+    //         }
+    //     });
+
     const rows = document.querySelectorAll('#toursTable tbody tr');
+
+
     
+    // Collapse any open child rows before filtering
+    table.rows('.dt-hasChild').every(function() {
+        if (this.child.isShown()) this.child.hide();
+        $(this.node()).removeClass('dt-hasChild');
+    });
+
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const confirmationDateText = row.cells[7]?.textContent || '';
+        const confirmationDateText = row.cells[8]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
+        if (searchTerm && 
+            !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !agent.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
@@ -24572,7 +24619,7 @@ window.showNotification = function(message, type = 'info') {
             }
         }
     }
-    
+    var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('.datatables-basic')) {
@@ -24580,7 +24627,7 @@ window.showNotification = function(message, type = 'info') {
         }
         
         // Initialize DataTable with export buttons
-        var table = $('.datatables-basic').DataTable({
+        table = $('.datatables-basic').DataTable({
             responsive: true,
             dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
@@ -24607,10 +24654,10 @@ window.showNotification = function(message, type = 'info') {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            //  order: [[7, 'desc']], // Sort by Confirmation Date column (index 7) in descending order
+            //  order: [[8, 'desc']], // Sort by Confirmation Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column (index 8)
+                    targets: [9], // Actions column (index 9)
                     orderable: false,
                     searchable: false
                 },
@@ -24619,7 +24666,7 @@ window.showNotification = function(message, type = 'info') {
                     orderable: false
                 },
                 {
-                    targets: [8], // Status column (index 8)
+                    targets: [4], // Services column (index 4)
                     orderable: false
                 }
             ],
@@ -24627,6 +24674,7 @@ window.showNotification = function(message, type = 'info') {
                 console.log('DataTable initialized successfully');
             }
         });
+
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
