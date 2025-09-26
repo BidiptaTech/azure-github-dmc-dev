@@ -229,7 +229,7 @@ const AttractionDropOffSearch = ({ onSelect, value = null }) => {
   };
   const formatPrice = (price) => {
     const actualPrice = parseFloat(price) || 0;
-    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+    return actualPrice > 0 ? `SGD ${actualPrice.toLocaleString()}` : "Price on request";
   };
 
   return (

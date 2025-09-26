@@ -122,7 +122,7 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
   // Helper function to format price
   const formatPrice = (price) => {
     const actualPrice = parseFloat(price) || 0;
-    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+    return actualPrice > 0 ? `SGD ${actualPrice.toLocaleString()}` : "Price on request";
   };
   const filteredHotels = hotels.filter((hotel) => {
     // Filter by search term
