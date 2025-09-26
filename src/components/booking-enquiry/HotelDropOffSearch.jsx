@@ -135,7 +135,7 @@ const HotelDropOffSearch = ({ onSelect, value = null }) => {
   // Manual fetch button for testing
   const formatPrice = (price) => {
     const actualPrice = parseFloat(price) || 0;
-    return actualPrice > 0 ? `$${actualPrice.toLocaleString()}` : "Price on request";
+    return actualPrice > 0 ? `SGD ${actualPrice.toLocaleString()}` : "Price on request";
   };
   const handleManualFetch = () => {
     if (searchLocation && searchLocation.country && searchLocation.city) {
