@@ -97,7 +97,7 @@ const Pickuptime = ({ entryytime, setentryytime }) => {
     // Convert to string if it's a number
     const timeString = String(timeStr);
     
-    console.log(`parseTimeToHour input: ${timeStr} (${typeof timeStr}) -> converted to: ${timeString}`);
+   
 
     // Check if time is in HH:MM AM/PM format
     if (timeString.includes("AM") || timeString.includes("PM")) {
