@@ -46,7 +46,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
   //const [selectedPort, setSelectedPort] = useState("Entry Port"); // Default selection
   const selectedPort = useSelector((state) => state.pickupDrop.selectedPort);
   const TourId = useSelector((state) => state.hotels.id);
-  console.log("TourId", TourId);
+ 
 
   // Check port city API status
   const portCityStatus = useSelector(
@@ -69,7 +69,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
   const [cityError, setCityError] = useState(false);
   const [type, setType] = useState("");
   const [pickdropType, setPickdropType] = useState("");
-  console.log("pickdropType", pickdropType);
+ 
 
   const [id, setId] = useState("");
   // Track if locations were selected from autocomplete
@@ -83,9 +83,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
   const [time, setTime] = useState(false);
   const [time1, setTime1] = useState(false);
   const [pickid, setpickId] = useState("");
-  console.log("pickiddd", pickid);
+ 
   const [dropid, setdropId] = useState("");
-  console.log("dropiddd", dropid);
+
   // State for selected city
   const [selectedCity, setSelectedCity] = useState(null);
 
@@ -119,8 +119,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
   // Effect to call fetchPortCity when a city is selected
   useEffect(() => {
     if (selectedCity && TourId && listType) {
-      console.log("Selected city:", selectedCity);
-      console.log("Tour ID:", TourId, "Type:", typeof TourId);
+     
 
       // Ensure TourId is passed correctly as a number
       dispatch(
@@ -131,7 +130,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
         })
       )
         .then((result) => {
-          console.log("fetchPortCity dispatch result:", result);
+         
           if (result.error) {
             console.error("API Error:", result.error);
             setIsPickupLocationEnabled(false);
@@ -145,11 +144,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
           setIsPickupLocationEnabled(false);
         });
     } else {
-      console.log("Not calling fetchPortCity, missing:", {
-        hasCity: !!selectedCity,
-        hasTourId: !!TourId,
-        tourIdValue: TourId,
-      });
+     
+      
       setIsPickupLocationEnabled(false);
     }
   }, [selectedCity, TourId, dispatch]);
@@ -165,7 +161,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           })
         )
           .then((result) => {
-            console.log("fetchlocalzone dispatch result:", result);
+            
             if (result.error) {
               console.error("API Error:", result.error);
               setIsDropoffLocationEnabled(false);
@@ -179,12 +175,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
             setIsDropoffLocationEnabled(false);
           });
       } else {
-        console.log(
-          "Not calling fetchPortCity, missing:",
-          pickUpLocation,
-          type,
-          id
-        );
+       
+        
         setIsDropoffLocationEnabled(false);
       }
     } else {
@@ -197,7 +189,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           })
         )
           .then((result) => {
-            console.log("fetchlocalzone dispatch result:", result);
+           
             if (result.error) {
               console.error("API Error:", result.error);
               setIsDropoffLocationEnabled(false);
@@ -211,12 +203,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
             setIsDropoffLocationEnabled(false);
           });
       } else {
-        console.log(
-          "Not calling fetchPortCity, missing:",
-          pickUpLocation,
-          type,
-          id
-        );
+        
         setIsDropoffLocationEnabled(false);
       }
     }
@@ -224,8 +211,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Effect to handle port city API response
   useEffect(() => {
-    console.log("Port city status:", portCityStatus);
-    console.log("Port city data:", portCityData);
+   
 
     // Update pickup location enabled state based on API response
     if (portCityStatus === "succeeded" && portCityData) {
@@ -235,7 +221,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Effect to handle local zone API response
   useEffect(() => {
-    console.log("Local zone status:", localZoneStatus);
+   
 
     // Update dropoff location enabled state based on API response
     if (localZoneStatus === "succeeded") {
@@ -331,7 +317,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {
-    console.log("City selected:", city);
+   
     setSelectedCity(city);
     if (city) {
       setCityError(false);

@@ -50,7 +50,7 @@ const EntryPortSearch = ({ Location }) => {
   const [dropoffFromAutocomplete, setDropoffFromAutocomplete] = useState(false);
   const [time, setTime] = useState(false);
   const errorMessage = useSelector((state) => state.pickupDrop.error);
-  console.log("errorMessage", errorMessage);
+  
 
   // Update Redux store whenever local state changes
   useEffect(() => {
@@ -89,11 +89,7 @@ const EntryPortSearch = ({ Location }) => {
     }
   }, [dropOffLatLng, dispatch]);
 
-  // Log Location prop to debug
-  useEffect(() => {
-    console.log("Entry Port Location:", Location);
-  }, [Location]);
-
+ 
   // Handler for the button search click event
   const buttonsearch = () => {
     // Set validation triggered to true when search button is clicked
@@ -176,10 +172,10 @@ const EntryPortSearch = ({ Location }) => {
               <DateSearch1
                 selectedDate={selectedDate}
                 setSelectedDate={(date) => {
-                  console.log("Selected Pickup Date:", date);
+                 
                   if (date && date._isAMomentObject) {
                     const formattedDate = date.format('YYYY-MM-DD');
-                    console.log("Formatted date:", formattedDate);
+                    
                     setSelectedDate(formattedDate);
                   } else {
                     setSelectedDate(date);

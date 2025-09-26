@@ -107,8 +107,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
   // Effect to call fetchPortCity when a city is selected
   useEffect(() => {
     if (selectedCity && TourId) {
-      console.log("Selected city:", selectedCity);
-      console.log("Tour ID:", TourId, "Type:", typeof TourId);
+     
 
       // Ensure TourId is passed correctly as a number
       dispatch(
@@ -119,7 +118,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
         })
       )
         .then((result) => {
-          console.log("fetchPortCity dispatch result:", result);
+         
           if (result.error) {
             console.error("API Error:", result.error);
             setIsPickupLocationEnabled(false);
@@ -133,11 +132,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
           setIsPickupLocationEnabled(false);
         });
     } else {
-      console.log("Not calling fetchPortCity, missing:", {
-        hasCity: !!selectedCity,
-        hasTourId: !!TourId,
-        tourIdValue: TourId,
-      });
+      
       setIsPickupLocationEnabled(false);
     }
   }, [selectedCity, TourId, dispatch]);
@@ -152,7 +147,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
         })
       )
         .then((result) => {
-          console.log("fetchlocalzone dispatch result:", result);
+          
           if (result.error) {
             console.error("API Error:", result.error);
             setIsDropoffLocationEnabled(false);
@@ -166,20 +161,13 @@ const EntryPortSearchZone = ({ Location, portType}) => {
           setIsDropoffLocationEnabled(false);
         });
     } else {
-      console.log(
-        "Not calling fetchPortCity, missing:",
-        pickUpLocation,
-        type,
-        id
-      );
+      
       setIsDropoffLocationEnabled(false);
     }
   }, [id, type, pickUpLocation, dispatch]);
 
   // Effect to handle port city API response
   useEffect(() => {
-    console.log("Port city status:", portCityStatus);
-    console.log("Port city data:", portCityData);
 
     // Update pickup location enabled state based on API response
     if (portCityStatus === "succeeded" && portCityData) {
@@ -189,7 +177,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
 
   // Effect to handle local zone API response
   useEffect(() => {
-    console.log("Local zone status:", localZoneStatus);
+    
 
     // Update dropoff location enabled state based on API response
     if (localZoneStatus === "succeeded") {
@@ -255,7 +243,7 @@ const EntryPortSearchZone = ({ Location, portType}) => {
 
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {
-    console.log("City selected:", city);
+    
     setSelectedCity(city);
     if (city) {
       setCityError(false);
@@ -414,10 +402,10 @@ const EntryPortSearchZone = ({ Location, portType}) => {
                   <DateSearch1
                     selectedDate={selectedDate}
                     setSelectedDate={(date) => {
-                      console.log("Selected Pickup Date:", date);
+                     
                       if (date && date._isAMomentObject) {
                         const formattedDate = date.format('YYYY-MM-DD');
-                        console.log("Formatted date:", formattedDate);
+                        
                         setSelectedDate(formattedDate);
                       } else {
                         setSelectedDate(date);

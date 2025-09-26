@@ -52,9 +52,9 @@ const Index1 = () => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { vehicles } = location.state;
-  console.log("Vehiclesentry:", vehicles);
+ 
   const seatingCapacity = vehicles.seating_capacity;
-  console.log("seatingCapacity", seatingCapacity);
+ 
   const navigate = useNavigate();
 
   const id = useSelector((state) => state.hotels.id);
@@ -66,13 +66,12 @@ const Index1 = () => {
   // Get default values for guests from Redux store
   // Fetch values from Redux
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  console.log("Tour details:", tourDetails);
 
   const adultsMax = tourDetails?.adult ?? 1; // Use optional chaining with fallback
-  console.log("Adults Max:", adultsMax);
+ 
 
   const childrenMax = tourDetails?.child ?? 0; // Use optional chaining with fallback
-  console.log("Children Max:", childrenMax);
+ 
 
   const [adults, setAdults] = useState(adultsMax);
   const [children, setChildren] = useState(childrenMax);
@@ -93,15 +92,13 @@ const Index1 = () => {
     childrenMax: "",
     price: "",
   });
-  useEffect(() => {
-    console.log(mappedData); // Log to check if the "hour" field is updated properly
-  }, [mappedData]);
+  
 
   // const [hour, sethours] = useState("");
   // const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
   //const [entryytime, setentryytime] = useState("");
   const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
-  console.log("mode", mode);
+ 
   const totalGuests = adults + children; // Calculate total guests
   // Function to update hour and price from HourPackage
   // const handleHourChange = (selectedHour, price) => {
@@ -119,9 +116,7 @@ const Index1 = () => {
 
     // Check if entrytime exists and night times are available
     if (entrytime && vehicles.night_start_time && vehicles.night_end_time) {
-      console.log("Time check - Entry time:", entrytime);
-      console.log("Night start time:", vehicles.night_start_time);
-      console.log("Night end time:", vehicles.night_end_time);
+     
 
       // Parse the time strings
       const [hourStr, period] = entrytime.split(" ");
@@ -135,27 +130,19 @@ const Index1 = () => {
       const nightStartHour = parseInt(vehicles.night_start_time.split(":")[0]);
       const nightEndHour = parseInt(vehicles.night_end_time.split(":")[0]);
 
-      console.log("Converted entry hour:", entryHour);
-      console.log("Night start hour:", nightStartHour);
-      console.log("Night end hour:", nightEndHour);
+     
 
       // Handle cases where night period crosses midnight
       if (nightStartHour > nightEndHour) {
         // Night period crosses midnight (e.g., 20:00 to 05:00)
         // Time is in night hours if it's after start time OR before end time
         setIsNight(entryHour >= nightStartHour || entryHour <= nightEndHour);
-        console.log(
-          "Night crosses midnight. Is night:",
-          entryHour >= nightStartHour || entryHour <= nightEndHour
-        );
+        
       } else {
         // Night period is within same day (e.g., 18:00 to 23:00)
         // Time is in night hours if it's between start and end time
         setIsNight(entryHour >= nightStartHour && entryHour <= nightEndHour);
-        console.log(
-          "Night within same day. Is night:",
-          entryHour >= nightStartHour && entryHour <= nightEndHour
-        );
+       
       }
     }
   }, [
@@ -217,12 +204,12 @@ const Index1 = () => {
   //   };
   // };
   const [pricemode, setpricemode] = useState(""); // Set a default mode if not found
-  console.log("pricemodeee", pricemode);
+ 
   const Price =
     pricemode === "Sharable"
       ? vehicles.prices.sharablePrice * totalGuests
       : vehicles.prices.privatePrice;
-  console.log("Price pricemode", Price);
+ 
   const handlesubmit0 = () => {
     // const data = {
     //   pickUpLocation,
@@ -287,95 +274,10 @@ const Index1 = () => {
     navigate(`/dashboard/db-dashboard/CheckOut`, {
       state: { vehicles: vehicles },
     });
-    // setMappedData(data);
-    // setIsModalOpen(true);
-    // console.log("Submitted Data:", data);
+   
   };
 
-  // const handleFinalSubmit = async () => {
-  //   console.log(
-  //     pickUpLocation,
-  //     dropOffLocation,
-  //     selectedDate,
-  //     entryytime,
-  //     adults,
-  //     children
-  //   );
-
-  //   if (
-  //     !pickUpLocation?.trim() ||
-  //     !dropOffLocation?.trim() ||
-  //     !selectedDate ||
-  //     !entryytime ||
-  //     adults === null ||
-  //     adults === undefined ||
-  //     children === null ||
-  //     children === undefined
-  //   ) {
-  //     toast.error("Failed to create booking. Please check your input.");
-  //     return;
-  //   }
-
-  //   dispatch(setentrypickup(pickUpLocation));
-  //   dispatch(setentrydropoff(dropOffLocation));
-  //   dispatch(setentrytime(entryytime));
-  //   dispatch(setpickupdate(selectedDate));
-  //   dispatch(setadult(adults));
-  //   dispatch(setchildren(children));
-  //   dispatch(settourId(id));
-
-  //   // Determine price based on mode
-  //   //const selectedPrice = mode === "dmc" ? dmcprice : travclickprice;
-  //   const details = [
-  //     {
-  //       bookingDate: dayjs(selectedDate).format("YYYY-MM-DD"),
-  //       vehicles_id: vehicles.id,
-  //       vehicles_name: vehicles.vehicle_name,
-  //       Mode: mode,
-  //       entrypickup: pickUpLocation,
-  //       entrydropoff: dropOffLocation,
-  //       PickupPlaceid: PickupPlaceid,
-  //       DropoffPlaceid: DropoffPlaceid,
-  //       pickupdate: selectedDate,
-  //       entrytime: entryytime,
-  //       adults: adults,
-  //       children: children,
-  //       price: Price, // ✅ Add price dynamically
-  //       distance: vehicles.$distanceInKM,
-  //       Night_Start_Time: vehicles.night_start_time,
-  //       Night_End_Time: vehicles.night_end_time,
-  //       city: vehicles.city,
-  //       country: vehicles.country,
-  //     },
-  //   ];
-
-  //   dispatch(setdata(details));
-
-  // try {
-  //   const response = await dispatch(
-  //     submitPickupDrop({ selectedType: "entry" })
-  //   ).unwrap();
-  //   if (response?.service?.date_service) {
-  //     dispatch(setDateService(response.service.date_service));
-  //     toast.success(response.message, {
-  //       position: "top-center",
-  //       autoClose: 3000,
-  //     });
-  //     handleModalClose();
-  //   }
-  // } catch (error) {
-  //   console.error("Error during submission:", error);
-  //   toast.error("Something went wrong. Please try again later.", {
-  //     position: "top-center",
-  //     autoClose: 3000,
-  //   });
-  // }
-  // };
-
-  // const handleModalClose = () => {
-  //   setIsModalOpen(false);
-  //   //setIsModalOpen1(false);
-  // };
+  
 
   return (
     <>
@@ -388,19 +290,7 @@ const Index1 = () => {
         </div>
       </div>
 
-      {/* <div className="col-12">
-        <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">
-          <div>
-            <h4 className="text-15 fw-500 ls-2 lh-16">Hourly Package</h4>
-            <HourPackage
-              hour={hour}
-              sethours={sethours}
-              setHourlyPrice={setHourlyPrice} // Pass function to update price
-              onHourChange={handleHourChange} // Pass function to handle hour change
-            />
-          </div>
-        </div>
-      </div> */}
+     
       <div className="col-12">
         <div className="searchMenu-date px-20 py-10 border-light rounded-4 -right js-form-dd js-calendar">
           <div>

@@ -57,7 +57,7 @@ import 'react-toastify/dist/ReactToastify.css';
 const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const dispatch = useDispatch();
   const errorMessage = useSelector((state) => state.localtour.error);
-  console.log(`SearchLocationTransport Day ${dayIndex}: Component mounting/rendering`);
+  
   
   // Helper function to format date from Itinerary
   const formatItineraryDate = useCallback((itineraryDate) => {
@@ -114,14 +114,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   const [selectedDate1, setSelectedDate1] = useState(itineraryFormattedDate || reduxPickupDate1);
   const [selectedDateZone, setSelectedDateZone] = useState(itineraryFormattedDate || reduxPickupDate || "");
   
-  // Debug log for date initialization
-  console.log(`SearchLocationTransport Day ${dayIndex}: Date initialization:`, {
-    itineraryFormattedDate,
-    reduxPickupDate,
-    selectedDate,
-    selectedDate1,
-    selectedDateZone
-  });
+ 
   
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
   const [pickUpLatLng, setPickupLatLng] = useState(reduxPickUpLatLng);
@@ -171,19 +164,16 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     const shouldNotOverride = hasValidSelection || currentHasVehicles;
     
     if (!hasSetInitialPort.current && !shouldNotOverride) {
-      console.log(`SearchLocationTransport Day ${dayIndex}: Setting initial selectedPort to "Point To Point" (current: "${currentSelectedPort}", hasVehicles: ${currentHasVehicles})`);
+      
       dispatch(setSelectedPort("Point To Point"));
       hasSetInitialPort.current = true;
     } else if (shouldNotOverride) {
-      console.log(`SearchLocationTransport Day ${dayIndex}: Preserving existing state - selectedPort: "${currentSelectedPort}", hasVehicles: ${currentHasVehicles}`);
+      
       hasSetInitialPort.current = true; // Mark as initialized to prevent future overrides
     }
   }, [dispatch, dayIndex]); // Keep dependencies minimal
 
-  // Debug effect to track selectedPort changes
-  useEffect(() => {
-    console.log(`SearchLocationTransport Day ${dayIndex}: selectedPort changed to: "${selectedPort}"`);
-  }, [selectedPort, dayIndex]);
+  
 
   // Consolidated effect to sync FROM Redux TO local state (one-way)
   useEffect(() => {
@@ -248,7 +238,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
   // Handle Itinerary date changes separately
   useEffect(() => {
     if (itineraryFormattedDate && itineraryFormattedDate !== lastItineraryDate.current) {
-      console.log(`Day ${dayIndex + 1} - Updating date from Itinerary:`, itineraryFormattedDate);
+     
       
       setSelectedDate(itineraryFormattedDate);
       setSelectedDate1(itineraryFormattedDate);
@@ -317,7 +307,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               if (value !== reduxPickupDate1) dispatch(setexitpickupdate(value));
               break;
             case 'selectedDateZone':
-              console.log(`SearchLocationTransport Day ${dayIndex}: Dispatching selectedDateZone:`, value, 'reduxPickupDate:', reduxPickupDate);
+             
               if (value !== reduxPickupDate) dispatch(setpickdate(value));
               break;
             case 'pickUpLatLng':
@@ -401,23 +391,17 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     // Set validation triggered to true when search button is clicked
     setValidationTriggered(true);
 
-    console.log(`SearchLocationTransport Day ${dayIndex}: Search button clicked for selectedPort: "${selectedPort}"`);
+    
 
     if (selectedPort === "Point To Point") {
       // Only proceed if both locations are selected from autocomplete
       const locationsValid = pickupFromAutocomplete && dropoffFromAutocomplete;
       
-      console.log("Search conditions:", { 
-        pickupFromAutocomplete, 
-        dropoffFromAutocomplete,
-        locationsValid,
-        time,
-        "Will call fetchVehicles": locationsValid && time
-      });
+     
 
       // Ensure the date is properly formatted
       const formattedDate = handleDateSelection(selectedDate);
-      console.log("Point To Point search with date:", formattedDate);
+     
       
       // Dispatch all necessary data
       const updates = {
@@ -433,13 +417,13 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       
       // Check if pickUpLatLng and dropOffLatLng have valid values
       if (!pickUpLatLng || !pickUpLatLng.lat || !pickUpLatLng.lng) {
-        console.error("Invalid pickup location coordinates. Please select a location from the dropdown.");
+        
         setPickupFromAutocomplete(false);
         return;
       }
       
       if (!dropOffLatLng || !dropOffLatLng.lat || !dropOffLatLng.lng) {
-        console.error("Invalid dropoff location coordinates. Please select a location from the dropdown.");
+       
         setDropoffFromAutocomplete(false);
         return;
       }
@@ -448,10 +432,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       setPickupFromAutocomplete(true);
       setDropoffFromAutocomplete(true);
       
-      console.log("Search button clicked - lat/lng values:", {
-        pickUpLatLng,
-        dropOffLatLng
-      });
+     
       
       dispatch(setZonetype(""));
 
@@ -483,15 +464,9 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
 
       // Ensure the date is properly formatted
       const formattedDate = handleDateSelection(selectedDate1);
-      console.log("Hourly search with date:", formattedDate);
+     
 
-      console.log("Hourly Search conditions:", { 
-        exitPickupFromAutocomplete,
-        locationValid,
-        time1,
-        pickUpLatLng,
-        "Will call fetchVehicles": locationValid && time1
-      });
+     
 
       // Dispatch all necessary data
       const updates = {
@@ -528,7 +503,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
 
       // Only fetch vehicles if location and time are valid
       if (pickUpLatLng && pickUpLatLng.lat && pickUpLatLng.lng && entryytime1) {
-        console.log("All Hourly conditions met, fetching vehicles...");
+       
         setTimeout(() => {
           dispatch(fetchVehicles());
         }, 500);
@@ -543,7 +518,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
     } else if (selectedPort === "Local Transfer") {
       // Ensure the date is properly formatted
       const formattedDate = handleDateSelection(selectedDateZone);
-      console.log(`SearchLocationTransport Day ${dayIndex}: Local Transfer search with date:`, formattedDate, 'selectedDateZone:', selectedDateZone);
+     
       
       // Dispatch all necessary data
       const updates = {
@@ -554,7 +529,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         droptype
       };
       
-      console.log("Dispatching Local Transfer updates:", updates);
+     
       dispatchToRedux(updates);
       dispatch(setSelectionType(selectedPort));
       dispatch(setSearchDayIndex(dayIndex));
@@ -562,13 +537,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
       dispatch(setentrydropoff(dropOffLatLng));
       dispatch(setZonetype("zone"));
 
-      // Debug log all values before checking
-      console.log("Local Transfer API call check:");
-      console.log("pickUpZone:", pickUpZone);
-      console.log("dropOffzone:", dropOffzone);
-      console.log("entryytimezone:", entryytimezone);
-      console.log("selectedDateZone:", selectedDateZone);
-      console.log("droptype:", droptype);
+     
       
       // Check if we have valid values for the API call
       if (
@@ -578,7 +547,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
         selectedDateZone &&
         droptype
       ) {
-        console.log("✅ All conditions met! Calling fetchZoneVehicles with droptype:", droptype);
+       
         setTimeout(() => {
           dispatch(fetchZoneVehicles());
         }, 500);
@@ -879,10 +848,10 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                     <DateSearch1
                       selectedDate={selectedDate}
                       setSelectedDate={(date) => {
-                        console.log("Selected Pickup Date:", date);
+                        
                         if (date && date._isAMomentObject) {
                           const formattedDate = date.format('YYYY-MM-DD');
-                          console.log("Formatted date:", formattedDate);
+                          
                           setSelectedDate(formattedDate);
                         } else {
                           setSelectedDate(date);
@@ -895,7 +864,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                       setSelectedDate1={(date) => {
                         if (date && date._isAMomentObject) {
                           const formattedDate = date.format('YYYY-MM-DD');
-                          console.log("Formatted zone date:", formattedDate);
+                          
                           setSelectedDateZone(formattedDate);
                         } else {
                           setSelectedDateZone(date);
@@ -908,7 +877,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                       setSelectedDate1={(date) => {
                         if (date && date._isAMomentObject) {
                           const formattedDate = date.format('YYYY-MM-DD');
-                          console.log("Formatted exit date:", formattedDate);
+                          
                           setSelectedDate1(formattedDate);
                         } else {
                           setSelectedDate1(date);

@@ -64,7 +64,7 @@ const SearchBar = ({
           const lat = place.geometry.location.lat();
           const lng = place.geometry.location.lng();
           
-          console.log(`Place selected: ${inputId}`, { lat, lng });
+          
 
           // ✅ Use only the highlighted primary name (or first part of address)
           let formattedLocation =
@@ -72,15 +72,12 @@ const SearchBar = ({
 
           setLocation(formattedLocation);
           setLatLng({ lat, lng });
-          console.log(`Setting ${inputId} lat/lng:`, { lat, lng });
+          
           setIsValid(true); // Mark as selected from autocomplete
           setParentValid(true); // Update parent state to indicate autocomplete selection
           
-          // Log the successful completion of location selection
-          console.log(`✅ Location ${inputId} selected successfully:`, {
-            name: formattedLocation,
-            coords: { lat, lng }
-          });
+         
+        
         } else {
           console.error(`No geometry found for selected place in ${inputId}`);
         }
@@ -130,7 +127,7 @@ const SearchBar = ({
     const newValue = e.target.value;
     setPickUpLocation(newValue);
     setIsPickupValid(false);
-    setPickupFromAutocomplete(false); // Ensure this is set to false on manual input
+    setPickupFromAutocomplete(false); 
     
     // Reset lat/lng if manually typing
     if (newValue) {

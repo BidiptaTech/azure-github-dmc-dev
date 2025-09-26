@@ -377,7 +377,7 @@ const SearchZone = ({
   // Get additional selectors
   const country = useSelector((state) => state.tourPackages.searchCriteria.country);
   const tour = useSelector((state) => state.hotels.tourdetails);
-  console.log("selectedCity", selectedCity);
+  
   console.log("tour", tour);
   
   // Reset pickup location state when city changes or component mounts

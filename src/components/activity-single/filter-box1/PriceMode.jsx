@@ -16,7 +16,7 @@ const PriceMode = ({ pricemode, setpricemode }) => {
 
   // Effect to set the default price mode based on vehicles.sharable
   useEffect(() => {
-    console.log("vehicles.sharable:", vehicles.sharable);
+   
     if (vehicles.sharable === 3) {
       setSelectedPriceMode("Sharable");
       setpricemode("Sharable"); // Set default price mode
@@ -30,14 +30,12 @@ const PriceMode = ({ pricemode, setpricemode }) => {
   }, [vehicles.sharable, setpricemode]);
 
   const handleChange = (event) => {
-    console.log("Selected option:", event.target.value);
+    
     setSelectedPriceMode(event.target.value);
     setpricemode(event.target.value); // Update the parent state
   };
 
-  console.log("Vehicles:", vehicles);
-  console.log("Selected Price Mode:", selectedPriceMode);
-  console.log("Price Mode:", pricemode);
+  
 
   return (
     <div>
