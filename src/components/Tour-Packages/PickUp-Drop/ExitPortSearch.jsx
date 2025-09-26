@@ -31,7 +31,7 @@ const ExitPortSearch = ({ Location }) => {
   const dispatch = useDispatch();
   
   // Log the location prop to debug
-  console.log("ExitPortSearch Location prop:", Location);
+  
   
   // Get values from Redux store to persist state
   const reduxExitPickUpLocation = useSelector((state) => state.pickupDrop.exitpickup || "");
@@ -41,18 +41,9 @@ const ExitPortSearch = ({ Location }) => {
   const reduxPickUpLatLng = useSelector((state) => state.pickupDrop.PickupPlaceid1 || "");
   const reduxDropOffLatLng = useSelector((state) => state.pickupDrop.DropoffPlaceid1 || "");
   const errorMessage = useSelector((state) => state.pickupDrop.error);
-  console.log("errorMessage", errorMessage);
   
-  // Log Redux values for debugging
-  console.log("Redux values in ExitPortSearch:", {
-    reduxExitPickUpLocation,
-    reduxExitDropOffLocation,
-    reduxPickupDate,
-    reduxExitTime,
-    reduxPickUpLatLng,
-    reduxDropOffLatLng
-  });
   
+ 
   // State for storing the pickup and dropoff locations
   const [exitpickUpLocation, setexitPickUpLocation] = useState(reduxExitPickUpLocation);
   const [exitdropOffLocation, setexitDropOffLocation] = useState(reduxExitDropOffLocation);
@@ -68,14 +59,14 @@ const ExitPortSearch = ({ Location }) => {
   // Update Redux store whenever local state changes
   useEffect(() => {
     if (exitpickUpLocation) {
-      console.log("Updating exitpickup in Redux:", exitpickUpLocation);
+      
       dispatch(setexitpickup(exitpickUpLocation));
     }
   }, [exitpickUpLocation, dispatch]);
 
   useEffect(() => {
     if (exitdropOffLocation) {
-      console.log("Updating exitdropoff in Redux:", exitdropOffLocation);
+      
       dispatch(setexitdropoff(exitdropOffLocation));
     }
   }, [exitdropOffLocation, dispatch]);
@@ -88,7 +79,7 @@ const ExitPortSearch = ({ Location }) => {
 
   useEffect(() => {
     if (entryytime1) {
-      console.log("ExitPortSearch - Setting entry/exit time in Redux:", entryytime1);
+      
       dispatch(setentrytime(entryytime1));
       dispatch(setexittime(entryytime1));
     }
@@ -96,31 +87,24 @@ const ExitPortSearch = ({ Location }) => {
 
   useEffect(() => {
     if (pickUpLatLng) {
-      console.log("Updating pickUpLatLng in Redux:", pickUpLatLng);
+      
       dispatch(setPickupPlaceid1(pickUpLatLng));
     }
   }, [pickUpLatLng, dispatch]);
 
   useEffect(() => {
     if (dropOffLatLng) {
-      console.log("Updating dropOffLatLng in Redux:", dropOffLatLng);
+      
       dispatch(setDropoffPlaceid1(dropOffLatLng));
     }
   }, [dropOffLatLng, dispatch]);
 
-  // Log Location prop to debug
-  useEffect(() => {
-    console.log("Exit Port Location:", Location);
-  }, [Location]);
+  
 
   // Monitor autocomplete state changes
-  useEffect(() => {
-    console.log("exitPickupFromAutocomplete changed:", exitPickupFromAutocomplete);
-  }, [exitPickupFromAutocomplete]);
+ 
   
-  useEffect(() => {
-    console.log("exitDropoffFromAutocomplete changed:", exitDropoffFromAutocomplete);
-  }, [exitDropoffFromAutocomplete]);
+  
   
   // Set time1 to true whenever entryytime1 has a value
   useEffect(() => {
@@ -134,18 +118,7 @@ const ExitPortSearch = ({ Location }) => {
 
   // Handler for the button search click event
   const buttonsearch = () => {
-    console.log("ExitPortSearch - Search button clicked");
-    console.log("ExitPortSearch - Current state before search:", {
-      exitpickUpLocation,
-      exitdropOffLocation,
-      selectedDate1,
-      entryytime1,
-      time1,
-      exitPickupFromAutocomplete,
-      exitDropoffFromAutocomplete,
-      pickUpLatLng,
-      dropOffLatLng
-    });
+   
     
     // IMPORTANT: Set selection type to Exit Port FIRST
     // This ensures the correct slice of the Redux store is updated
@@ -166,38 +139,27 @@ const ExitPortSearch = ({ Location }) => {
     
     // Only proceed if both locations are selected from autocomplete
     const locationsValid = exitPickupFromAutocomplete && exitDropoffFromAutocomplete;
-    console.log("ExitPortSearch - Locations valid for search:", locationsValid, {
-      exitPickupFromAutocomplete,
-      exitDropoffFromAutocomplete
-    });
-    
-    console.log("ExitPortSearch - Current time1 state:", time1, "Current entryytime1:", entryytime1);
+   
+   
 
     // Check if we have a time value but time1 state is false (possible state inconsistency)
     if (entryytime1 && !time1) {
-      console.log("ExitPortSearch - Time value exists but time1 is false. Fixing state inconsistency.");
+     
       setTime1(true);
     }
 
     // Only fetch vehicles if both locations are valid and time is selected
     if (locationsValid && (time1 || entryytime1)) {
-      console.log("ExitPortSearch - All conditions met, fetching vehicles for Exit Port...");
+     
       
       // Use setTimeout to ensure all Redux state updates have been processed
       setTimeout(() => {
         // Make sure selectionType is set to Exit Port before fetching
         dispatch(setSelectionType("Exit Port"));
-        console.log("ExitPortSearch - Dispatching fetchVehicles with Exit Port selection type");
+        
         dispatch(fetchVehicles());
       }, 300);
     } else {
-      console.log("ExitPortSearch - Not fetching vehicles due to invalid data:", { 
-        locationsValid, 
-        time1, 
-        exitPickupFromAutocomplete,
-        exitDropoffFromAutocomplete,
-        entryytime1
-      });
       
       // If we have all required data but there might be a state inconsistency, try again
       if (locationsValid && entryytime1) {
@@ -208,7 +170,7 @@ const ExitPortSearch = ({ Location }) => {
         
         // Use setTimeout to ensure all state updates have been processed
         setTimeout(() => {
-          console.log("ExitPortSearch - Retry: Dispatching fetchVehicles with Exit Port selection type");
+          
           dispatch(setSelectionType("Exit Port"));
           dispatch(fetchVehicles());
         }, 500);

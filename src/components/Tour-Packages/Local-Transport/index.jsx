@@ -154,13 +154,13 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   useEffect(() => {
     // Hard stop - if initial setup is already complete, never initialize again
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (setup already complete)`);
+      
       return;
     }
     
     // Skip if we've already initialized for this specific instance
     if (hasInitializedBookings && lastInitializationKey === initializationKey) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already initialized for key: ${initializationKey})`);
+      
       return;
     }
     
@@ -168,7 +168,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         (Hourly && Hourly.length > 0) || 
         (LocalTransports && LocalTransports.length > 0)) {
       
-      console.log(`Local Transport - Initializing bookings for dayIndex ${dayIndex} with key: ${initializationKey}`);
+      
       console.log(`Local Transport - Data summary:`, {
         PointToPoint: PointToPoint?.map(s => ({ type: s.type, dataCount: s.data?.length || 0 })) || [],
         Hourly: Hourly?.map(s => ({ type: s.type, dataCount: s.data?.length || 0 })) || [],
@@ -183,7 +183,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       const initializedBookings = initializeBookingsFromProps();
 
       if (initializedBookings.length > 0) {
-        console.log(`Local Transport - Setting ${initializedBookings.length} bookings in local state for dayIndex ${dayIndex}`);
+        
         // Set the bookings in local state - replace any existing bookings for this component
         setAllBookings(initializedBookings);
         setExpandedSections(initializedBookings.map((_, index) => index));
@@ -218,13 +218,13 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     const initializedBookings = [];
     const processedIds = new Set(); // Track processed booking IDs to avoid duplicates
     
-    console.log(`Local Transport - Initializing bookings for dayIndex ${dayIndex} with date:`, date);
+    
     console.log('Local Transport - Available data:', {
       PointToPoint: PointToPoint?.length || 0,
       Hourly: Hourly?.length || 0,
       LocalTransports: LocalTransports?.length || 0
     });
-    console.log('Local Transport - Tour dates available:', tourDates);
+    
     console.log('Local Transport - Current dayIndex:', dayIndex);
 
     // Helper function to check if booking belongs to current dayIndex
@@ -232,13 +232,13 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     const shouldShowBookingForThisDay = (bookingDate, componentDayIndex) => {
       // If componentDayIndex is provided and matches current dayIndex, show the booking
       if (componentDayIndex !== undefined && componentDayIndex === dayIndex) {
-        console.log(`Local Transport - Showing booking by componentDayIndex: ${componentDayIndex} === ${dayIndex}`);
+        
         return true;
       }
 
       // If no date provided, show in dayIndex 0 to avoid losing data
       if (!date || !bookingDate) {
-        console.log(`Local Transport - No date info, showing in dayIndex 0: dayIndex=${dayIndex}`);
+        
         return dayIndex === 0;
       }
 
@@ -541,7 +541,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         }
       });
       
-      console.log(`Local Transport - Found Hourly bookings for ${bookingsByDate.size} different dates`);
+     
       
       // Second pass: process bookings based on dayIndex and date
       bookingsByDate.forEach((bookingsForDate, dateStr) => {
@@ -561,7 +561,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         bookingsForDate.forEach(({ bookingData, serviceType, booking_id }) => {
           // Check for duplicate IDs
           if (processedIds.has(bookingData.id)) {
-            console.log(`Local Transport - Skipping duplicate Hourly booking ID: ${bookingData.id}`);
+           
             return;
           }
           
@@ -702,7 +702,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         bookingsForDate.forEach(({ bookingData, serviceType, booking_id }) => {
           // Check for duplicate IDs
           if (processedIds.has(bookingData.id)) {
-            console.log(`Local Transport - Skipping duplicate LocalTransfer booking ID: ${bookingData.id}`);
+            
             return;
           }
           
@@ -791,14 +791,14 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   const dispatchInitializedBookingsToRedux = useCallback((bookings) => {
     // Prevent dispatching if initial setup is already complete
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (setup already complete)`);
+      
       return;
     }
   
     const completedBookings = bookings.filter(booking => booking.isComplete);
   
     if (completedBookings.length > 0) {
-      console.log(`Local Transport - Dispatching ${completedBookings.length} initialized bookings to Redux for dayIndex ${dayIndex}`);
+      
   
       const currentServices = [...allServices];
       let hasUpdates = false;
@@ -816,12 +816,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         }
       });
       
-      // Log the distribution of bookings by type
-      console.log(`Local Transport - Bookings by type:`, {
-        "Point To Point": bookingsByType["Point To Point"].length,
-        "Hourly": bookingsByType["Hourly"].length,
-        "Local Transfer": bookingsByType["Local Transfer"].length
-      });
+      
   
       // Process each booking
       completedBookings.forEach(booking => {
@@ -849,13 +844,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                   data: [...(existingService.data || []), booking.originalData]
                 };
                 
-                console.log(`Local Transport - Updating existing service in Redux with booking_id ${booking_id}:`, {
-                  type: updatedService.type,
-                  booking_id: updatedService.booking_id,
-                  oldDataCount: existingService.data?.length || 0,
-                  newDataCount: updatedService.data.length,
-                  bookingId: booking.originalData.id
-                });
+               
                 
                 currentServices[existingServiceIndex] = updatedService;
                 hasUpdates = true;
@@ -896,11 +885,6 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                 type: originalService.type
               };
               
-              console.log(`Local Transport - Adding new service to Redux:`, {
-                type: newService.type,
-                booking_id: newService.booking_id,
-                dataCount: newService.data?.length || 0
-              });
               
               currentServices.push(newService);
               hasUpdates = true;
@@ -918,12 +902,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                   data: [...(existingService.data || []), booking.originalData]
                 };
                 
-                console.log(`Local Transport - Updating existing service in Redux:`, {
-                  type: updatedService.type,
-                  booking_id: updatedService.booking_id,
-                  oldDataCount: existingService.data?.length || 0,
-                  newDataCount: updatedService.data.length
-                });
+               
                 
                 currentServices[existingServiceIndex] = updatedService;
                 hasUpdates = true;
@@ -936,11 +915,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
               }
             }
           } else {
-            // If we can't find the original service, create a new one based on the booking type
-            console.warn(`Local Transport - Could not find original service for booking, creating new:`, {
-              bookingId: booking.originalData.id,
-              transportType: booking.transportType
-            });
+           
             
             // Determine service type based on booking transport type
             let serviceType;
@@ -965,11 +940,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
               type: serviceType
             };
             
-            console.log(`Local Transport - Creating new service for orphaned booking:`, {
-              type: newService.type,
-              booking_id: newService.booking_id,
-              bookingId: booking.originalData.id
-            });
+           
             
             currentServices.push(newService);
             hasUpdates = true;
@@ -978,11 +949,8 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       });
   
       if (hasUpdates) {
-        console.log(`Local Transport - Dispatching updated services to Redux for dayIndex ${dayIndex}`);
-        console.log(`Local Transport - Services being dispatched:`, 
-          currentServices.filter(s => ["travel_point", "travel_hourly", "local_transport"].includes(s.type))
-            .map(s => ({ type: s.type, booking_id: s.booking_id, dataCount: s.data?.length || 0 }))
-        );
+          
+          
         dispatch(setAllServices(currentServices));
       } else {
         console.log(`Local Transport - No updates needed for dayIndex ${dayIndex}, services already in Redux`);
@@ -1023,12 +991,12 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       
       // Prevent dispatching too frequently
       if (now - lastDispatchTime.current < 1000) {
-        console.log("Local Transport - Dispatch frequency limit reached, skipping...");
+       
         return;
       }
 
       if (isDispatching.current) {
-        console.log("Local Transport - Dispatch already in progress, skipping...");
+       
         return;
       }
 
@@ -1070,11 +1038,11 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       const totalValidBookings = Object.values(validBookings).reduce((sum, bookings) => sum + bookings.length, 0);
       
       if (totalValidBookings === 0) {
-        console.log("Local Transport - No new valid bookings to dispatch");
+       
         return;
       }
       
-      console.log(`Local Transport - Dispatching ${totalValidBookings} new valid bookings to Redux`);
+     
       isDispatching.current = true;
       lastDispatchTime.current = now;
       
@@ -1086,7 +1054,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         // Remove old services for booking indices that will have new services
         // This prevents duplicates when editing existing bookings
         if (bookingIndicesWithNewServices.size > 0) {
-          console.log(`Local Transport - Removing old services for booking indices: ${Array.from(bookingIndicesWithNewServices).join(', ')}`);
+          
           updatedServices = updatedServices.filter(service => {
             // Check if this service was created by this component for the booking indices we're updating
             if (service.type && ["travel_point", "travel_hourly", "local_transport"].includes(service.type)) {
@@ -1099,7 +1067,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                 // Check if this service corresponds to a booking index we're updating
                 const serviceBookingIndex = service.localBookingIndex;
                 if (serviceBookingIndex !== undefined && bookingIndicesWithNewServices.has(serviceBookingIndex)) {
-                  console.log(`Local Transport - Removing old service for booking index ${serviceBookingIndex}`);
+                  
                   return false; // Remove this service
                 }
               }
@@ -1243,21 +1211,21 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
             }
             
             updatedServices.push(newService);
-            console.log(`Local Transport - Created new ${transportType} service for booking index ${bookingIndex} with booking ID: ${bookingData.id}`);
+            
           });
           
-          console.log(`Local Transport - Processed ${bookings.length} ${transportType} bookings for Redux`);
+          
         });
         
         // Single consolidated dispatch for all transport types
         if (newSavedSignatures.length > 0) {
-          console.log(`Local Transport - Single dispatch for ${newSavedSignatures.length} new bookings to Redux`);
+          
           
           // Log the service format being created for debugging
           const newServices = updatedServices.filter(service => 
             ["travel_point", "travel_hourly", "local_transport"].includes(service.type)
           );
-          console.log('Local Transport - Service format being dispatched:', JSON.stringify(newServices, null, 2));
+         
           
           dispatch(setAllServices(updatedServices));
           
@@ -1297,31 +1265,31 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     initializationAttempted.current = false; // Reset initialization flag when dayIndex changes
     // Clear search day index when dayIndex changes to prevent cross-day interference
     dispatch(clearSearchDayIndex());
-    console.log(`Local Transport - Cleared saved booking IDs and reset flags for new dayIndex: ${dayIndex}`);
+    
   }, [dayIndex, dispatch]);
 
   // Dispatch initialized bookings to Redux - only run once and prevent re-dispatching
   useEffect(() => {
     // Hard stop - if initial setup is already complete, never dispatch again
     if (isInitialSetupComplete) {
-      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (setup already complete)`);
+     
       return;
     }
 
      // Skip if we've already initialized for this specific instance
      if (hasInitializedBookings && lastInitializationKey === initializationKey) {
-      console.log(`Local Transport - Skipping initialization for dayIndex ${dayIndex} (already initialized for key: ${initializationKey})`);
+      
       return;
     }
     
     // Hard stop - if we've already dispatched for this component instance
     if (hasDispatchedToRedux) {
-      console.log(`Local Transport - Skipping dispatch to Redux for dayIndex ${dayIndex} (already dispatched)`);
+     
       return;
     }
     
     if (hasInitializedBookings) {
-      console.log(`Local Transport - Dispatching initialized bookings to Redux for dayIndex ${dayIndex}`);
+     
       dispatchInitializedBookingsToRedux(allBookings);
       setHasDispatchedToRedux(true);
       setIsInitialSetupComplete(true); // Mark setup as complete after dispatching
@@ -1350,12 +1318,12 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       const originalBookings = allBookings.filter(booking => booking.originalData);
 
       if (originalBookings.length > 0) {
-        console.log(`Dispatching ${originalBookings.length} original bookings to Redux for dayIndex ${dayIndex}`);
+        
         dispatchInitializedBookingsToRedux(originalBookings);
         setHasDispatchedToRedux(true);
         // Mark initial setup as complete after dispatching to Redux
         setIsInitialSetupComplete(true);
-        console.log(`Local Transport - Initial setup completed for dayIndex ${dayIndex}`);
+        
       }
     }
   }, [hasInitializedBookings, hasDispatchedToRedux, allBookings, dispatchInitializedBookingsToRedux, dayIndex, isInitialSetupComplete]);
@@ -1376,7 +1344,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
   // Monitor for vehicle search results - now creates new booking entries
   useEffect(() => {
     if (hasVehicles && selectedPort && searchDayIndex === dayIndex) {
-      console.log(`Local Transport - Day ${dayIndex}: Creating booking for search initiated by this component`);
+      
 
       setSearchPerformed(prev => ({
         ...prev,
@@ -1470,7 +1438,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
 
     // If we found new complete bookings, trigger dispatch
     if (newCompleteBookings.length > 0) {
-      console.log(`Local Transport - Auto dispatch triggered for ${newCompleteBookings.length} complete bookings on dayIndex ${dayIndex}`);
+     
 
 
 
@@ -1693,7 +1661,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
     const bookingToRemove = allBookings[indexToRemove];
     
     if (bookingToRemove) {
-      console.log(`Local Transport - Removing booking:`, bookingToRemove);
+      
       
       // Generate the signature for this booking to remove it from saved IDs
       let bookingSignature = `${bookingToRemove.vehicleId}-${bookingToRemove.priceMode}-${bookingToRemove.price}-${bookingToRemove.adults}-${bookingToRemove.children}-${bookingToRemove.pickupLocation || ''}-${bookingToRemove.dropoffLocation || ''}`;
@@ -1720,7 +1688,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
       
       // Remove the booking signature from saved IDs
       setSavedBookingIds(prev => prev.filter(signature => signature !== bookingSignature));
-      console.log(`Local Transport - Removed booking signature from saved IDs: ${bookingSignature.substring(0, 50)}...`);
+      
       
       setExpandedSections(prev => 
         prev.filter(index => index !== indexToRemove)
@@ -1736,7 +1704,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           if (service.localBookingIndex !== undefined && service.data && service.data.some(item => item.componentDayIndex === dayIndex)) {
             // Remove service if it corresponds to the booking we want to remove
             if (service.localBookingIndex === indexToRemove) {
-              console.log(`Local Transport - Removing service for booking index ${indexToRemove} from Redux`);
+             
               return false;
             }
           }
@@ -1745,7 +1713,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
           if (service.data && Array.isArray(service.data) && bookingToRemove.originalData) {
             const containsBooking = service.data.some(item => item.id === bookingToRemove.originalData.id);
             if (containsBooking) {
-              console.log(`Local Transport - Removing legacy service with booking ID ${bookingToRemove.originalData.id} from Redux`);
+              
               return false;
             }
           }
@@ -1755,7 +1723,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
         });
         
         if (filteredServices.length !== currentServices.length) {
-          console.log(`Local Transport - Updating Redux services after removal`);
+          
           dispatch(setAllServices(filteredServices));
           prevServicesRef.current = filteredServices;
         }
@@ -2173,10 +2141,10 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                         onClick={() => {
                           // Force check if booking is complete
                           if (isBookingValid(booking)) {
-                            console.log(`Local Transport - Opening modal for booking ${bookingIndex}`);
+                            
                             handleOpenModal(bookingIndex);
                           } else {
-                            console.log(`Local Transport - Cannot open modal, booking ${bookingIndex} is invalid:`, booking);
+                           
                             // Show validation error
                             setValidationError(validateBooking(booking, bookingIndex));
                             // Clear error after 3 seconds
@@ -2287,7 +2255,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                               // Only update if the completion status has changed
                               const currentComplete = allBookings[bookingIndex]?.isComplete;
                               if (currentComplete !== isComplete) {
-                                console.log(`Local Transfer - Booking ${bookingIndex} completion changed: ${currentComplete} -> ${isComplete}`);
+                                
                                 
                                 // Update booking completion status
                                 setAllBookings(prev => {
@@ -2303,7 +2271,7 @@ const LocalTransportComponent = React.memo(function LocalTransportComponent({ da
                                 
                                 // Trigger Redux dispatch for complete bookings only once
                                 if (isComplete) {
-                                  console.log(`Local Transfer - Dispatching booking ${bookingIndex} to Redux`);
+                                  
                                   
                                   // Use setTimeout to avoid immediate state updates
                                   const timeoutId = setTimeout(() => {

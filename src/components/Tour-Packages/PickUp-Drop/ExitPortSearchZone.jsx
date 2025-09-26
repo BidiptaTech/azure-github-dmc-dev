@@ -56,10 +56,10 @@ const ExitPortSearchZone = ({ Location, portType}) => {
   const [selectedDate1, setSelectedDate1] = useState("");
   const [entryytime1, setentryytime1] = useState("");
   const errorMessage = useSelector((state) => state.pickupDrop.error);
-  console.log("errorMessage", errorMessage);
+  
 
   const TourId = useSelector((state) => state.hotels.id);
-  console.log("TourId", TourId);
+      console.log("TourId", TourId);
 
   // Check port city API status
   const portCityStatus = useSelector(
@@ -110,7 +110,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
         })
       )
         .then((result) => {
-          console.log("fetchPortCity dispatch result:", result);
+          
           if (result.error) {
             console.error("API Error:", result.error);
             setIsPickupLocationEnabled(false);
@@ -124,11 +124,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
           setIsPickupLocationEnabled(false);
         });
     } else {
-      console.log("Not calling fetchPortCity, missing:", {
-        hasCity: !!selectedCity,
-        hasTourId: !!TourId,
-        tourIdValue: TourId,
-      });
+      
       setIsPickupLocationEnabled(false);
     }
   }, [selectedCity, TourId, dispatch]);
@@ -143,7 +139,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
         })
       )
         .then((result) => {
-          console.log("fetchlocalzone dispatch result:", result);
+          
           if (result.error) {
             console.error("API Error:", result.error);
             setIsDropoffLocationEnabled(false);
@@ -157,20 +153,14 @@ const ExitPortSearchZone = ({ Location, portType}) => {
           setIsDropoffLocationEnabled(false);
         });
     } else {
-      console.log(
-        "Not calling fetchLocalZone, missing:",
-        exitpickUpLocation,
-        type,
-        id
-      );
+      
       setIsDropoffLocationEnabled(false);
     }
   }, [id, type, exitpickUpLocation, dispatch]);
 
   // Effect to handle port city API response
   useEffect(() => {
-    console.log("Port city status:", portCityStatus);
-    console.log("Port city data:", portCityData);
+   
 
     // Update pickup location enabled state based on API response
     if (portCityStatus === "succeeded" && portCityData) {
@@ -180,7 +170,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
 
   // Effect to handle local zone API response
   useEffect(() => {
-    console.log("Local zone status:", localZoneStatus);
+    
 
     // Update dropoff location enabled state based on API response
     if (localZoneStatus === "succeeded") {
@@ -245,7 +235,7 @@ const ExitPortSearchZone = ({ Location, portType}) => {
 
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {
-    console.log("City selected:", city);
+    
     setSelectedCity(city);
     if (city) {
       setCityError(false);

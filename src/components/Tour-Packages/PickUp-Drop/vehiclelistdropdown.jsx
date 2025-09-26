@@ -210,7 +210,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
   // Return null if no vehicle data is available
   if (!vehicles) return null;
 
-  console.log("vehicles in Mode component:", vehicles);
+ 
   
   // Safely check which price modes are available in both possible data structures
   const hasPrivatePrice = 
@@ -221,8 +221,7 @@ const Mode = ({ pricemode, setpricemode, vehicles }) => {
     (vehicles.prices && vehicles.prices.sharablePrice > 0) || 
     (vehicles.shared_price && parseFloat(vehicles.shared_price) > 0);
   
-  console.log("hasPrivatePrice", hasPrivatePrice);
-  console.log("hasSharablePrice", hasSharablePrice);
+  
 
   // If no pricing options available, return null
   if (!hasPrivatePrice && !hasSharablePrice) return null;
@@ -274,7 +273,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   
   // Make sure we're only working with entry ports
   const validEntryPorts = entryPorts && entryPorts.filter(port => port.type === "entry_port");
-  console.log("Entry Vehicle - Filtered entryPorts:", validEntryPorts);
+  
   
   // Redux state for locations and times
   const entryPickup = useSelector((state) => state.pickupDrop.entrypickup);
@@ -322,7 +321,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           // Skip if this booking was deleted
           if (deletedBookingIdsRef.current.has(bookingId) || 
               deletedBookingIdsRef.current.has(bookingIdFromService)) {
-            console.log("Entry Vehicle - Skipping deleted booking during initialization:", bookingId);
+            
             return false;
           }
           
@@ -421,9 +420,9 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
 
   // Debug log initial bookings and reset deleted bookings when entryPorts change significantly
   useEffect(() => {
-    console.log("Entry Vehicle - Initial bookings state:", bookingsRef.current);
+
     if (validEntryPorts && validEntryPorts.length > 0) {
-      console.log("Entry Vehicle - Loading with existing entryPorts data");
+      
       
       // Reset deleted bookings when entryPorts change significantly (new tour)
       // This prevents deleted bookings from persisting across different tours
@@ -432,7 +431,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
         !currentEntryPortIds.some(id => deletedBookingIdsRef.current.has(id));
       
       if (hasSignificantChange) {
-        console.log("Entry Vehicle - Detected significant entryPorts change, clearing deleted bookings set");
+       
         deletedBookingIdsRef.current.clear();
       }
     } else {
@@ -526,7 +525,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       return;
     }
     
-    console.log("Entry Vehicle - Removing booking:", bookingToRemove);
+    
     
     // Add the booking ID to the deleted set to prevent re-initialization
     if (bookingToRemove.id) {
@@ -536,7 +535,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       deletedBookingIdsRef.current.add(bookingToRemove.originalData.booking_id);
     }
     
-    console.log("Entry Vehicle - Added to deleted set:", deletedBookingIdsRef.current);
+   
     
     // Remove from local state
     const updatedBookings = bookings.filter((_, index) => index !== indexToRemove);
@@ -598,8 +597,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
         
         // Only dispatch if there's an actual change
         if (filteredServices.length !== currentServices.length) {
-          console.log("Entry Vehicle - Removing booking from Redux:", bookingToRemove);
-          console.log("Entry Vehicle - Updated services:", filteredServices);
+         
           dispatch(setAllServices(filteredServices));
         }
       }
@@ -620,14 +618,14 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const dispatchInitializedBookingsToRedux = (bookings) => {
     // Skip if we've already dispatched the original entry ports
     if (hasInitializedRef.current) {
-      console.log("Entry Vehicle - Skipping dispatchInitializedBookingsToRedux because original data was already dispatched");
+      
       return;
     }
     
     const completedBookings = bookings.filter(booking => booking.isComplete);
     
     if (completedBookings.length > 0) {
-      console.log("Entry Vehicle - Dispatching initialized bookings to Redux:", completedBookings);
+     
       
       // Format bookings for Redux state
       const bookingsForRedux = completedBookings.map(booking => {
@@ -732,7 +730,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           bookingType: "enquiry"
         };
         
-        console.log(`Entry Vehicle - Service data with booking_id: ${booking.originalData?.booking_id}`, serviceObject);
+       
         
         return serviceObject;
       });
@@ -741,7 +739,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       const filteredServices = existingServices.filter(service => service.type !== "entry_port");
       const finalServices = [...filteredServices, ...bookingsForRedux];
       
-      console.log("Entry Vehicle - Dispatching initialized services to Redux:", finalServices);
+      
       dispatch(setAllServices(finalServices));
     }
   };
@@ -750,7 +748,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   
   useEffect(() => {
     if (validEntryPorts && validEntryPorts.length > 0 && Array.isArray(vehicles) && vehicles.length > 0 && !hasInitializedRef.current) {
-      console.log("Entry Vehicle - Detected entryPorts data, re-initializing bookings:", validEntryPorts);
+      
       
       // Re-initialize bookings with the latest entryPorts and vehicles data, but exclude deleted bookings
       const newBookings = validEntryPorts
@@ -765,7 +763,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
           // Skip if this booking was deleted
           if (deletedBookingIdsRef.current.has(bookingId) || 
               deletedBookingIdsRef.current.has(bookingIdFromService)) {
-            console.log("Entry Vehicle - Skipping deleted booking during re-initialization:", bookingId);
+            
             return false;
           }
           
@@ -837,11 +835,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             }
           };
           
-          console.log(`Entry Vehicle - Initialized booking with booking_id: ${entryPort.booking_id}`, {
-            bookingId: booking.id,
-            serviceBookingId: entryPort.booking_id,
-            entryData: normalizedEntryData
-          });
+          
           
           return booking;
         });
@@ -851,7 +845,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       setBookingsVersion(prev => prev + 1);
       hasInitializedRef.current = true;
       
-      console.log("Entry Vehicle - Initialized bookings from entryPorts:", newBookings);
+      
       
       // Also store in Redux state in the same format
       dispatchInitializedBookingsToRedux(newBookings);
@@ -888,7 +882,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       
       // Only call for fresh search (not initial render)
       if (!isFirstRender.current || validEntryPorts.length > 0) {
-        console.log("Entry Vehicle - Fresh search detected, automatically calling handleAddMoreBooking");
+        
         handleAddMoreBooking();
       }
       
@@ -955,7 +949,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       const isComplete = checkBookingCompletion(booking);
       
       if (isComplete !== booking.isComplete) {
-        console.log(`Entry Vehicle - Booking ${booking.id} completion status changed to:`, isComplete);
+        
         needsUpdate = true;
         return { ...booking, isComplete };
       }
@@ -982,7 +976,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
   const dispatchBookingToRedux = React.useCallback((bookingIndex, forceUpdate = false) => {
     // Skip if we've already dispatched the original entry ports and not forcing update
     if (hasDispatchedAllEntryPortsRef.current && !forceUpdate) {
-      console.log("Entry Vehicle - Skipping dispatchBookingToRedux because original data was already dispatched");
+      
       return;
     }
     
@@ -1003,12 +997,12 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       );
       
       if (existingBooking) {
-        console.log("Entry Vehicle - Booking already exists in Redux, skipping dispatch:", booking.id);
+        
         return;
       }
     }
     
-    console.log("Entry Vehicle - Directly dispatching booking to Redux:", booking);
+    
     
     const vehicle = booking.vehicle || {};
     const vehicleData = booking.vehicleData || {};
@@ -1104,7 +1098,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       bookingData.booking_id = booking.originalData.booking_id;
     }
     
-    console.log("Entry Vehicle - Formatted booking data for Redux:", bookingData);
+    
     
     // Clone the existing services array
     const allCurrentServices = [...existingServices];
@@ -1132,12 +1126,12 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       bookingType: "enquiry"
     };
     
-    console.log(`Entry Vehicle - Direct dispatch with booking_id: ${booking.originalData?.booking_id}`, newEntryPortService);
+    
     
     // Add the new Entry Port service to the filtered services array
     filteredServices.push(newEntryPortService);
     
-    console.log("Entry Vehicle - Dispatching updated services to Redux:", filteredServices);
+   
     
     // Dispatch the updated services
     dispatch(setAllServices(filteredServices));
@@ -1157,7 +1151,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
         );
         
         if (!existingBooking) {
-          console.log("Entry Vehicle - Auto-dispatching newly completed booking to Redux:", booking.id);
+          
           dispatchBookingToRedux(index);
         }
       }
@@ -1264,7 +1258,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
       );
       
       if (!existingBooking) {
-        console.log("Entry Vehicle - Booking not in Redux, dispatching before showing modal");
+       
         dispatchBookingToRedux(index);
       } else {
         console.log("Entry Vehicle - Booking already in Redux, showing modal directly");
@@ -1354,16 +1348,11 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     // Get the booking date from original data or current date
     const bookingDate = booking.originalData?.bookingDate || booking.originalData?.pickupdate || (date ? date.format('YYYY-MM-DD') : null);
     
-    // Debug logging to check date formats
-    console.log('Entry Port date validation debug:', {
-      bookingId: booking.id || 'new-booking',
-      bookingDate: bookingDate,
-      tourDates: tourDates
-    });
+   
     
     // Handle edge cases
     if (!bookingDate) {
-      console.log('Missing bookingDate, skipping validation');
+      
       return false;
     }
     
@@ -1390,12 +1379,8 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
     // Check if the normalized booking date exists in tourDates
     const isDateValid = tourDates.includes(normalizedBookingDate);
     
-    console.log('Entry Port date validation result:', {
-      normalizedBookingDate: normalizedBookingDate,
-      isDateValid: isDateValid,
-      willShowError: !isDateValid
-    });
     
+   
     return !isDateValid;
   };
   
@@ -1425,7 +1410,7 @@ const VehicleListDropdown = ({ selectedVehicle, onVehicleChange, entryPorts, tou
             (booking.vehicle ? 1 : 0) + (Number(booking.adults) + Number(booking.children) > 0 ? 1 : 0) + 
             (booking.priceMode ? 1 : 0);
           const outOfTourDates = isBookingOutOfTourDates(booking);
-          console.log("booking22", booking);
+          
           return (
             <Grid item xs={12} key={booking.id}>
               <Card 
