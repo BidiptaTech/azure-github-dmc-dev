@@ -670,7 +670,7 @@ export const PDFPrintButton = ({ variant = "contained", color = "primary", size 
     // Extract booking data
     const bookingData = extractBookingData();
     
-    // Create custom PDF content
+   
     const customHTML = createCustomPDFHTML(bookingData);
     
     // Create a temporary container
