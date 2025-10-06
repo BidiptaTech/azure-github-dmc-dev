@@ -140,75 +140,61 @@ jobs:
             -x "vite.config.js" \
             -x "package*.json"
 
+      - name: 🔐 Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 🔑 Fetch Kudu publishing credentials
+        id: kudu
+        run: |
+          CREDS=$(az webapp deployment list-publishing-credentials \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --query "{user:publishingUserName, pass:publishingPassword}" -o tsv)
+          USER=$(echo "$CREDS" | awk '{print $1}')
+          PASS=$(echo "$CREDS" | awk '{print $2}')
+          if [ -z "$USER" ] || [ -z "$PASS" ]; then echo "❌ Failed to fetch Kudu creds"; exit 1; fi
+          echo "user=$USER" >> $GITHUB_OUTPUT
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+
       - name: 🚀 Deploy backadm-dmc via Kudu ZIP push (non-destructive)
         env:
-          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           APP_NAME: dmc-app-dev
+          KUDU_USER: ${{ steps.kudu.outputs.user }}
+          KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
           set -e
-          echo "🔐 Extracting Kudu credentials from publish profile..."
-          # Try base64 decode first, fallback to raw
-          if echo "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null; then
-            echo "✅ Decoded base64 publish profile"
-          else
-            echo "$AZURE_PUBLISH_PROFILE" > pf.xml
-            echo "✅ Using raw publish profile"
-          fi
-          echo "📄 First 200 chars of profile:"
-          head -c 200 pf.xml
-          echo ""
-          USER=$(grep -o 'publishMethod="MSDeploy"[^>]*userName="[^"]*"' pf.xml | sed 's/.*userName="\([^"]*\)".*/\1/')
-          PASS=$(grep -o 'publishMethod="MSDeploy"[^>]*userPWD="[^"]*"' pf.xml | sed 's/.*userPWD="\([^"]*\)".*/\1/')
-          echo "🔍 Found USER: ${USER:0:10}..."
-          echo "🔍 Found PASS: ${PASS:0:10}..."
-          if [ -z "$USER" ] || [ -z "$PASS" ]; then 
-            echo "❌ Could not parse Kudu creds from profile"
-            echo "📄 Full profile content:"
-            cat pf.xml
-            exit 1
-          fi
           echo "🚀 Uploading laravel backadm-dmc zip to Kudu subfolder..."
-          curl -sS -u "$USER:$PASS" -X PUT \
+          curl -sS -u "$KUDU_USER:$KUDU_PASS" -X PUT \
             "https://${APP_NAME}.scm.azurewebsites.net/api/zip/backadm-dmc" \
             -H "Content-Type: application/zip" --data-binary @release.zip
 
       - name: ⚙️ Configure startup file to run uploaded script
         env:
-          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           APP_NAME: dmc-app-dev
+          KUDU_USER: ${{ steps.kudu.outputs.user }}
+          KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
-          if echo "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null; then
-            echo "✅ Decoded base64 publish profile"
-          else
-            echo "$AZURE_PUBLISH_PROFILE" > pf.xml
-            echo "✅ Using raw publish profile"
-          fi
-          USER=$(grep -o 'publishMethod="MSDeploy"[^>]*userName="[^"]*"' pf.xml | sed 's/.*userName="\([^"]*\)".*/\1/')
-          PASS=$(grep -o 'publishMethod="MSDeploy"[^>]*userPWD="[^"]*"' pf.xml | sed 's/.*userPWD="\([^"]*\)".*/\1/')
-          curl -sS -u "$USER:$PASS" -X POST \
+          curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
             "https://${APP_NAME}.scm.azurewebsites.net/api/command" \
             -H "Content-Type:text/plain" \
             -d "chmod +x /home/site/wwwroot/startup.sh && echo done"
 
       - name: 🗂️ Ensure storage directories exist with write permissions (immediate)
         env:
-          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           APP_NAME: dmc-app-dev
+          KUDU_USER: ${{ steps.kudu.outputs.user }}
+          KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
-          if echo "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null; then
-            echo "✅ Decoded base64 publish profile"
-          else
-            echo "$AZURE_PUBLISH_PROFILE" > pf.xml
-            echo "✅ Using raw publish profile"
-          fi
-          USER=$(grep -o 'publishMethod="MSDeploy"[^>]*userName="[^"]*"' pf.xml | sed 's/.*userName="\([^"]*\)".*/\1/')
-          PASS=$(grep -o 'publishMethod="MSDeploy"[^>]*userPWD="[^"]*"' pf.xml | sed 's/.*userPWD="\([^"]*\)".*/\1/')
           CMD='set -e; cd /home/site/wwwroot/backadm-dmc; \
           mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache; \
           touch storage/logs/laravel.log; \
           chmod -R 775 storage bootstrap/cache || true; \
           php artisan storage:link || true'
-          curl -sS -u "$USER:$PASS" -X POST \
+          curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
             "https://${APP_NAME}.scm.azurewebsites.net/api/command" \
             -H "Content-Type:text/plain" \
             -d "$CMD"
