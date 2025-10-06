@@ -211,7 +211,7 @@ export default function AttractionModal({
         
         const shouldInclude = booking.bookingDate === date && isAttractionBooking && !isRestaurantBooking;
         
-        // Debug logging for filtered bookings
+        
         if (booking.bookingDate === date) {
           console.log('AttractionModal - Booking being evaluated:', {
             booking,
