@@ -163,6 +163,18 @@ const fetchStaticPdf = async (url) => {
 
 
 
+// Preload an image and resolve when it's loaded; useful so html2canvas captures it
+const preloadImage = (src) => {
+  return new Promise((resolve) => {
+    if (!src) return resolve(false);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = src;
+  });
+};
+
 // Updated utility function to generate PDF from DOM element using jsPDF with improved page breaks
 const generateMainPdfBlob = async (element) => {
   return new Promise(async (resolve, reject) => {
@@ -473,6 +485,72 @@ const PrintModal = ({
   // Get agent info from Redux store
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
   const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+
+  // Ensure agency logo is embeddable in html2canvas by resolving to a CORS-safe data URL
+  const [resolvedAgencyLogo, setResolvedAgencyLogo] = useState(agencyLogo || "");
+  // Helper to resolve a URL to data URL with proxy fallbacks
+  const resolveUrlToDataUrl = async (url) => {
+    try {
+      const direct = await fetch(url, { mode: "cors", cache: "force-cache" }).catch(() => null);
+      if (direct && direct.ok) {
+        const blob = await direct.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    // Try AllOrigins
+    try {
+      const proxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+      if (proxy.ok) {
+        const blob = await proxy.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    // Try corsproxy.io
+    try {
+      const proxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+      if (proxy2.ok) {
+        const blob = await proxy2.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    return url; // fallback
+  };
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function resolveLogo() {
+      try {
+        if (!agencyLogo || typeof agencyLogo !== "string") {
+          setResolvedAgencyLogo("");
+          return;
+        }
+        if (agencyLogo.startsWith("data:")) {
+          setResolvedAgencyLogo(agencyLogo);
+          return;
+        }
+        const dataUrl = await resolveUrlToDataUrl(agencyLogo);
+        if (!isCancelled) setResolvedAgencyLogo(dataUrl || agencyLogo);
+      } catch (_) {
+        if (!isCancelled) setResolvedAgencyLogo(agencyLogo);
+      }
+    }
+    resolveLogo();
+    return () => {
+      isCancelled = true;
+    };
+  }, [agencyLogo]);
   
   // Store the data in local state to ensure it persists through re-renders
   const [localBookings, setLocalBookings] = useState(bookings || {});
@@ -590,6 +668,12 @@ const PrintModal = ({
       // console.log("Preparing content for PDF generation...");
       setPdfProgress({ status: 'Preparing content...', progress: 15 });
       prepareContentForPdf(internalContentRef.current);
+
+      // Ensure agency logo is loaded before capturing
+      if (resolvedAgencyLogo) {
+        setPdfProgress({ status: 'Loading agency logo...', progress: 28 });
+        await preloadImage(resolvedAgencyLogo);
+      }
 
       // Generate the main content PDF first
       // console.log("Generating content PDF from HTML...");
@@ -1023,8 +1107,9 @@ const PrintModal = ({
               {agencyLogo && (
                 <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
                   <Avatar
-                    src={agencyLogo}
+                    src={resolvedAgencyLogo || agencyLogo}
                     alt={agentCompanyName || "Agent Logo"}
+                    imgProps={{ crossOrigin: "anonymous" }}
                     sx={{ width: 80, height: 80, border: "2px solid #1976d2" }}
                   />
                 </Box>
