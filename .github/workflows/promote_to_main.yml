@@ -65,11 +65,38 @@ jobs:
 
       - name: 🚀 Deploy to Azure Web App (preserving React files)
         run: |
+          echo "🚀 Starting deployment with resilience against 499 timeout..."
+          set +e
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
-            --type zip
+            --type zip \
+            --restart true
+          DEPLOY_EXIT=$?
+          echo "Azure CLI exited with code: $DEPLOY_EXIT"
+      
+          # If exit code is non-zero, check if deployment actually succeeded
+          if [ "$DEPLOY_EXIT" -ne 0 ]; then
+            echo "⚠️ Deployment returned non-zero code (likely 499 timeout). Checking deployment logs..."
+            DEPLOY_STATUS=$(az webapp log deployment show \
+              --resource-group rg-dmc-app-dev \
+              --name dmc-app-dev \
+              --query status -o tsv 2>/dev/null || echo "Unknown")
+      
+            echo "Deployment status from Azure: $DEPLOY_STATUS"
+      
+            if [ "$DEPLOY_STATUS" = "4" ] || [ "$DEPLOY_STATUS" = "Succeeded" ]; then
+              echo "✅ Deployment completed successfully despite 499 timeout."
+              exit 0
+            else
+              echo "❌ Deployment failed according to Azure logs. Exiting with error."
+              exit 1
+            fi
+          else
+            echo "✅ Deployment completed successfully."
+          fi
+
 
       - name: ⚙️ Create startup script for Laravel and NGINX setup
         run: |
