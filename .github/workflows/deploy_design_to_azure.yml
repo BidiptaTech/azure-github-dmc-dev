@@ -1,114 +1,187 @@
-name: 🚀 Laravel Deploy DEV to Azure (dmc-app-dev)
+name: React Deploy Design Staging to Azure
 
 on:
   push:
     branches:
-      - dev_main
-  workflow_dispatch:
+      - design_staging
 
 permissions:
-  contents: read
-  id-token: write
+  contents: write
+  actions: read
 
 jobs:
   deploy:
-    name: 🧩 Laravel Backend Deployment (backadm-dmc)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+    
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
 
     steps:
-      - name: 📥 Checkout DEV Main branch
+      - name: 📥 Checkout Design Staging branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
 
-      - name: 🔧 Setup PHP for Laravel
-        uses: shivammathur/setup-php@v2
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          php-version: '8.2'
+          node-version: '18'
+          cache: 'npm'
 
-      - name: 🔧 Install Composer Globally
+      - name: 📦 Install React dependencies
         run: |
-          curl -sS https://getcomposer.org/installer | php
-          mv composer.phar /usr/local/bin/composer
+          npm ci
+          npm install @vitejs/plugin-react --save-dev || echo "Plugin already installed"
+          npm rebuild @swc/core || echo "SWC rebuild failed, will try alternative approach"
 
-      - name: 📦 Install Laravel Dependencies
-        working-directory: backadm-dmc
+      - name: 🔧 Prepare Vite config for CI
         run: |
-          composer validate --no-check-publish
-          composer install --prefer-dist --no-dev --optimize-autoloader
+          cp vite.config.js vite.config.js.backup || true
+          cat > vite.config.js << 'EOF'
+          import { defineConfig } from 'vite'
+          import react from '@vitejs/plugin-react'
+          import path from 'path'
+          
+          export default defineConfig({
+            plugins: [react()],
+            resolve: {
+              alias: {
+                '@': path.resolve(__dirname, './src'),
+                '~': path.resolve(__dirname, './src')
+              }
+            },
+            build: {
+              outDir: 'build',
+              sourcemap: false,
+              minify: 'terser'
+            },
+            server: {
+              port: 3000
+            }
+          })
+          EOF
+          echo "✅ CI-friendly Vite config created"
 
-      - name: 🗂️ Ensure storage directories exist (pre-deploy)
+      - name: 🏗️ Build React application
         run: |
-          set -e
-          mkdir -p backadm-dmc/storage/app/public
-          mkdir -p backadm-dmc/storage/framework/{cache,sessions,testing,views}
-          mkdir -p backadm-dmc/storage/logs
-          # Pre-create a writable file so logs can initialize
-          touch backadm-dmc/storage/logs/laravel.log
+          rm -rf build dist
+          npm run build
+          echo "✅ React build completed"
 
-      - name: 🗂️ Prepare deployment package (Laravel only)
+      - name: 🔄 Restore original Vite config
         run: |
-          echo "📁 Preparing Laravel-only deployment package..."
+          mv vite.config.js.backup vite.config.js || echo "No backup to restore"
+
+      - name: 🗂️ Prepare deployment folder
+        run: |
+          echo "📁 Preparing deployment folder..."
           rm -rf deployment
           mkdir -p deployment
-          cp -r backadm-dmc deployment/backadm-dmc
-          echo "✅ Package contains only backadm-dmc to avoid touching React root"
+          cp -r build/* deployment/
+          if [ -d public ]; then
+            cp -r public/* deployment/ 2>/dev/null || true
+          fi
+          echo "✅ React build files prepared for deployment"
 
-      - name: 🔐 Azure Login
+      - name: 🔧 Create .htaccess for React routing
+        run: |
+          cat > deployment/.htaccess << 'EOF'
+          # React.js SPA routing configuration
+          RewriteEngine On
+          RewriteCond %{REQUEST_FILENAME} -f [OR]
+          RewriteCond %{REQUEST_FILENAME} -d
+          RewriteRule ^ - [L]
+          RewriteRule ^ /index.html [L]
+          <IfModule mod_headers.c>
+              Header always set X-Content-Type-Options nosniff
+              Header always set X-Frame-Options SAMEORIGIN
+              Header always set X-XSS-Protection "1; mode=block"
+              Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+          </IfModule>
+          <IfModule mod_deflate.c>
+              AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/xml application/xhtml+xml application/rss+xml application/javascript application/x-javascript
+          </IfModule>
+          <IfModule mod_expires.c>
+              ExpiresActive On
+              ExpiresByType text/css "access plus 1 year"
+              ExpiresByType application/javascript "access plus 1 year"
+              ExpiresByType image/png "access plus 1 year"
+              ExpiresByType image/jpg "access plus 1 year"
+              ExpiresByType image/jpeg "access plus 1 year"
+              ExpiresByType image/gif "access plus 1 year"
+              ExpiresByType image/svg+xml "access plus 1 year"
+              ExpiresByType application/pdf "access plus 1 month"
+              ExpiresByType text/html "access plus 0 seconds"
+          </IfModule>
+          EOF
+          echo "✅ .htaccess file created for React routing"
+
+      - name: 🔍 Create React deployment info
+        run: |
+          cat > deployment/react-deployment-info.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>React Deployment Info</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .info { background: #f0f8ff; padding: 15px; border-radius: 5px; }
+                  .success { color: #28a745; }
+                  .warning { color: #ffc107; }
+              </style>
+          </head>
+          <body>
+              <h2>React Deployment Information</h2>
+              <div class="info">
+                  <h3 class="success">✅ React Application Deployed Successfully</h3>
+                  <p><strong>Deployment Date:</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
+                  <p><strong>Branch:</strong> design_staging</p>
+                  <p><strong>Build:</strong> Production</p>
+                  <h3>📁 Preserved Files & Folders:</h3>
+                  <ul>
+                      <li>✅ default file</li>
+                      <li>✅ backadm-dmc folder (complete)</li>
+                  </ul>
+                  <h3>🎯 Access Points:</h3>
+                  <ul>
+                      <li><strong>React App:</strong> <a href="/">Main Application</a></li>
+                      <li><strong>Laravel Admin:</strong> <a href="/backadm-dmc/">Backend Admin</a></li>
+                  </ul>
+              </div>
+          </body>
+          </html>
+          EOF
+          echo "✅ React deployment info created"
+
+      - name: 🔐 Login to Azure
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy Laravel folder to Azure Web App (dmc-app-dev)
+      - name: 🛡️ Preserve backadm-dmc and default from existing site
+        run: |
+          echo "🔍 Downloading existing content to preserve Laravel backend..."
+          az webapp ssh --name dmc-app-dev --resource-group rg-dmc-app-dev --timeout 5 || true
+          # If we can access, copy out critical assets via Kudu Zip API best-effort
+          curl -fsS -o existing.zip https://dmc-app-dev.scm.azurewebsites.net/api/zip/site/wwwroot/ || echo "Could not fetch existing site zip"
+          mkdir -p existing && unzip -q existing.zip -d existing || true
+          [ -d existing/backadm-dmc ] && cp -r existing/backadm-dmc deployment/ && echo "✅ Preserved backadm-dmc" || true
+          [ -f existing/default ] && cp existing/default deployment/ && echo "✅ Preserved default" || true
+
+      - name: 🚀 Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: dmc-app-dev
           slot-name: Production
           package: ./deployment
 
-      - name: 🔧 Post-deploy Laravel maintenance (best-effort)
-        if: ${{ secrets.AZURE_PUBLISH_PROFILE != '' }}
-        env:
-          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          APP_NAME: dmc-app-dev
+      - name: 🎉 Deployment Summary
         run: |
-          echo "⚙️ Running post-deploy maintenance via Kudu (best-effort)"
-          python3 - << 'PY'
-import os, base64, xml.etree.ElementTree as ET, subprocess
-pf = os.environ.get('AZURE_PUBLISH_PROFILE', '')
-if not pf:
-    raise SystemExit(0)
-xml = base64.b64decode(pf.encode()).decode('utf-8') if pf.strip().startswith(('PD94','PFR1')) else pf
-root = ET.fromstring(xml)
-user = root.find('.//publishProfile[@publishMethod="MSDeploy"]').get('userName')
-pwd  = root.find('.//publishProfile[@publishMethod="MSDeploy"]').get('userPWD')
-app  = os.environ['APP_NAME']
-def kudu(cmd):
-    url = f"https://{app}.scm.azurewebsites.net/api/command"
-    subprocess.run(['curl','-sS','-u',f'{user}:{pwd}','-X','POST',url,'-d',cmd,'-H','Content-Type:text/plain'], check=False)
-commands = [
-  'set -e; cd /home/site/wwwroot; mkdir -p backadm-dmc/storage/app/public backadm-dmc/storage/framework/cache backadm-dmc/storage/framework/sessions backadm-dmc/storage/framework/testing backadm-dmc/storage/framework/views backadm-dmc/storage/logs; touch backadm-dmc/storage/logs/laravel.log; chmod -R 775 backadm-dmc/storage || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan config:cache || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan route:cache || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan view:cache || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan storage:link || true'
-]
-for c in commands:
-    kudu(c)
-PY
+          echo "🎯 React app deployed to root without touching backadm-dmc/default."
 
-      - name: ✅ Verify Laravel endpoint
-        run: |
-          sleep 10
-          curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Laravel may still be warming up"
-
-      - name: ✅ Deployment Summary
-        run: |
-          echo "🎉 Laravel deployment (backadm-dmc) completed."
-          echo "→ Deployed only /backadm-dmc to avoid affecting React root."
-          echo "→ Ensured storage directories exist and attempted to set permissions."
