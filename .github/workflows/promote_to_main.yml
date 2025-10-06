@@ -69,31 +69,31 @@ jobs:
         run: |
           echo "⚙️ Ensuring Laravel storage directories exist and are writable..."
           python3 - << 'PY'
-import os, base64, xml.etree.ElementTree as ET, subprocess
-pf = os.environ.get('AZURE_PUBLISH_PROFILE', '')
-if not pf:
-    raise SystemExit(0)
-try:
-    xml = base64.b64decode(pf.encode()).decode('utf-8')
-except Exception:
-    xml = pf
-root = ET.fromstring(xml)
-msdeploy = root.find('.//publishProfile[@publishMethod="MSDeploy"]')
-user = msdeploy.get('userName')
-pwd  = msdeploy.get('userPWD')
-app  = os.environ['APP_NAME']
-def kudu(cmd):
-    url = f"https://{app}.scm.azurewebsites.net/api/command"
-    subprocess.run(['curl','-sS','-u',f'{user}:{pwd}','-X','POST',url,'-d',cmd,'-H','Content-Type:text/plain'], check=False)
-commands = [
-  'set -e; cd /home/site/wwwroot; mkdir -p backadm-dmc/storage/app/public backadm-dmc/storage/framework/cache backadm-dmc/storage/framework/sessions backadm-dmc/storage/framework/testing backadm-dmc/storage/framework/views backadm-dmc/storage/logs backadm-dmc/bootstrap/cache; touch backadm-dmc/storage/logs/laravel.log; chmod -R 775 backadm-dmc/storage backadm-dmc/bootstrap/cache || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan storage:link || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan config:cache || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan route:cache || true',
-  'cd /home/site/wwwroot/backadm-dmc && php artisan view:cache || true'
-]
-for c in commands:
-    kudu(c)
+  import os, base64, xml.etree.ElementTree as ET, subprocess
+  pf = os.environ.get('AZURE_PUBLISH_PROFILE', '')
+  if not pf:
+      raise SystemExit(0)
+  try:
+      xml = base64.b64decode(pf.encode()).decode('utf-8')
+  except Exception:
+      xml = pf
+  root = ET.fromstring(xml)
+  msdeploy = root.find('.//publishProfile[@publishMethod="MSDeploy"]')
+  user = msdeploy.get('userName')
+  pwd  = msdeploy.get('userPWD')
+  app  = os.environ['APP_NAME']
+  def kudu(cmd):
+      url = f"https://{app}.scm.azurewebsites.net/api/command"
+      subprocess.run(['curl','-sS','-u',f'{user}:{pwd}','-X','POST',url,'-d',cmd,'-H','Content-Type:text/plain'], check=False)
+  commands = [
+    'set -e; cd /home/site/wwwroot; mkdir -p backadm-dmc/storage/app/public backadm-dmc/storage/framework/cache backadm-dmc/storage/framework/sessions backadm-dmc/storage/framework/testing backadm-dmc/storage/framework/views backadm-dmc/storage/logs backadm-dmc/bootstrap/cache; touch backadm-dmc/storage/logs/laravel.log; chmod -R 775 backadm-dmc/storage backadm-dmc/bootstrap/cache || true',
+    'cd /home/site/wwwroot/backadm-dmc && php artisan storage:link || true',
+    'cd /home/site/wwwroot/backadm-dmc && php artisan config:cache || true',
+    'cd /home/site/wwwroot/backadm-dmc && php artisan route:cache || true',
+    'cd /home/site/wwwroot/backadm-dmc && php artisan view:cache || true'
+  ]
+  for c in commands:
+      kudu(c)
 PY
 
       - name: ✅ Verify Laravel endpoint
