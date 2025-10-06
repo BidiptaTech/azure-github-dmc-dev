@@ -304,7 +304,11 @@ class SingleTourPackageController extends Controller
             $hotels = Hotel::with(['rooms.bed'])
                 ->where('country', $tour->destination)
                 ->whereJsonContains('dmc_id', (int)$userDmcId)
-                ->get();
+                ->get()
+                ->filter(function ($hotel) use ($userDmcId) {
+                    // Check if this hotel has zone assignments for the current DMC
+                    return $hotel->isAssignedToZoneByDmc($userDmcId);
+                });
             
          } else {
             $hotels = collect(); // Empty collection if no DMC ID
@@ -315,13 +319,21 @@ class SingleTourPackageController extends Controller
             $query->where('dmc_id', $userDmcId);
         }])
         ->whereJsonContains('dmc_id', $userDmcId)
-        ->get();
+        ->get()
+        ->filter(function ($restaurant) use ($userDmcId) {
+            // Check if this restaurant has zone assignments for the current DMC
+            return $restaurant->isAssignedToZoneByDmc($userDmcId);
+        });
 
         $attractions = Attraction::with(['tickets' => function($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
         ->whereJsonContains('dmc_id', $userDmcId)
-        ->get();
+        ->get()
+        ->filter(function ($attraction) use ($userDmcId) {
+            // Check if this attraction has zone assignments for the current DMC
+            return $attraction->isAssignedToZoneByDmc($userDmcId);
+        });
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
         $dmc_id = CommonHelper::getDmcId(Auth::user());
