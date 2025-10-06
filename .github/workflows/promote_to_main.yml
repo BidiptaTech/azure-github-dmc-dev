@@ -6,7 +6,6 @@ on:
       - staging
   workflow_dispatch:
 
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -33,7 +32,7 @@ jobs:
         run: |
           curl -sS https://getcomposer.org/installer | php
           mv composer.phar /usr/local/bin/composer
-          
+
       - name: 📦 Run composer install if composer.json exists
         if: steps.check_files.outputs.files_exists == 'true'
         run: |
@@ -63,9 +62,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy to Azure Web App (preserving React files)
+      - name: 🚀 Deploy to Azure Web App (resilient against 499/504)
         run: |
-          echo "🚀 Starting deployment with resilience against 499 timeout..."
+          echo "🚀 Starting deployment with resilience against 499/504 timeouts..."
           set +e
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
@@ -75,51 +74,49 @@ jobs:
             --restart true
           DEPLOY_EXIT=$?
           echo "Azure CLI exited with code: $DEPLOY_EXIT"
-      
-          # If exit code is non-zero, check if deployment actually succeeded
+
           if [ "$DEPLOY_EXIT" -ne 0 ]; then
-            echo "⚠️ Deployment returned non-zero code (likely 499 timeout). Checking deployment logs..."
-            DEPLOY_STATUS=$(az webapp log deployment show \
-              --resource-group rg-dmc-app-dev \
-              --name dmc-app-dev \
-              --query status -o tsv 2>/dev/null || echo "Unknown")
-      
-            echo "Deployment status from Azure: $DEPLOY_STATUS"
-      
-            if [ "$DEPLOY_STATUS" = "4" ] || [ "$DEPLOY_STATUS" = "Succeeded" ]; then
-              echo "✅ Deployment completed successfully despite 499 timeout."
-              exit 0
-            else
-              echo "❌ Deployment failed according to Azure logs. Exiting with error."
-              exit 1
-            fi
+            echo "⚠️ Non-zero exit detected (likely 499/504). Checking Azure deployment logs..."
+            # Poll for final deployment result
+            for i in {1..10}; do
+              echo "⏳ Checking deployment status (attempt $i/10)..."
+              DEPLOY_STATUS=$(az webapp log deployment show \
+                --resource-group rg-dmc-app-dev \
+                --name dmc-app-dev \
+                --query status -o tsv 2>/dev/null || echo "Unknown")
+
+              echo "Current deployment status: $DEPLOY_STATUS"
+              if [ "$DEPLOY_STATUS" = "4" ] || [ "$DEPLOY_STATUS" = "Succeeded" ]; then
+                echo "✅ Deployment succeeded despite timeout."
+                exit 0
+              fi
+              sleep 20
+            done
+
+            echo "❌ Deployment did not reach success after retries."
+            exit 1
           else
             echo "✅ Deployment completed successfully."
           fi
-
 
       - name: ⚙️ Create startup script for Laravel and NGINX setup
         run: |
           cat > startup.sh << 'EOF'
           #!/bin/bash
           echo "🚀 Starting Laravel and NGINX setup..."
-
-          # Remove only specific files
           rm -f /home/site/wwwroot/default
           rm -f /home/site/wwwroot/laravel-debug.php
           rm -f /home/site/wwwroot/startup.sh
           rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
           rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
 
-          # Clear OPcache
+          # Clear caches
           if command -v php >/dev/null 2>&1; then
               php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
           fi
-
-          # Clear Composer cache
           composer clear-cache || true
 
-          # Configure NGINX for Laravel
+          # NGINX config
           cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
           server {
               listen 8080;
@@ -135,7 +132,6 @@ jobs:
                   alias /home/site/wwwroot/backadm-dmc/public/;
                   index index.php;
                   try_files $uri $uri/ @backadm_dmc_fallback;
-
                   location ~ \.php$ {
                       include fastcgi_params;
                       fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
@@ -171,15 +167,12 @@ jobs:
               add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
           }
           NGINX_EOF
-
           cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
           nginx -t && service nginx reload
 
           cd /home/site/wwwroot/backadm-dmc
-
           mkdir -p storage/framework/{sessions,views,cache/data}
           mkdir -p storage/{logs,app/public} bootstrap/cache
-
           chmod -R 775 storage bootstrap/cache
 
           php artisan optimize:clear || true
@@ -189,20 +182,16 @@ jobs:
               php artisan key:generate --force || true
           fi
 
-          # 💡 Insert clear and optimize commands here
           php artisan cache:clear || true
           php artisan route:clear || true
           php artisan view:clear || true
           php artisan optimize || true
-
-          
           php artisan config:cache || true
           php artisan route:cache || true
           php artisan view:cache || true
 
           echo "✅ Laravel and NGINX setup completed"
           EOF
-
           chmod +x startup.sh
 
       - name: 📄 Upload and run startup script
@@ -234,4 +223,4 @@ jobs:
           echo "🔋 OPcache and Composer cache cleared for clean run"
           echo "🚀 Production-ready optimization: route, view, and config cached"
           echo "🚧 Secure headers and HTTPS enforced by NGINX"
-          echo "📆 Deploy triggered by push to staging branch" 
+          echo "📆 Deploy triggered by push to staging branch"
