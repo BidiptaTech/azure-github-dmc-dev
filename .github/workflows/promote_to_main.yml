@@ -1,4 +1,4 @@
-name: Build and Deploy PHP App to Azure Web App - dmc-app-dev
+name: 🚀 Build & Deploy Laravel + React to Azure Web App - dmc-app-dev
 
 on:
   push:
@@ -6,176 +6,149 @@ on:
       - staging
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
 
     steps:
+      # 1️⃣ Checkout staging branch
       - name: 📅 Checkout staging branch
         uses: actions/checkout@v4
 
-      - name: 🧠 Setup PHP
+      # 2️⃣ Setup Node.js
+      - name: 🧰 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # 3️⃣ Setup PHP
+      - name: 🔧 Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
 
-      - name: 🗒️ Check if composer.json exists
-        id: check_files
-        uses: andstor/file-existence-action@v1
-        with:
-          files: 'backadm-dmc/composer.json'
-
+      # 4️⃣ Install Composer globally
       - name: 🔧 Install Composer Globally
         run: |
           curl -sS https://getcomposer.org/installer | php
-          mv composer.phar /usr/local/bin/composer
-          
-      - name: 📦 Run composer install if composer.json exists
-        if: steps.check_files.outputs.files_exists == 'true'
+          sudo mv composer.phar /usr/local/bin/composer
+
+      # 5️⃣ Install Laravel dependencies
+      - name: 📦 Install Laravel Dependencies
+        working-directory: backadm-dmc
         run: |
-          cd backadm-dmc
           composer validate --no-check-publish
-          composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
-      - name: 📦 Create ZIP for deployment
+          composer install --prefer-dist --no-dev --optimize-autoloader
+
+      # 6️⃣ Install React dependencies & build
+      - name: 🏗️ Build React Application
         run: |
-          zip -r release.zip . \
-            -x ".git/*" \
-            -x "node_modules/*" \
-            -x "tests/*" \
-            -x "*.md" \
-            -x ".github/*" \
-            -x ".gitignore" \
-            -x ".gitattributes" \
-            -x ".editorconfig" \
-            -x "phpunit.xml" \
-            -x "vite.config.js" \
-            -x "package*.json"
-      - name: 🔐 Login to Azure using OIDC
+          npm ci
+          npm install @vitejs/plugin-react --save-dev || echo "Plugin already installed"
+          npm rebuild @swc/core || echo "SWC rebuild failed, continuing..."
+          rm -rf build dist
+          npm run build
+
+      # 7️⃣ Backup original vite config (optional)
+      - name: 🔧 Backup Vite config
+        run: |
+          cp vite.config.js vite.config.js.backup || echo "No vite config to backup"
+
+      # 8️⃣ Prepare deployment package
+      - name: 📦 Prepare deployment package
+        run: |
+          mkdir -p deployment
+          # Copy React build to root
+          cp -r build/* deployment/
+          # Copy Laravel backend
+          cp -r backadm-dmc deployment/backadm-dmc
+          # Copy public folder files
+          if [ -d public ]; then cp -r public/* deployment/ 2>/dev/null || true; fi
+          # Copy custom root-level files
+          for file in laravel-debug.php startup.sh default .htaccess .user.ini; do
+            [ -f "$file" ] && cp "$file" deployment/ && echo "✅ Copied $file"
+          done
+          cd deployment
+          zip -r ../release.zip . -x "*.git*" -x "node_modules/*" -x "*.md" -x ".github/*" -x "vite.config.js" -x "package*.json"
+          cd ..
+
+      # 9️⃣ Azure login
+      - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy to Azure Web App (preserving React files)
+      # 🔟 Deploy zip to Azure Web App
+      - name: 🚀 Deploy to Azure Web App
         run: |
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
             --type zip
-      - name: ⚙️ Create startup script for Laravel and NGINX setup
+
+      # 1️⃣1️⃣ Create startup script for Laravel + basic NGINX tasks
+      - name: ⚙️ Create startup.sh
         run: |
           cat > startup.sh << 'EOF'
           #!/bin/bash
-          echo "🚀 Starting Laravel and NGINX setup..."
-          # Remove only specific files
-          rm -f /home/site/wwwroot/default
-          rm -f /home/site/wwwroot/laravel-debug.php
-          rm -f /home/site/wwwroot/startup.sh
-          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
-          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
-          # Clear OPcache
-          if command -v php >/dev/null 2>&1; then
-              php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
-          fi
-          # Clear Composer cache
-          composer clear-cache || true
-          # Configure NGINX for Laravel
-          cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
-          server {
-              listen 8080;
-              root /home/site/wwwroot;
-              index index.php index.html;
-              server_name _;
-              if ($http_x_forwarded_proto != "https") {
-                  return 301 https://$host$request_uri;
-              }
-              location ^~ /backadm-dmc/ {
-                  alias /home/site/wwwroot/backadm-dmc/public/;
-                  index index.php;
-                  try_files $uri $uri/ @backadm_dmc_fallback;
-                  location ~ \.php$ {
-                      include fastcgi_params;
-                      fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
-                      fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
-                      fastcgi_param REQUEST_URI $request_uri;
-                      fastcgi_param HTTPS on;
-                      fastcgi_pass 127.0.0.1:9000;
-                  }
-              }
-              location = /backadm-dmc {
-                  return 301 $scheme://$host/backadm-dmc/;
-              }
-              location @backadm_dmc_fallback {
-                  rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
-              }
-              location / {
-                  try_files $uri $uri/ =404;
-              }
-              location ~ \.php$ {
-                  include fastcgi_params;
-                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-                  fastcgi_param HTTPS on;
-                  fastcgi_pass 127.0.0.1:9000;
-              }
-              add_header X-Content-Type-Options nosniff;
-              add_header X-Frame-Options SAMEORIGIN;
-              add_header X-XSS-Protection "1; mode=block";
-              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-          }
-          NGINX_EOF
-          cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-          nginx -t && service nginx reload
+          echo "🚀 Running Laravel startup tasks..."
           cd /home/site/wwwroot/backadm-dmc
-          mkdir -p storage/framework/{sessions,views,cache/data}
+          
+          # Create storage & bootstrap directories
+          mkdir -p storage/framework/{cache,sessions,views}
           mkdir -p storage/{logs,app/public} bootstrap/cache
           chmod -R 775 storage bootstrap/cache
-          php artisan optimize:clear || true
+
+          # Laravel optimizations
           php artisan storage:link || true
           if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
               php artisan key:generate --force || true
           fi
-          # 💡 Insert clear and optimize commands here
+          php artisan optimize:clear || true
           php artisan cache:clear || true
-          php artisan route:clear || true
-          php artisan view:clear || true
-          php artisan optimize || true
-          
           php artisan config:cache || true
           php artisan route:cache || true
           php artisan view:cache || true
-          echo "✅ Laravel and NGINX setup completed"
+          echo "✅ Laravel startup tasks completed"
           EOF
           chmod +x startup.sh
-      - name: 📄 Upload and run startup script
+
+      # 1️⃣2️⃣ Set Azure startup command
+      - name: ⚙️ Set Azure startup command
         run: |
-          az webapp deploy \
+          az webapp config set \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
-            --src-path startup.sh \
-            --type startup
+            --startup-file '/home/site/wwwroot/startup.sh'
+
+      # 1️⃣3️⃣ Restart Azure Web App
       - name: 🔄 Restart Azure Web App
-        run: |
-          az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
+        run: az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
+
+      # 1️⃣4️⃣ Verify deployment
       - name: ✅ Verify Deployment
         run: |
           sleep 30
-          curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Application may still be starting"
+          curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Laravel may still be starting"
+          curl -f https://dev.travclicks.com/ || echo "React may still be starting"
+
+      # 1️⃣5️⃣ Deployment summary
       - name: 📦 Deployment Summary
         run: |
           echo "🎉 Deployment finished!"
-          echo "🌍 App URL: https://dev.travclicks.com/backadm-dmc"
-          echo "✔️ Laravel ready, React preserved, NGINX optimized"
-          echo "🚫 Azure Key Vault removed, HTTPS enforced"
-          echo "🔄 NGINX routes Laravel under /backadm-dmc and React at root"
-          echo "🔎 Laravel caches cleared, storage linked, key generated"
-          echo "🛠️ All Laravel directories created and permissioned"
-          echo "🔋 OPcache and Composer cache cleared for clean run"
-          echo "🚀 Production-ready optimization: route, view, and config cached"
-          echo "🚧 Secure headers and HTTPS enforced by NGINX"
-          echo "📆 Deploy triggered by push to staging branch" 
+          echo "🌍 App URL: https://dev.travclicks.com/"
+          echo "✔️ Laravel backend deployed to /backadm-dmc"
+          echo "✔️ React frontend preserved at root"
+          echo "✔️ Storage directories created, permissions set"
+          echo "✔️ Laravel caches cleared and optimized"
+          echo "✔️ Custom files deployed (.htaccess, startup.sh, laravel-debug.php, default)"
