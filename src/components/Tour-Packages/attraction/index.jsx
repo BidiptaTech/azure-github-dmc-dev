@@ -183,27 +183,46 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
 
     // Filter attractions - show all for first dayIndex, match by bookingDate for other days
-    const dayAttractions = attractionspack.filter(attractionService => {
+    console.log(`=== FILTERING FOR DAYINDEX ${dayIndex} ===`);
+    const dayAttractions = attractionspack.filter((attractionService, index) => {
       const attractionData = attractionService.data?.[0];
-      console.log('Attraction data:', attractionData);
+      console.log(`Processing attraction ${index}:`, {
+        attractionName: attractionData?.AttractionName,
+        bookingDate: attractionData?.bookingDate,
+        dayIndex: dayIndex
+      });
 
-      if (!attractionData) return false;
+      if (!attractionData) {
+        console.log(`Attraction ${index}: No data, skipping`);
+        return false;
+      }
 
-      // For first dayIndex (dayIndex === 0), show all attractions regardless of bookingDate
+      // For first dayIndex (dayIndex === 0), show attractions that either match current bookingDate OR don't match any tour dates
       if (dayIndex === 0) {
-        console.log('First dayIndex - showing all attractions regardless of bookingDate');
-        return true;
+        
+        
+        // Show if it matches current bookingDate OR doesn't match any tour dates
+        const matchesCurrentDate = attractionData.bookingDate === bookingDate;
+        const notInTourDates = !tourDates.includes(attractionData.bookingDate);
+        const shouldShow = matchesCurrentDate || notInTourDates;
+        
+       
+        return shouldShow;
       }
 
       // For other dayIndexes, match by bookingDate
-      return attractionData.bookingDate === bookingDate;
+      const matchesBookingDate = attractionData.bookingDate === bookingDate;
+    
+      return matchesBookingDate;
     });
 
     if (dayAttractions.length === 0) {
-      console.log(`No attractions found for dayIndex ${dayIndex}${dayIndex === 0 ? ' (showing all dates)' : ` (bookingDate: ${bookingDate})`}`);
+     
       isInitializingRef.current = false; // Ensure flag is reset when no attractions found
       return;
     }
+
+   
 
     // Convert attraction data to form sections for current day
     const newFormSections = dayAttractions.map((attractionService, index) => {
@@ -243,12 +262,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       return formSection;
     });
 
-    console.log('Initialized form sections for current day:', newFormSections);
-    console.log('Form sections by type:', {
-      attractions: newFormSections.filter(s => s.type === 'attraction').length,
-      packages: newFormSections.filter(s => s.type === 'attraction_package').length
-    });
-    console.log('Setting form sections with data:', newFormSections);
+   
+    
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
     
@@ -257,7 +272,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       isInitializingRef.current = false;
       console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [attractionspack, dayIndex, bookingDate, tour]); // Added tour to dependencies
+  }, [attractionspack, dayIndex, bookingDate, tour, tourDates]); // Added tourDates to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {

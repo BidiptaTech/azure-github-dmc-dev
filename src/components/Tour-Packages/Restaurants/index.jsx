@@ -213,10 +213,17 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       
       if (!restaurantData) return false;
 
-      // For first dayIndex (dayIndex === 0), show all restaurants regardless of bookingDate
+      // For first dayIndex (dayIndex === 0), show restaurants that either match current bookingDate OR don't match any tour dates
       if (dayIndex === 0) {
-        console.log('First dayIndex - showing all restaurants regardless of bookingDate');
-        return true;
+       
+        
+        // Show if it matches current bookingDate OR doesn't match any tour dates
+        const matchesCurrentDate = restaurantData.bookingDate === bookingDate;
+        const notInTourDates = !tourDates.includes(restaurantData.bookingDate);
+        const shouldShow = matchesCurrentDate || notInTourDates;
+        
+        
+        return shouldShow;
       }
 
       // For other dayIndexes, match by bookingDate
@@ -272,7 +279,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       isInitializingRef.current = false;
       console.log('Restaurant initialization completed, handleInputChange is now enabled');
     }, 100);
-  }, [restaurantspack, dayIndex, bookingDate, tour]); // Added tour to dependencies
+  }, [restaurantspack, dayIndex, bookingDate, tour, tourDates]); // Added tourDates to dependencies
 
   // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
   const dispatchAllRestaurantsToRedux = useCallback(() => {

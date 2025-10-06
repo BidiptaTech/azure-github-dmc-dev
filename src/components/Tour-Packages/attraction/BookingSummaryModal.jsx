@@ -361,7 +361,7 @@ const BookingSummaryModal = ({
           )}
 
           {/* Booking Date */}
-          {bookingData && (
+          {/* {bookingData && (
             <SummarySection>
               <Box
                 sx={{
@@ -381,7 +381,7 @@ const BookingSummaryModal = ({
                 </Typography>
               </Box>
             </SummarySection>
-          )}
+          )} */}
 
           {/* Attraction Details - Only show for individual tickets, not packages */}
           {!isPackage && (
