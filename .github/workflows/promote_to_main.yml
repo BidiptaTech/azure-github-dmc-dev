@@ -167,10 +167,16 @@ jobs:
           KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
           set -e
+          echo "🌐 Resolving Kudu hostname..."
+          HOST=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query defaultHostName -o tsv)
+          SCM_HOST=${HOST/azurewebsites.net/scm.azurewebsites.net}
+          echo "✅ Using Kudu host: $SCM_HOST"
           echo "🚀 Uploading laravel backadm-dmc zip to Kudu subfolder..."
-          curl -sS -u "$KUDU_USER:$KUDU_PASS" -X PUT \
-            "https://${APP_NAME}.scm.azurewebsites.net/api/zip/backadm-dmc" \
-            -H "Content-Type: application/zip" --data-binary @release.zip
+          for i in 1 2 3; do 
+            curl -sS -u "$KUDU_USER:$KUDU_PASS" -X PUT \
+              "https://$SCM_HOST/api/zip/backadm-dmc" \
+              -H "Content-Type: application/zip" --data-binary @release.zip && break || sleep 2; 
+          done
 
       - name: ⚙️ Configure startup file to run uploaded script
         env:
@@ -178,8 +184,10 @@ jobs:
           KUDU_USER: ${{ steps.kudu.outputs.user }}
           KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
+          HOST=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query defaultHostName -o tsv)
+          SCM_HOST=${HOST/azurewebsites.net/scm.azurewebsites.net}
           curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
-            "https://${APP_NAME}.scm.azurewebsites.net/api/command" \
+            "https://$SCM_HOST/api/command" \
             -H "Content-Type:text/plain" \
             -d "chmod +x /home/site/wwwroot/startup.sh && echo done"
 
@@ -189,13 +197,15 @@ jobs:
           KUDU_USER: ${{ steps.kudu.outputs.user }}
           KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
+          HOST=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query defaultHostName -o tsv)
+          SCM_HOST=${HOST/azurewebsites.net/scm.azurewebsites.net}
           CMD='set -e; cd /home/site/wwwroot/backadm-dmc; \
           mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache; \
           touch storage/logs/laravel.log; \
           chmod -R 775 storage bootstrap/cache || true; \
           php artisan storage:link || true'
           curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
-            "https://${APP_NAME}.scm.azurewebsites.net/api/command" \
+            "https://$SCM_HOST/api/command" \
             -H "Content-Type:text/plain" \
             -d "$CMD"
 
