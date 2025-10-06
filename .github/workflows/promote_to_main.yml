@@ -35,7 +35,7 @@ jobs:
         run: |
           curl -sS https://getcomposer.org/installer | php
           mv composer.phar /usr/local/bin/composer
-          
+
       - name: 📦 Run composer install if composer.json exists
         if: env.files_exist == 'true'
         run: |
