@@ -918,12 +918,12 @@
                                     
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                            <i class="fas fa-history me-1"></i> Payment History
+                                            <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
                                     @else  
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                                <i class="fas fa-history me-1"></i> Payment History
+                                                <i class="fas fa-history me-1"></i> Payment Details
                                             </button>
                                         @endif
 
@@ -2706,12 +2706,12 @@
                                                              style="border-radius: 25px;">
                                                          <i class="ri-edit-line me-1"></i>Edit
                                                      </button>
-                                                     <button type="button" 
+                                                     {{-- <button type="button" 
                                                              class="btn btn-outline-success btn-sm px-3 py-2" 
                                                              onclick="approveIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                              style="border-radius: 25px;">
                                                          <i class="ri-check-line me-1"></i>Approve
-                                                     </button>
+                                                     </button> --}}
                                                      @endif
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
@@ -3036,12 +3036,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -3356,12 +3356,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -3442,7 +3442,7 @@
         $remainingAmount = $finalAmount - $totalPaid;
     @endphp
 
-    <!-- Payment History Modal -->
+    <!-- Payment Details Modal -->
     <style>
         @media (max-width: 768px) {
             #showPaymentModal{{ $tour->tour_id }} .modal-dialog {
@@ -3475,7 +3475,7 @@
                 <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 12px 20px; border-radius: 8px 8px 0 0; flex-shrink: 0;">
                     <h5 class="modal-title d-flex align-items-center" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white; font-size: 1.1rem;">
                         <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1.2rem;"></i> 
-                        <span style="color: white;">Payment History for Tour #{{ $tour->tour_id }}</span>
+                        <span style="color: white;">Payment Details for Tour #{{ $tour->tour_id }}</span>
                     </h5>
                     <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
                 </div>
@@ -4074,12 +4074,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4459,12 +4459,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4843,12 +4843,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -5427,12 +5427,7 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
-                    <button type="button" 
-                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="approveIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
-                            style="border-radius: 25px;">
-                        <i class="ri-check-line me-1"></i>Approve
-                    </button>
+                    
             ` : ''}
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                     <button type="button" 
@@ -13327,12 +13322,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                            onclick="approveTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -14607,12 +14597,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                             style="border-radius: 25px;">
                                         <i class="ri-edit-line me-1"></i>Edit
                                     </button>
-                                    <button type="button" 
-                                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                                            onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-check-line me-1"></i>Approve
-                                    </button>
+                                    
                                     @endif
                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <button type="button" 
@@ -16062,12 +16047,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -17276,12 +17256,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -17289,6 +17264,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-close-line me-1"></i>Reject
+                                    
                                 </button>
                                 @endif
                             </div>
