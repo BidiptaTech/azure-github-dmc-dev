@@ -1,10 +1,11 @@
 name: Build and Deploy PHP App to Azure Web App - dmc-app-dev
- 
+
 on:
   push:
     branches:
       - staging
   workflow_dispatch:
+
 
 jobs:
   build-and-deploy:
@@ -62,131 +63,118 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # ✅ Warmup Kudu to reduce 502/504 errors
-      - name: 🧊 Warm up Azure Kudu
-        run: |
-          echo "Warming up Kudu..."
-          curl -s -o /dev/null -w "%{http_code}" https://dmc-app-dev.scm.southeastasia-01.azurewebsites.net/api/settings || true
-          echo "Kudu warmed up"
-
-      - name: ⚡ Enable Run From Package
-        run: |
-          az webapp config appsettings set \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --settings WEBSITE_RUN_FROM_PACKAGE=1
-
       - name: 🚀 Deploy to Azure Web App (preserving React files)
         run: |
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
-            --type zip \
-            --restart true
+            --type zip
 
       - name: ⚙️ Create startup script for Laravel and NGINX setup
         run: |
           cat > startup.sh << 'EOF'
-#!/bin/bash
-echo "🚀 Starting Laravel and NGINX setup..."
+          #!/bin/bash
+          echo "🚀 Starting Laravel and NGINX setup..."
 
-# Remove only specific files
-rm -f /home/site/wwwroot/default
-rm -f /home/site/wwwroot/laravel-debug.php
-rm -f /home/site/wwwroot/startup.sh
-rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
-rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
+          # Remove only specific files
+          rm -f /home/site/wwwroot/default
+          rm -f /home/site/wwwroot/laravel-debug.php
+          rm -f /home/site/wwwroot/startup.sh
+          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
+          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
 
-# Clear OPcache
-if command -v php >/dev/null 2>&1; then
-    php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
-fi
+          # Clear OPcache
+          if command -v php >/dev/null 2>&1; then
+              php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
+          fi
 
-# Clear Composer cache
-composer clear-cache || true
+          # Clear Composer cache
+          composer clear-cache || true
 
-# Configure NGINX for Laravel
-cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
-server {
-    listen 8080;
-    root /home/site/wwwroot;
-    index index.php index.html;
-    server_name _;
+          # Configure NGINX for Laravel
+          cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
+          server {
+              listen 8080;
+              root /home/site/wwwroot;
+              index index.php index.html;
+              server_name _;
 
-    if ($http_x_forwarded_proto != "https") {
-        return 301 https://$host$request_uri;
-    }
+              if ($http_x_forwarded_proto != "https") {
+                  return 301 https://$host$request_uri;
+              }
 
-    location ^~ /backadm-dmc/ {
-        alias /home/site/wwwroot/backadm-dmc/public/;
-        index index.php;
-        try_files $uri $uri/ @backadm_dmc_fallback;
+              location ^~ /backadm-dmc/ {
+                  alias /home/site/wwwroot/backadm-dmc/public/;
+                  index index.php;
+                  try_files $uri $uri/ @backadm_dmc_fallback;
 
-        location ~ \.php$ {
-            include fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
-            fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
-            fastcgi_param REQUEST_URI $request_uri;
-            fastcgi_param HTTPS on;
-            fastcgi_pass 127.0.0.1:9000;
-        }
-    }
+                  location ~ \.php$ {
+                      include fastcgi_params;
+                      fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
+                      fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
+                      fastcgi_param REQUEST_URI $request_uri;
+                      fastcgi_param HTTPS on;
+                      fastcgi_pass 127.0.0.1:9000;
+                  }
+              }
 
-    location = /backadm-dmc {
-        return 301 $scheme://$host/backadm-dmc/;
-    }
+              location = /backadm-dmc {
+                  return 301 $scheme://$host/backadm-dmc/;
+              }
 
-    location @backadm_dmc_fallback {
-        rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
-    }
+              location @backadm_dmc_fallback {
+                  rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
+              }
 
-    location / {
-        try_files $uri $uri/ =404;
-    }
+              location / {
+                  try_files $uri $uri/ =404;
+              }
 
-    location ~ \.php$ {
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param HTTPS on;
-        fastcgi_pass 127.0.0.1:9000;
-    }
+              location ~ \.php$ {
+                  include fastcgi_params;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  fastcgi_param HTTPS on;
+                  fastcgi_pass 127.0.0.1:9000;
+              }
 
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options SAMEORIGIN;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-}
-NGINX_EOF
+              add_header X-Content-Type-Options nosniff;
+              add_header X-Frame-Options SAMEORIGIN;
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+          }
+          NGINX_EOF
 
-cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-nginx -t && service nginx reload
+          cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+          nginx -t && service nginx reload
 
-cd /home/site/wwwroot/backadm-dmc
+          cd /home/site/wwwroot/backadm-dmc
 
-mkdir -p storage/framework/{sessions,views,cache/data}
-mkdir -p storage/{logs,app/public} bootstrap/cache
+          mkdir -p storage/framework/{sessions,views,cache/data}
+          mkdir -p storage/{logs,app/public} bootstrap/cache
 
-chmod -R 775 storage bootstrap/cache
+          chmod -R 775 storage bootstrap/cache
 
-php artisan optimize:clear || true
-php artisan storage:link || true
+          php artisan optimize:clear || true
+          php artisan storage:link || true
 
-if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-    php artisan key:generate --force || true
-fi
+          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
+              php artisan key:generate --force || true
+          fi
 
-# 💡 Insert clear and optimize commands here
-php artisan cache:clear || true
-php artisan route:clear || true
-php artisan view:clear || true
-php artisan optimize || true
-php artisan config:cache || true
-php artisan route:cache || true
-php artisan view:cache || true
+          # 💡 Insert clear and optimize commands here
+          php artisan cache:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          php artisan optimize || true
 
-echo "✅ Laravel and NGINX setup completed"
-EOF
+          
+          php artisan config:cache || true
+          php artisan route:cache || true
+          php artisan view:cache || true
+
+          echo "✅ Laravel and NGINX setup completed"
+          EOF
 
           chmod +x startup.sh
 
@@ -219,4 +207,4 @@ EOF
           echo "🔋 OPcache and Composer cache cleared for clean run"
           echo "🚀 Production-ready optimization: route, view, and config cached"
           echo "🚧 Secure headers and HTTPS enforced by NGINX"
-          echo "📆 Deploy triggered by push to staging branch"
+          echo "📆 Deploy triggered by push to staging branch" 
