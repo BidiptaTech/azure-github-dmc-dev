@@ -66,6 +66,10 @@ jobs:
         run: |
           echo "🚀 Starting deployment with resilience against 499/504 timeouts..."
           set +e
+
+          DEPLOY_START=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "📦 Deployment started at $DEPLOY_START"
+
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
@@ -73,27 +77,29 @@ jobs:
             --type zip \
             --restart true
           DEPLOY_EXIT=$?
+
           echo "Azure CLI exited with code: $DEPLOY_EXIT"
 
           if [ "$DEPLOY_EXIT" -ne 0 ]; then
-            echo "⚠️ Non-zero exit detected (likely 499/504). Checking Azure deployment logs..."
-            # Poll for final deployment result
+            echo "⚠️ Non-zero exit detected (likely 499/504). Checking if deployment still succeeded..."
+            
+            # Wait for app to show new deployment timestamp
             for i in {1..10}; do
-              echo "⏳ Checking deployment status (attempt $i/10)..."
-              DEPLOY_STATUS=$(az webapp log deployment show \
+              echo "⏳ Checking app's last modified time (attempt $i/10)..."
+              LAST_MODIFIED=$(az webapp show \
                 --resource-group rg-dmc-app-dev \
                 --name dmc-app-dev \
-                --query status -o tsv 2>/dev/null || echo "Unknown")
-
-              echo "Current deployment status: $DEPLOY_STATUS"
-              if [ "$DEPLOY_STATUS" = "4" ] || [ "$DEPLOY_STATUS" = "Succeeded" ]; then
-                echo "✅ Deployment succeeded despite timeout."
+                --query "lastModifiedTimeUtc" -o tsv 2>/dev/null || echo "")
+              echo "App last modified time: $LAST_MODIFIED"
+              
+              if [ -n "$LAST_MODIFIED" ] && [[ "$LAST_MODIFIED" > "$DEPLOY_START" ]]; then
+                echo "✅ Deployment content updated successfully despite timeout."
                 exit 0
               fi
               sleep 20
             done
 
-            echo "❌ Deployment did not reach success after retries."
+            echo "❌ Deployment failed to update files after retries."
             exit 1
           else
             echo "✅ Deployment completed successfully."
