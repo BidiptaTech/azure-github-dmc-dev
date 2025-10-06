@@ -70,28 +70,24 @@ jobs:
             --src-path release.zip \
             --type zip
 
-      - name: ⚙️ Create startup.sh on server
+      - name: ⚙️ Create startup.sh locally
         run: |
-          cat > /home/site/wwwroot/startup.sh << 'EOF'
+          cat > startup.sh << 'EOF'
           #!/bin/bash
           echo "🔧 Configuring NGINX and Laravel for Azure App Service..."
 
-          # Copy custom NGINX config
-          cp /home/site/wwwroot/default /etc/nginx/sites-available/default
-          cp /home/site/wwwroot/default /etc/nginx/sites-enabled/default
-
           # Set Laravel permissions
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
+          chmod -R 777 backadm-dmc/storage
+          chmod -R 777 backadm-dmc/bootstrap/cache
 
           # Ensure directories exist
-          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/{views,cache/data,sessions}
-          mkdir -p /home/site/wwwroot/backadm-dmc/storage/{logs,app/public}
-          mkdir -p /home/site/wwwroot/backadm-dmc/bootstrap/cache
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
+          mkdir -p backadm-dmc/storage/framework/{views,cache/data,sessions}
+          mkdir -p backadm-dmc/storage/{logs,app/public}
+          mkdir -p backadm-dmc/bootstrap/cache
+          chmod -R 777 backadm-dmc/storage
+          chmod -R 777 backadm-dmc/bootstrap/cache
 
-          cd /home/site/wwwroot/backadm-dmc
+          cd backadm-dmc
 
           # Update .env for HTTPS
           sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "Could not update APP_URL"
@@ -119,20 +115,26 @@ jobs:
           php artisan route:clear || true
           php artisan config:cache || true
 
-          # Test NGINX
-          nginx -t && service nginx reload
-
           echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
           EOF
 
-          chmod +x /home/site/wwwroot/startup.sh
+          chmod +x startup.sh
+
+      - name: ⚙️ Deploy startup.sh to Azure
+        run: |
+          zip startup.zip startup.sh
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path startup.zip \
+            --type zip
 
       - name: ⚙️ Set startup script in Azure
         run: |
           az webapp config set \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
-            --startup-file "/home/site/wwwroot/startup.sh"
+            --startup-file "startup.sh"
 
       - name: 🔄 Restart Azure Web App
         run: |
