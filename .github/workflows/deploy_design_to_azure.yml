@@ -1,128 +1,128 @@
-name: React Deploy Design Staging to Azure
+# name: React Deploy Design Staging to Azure
 
-on:
-  push:
-    branches:
-      - design_staging
+# on:
+#   push:
+#     branches:
+#       - design_staging
 
-permissions:
-  contents: write
-  actions: read
+# permissions:
+#   contents: write
+#   actions: read
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       id-token: write
+#       contents: read
 
-    env:
-      NODE_OPTIONS: '--max-old-space-size=4096'
+#     env:
+#       NODE_OPTIONS: '--max-old-space-size=4096'
 
-    steps:
-      - name: 📥 Checkout design_staging branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GH_PAT }}
+#     steps:
+#       - name: 📥 Checkout design_staging branch
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+#           token: ${{ secrets.GH_PAT }}
 
-      - name: 🧰 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+#       - name: 🧰 Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '18'
+#           cache: 'npm'
 
-      - name: 📦 Install dependencies and build React app
-        run: |
-          npm ci
-          npm install @vitejs/plugin-react --save-dev || true
-          npm rebuild @swc/core || true
+#       - name: 📦 Install dependencies and build React app
+#         run: |
+#           npm ci
+#           npm install @vitejs/plugin-react --save-dev || true
+#           npm rebuild @swc/core || true
 
-          echo "🏗️ Building React app..."
-          rm -rf dist build
-          npm run build || npm run build:prod || echo "✅ Build completed"
+#           echo "🏗️ Building React app..."
+#           rm -rf dist build
+#           npm run build || npm run build:prod || echo "✅ Build completed"
 
-      - name: 🗂️ Prepare deployment directory
-        run: |
-          echo "📁 Preparing deployment folder..."
-          mkdir -p deployment
-          cp -r build/* deployment/
+#       - name: 🗂️ Prepare deployment directory
+#         run: |
+#           echo "📁 Preparing deployment folder..."
+#           mkdir -p deployment
+#           cp -r build/* deployment/
 
-          # Copy public assets if any
-          if [ -d public ]; then
-            cp -r public/* deployment/ 2>/dev/null || true
-          fi
+#           # Copy public assets if any
+#           if [ -d public ]; then
+#             cp -r public/* deployment/ 2>/dev/null || true
+#           fi
 
-      - name: 🔧 Create .htaccess for React SPA
-        run: |
-          cat > deployment/.htaccess << 'EOF'
-          RewriteEngine On
-          RewriteCond %{REQUEST_FILENAME} -f [OR]
-          RewriteCond %{REQUEST_FILENAME} -d
-          RewriteRule ^ - [L]
-          RewriteRule ^ index.html [L]
+#       - name: 🔧 Create .htaccess for React SPA
+#         run: |
+#           cat > deployment/.htaccess << 'EOF'
+#           RewriteEngine On
+#           RewriteCond %{REQUEST_FILENAME} -f [OR]
+#           RewriteCond %{REQUEST_FILENAME} -d
+#           RewriteRule ^ - [L]
+#           RewriteRule ^ index.html [L]
 
-          <IfModule mod_headers.c>
-            Header always set X-Content-Type-Options nosniff
-            Header always set X-Frame-Options SAMEORIGIN
-            Header always set X-XSS-Protection "1; mode=block"
-            Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-          </IfModule>
+#           <IfModule mod_headers.c>
+#             Header always set X-Content-Type-Options nosniff
+#             Header always set X-Frame-Options SAMEORIGIN
+#             Header always set X-XSS-Protection "1; mode=block"
+#             Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#           </IfModule>
 
-          <IfModule mod_deflate.c>
-            AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/xml application/xhtml+xml application/javascript
-          </IfModule>
+#           <IfModule mod_deflate.c>
+#             AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/xml application/xhtml+xml application/javascript
+#           </IfModule>
 
-          <IfModule mod_expires.c>
-            ExpiresActive On
-            ExpiresByType text/css "access plus 1 year"
-            ExpiresByType application/javascript "access plus 1 year"
-            ExpiresByType image/png "access plus 1 year"
-            ExpiresByType image/jpeg "access plus 1 year"
-            ExpiresByType image/svg+xml "access plus 1 year"
-          </IfModule>
-          EOF
+#           <IfModule mod_expires.c>
+#             ExpiresActive On
+#             ExpiresByType text/css "access plus 1 year"
+#             ExpiresByType application/javascript "access plus 1 year"
+#             ExpiresByType image/png "access plus 1 year"
+#             ExpiresByType image/jpeg "access plus 1 year"
+#             ExpiresByType image/svg+xml "access plus 1 year"
+#           </IfModule>
+#           EOF
 
-      - name: 🔐 Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+#       - name: 🔐 Login to Azure
+#         uses: azure/login@v2
+#         with:
+#           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+#           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+#           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🛡️ Preserve Laravel backend and key files
-        run: |
-          echo "🔍 Downloading existing deployment to preserve backend..."
-          mkdir -p existing
-          curl -sSLo existing/site.zip "https://dmc-app-dev.scm.azurewebsites.net/api/zip/site/wwwroot" \
-            -u \$${{ secrets.AZURE_DEPLOY_USERNAME }}:\${{ secrets.AZURE_DEPLOY_PASSWORD }} || true
+#       - name: 🛡️ Preserve Laravel backend and key files
+#         run: |
+#           echo "🔍 Downloading existing deployment to preserve backend..."
+#           mkdir -p existing
+#           curl -sSLo existing/site.zip "https://dmc-app-dev.scm.azurewebsites.net/api/zip/site/wwwroot" \
+#             -u \$${{ secrets.AZURE_DEPLOY_USERNAME }}:\${{ secrets.AZURE_DEPLOY_PASSWORD }} || true
 
-          unzip -oq existing/site.zip -d existing/wwwroot || true
+#           unzip -oq existing/site.zip -d existing/wwwroot || true
 
-          # Preserve Laravel backend and key files
-          for f in backadm-dmc startup.sh default laravel-debug.php; do
-            if [ -e existing/wwwroot/$f ]; then
-              echo "✅ Preserving $f"
-              mkdir -p $(dirname deployment/$f)
-              cp -r existing/wwwroot/$f deployment/$f
-            fi
-          done
+#           # Preserve Laravel backend and key files
+#           for f in backadm-dmc startup.sh default laravel-debug.php; do
+#             if [ -e existing/wwwroot/$f ]; then
+#               echo "✅ Preserving $f"
+#               mkdir -p $(dirname deployment/$f)
+#               cp -r existing/wwwroot/$f deployment/$f
+#             fi
+#           done
 
-      - name: 🚀 Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'dmc-app-dev'
-          slot-name: 'Production'
-          package: './deployment'
+#       - name: 🚀 Deploy to Azure Web App
+#         uses: azure/webapps-deploy@v3
+#         with:
+#           app-name: 'dmc-app-dev'
+#           slot-name: 'Production'
+#           package: './deployment'
 
-      - name: 🎉 Deployment Summary
-        run: |
-          echo "✅ React deployment to Azure completed successfully!"
-          echo ""
-          echo "Preserved Files:"
-          echo "  ✔ backadm-dmc folder"
-          echo "  ✔ startup.sh"
-          echo "  ✔ default"
-          echo "  ✔ laravel-debug.php"
-          echo ""
-          echo "App Live at: https://dev.travclicks.com"
+#       - name: 🎉 Deployment Summary
+#         run: |
+#           echo "✅ React deployment to Azure completed successfully!"
+#           echo ""
+#           echo "Preserved Files:"
+#           echo "  ✔ backadm-dmc folder"
+#           echo "  ✔ startup.sh"
+#           echo "  ✔ default"
+#           echo "  ✔ laravel-debug.php"
+#           echo ""
+#           echo "App Live at: https://dev.travclicks.com"
