@@ -1,6 +1,7 @@
 @extends('layouts.layout')
-@section('title', 'Definite Bookings')
+@section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
+
 
 <!-- Date Range Picker CSS -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
@@ -46,45 +47,6 @@
         border-top-color: #38ef7d;
         animation: spin 1s ease-in-out infinite;
         margin-bottom: 20px;
-    }
-    
-    /* Execution Status Row Colors */
-    .execution-status-ready {
-        background-color: rgba(40, 167, 69, 0.1) !important; /* Light green */
-        border-left: 4px solid #28a745 !important;
-    }
-    
-    .execution-status-ready:hover {
-        background-color: rgba(40, 167, 69, 0.15) !important;
-    }
-    
-    .execution-status-soon {
-        background-color: rgba(255, 193, 7, 0.1) !important; /* Light yellow */
-        border-left: 4px solid #ffc107 !important;
-    }
-    
-    .execution-status-soon:hover {
-        background-color: rgba(255, 193, 7, 0.15) !important;
-    }
-    
-    .execution-status-definite {
-        background-color: rgba(23, 162, 184, 0.1) !important; /* Light blue */
-        border-left: 4px solid #17a2b8 !important;
-    }
-    
-    .execution-status-definite:hover {
-        background-color: rgba(23, 162, 184, 0.15) !important;
-    }
-    
-    /* Enhanced table styling */
-    #toursTable tbody tr {
-        transition: background-color 0.2s ease, transform 0.1s ease;
-        border-left: 4px solid transparent;
-    }
-    
-    #toursTable tbody tr:hover {
-        transform: translateX(2px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
     @keyframes spin {
@@ -146,15 +108,15 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="fw-bold py-3 mb-2">
-                <span class="text-muted fw-light">Bookings /</span> Definite Bookings
+                <span class="text-muted fw-light">Bookings /</span> Confirmed Bookings
             </h4>
-            <p class="text-muted">Manage definite bookings ready for processing</p>
+            <p class="text-muted">Manage confirmed bookings ready for processing</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success fs-6">
                 <i class="ri-check-double-line me-1"></i>
                 <span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span>
-                <span id="rangeLabel">{{ date('F') }}</span> Definite
+                <span id="rangeLabel">{{ date('F') }}</span> Confirmed
             </span>
         </div>
     </div>
@@ -167,7 +129,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-1" id="statConfirmedCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
-                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Definite</p>
+                            <p class="text-muted mb-0" id="statConfirmedLabel">{{ date('F') }} Confirmed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -184,7 +146,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="card-title mb-1" id="statTodayCount">{{ $tours->where('created_at', '>=', now()->today())->count() }}</h5>
-                            <p class="text-muted mb-0">Today's Definite</p>
+                            <p class="text-muted mb-0">Today's Confirmed</p>
                         </div>
                         <div class="avatar">
                             <div class="avatar-initial bg-success rounded">
@@ -283,15 +245,15 @@
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
                 </div>
-                <div class="col-md-2">
+                {{-- <div class="col-md-2">
                     <label class="form-label">Status</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="Ready">Ready to Execute</option>
-                        <option value="Soon">Starting Soon</option>
-                        <option value="Definite">Definite</option>
+                        <option value="On Hold">On Hold</option>
+                        <option value="Starting Soon">Starting Soon</option>
+                        <option value="In Progress">In Progress</option>
                     </select>
-                </div>
+                </div> --}}
                 <div class="col-md-2">
                     <label class="form-label">Destination</label>
                     <select class="form-select" id="destinationFilter">
@@ -310,6 +272,16 @@
                         @endforeach
                     </select>
                 </div>
+                {{-- <div class="col-md-2">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" id="timeFilter">
+                        <option value="">All Time</option>
+                        <option value="this_week">This Week</option>
+                        <option value="next_week">Next Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="next_month">Next Month</option>
+                    </select>
+                </div> --}}
                 <div class="col-md-3">
                     <label class="form-label">Date Range</label>
                     <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
@@ -323,7 +295,7 @@
     <!-- Tours Table -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Definite Bookings List</h5>
+            <h5 class="mb-0">Confirmed Bookings List</h5>
             <div class="d-flex gap-2">
                 <div class="dropdown">
                     <button class="btn btn-success btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -356,9 +328,9 @@
                             <th>Services</th>
                             <th>Agent</th>
                             <th>Travel Dates</th>
-                            <th>Execution Status</th>
                             <th>Payment Status</th>
                             <th>Confirmation Date</th>
+                            {{-- <th>Status</th> --}}
                             <th>Actions</th>
                             <th>Created At</th>
                             <th>Auto Cancel Date</th>
@@ -366,23 +338,8 @@
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
-                        @php
-                            // Determine execution status and corresponding CSS class
-                            $executionStatusClass = '';
-                            $executionStatus = '';
-                            if ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast()) {
-                                $executionStatusClass = 'execution-status-ready';
-                                $executionStatus = 'Ready';
-                            } elseif ($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7) {
-                                $executionStatusClass = 'execution-status-soon';
-                                $executionStatus = 'Soon';
-                            } else {
-                                $executionStatusClass = 'execution-status-definite';
-                                $executionStatus = 'Definite';
-                            }
-                        @endphp
                         <tr 
-                            class="{{ $executionStatusClass }}"
+                            class="{{ $tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7 && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) >= 0 ? 'table-info' : '' }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-created-at="{{ optional($tour->created_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
@@ -390,7 +347,6 @@
                             data-tour-id="{{ $tour->tour_id }}"
                             data-check-in="{{ $tour->check_in_time }}"
                             data-check-out="{{ $tour->check_out_time }}"
-                            data-execution-status="{{ $executionStatus }}"
                         >
                             {{-- <td>
                                 <input type="checkbox" class="form-check-input row-checkbox" value="{{ $tour->tour_id }}">
@@ -745,21 +701,6 @@
                                 </div>
                             </td>
                             <td>
-                                @if($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->isPast())
-                                    <span class="badge bg-success">
-                                        <i class="ri-play-circle-line me-1"></i>Ready
-                                    </span>
-                                @elseif($tour->check_in_time && \Carbon\Carbon::parse($tour->check_in_time)->diffInDays(now(), false) <= 7)
-                                    <span class="badge bg-warning">
-                                        <i class="ri-time-line me-1"></i>Soon
-                                    </span>
-                                @else
-                                    <span class="badge bg-info">
-                                        <i class="ri-shield-check-line me-1"></i>Definite
-                                    </span>
-                                @endif
-                            </td>
-                            <td>
                                 @php
                                     // Calculate payment details
                                     $tourTotalPrice = 0;
@@ -904,23 +845,23 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     @endif
-                                    @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11)
-                                    <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Edit Tour
-                                    </a>
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                        <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
+                                        class="btn btn-outline-warning btn-sm rounded-pill">
+                                            <i class="ri-settings-3-line"></i> Edit Tour
+                                        </a>
                                     @endif
-                                    <button type="button" 
+                                    <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 
-                                            onclick="cancelDefinite('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')">
-                                        <i class="ri-close-line"></i> Cancel
+                                            id="cancel-btn-{{ $tour->tour_id }}">
+                                        <i class="ri-delete-bin-line"></i> Cancel
                                     </button>
                                     
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
-                                    @else  
+                                    @else
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                                 <i class="fas fa-history me-1"></i> Payment Details
@@ -4074,12 +4015,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    {{-- <button type="button" 
+                                                    <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button> --}}
+                                                    </button>
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4459,12 +4400,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    {{-- <button type="button" 
+                                                    <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button> --}}
+                                                    </button>
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4843,12 +4784,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    {{-- <button type="button" 
+                                                    <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button> --}}
+                                                    </button>
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -5427,7 +5368,12 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
-                    
+                    <button type="button" 
+                            class="btn btn-outline-success btn-sm px-3 py-2" 
+                            onclick="approveIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                            style="border-radius: 25px;">
+                        <i class="ri-check-line me-1"></i>Approve
+                    </button>
             ` : ''}
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                     <button type="button" 
@@ -13322,7 +13268,12 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                            onclick="approveTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -14597,7 +14548,12 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                             style="border-radius: 25px;">
                                         <i class="ri-edit-line me-1"></i>Edit
                                     </button>
-                                    
+                                    <button type="button" 
+                                            class="btn btn-outline-success btn-sm px-3 py-2" 
+                                            onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                            style="border-radius: 25px;">
+                                        <i class="ri-check-line me-1"></i>Approve
+                                    </button>
                                     @endif
                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <button type="button" 
@@ -16047,7 +16003,12 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -17256,7 +17217,12 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                
+                                <button type="button" 
+                                        class="btn btn-outline-success btn-sm px-3 py-2" 
+                                        onclick="approveIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
+                                        style="border-radius: 25px;">
+                                    <i class="ri-check-line me-1"></i>Approve
+                                </button>
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -21468,95 +21434,6 @@ function cancelConfirmed(tourId) {
     }
 }
 
-function cancelDefinite(encryptedTourId, displayId) {
-    // Show SweetAlert confirmation dialog
-    Swal.fire({
-        title: 'Cancel Tour?',
-        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, cancel it!',
-        cancelButtonText: 'No, keep it'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Extract tour ID from the encrypted string to match the button ID
-            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
-            const button = tourIdMatch || event.target.closest('button');
-            const originalContent = button.innerHTML;
-            
-            // Show loading state
-            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
-            button.disabled = true;
-            
-            // Send AJAX request to cancel tour
-            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    Swal.fire({
-                        title: 'Cancelled!',
-                        text: data.message,
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    });
-                    
-                    // Update button to show cancelled state
-                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
-                    button.classList.remove('btn-outline-danger');
-                    button.classList.add('btn-success');
-                    button.disabled = true;
-                    
-                    // Refresh the page after a short delay to show updated data
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                    
-                } else {
-                    // Show error message
-                    Swal.fire({
-                        title: 'Error!',
-                        text: data.message || 'Failed to cancel tour',
-                        icon: 'error',
-                        confirmButtonText: 'OK'
-                    });
-                    
-                    // Restore button state
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error cancelling tour:', error);
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while cancelling the tour. Please try again.',
-                    icon: 'error',
-                    confirmButtonText: 'OK'
-                });
-                
-                // Restore button state
-                button.innerHTML = originalContent;
-                button.disabled = false;
-            });
-        }
-    });
-}
-
-// Alias function to match naming convention used in other blade files
-window.cancelTour = function(encryptedTourId, displayId) {
-    return cancelDefinite(encryptedTourId, displayId);
-};
-
 function bulkMakeDefinite() {
     const selectedTours = document.querySelectorAll('.row-checkbox:checked');
     if (selectedTours.length === 0) {
@@ -21586,7 +21463,6 @@ function showUpcomingTours() {
 
 function resetFilters() {
     document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
     document.getElementById('destinationFilter').value = '';
     document.getElementById('agentFilter').value = '';
     const dr = document.getElementById('dateRange');
@@ -21600,52 +21476,85 @@ function resetFilters() {
 
 window.filterTable = function() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    // const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
+    // Get existing DataTable instance if already initialized
+    // var table = $.fn.dataTable.isDataTable('.datatables-basic')
+    //     ? $('.datatables-basic').DataTable() // already initialized, just get it
+    //     : $('.datatables-basic').DataTable({  // initialize only if not already
+    //         responsive: true,
+    //         dom: 'lrtip',
+    //         buttons: ['copy','csv','excel','pdf','print'],
+    //         searching: false,
+    //         language: {
+    //             search: "DataTable Search:",
+    //             searchPlaceholder: "Search all columns...",
+    //             lengthMenu: "Show _MENU_ entries",
+    //             info: "Showing _START_ to _END_ of _TOTAL_ entries",
+    //             infoEmpty: "Showing 0 to 0 of 0 entries",
+    //             infoFiltered: "(filtered from _MAX_ total entries)",
+    //             paginate: {
+    //                 first: "First",
+    //                 last: "Last",
+    //                 next: "Next",
+    //                 previous: "Previous"
+    //             }
+    //         },
+    //         lengthMenu: [10, 25, 50, 100],
+    //         pageLength: 25,
+    //         columnDefs: [
+    //             { targets: [9], orderable: false, searchable: false },
+    //             { targets: [3], orderable: false },
+    //             { targets: [4], orderable: false }
+    //         ],
+    //         initComplete: function() {
+    //             console.log('DataTable initialized successfully');
+    //         }
+    //     });
+
     const rows = document.querySelectorAll('#toursTable tbody tr');
+
+
     
+    // Collapse any open child rows before filtering
     table.rows('.dt-hasChild').every(function() {
         if (this.child.isShown()) this.child.hide();
         $(this.node()).removeClass('dt-hasChild');
     });
 
-    let visibleCount = 0;
-    
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const executionStatus = row.getAttribute('data-execution-status') || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const confirmationDateText = row.cells[7]?.textContent || '';
+        const confirmationDateText = row.cells[8]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
-            console.log('Search term not found', searchTerm, tourDetails);
+        if (searchTerm && 
+            !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !agent.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
-        // Status filter - use data attribute for accurate filtering
-        if (statusFilter && executionStatus !== statusFilter) {
-            console.log('Status filter not found', statusFilter, executionStatus);
-            show = false;
-        }
+        // if (statusFilter && !status.includes(statusFilter.toLowerCase())) {
+        //     show = false;
+        // }
         
         if (destinationFilter && destination !== destinationFilter) {
-            console.log('Destination filter not found', destinationFilter, destination);
             show = false;
         }
         
         if (agentFilter && agent !== agentFilter) {
-            console.log('Agent filter not found', agentFilter, agent);
             show = false;
         }
         
@@ -21673,17 +21582,12 @@ window.filterTable = function() {
             }
             
             if (!dateInRange) {
-                console.log('Date range filter not found', dateStart, dateEnd, createdAt, updatedAt);
                 show = false;
             }
         }
         
         row.style.display = show ? '' : 'none';
-        if (show) visibleCount++;
     });
-    
-    // Update visible count display
-    updateFilterResults(visibleCount, rows.length);
 
     // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
@@ -21733,69 +21637,23 @@ window.filterTable = function() {
         }
         
         if (labelEl) labelEl.textContent = label;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `Confirmed - ${label}`;
         if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
         if (statChildrenLabel) statChildrenLabel.textContent = `Childrens - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Definite`;
+        if (statConfirmedLabel) statConfirmedLabel.textContent = `${month} Confirmed`;
         if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
         if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
     }
 };
 
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
-    filterTable();
-    
-    // Show success message
-    showFilterResetMessage();
-}
-
-function updateFilterResults(visibleCount, totalCount) {
-    // Update the table header to show filter results
-    const tableHeader = document.querySelector('#toursTable').closest('.card').querySelector('.card-header h5');
-    if (tableHeader) {
-        tableHeader.textContent = 'Definite Bookings List';
-    }
-}
-
-function showFilterResetMessage() {
-    // Create a temporary success message
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
-    alertDiv.innerHTML = `
-        <i class="ri-check-circle-line me-2"></i>
-        <strong>Filters Reset!</strong> All filters have been cleared.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 3000);
-}
-
 
 // Filter functionality
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
+    // const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     const dateRange = document.getElementById('dateRange');
@@ -21804,7 +21662,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
-    if (statusFilter) statusFilter.addEventListener('change', filterTable);
+    // if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     // Date range picker will be initialized in scripts section where jQuery is available
@@ -24549,7 +24407,133 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 
 // Old jQuery-based date calculation removed - now using direct onchange handlers with calculateGuideDisplayDueDate function
 
+// Tour cancellation function
+window.cancelTour = function(encryptedTourId, displayId) {
+    // Show SweetAlert confirmation dialog
+    Swal.fire({
+        title: 'Cancel Tour?',
+        text: `Are you sure you want to cancel tour ${displayId}? This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Extract tour ID from the encrypted string to match the button ID
+            const tourIdMatch = document.querySelector(`[onclick*="${encryptedTourId}"]`);
+            const button = tourIdMatch;
+            const originalContent = button.innerHTML;
+            
+            // Show loading state
+            button.innerHTML = '<i class="ri-loader-4-line spin"></i> Cancelling...';
+            button.disabled = true;
+            
+            // Send AJAX request to cancel tour
+            fetch(`{{ route('bookings.cancel-tour', '') }}/${encryptedTourId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Update button to show cancelled state
+                    button.innerHTML = '<i class="ri-check-line"></i> Cancelled';
+                    button.classList.remove('btn-outline-danger');
+                    button.classList.add('btn-success');
+                    button.disabled = true;
+                    
+                    // Refresh the page after a short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        title: 'Error!',
+                        text: data.message || 'Failed to cancel tour',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    
+                    // Restore button state
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling tour:', error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the tour. Please try again.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                
+                // Restore button state
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            });
+        }
+    });
+};
+
+// Notification helper function
+window.showNotification = function(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+};
+
 </script>
+
+<style>
+/* Loading spinner animation for cancel button */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Tour status badge styling */
+.tour-status .badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+</style>
+
 @endsection
 
 @section('scripts')
@@ -24670,10 +24654,10 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            //  order: [[7, 'desc']], // Sort by Confirmation Date column (index 7) in descending order
+            //  order: [[8, 'desc']], // Sort by Confirmation Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column (index 8)
+                    targets: [9], // Actions column (index 9)
                     orderable: false,
                     searchable: false
                 },
@@ -24682,7 +24666,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
                     orderable: false
                 },
                 {
-                    targets: [8], // Status column (index 8)
+                    targets: [4], // Services column (index 4)
                     orderable: false
                 }
             ],
@@ -24690,6 +24674,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
                 console.log('DataTable initialized successfully');
             }
         });
+
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {
@@ -26104,3 +26089,4 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 @endsection
 
 @extends('layouts.datatablejs')
+

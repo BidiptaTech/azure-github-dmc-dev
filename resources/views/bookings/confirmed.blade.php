@@ -834,13 +834,17 @@
                                         <i class="ri-eye-line"></i> View
                                     </a>
                                     
+                                    @php
+                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                    @endphp
+                                    @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-outline-success btn-sm rounded-pill"
                                        onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
                                        style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
-                                    
+                                    @endif
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="btn btn-outline-warning btn-sm rounded-pill">
@@ -855,16 +859,16 @@
                                     
                                     @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                            <i class="fas fa-history me-1"></i> Payment History
+                                            <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
                                     @else
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
-                                                <i class="fas fa-history me-1"></i> Payment History
+                                                <i class="fas fa-history me-1"></i> Payment Details
                                             </button>
                                         @endif
 
-                                        @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 10, 11, 12, 24, 28, 33, 37, 38]))
+                                        @if(in_array(auth()->user()->role_id, [11, 12, 24, 28, 33, 37, 38, 128, 129, 130, 135, 136, 138]))
                                             @if($remainingAmount > 0 && !$hasPendingPayments)
                                                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
                                                     <i class="fas fa-plus-circle me-1"></i> Add Payment
@@ -1885,6 +1889,12 @@
                                                     <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
                                                         <i class="ri-check-circle-fill me-1"></i>
                                                         <small><strong>Approved Booking</strong></small>
+                                                        @if($attractionOrder->reference_id)
+                                                            <br><small class="text-muted">Ref: {{ $attractionOrder->reference_id }}</small>
+                                                        @endif
+                                                        @if($attractionOrder->display_due_date)
+                                                            <br><small class="text-muted">Due: {{ $attractionOrder->display_due_date }}</small>
+                                                        @endif
                                                     </div>
                                                     @endif
                                                 </div>
@@ -2637,12 +2647,12 @@
                                                              style="border-radius: 25px;">
                                                          <i class="ri-edit-line me-1"></i>Edit
                                                      </button>
-                                                     <button type="button" 
+                                                     {{-- <button type="button" 
                                                              class="btn btn-outline-success btn-sm px-3 py-2" 
                                                              onclick="approveIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                              style="border-radius: 25px;">
                                                          <i class="ri-check-line me-1"></i>Approve
-                                                     </button>
+                                                     </button> --}}
                                                      @endif
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
@@ -2967,12 +2977,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveArrivalBooking({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -3287,12 +3297,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveDepartureBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -3373,7 +3383,7 @@
         $remainingAmount = $finalAmount - $totalPaid;
     @endphp
 
-    <!-- Payment History Modal -->
+    <!-- Payment Details Modal -->
     <style>
         @media (max-width: 768px) {
             #showPaymentModal{{ $tour->tour_id }} .modal-dialog {
@@ -3406,7 +3416,7 @@
                 <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 12px 20px; border-radius: 8px 8px 0 0; flex-shrink: 0;">
                     <h5 class="modal-title d-flex align-items-center" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white; font-size: 1.1rem;">
                         <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1.2rem;"></i> 
-                        <span style="color: white;">Payment History for Tour #{{ $tour->tour_id }}</span>
+                        <span style="color: white;">Payment Details for Tour #{{ $tour->tour_id }}</span>
                     </h5>
                     <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
                 </div>
@@ -4005,12 +4015,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4390,12 +4400,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -4774,12 +4784,12 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
-                                                    <button type="button" 
+                                                    {{-- <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
                                                             onclick="approveIndividualLocalTransport({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
-                                                    </button>
+                                                    </button> --}}
                                                     @endif
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     <button type="button" 
@@ -5358,12 +5368,7 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
-                    <button type="button" 
-                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="approveIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
-                            style="border-radius: 25px;">
-                        <i class="ri-check-line me-1"></i>Approve
-                    </button>
+                    
             ` : ''}
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                     <button type="button" 
@@ -9305,6 +9310,8 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                             `<div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
                                 <i class="ri-check-circle-fill me-1"></i>
                                 <small><strong>Approved Booking</strong></small>
+                                ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
+                                ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
                             </div>` :
                             `<div class="d-flex gap-2" id="attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}">
                                 <!-- Buttons will be dynamically added based on user role -->
@@ -13256,12 +13263,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                            onclick="approveTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -14293,6 +14295,8 @@ function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex
                 entrytime: rawData.entry_time || travelPointDetails.entry_time,
                 pickup_location: rawData.pickup_location || travelPointDetails.pickup_location,
                 drop_location: rawData.drop_location || travelPointDetails.drop_location,
+                entrypickup: travelPointDetails.entrypickup || rawData.entrypickup || rawData.pickup_location || travelPointDetails.pickup_location,
+                entrydropoff: travelPointDetails.entrydropoff || rawData.entrydropoff || rawData.drop_location || travelPointDetails.drop_location,
                 type: travelPointDetails.type || 'Standard',
                 adults: rawData.adults || '0',
                 children: rawData.children || '0',
@@ -14411,11 +14415,11 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <div class="row">
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Pickup Location</small>
-                                        <div class="fw-medium">${travelPointData.pickup_location || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.entrypickup || travelPointData.pickup_location || 'N/A'}</div>
                                     </div>
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Drop Location</small>
-                                        <div class="fw-medium">${travelPointData.drop_location || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.entrydropoff || travelPointData.drop_location || 'N/A'}</div>
                                     </div>
                                     <div class="col-md-6 mb-2">
                                         <small class="text-muted">City</small>
@@ -14534,12 +14538,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                             style="border-radius: 25px;">
                                         <i class="ri-edit-line me-1"></i>Edit
                                     </button>
-                                    <button type="button" 
-                                            class="btn btn-outline-success btn-sm px-3 py-2" 
-                                            onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-check-line me-1"></i>Approve
-                                    </button>
+                                    
                                     @endif
                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <button type="button" 
@@ -15814,7 +15813,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Pickup Point</small>
                                         <div class="fw-medium d-flex align-items-center">
                                             <i class="ri-map-pin-line text-success me-2"></i>
-                                            ${travelPointData.pickupPoint || 'N/A'}
+                                            ${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}
                                         </div>
                                         <small class="text-success">Origin</small>
                                     </div>
@@ -15822,7 +15821,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Dropoff Point</small>
                                         <div class="fw-medium d-flex align-items-center">
                                             <i class="ri-map-pin-2-line text-danger me-2"></i>
-                                            ${travelPointData.dropoffPoint || 'N/A'}
+                                            ${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}
                                         </div>
                                         <small class="text-danger">Destination</small>
                                     </div>
@@ -15830,9 +15829,9 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <!-- Route Direction Visual -->
                                 <div class="d-flex align-items-center justify-content-center mt-3 p-3 bg-light rounded">
                                     <div class="text-center">
-                                        <span class="badge bg-success me-2">${travelPointData.pickupPoint || 'Pickup'}</span>
+                                        <span class="badge bg-success me-2">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
                                         <i class="ri-arrow-right-line text-primary mx-2"></i>
-                                        <span class="badge bg-danger">${travelPointData.dropoffPoint || 'Dropoff'}</span>
+                                        <span class="badge bg-danger">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -15943,7 +15942,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.reference_id || 'N/A'}</div>
+                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -15989,12 +15988,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -17203,12 +17197,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         style="border-radius: 25px;">
                                     <i class="ri-edit-line me-1"></i>Edit
                                 </button>
-                                <button type="button" 
-                                        class="btn btn-outline-success btn-sm px-3 py-2" 
-                                        onclick="approveIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
-                                        style="border-radius: 25px;">
-                                    <i class="ri-check-line me-1"></i>Approve
-                                </button>
+                                
                                 @endif
                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                 <button type="button" 
@@ -21468,22 +21457,67 @@ window.filterTable = function() {
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
+    // Get existing DataTable instance if already initialized
+    // var table = $.fn.dataTable.isDataTable('.datatables-basic')
+    //     ? $('.datatables-basic').DataTable() // already initialized, just get it
+    //     : $('.datatables-basic').DataTable({  // initialize only if not already
+    //         responsive: true,
+    //         dom: 'lrtip',
+    //         buttons: ['copy','csv','excel','pdf','print'],
+    //         searching: false,
+    //         language: {
+    //             search: "DataTable Search:",
+    //             searchPlaceholder: "Search all columns...",
+    //             lengthMenu: "Show _MENU_ entries",
+    //             info: "Showing _START_ to _END_ of _TOTAL_ entries",
+    //             infoEmpty: "Showing 0 to 0 of 0 entries",
+    //             infoFiltered: "(filtered from _MAX_ total entries)",
+    //             paginate: {
+    //                 first: "First",
+    //                 last: "Last",
+    //                 next: "Next",
+    //                 previous: "Previous"
+    //             }
+    //         },
+    //         lengthMenu: [10, 25, 50, 100],
+    //         pageLength: 25,
+    //         columnDefs: [
+    //             { targets: [9], orderable: false, searchable: false },
+    //             { targets: [3], orderable: false },
+    //             { targets: [4], orderable: false }
+    //         ],
+    //         initComplete: function() {
+    //             console.log('DataTable initialized successfully');
+    //         }
+    //     });
+
     const rows = document.querySelectorAll('#toursTable tbody tr');
+
+
     
+    // Collapse any open child rows before filtering
+    table.rows('.dt-hasChild').every(function() {
+        if (this.child.isShown()) this.child.hide();
+        $(this.node()).removeClass('dt-hasChild');
+    });
+
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
-        const status = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+        const status = row.cells[7]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const confirmationDateText = row.cells[7]?.textContent || '';
+        const confirmationDateText = row.cells[8]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
         
         let show = true;
         
-        if (searchTerm && !tourDetails.includes(searchTerm)) {
+        if (searchTerm && 
+            !tourDetails.includes(searchTerm) && 
+            !destination.toLowerCase().includes(searchTerm) && 
+            !agent.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
@@ -24560,7 +24594,7 @@ window.showNotification = function(message, type = 'info') {
             }
         }
     }
-    
+    var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('.datatables-basic')) {
@@ -24568,7 +24602,7 @@ window.showNotification = function(message, type = 'info') {
         }
         
         // Initialize DataTable with export buttons
-        var table = $('.datatables-basic').DataTable({
+        table = $('.datatables-basic').DataTable({
             responsive: true,
             dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
@@ -24595,10 +24629,10 @@ window.showNotification = function(message, type = 'info') {
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
             pageLength: 25,
-            //  order: [[7, 'desc']], // Sort by Confirmation Date column (index 7) in descending order
+            //  order: [[8, 'desc']], // Sort by Confirmation Date column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [8], // Actions column (index 8)
+                    targets: [9], // Actions column (index 9)
                     orderable: false,
                     searchable: false
                 },
@@ -24607,7 +24641,7 @@ window.showNotification = function(message, type = 'info') {
                     orderable: false
                 },
                 {
-                    targets: [8], // Status column (index 8)
+                    targets: [4], // Services column (index 4)
                     orderable: false
                 }
             ],
@@ -24615,6 +24649,7 @@ window.showNotification = function(message, type = 'info') {
                 console.log('DataTable initialized successfully');
             }
         });
+
 
         // Custom export button functionality (for the dropdown)
         $('#exportCopy').on('click', function() {

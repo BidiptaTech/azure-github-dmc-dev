@@ -3409,6 +3409,10 @@ function filterTable() {
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
+    table.rows('.dt-hasChild').every(function() {
+        if (this.child.isShown()) this.child.hide();
+        $(this.node()).removeClass('dt-hasChild');
+    });
     let visibleCount = 0;
     
     rows.forEach(row => {
@@ -3939,7 +3943,7 @@ function testServices() {
             }
         }
     }
-    
+    var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('.datatables-basic')) {
@@ -3947,7 +3951,7 @@ function testServices() {
         }
         
         // Initialize DataTable with export buttons
-        var table = $('.datatables-basic').DataTable({
+        table = $('.datatables-basic').DataTable({
             responsive: true,
             dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [

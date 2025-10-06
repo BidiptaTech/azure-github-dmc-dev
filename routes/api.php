@@ -89,7 +89,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
             'input' => $input,
             'key' => "AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw",
             'types' => '(cities)',
-        ]); 
+        ]);
 
         return $response->json();
     });

@@ -274,7 +274,7 @@ $(document).ready(function() {
                 // Handle data as array or object (flexibility for different data structures)
                 const orderData = item.data || {};
                 let dataItem;
-                
+                console.log("item === ", item);
                 // Check if data is array or object and extract the right data
                 if (Array.isArray(orderData) && orderData.length > 0) {
                     dataItem = orderData[0];
@@ -319,6 +319,8 @@ $(document).ready(function() {
                                     let options = '';
                                     if (initialDrivers.length) {
                                         initialDrivers.forEach(driver => {
+                                            console.log("driver = ", driver);
+                                            console.log("item = ", item);
                                             const isSelected = item.driver && (driver.driver_id == item.driver.driver_id);
                                             options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driver.name}</option>`;
                                         });

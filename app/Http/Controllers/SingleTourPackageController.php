@@ -350,17 +350,16 @@ class SingleTourPackageController extends Controller
             ->get();
         $firstOrder = $orders->first();
         $customer_info = [];
-        if($firstOrder){
-            
-            $customer_info['fullName'] = $firstOrder->data[0]['fullName'];
-            $customer_info['email'] = $firstOrder->data[0]['email'];
-            $customer_info['phone'] = $firstOrder->data[0]['phone'];
-            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'];
-            $customer_info['address1'] = $firstOrder->data[0]['address1'];
-            $customer_info['address2'] = $firstOrder->data[0]['address2'];
-            $customer_info['state'] = $firstOrder->data[0]['state'];
-            $customer_info['zip'] = $firstOrder->data[0]['zip'];
-            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'];
+        if($firstOrder && $firstOrder->data){
+            $customer_info['fullName'] = $firstOrder->data[0]['fullName'] ?? '';
+            $customer_info['email'] = $firstOrder->data[0]['email'] ?? '';
+            $customer_info['phone'] = $firstOrder->data[0]['phone'] ?? '';
+            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'] ?? '';
+            $customer_info['address1'] = $firstOrder->data[0]['address1'] ?? '';
+            $customer_info['address2'] = $firstOrder->data[0]['address2'] ?? '';
+            $customer_info['state'] = $firstOrder->data[0]['state'] ?? '';
+            $customer_info['zip'] = $firstOrder->data[0]['zip'] ?? '';
+            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'] ?? '';
         }
         // Group orders by type and process the data
         $ordersByType = [];
@@ -1307,7 +1306,7 @@ class SingleTourPackageController extends Controller
         try {
             if(Auth::user()->role_id == 11){
                 $dmcId = Auth::user()->userId;
-            }elseif(in_array(Auth::user()->role_id, [33, 34])){
+            }elseif(in_array(Auth::user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138])){
                 $user = User::where('userId', Auth::user()->userId)->first();
                 $dmcId = $user->created_by;
             }elseif(in_array(Auth::user()->role_id, [37, 124])){
@@ -1378,7 +1377,7 @@ class SingleTourPackageController extends Controller
             $hotelId = $request->input('hotel_id');
             if(Auth::user()->role_id == 11){
                 $dmcId = Auth::user()->userId;
-            }elseif(in_array(Auth::user()->role_id, [33, 34])){
+            }elseif(in_array(Auth::user()->role_id, [33, 34, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138])){
                 $user = User::where('userId', Auth::user()->userId)->first();
                 $dmcId = $user->created_by;
             }elseif(in_array(Auth::user()->role_id, [37, 124])){
@@ -2252,6 +2251,7 @@ class SingleTourPackageController extends Controller
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
             $city = $request->input('city');
+            $showAllVehicles = $request->input('show_all', false); // New parameter for point-to-point and hourly services
             
             if (!$dmcId) {
                 return response()->json([
@@ -2260,20 +2260,25 @@ class SingleTourPackageController extends Controller
                 ], 403);
             }
 
-            if (!$city) {
+            // For point-to-point and hourly services, city is not required
+            if (!$showAllVehicles && !$city) {
                 return response()->json([
                     'success' => false,
                     'message' => 'City is required'
                 ], 400);
             }
 
-            // Fetch vehicles for the current DMC and city
-            $vehicles = Vehicle::where('dmc_id', $dmcId)
-                ->where('city', $city)
+            // Build query for vehicles
+            $query = Vehicle::where('dmc_id', $dmcId)
                 ->where('is_available', 1)
-                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable')
-                ->orderBy('vehicle_name')
-                ->get();
+                ->select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'cost_per_hour', 'sharable_cost_per_hour', 'sharable');
+            
+            // Only filter by city if not showing all vehicles
+            if (!$showAllVehicles && $city) {
+                $query->where('city', $city);
+            }
+            
+            $vehicles = $query->orderBy('vehicle_name')->get();
 
             $vehiclesData = $vehicles->map(function ($vehicle) {
                 return [
@@ -2299,7 +2304,8 @@ class SingleTourPackageController extends Controller
                 'vehicles' => $vehiclesData,
                 'total_vehicles' => count($vehiclesData),
                 'city' => $city,
-                'dmc_id' => $dmcId
+                'dmc_id' => $dmcId,
+                'show_all_vehicles' => $showAllVehicles
             ]);
 
         } catch (\Exception $e) {
@@ -2855,6 +2861,25 @@ class SingleTourPackageController extends Controller
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
                                 
+                                // Handle date formatting based on port type
+                                if ($type === 'entry_port' && isset($transport['bookingDate'])) {
+                                    // For entry_port, use bookingDate and extract first date
+                                    $dateRange = $transport['bookingDate'];
+                                    if (preg_match('/(\w{3} \d{1,2}), (\d{4})/', $dateRange, $matches)) {
+                                        $firstDate = $matches[1] . ', ' . $matches[2];
+                                        $transport['bookingDate'] = date('Y-m-d', strtotime($firstDate));
+                                        $transport['pickupdate'] = $transport['bookingDate'];
+                                    }
+                                } elseif ($type === 'exit_port' && isset($transport['exitpickupdate'])) {
+                                    // For exit_port, use exitpickupdate and extract second date
+                                    $dateRange = $transport['exitpickupdate'];
+                                    if (preg_match('/- (\w{3} \d{1,2}), (\d{4})/', $dateRange, $matches)) {
+                                        $secondDate = $matches[1] . ', ' . $matches[2];
+                                        $transport['bookingDate'] = date('Y-m-d', strtotime($secondDate));
+                                        $transport['exitpickupdate'] = $transport['bookingDate'];
+                                    }
+                                }
+                                
                                 \Log::info("Processing individual {$type} transport", [
                                     'transport_id' => $transport['id'] ?? 'no_id',
                                     'vehicles_name' => $transport['vehicles_name'] ?? 'unknown',
@@ -2863,6 +2888,7 @@ class SingleTourPackageController extends Controller
                                     'pickup_coords' => $transport['PickupPlaceid'] ?? 'no_coords',
                                     'dropoff_coords' => $transport['DropoffPlaceid'] ?? 'no_coords',
                                     'booking_type' => $transport['bookingType'] ?? 'no_booking_type',
+                                    'booking_date' => $transport['bookingDate'] ?? 'no_date',
                                     'full_transport_data' => $transport
                                 ]);
                                 
@@ -2940,19 +2966,42 @@ class SingleTourPackageController extends Controller
             
             $servicesByDate = [];
             foreach ($serviceOrders as $order) {
-                $orderData = $order->data;
                 
+                $orderData = $order->data;
+
                 // Each order contains an array with one service item
                 if (is_array($orderData) && count($orderData) > 0) {
                     $serviceData = $orderData[0]; // Get the first (and only) service item
                     $bookingDate = $this->extractBookingDate($order->type, $serviceData);
-                    
+
                     if ($bookingDate) {
-                        $formattedDate = \Carbon\Carbon::parse($bookingDate)->format('M d, Y');
+                        try {
+                            // Handle range case like "Oct 06 - Oct 10, 2025"
+                            if (strpos($bookingDate, '-') !== false) {
+                                $parts = explode('-', $bookingDate);
+                                $start = trim($parts[0]);
+                                $end   = trim($parts[1]);
+
+                                // Append year from end part if missing
+                                if (!preg_match('/\d{4}$/', $start) && preg_match('/\d{4}$/', $end)) {
+                                    $year = substr($end, -4);
+                                    $start .= " " . $year;
+                                }
+
+                                $formattedDate = \Carbon\Carbon::parse($start)->format('M d, Y');
+                            } else {
+                                // Normal single date
+                                $formattedDate = \Carbon\Carbon::parse($bookingDate)->format('M d, Y');
+                            }
+                        } catch (\Exception $e) {
+                            // Fallback → today's date if parsing fails
+                            $formattedDate = now()->format('M d, Y');
+                        }
+
                         if (!isset($servicesByDate[$formattedDate])) {
                             $servicesByDate[$formattedDate] = [];
                         }
-                        
+
                         $servicesByDate[$formattedDate][] = [
                             'type' => $order->type,
                             'name' => $this->getServiceName($order->type, $serviceData),
@@ -3024,7 +3073,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'guide',
-            'bookingType' => 'enquiry',
+            'bookingType' => 'booking',
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
             'status' => 1,
@@ -3069,7 +3118,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'restaurant',
-            'bookingType' => 'enquiry',
+            'bookingType' => 'booking',
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3106,7 +3155,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'attraction',
-            'bookingType' => 'enquiry',
+            'bookingType' => 'booking',
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3153,7 +3202,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $request->input('type'),
-            'bookingType' => 'enquiry',
+            'bookingType' => 'booking',
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3196,7 +3245,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $orderType,
-            'bookingType' => 'enquiry',
+            'bookingType' => 'booking',
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
