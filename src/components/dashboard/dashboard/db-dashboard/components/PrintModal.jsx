@@ -696,7 +696,7 @@ const PrintModal = ({
           throw new Error("Failed to convert content PDF blob to array buffer");
         });
       
-      // console.log("✅ Content PDF generated successfully");
+      console.log("✅ Content PDF generated successfully");
       setPdfProgress({ status: 'Content PDF generated successfully', progress: 60 });
 
       // Try to get header and footer PDFs from API
