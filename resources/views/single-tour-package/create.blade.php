@@ -5253,7 +5253,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function loadTransportZonesForCity(day, cityName, index) {
+    window.loadTransportZonesForCity = function(day, cityName, index) {
         console.log(`=== LOADING TRANSPORT ZONES FOR CITY: ${cityName}, INDEX: ${index} ===`);
         
         // For dynamic transport (index > 0), only target specific elements
@@ -5340,7 +5340,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cityMessage.style.display = 'block';
             }
         }
-    }
+    };
 
          // Wait for all dependencies to load
     $(document).ready(function() {
@@ -11324,13 +11324,13 @@ document.addEventListener('DOMContentLoaded', function() {
                              <div class="row g-3">
                                  <div class="col-md-8">
                              <label class="form-label fw-semibold">Vehicle</label>
-                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport'); validatePassengerCapacity(${day}, 'transport'); updateTypeSelect(event, ${day}, 'transport');">
+                             <select class="form-select vehicle-select" name="day${day}_transport_${newIndex}_vehicle_id" onchange="updateVehicleDetails(${day}, 'transport_${newIndex}'); validatePassengerCapacity(${day}, 'transport_${newIndex}'); updateTypeSelect(event, ${day}, 'transport_${newIndex}');">
                                  <option value="">Choose vehicle</option>
                              </select>
                          </div>
                                  <div class="col-md-4">
                              <label class="form-label fw-semibold">Service Type</label>
-                             <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport')">
+                             <select class="form-select" name="day${day}_transport_${newIndex}_service_type" id="day${day}_transport_service_type" onchange="updatePricing(${day}, 'transport_${newIndex}')">
                                  <option value="">Select service type</option>
                                  <option value="Shared">Shared</option>
                                  <option value="Private">Private</option>
@@ -14617,7 +14617,22 @@ function loadDropoffZones(day, section) {
      window.updateVehicleDetails = function(day, section) {
      console.log(`updateVehicleDetails called with day: ${day}, section: ${section}`);
      
-     const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
+     // Handle dynamic transport sections with index
+     let vehicleSelect, serviceTypeSelect, priceDisplay;
+     
+     if (section.startsWith('transport_')) {
+         // For dynamic transport sections like 'transport_2'
+         const transportIndex = section.split('_')[1];
+         vehicleSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_vehicle_id"]`);
+         serviceTypeSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_service_type"]`);
+         priceDisplay = document.getElementById(`day${day}_transport_${transportIndex}_price_display`);
+     } else {
+         // For other sections (entry, exit, transport)
+         vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
+         serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
+         priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
+     }
+     
      console.log(`Looking for vehicle select: day${day}_${section}_vehicle_id`, vehicleSelect ? 'FOUND' : 'NOT FOUND');
      
      if (!vehicleSelect) { 
@@ -14627,8 +14642,6 @@ function loadDropoffZones(day, section) {
      }
      
      const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-     const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
-     const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
      
      console.log('Elements found:', {
          vehicleSelect: !!vehicleSelect,
@@ -14716,18 +14729,47 @@ function loadDropoffZones(day, section) {
      window.updatePricing = function(day, section) {
 
         console.log('Updating pricing for day', day, 'section', section);
-        const serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
-        const vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
-    
-    const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
+        console.log('Section starts with transport:', section.startsWith('transport'));
+        
+        // Handle dynamic transport sections with index
+        let serviceTypeSelect, vehicleSelect, priceDisplay;
+        
+        if (section.startsWith('transport')) {
+            // For transport sections (both 'transport' and 'transport_2', 'transport_3', etc.)
+            if (section === 'transport') {
+                // For the first transport section
+                serviceTypeSelect = document.getElementById(`day${day}_transport_service_type`) || 
+                                   document.querySelector(`select[name="day${day}_transport_service_type"]`);
+                vehicleSelect = document.getElementById(`day${day}_transport_vehicle_id`) || 
+                               document.querySelector(`select[name="day${day}_transport_vehicle_id"]`);
+                priceDisplay = document.getElementById(`day${day}_transport_price_display`);
+            } else {
+                // For dynamic transport sections like 'transport_2', 'transport_3', etc.
+                const transportIndex = section.split('_')[1];
+                serviceTypeSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_service_type"]`);
+                vehicleSelect = document.querySelector(`select[name="day${day}_transport_${transportIndex}_vehicle_id"]`);
+                priceDisplay = document.getElementById(`day${day}_transport_${transportIndex}_price_display`);
+            }
+        } else {
+            // For other sections (entry, exit), use the original pattern
+            serviceTypeSelect = document.getElementById(`day${day}_${section}_service_type`);
+            vehicleSelect = document.getElementById(`day${day}_${section}_vehicle_id`);
+            priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
+        }
+        console.log('Found elements:', {
+            serviceTypeSelect: serviceTypeSelect ? serviceTypeSelect.name || serviceTypeSelect.id : 'NOT FOUND',
+            vehicleSelect: vehicleSelect ? vehicleSelect.name || vehicleSelect.id : 'NOT FOUND',
+            priceDisplay: priceDisplay ? priceDisplay.id : 'NOT FOUND'
+        });
+        
         if(!serviceTypeSelect){
-            console.log('Service type select not found');
+            console.log('Service type select not found for section:', section);
         }
         else if(!vehicleSelect){
-            console.log('Vehicle select not found');
+            console.log('Vehicle select not found for section:', section);
         }
         else if(!priceDisplay){
-            console.log('Price display not found');
+            console.log('Price display not found for section:', section);
         }
     
     if (!serviceTypeSelect || !vehicleSelect || !priceDisplay) {
@@ -14775,9 +14817,24 @@ function loadDropoffZones(day, section) {
             `;
             
             // Store pricing data in hidden fields
-            const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-            const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-            const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+            let basePriceField, totalPriceField, guestCountField;
+            
+            if (section.startsWith('transport')) {
+                if (section === 'transport') {
+                    basePriceField = document.getElementById(`day${day}_transport_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_guest_count`);
+                } else {
+                    const transportIndex = section.split('_')[1];
+                    basePriceField = document.getElementById(`day${day}_transport_${transportIndex}_base_price`);
+                    totalPriceField = document.getElementById(`day${day}_transport_${transportIndex}_total_price`);
+                    guestCountField = document.getElementById(`day${day}_transport_${transportIndex}_guest_count`);
+                }
+            } else {
+                basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+                totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+                guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+            }
             
             if (basePriceField) basePriceField.value = customPrice.toFixed(2);
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
@@ -14955,9 +15012,24 @@ function loadDropoffZones(day, section) {
         console.log(`${priceType} service selected for day ${day}, section ${section}: $${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
         
         // Store pricing data in hidden fields
-        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-        const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-        const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        let basePriceField, totalPriceField, guestCountField;
+        
+        if (section.startsWith('transport')) {
+            if (section === 'transport') {
+                basePriceField = document.getElementById(`day${day}_transport_base_price`);
+                totalPriceField = document.getElementById(`day${day}_transport_total_price`);
+                guestCountField = document.getElementById(`day${day}_transport_guest_count`);
+            } else {
+                const transportIndex = section.split('_')[1];
+                basePriceField = document.getElementById(`day${day}_transport_${transportIndex}_base_price`);
+                totalPriceField = document.getElementById(`day${day}_transport_${transportIndex}_total_price`);
+                guestCountField = document.getElementById(`day${day}_transport_${transportIndex}_guest_count`);
+            }
+        } else {
+            basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+            totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+            guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        }
         
         if (basePriceField) basePriceField.value = displayPrice.toFixed(2);
         if (totalPriceField) totalPriceField.value = totalPrice.toFixed(2);
@@ -14973,9 +15045,24 @@ function loadDropoffZones(day, section) {
         console.log('No pricing information available for the selected vehicle and service type');
         
         // Clear hidden fields when no pricing
-        const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
-         const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
-         const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        let basePriceField, totalPriceField, guestCountField;
+        
+        if (section.startsWith('transport')) {
+            if (section === 'transport') {
+                basePriceField = document.getElementById(`day${day}_transport_base_price`);
+                totalPriceField = document.getElementById(`day${day}_transport_total_price`);
+                guestCountField = document.getElementById(`day${day}_transport_guest_count`);
+            } else {
+                const transportIndex = section.split('_')[1];
+                basePriceField = document.getElementById(`day${day}_transport_${transportIndex}_base_price`);
+                totalPriceField = document.getElementById(`day${day}_transport_${transportIndex}_total_price`);
+                guestCountField = document.getElementById(`day${day}_transport_${transportIndex}_guest_count`);
+            }
+        } else {
+            basePriceField = document.getElementById(`day${day}_${section}_base_price`);
+            totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
+            guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
+        }
         
         if (basePriceField) basePriceField.value = '0';
         if (totalPriceField) totalPriceField.value = '0';
