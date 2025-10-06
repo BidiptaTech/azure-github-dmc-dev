@@ -147,10 +147,26 @@ jobs:
         run: |
           set -e
           echo "🔐 Extracting Kudu credentials from publish profile..."
-          printf "%s" "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null || printf "%s" "$AZURE_PUBLISH_PROFILE" > pf.xml
-          USER=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userName="\([^"]*\)".*/\1/p' pf.xml)
-          PASS=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userPWD="\([^"]*\)".*/\1/p' pf.xml)
-          if [ -z "$USER" ] || [ -z "$PASS" ]; then echo "❌ Could not parse Kudu creds"; exit 1; fi
+          # Try base64 decode first, fallback to raw
+          if echo "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null; then
+            echo "✅ Decoded base64 publish profile"
+          else
+            echo "$AZURE_PUBLISH_PROFILE" > pf.xml
+            echo "✅ Using raw publish profile"
+          fi
+          echo "📄 First 200 chars of profile:"
+          head -c 200 pf.xml
+          echo ""
+          USER=$(grep -o 'publishMethod="MSDeploy"[^>]*userName="[^"]*"' pf.xml | sed 's/.*userName="\([^"]*\)".*/\1/')
+          PASS=$(grep -o 'publishMethod="MSDeploy"[^>]*userPWD="[^"]*"' pf.xml | sed 's/.*userPWD="\([^"]*\)".*/\1/')
+          echo "🔍 Found USER: ${USER:0:10}..."
+          echo "🔍 Found PASS: ${PASS:0:10}..."
+          if [ -z "$USER" ] || [ -z "$PASS" ]; then 
+            echo "❌ Could not parse Kudu creds from profile"
+            echo "📄 Full profile content:"
+            cat pf.xml
+            exit 1
+          fi
           echo "🚀 Uploading laravel backadm-dmc zip to Kudu subfolder..."
           curl -sS -u "$USER:$PASS" -X PUT \
             "https://${APP_NAME}.scm.azurewebsites.net/api/zip/backadm-dmc" \
@@ -161,9 +177,14 @@ jobs:
           AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           APP_NAME: dmc-app-dev
         run: |
-          printf "%s" "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null || printf "%s" "$AZURE_PUBLISH_PROFILE" > pf.xml
-          USER=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userName="\([^"]*\)".*/\1/p' pf.xml)
-          PASS=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userPWD="\([^"]*\)".*/\1/p' pf.xml)
+          if echo "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null; then
+            echo "✅ Decoded base64 publish profile"
+          else
+            echo "$AZURE_PUBLISH_PROFILE" > pf.xml
+            echo "✅ Using raw publish profile"
+          fi
+          USER=$(grep -o 'publishMethod="MSDeploy"[^>]*userName="[^"]*"' pf.xml | sed 's/.*userName="\([^"]*\)".*/\1/')
+          PASS=$(grep -o 'publishMethod="MSDeploy"[^>]*userPWD="[^"]*"' pf.xml | sed 's/.*userPWD="\([^"]*\)".*/\1/')
           curl -sS -u "$USER:$PASS" -X POST \
             "https://${APP_NAME}.scm.azurewebsites.net/api/command" \
             -H "Content-Type:text/plain" \
@@ -174,9 +195,14 @@ jobs:
           AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           APP_NAME: dmc-app-dev
         run: |
-          printf "%s" "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null || printf "%s" "$AZURE_PUBLISH_PROFILE" > pf.xml
-          USER=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userName="\([^"]*\)".*/\1/p' pf.xml)
-          PASS=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userPWD="\([^"]*\)".*/\1/p' pf.xml)
+          if echo "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null; then
+            echo "✅ Decoded base64 publish profile"
+          else
+            echo "$AZURE_PUBLISH_PROFILE" > pf.xml
+            echo "✅ Using raw publish profile"
+          fi
+          USER=$(grep -o 'publishMethod="MSDeploy"[^>]*userName="[^"]*"' pf.xml | sed 's/.*userName="\([^"]*\)".*/\1/')
+          PASS=$(grep -o 'publishMethod="MSDeploy"[^>]*userPWD="[^"]*"' pf.xml | sed 's/.*userPWD="\([^"]*\)".*/\1/')
           CMD='set -e; cd /home/site/wwwroot/backadm-dmc; \
           mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache; \
           touch storage/logs/laravel.log; \
