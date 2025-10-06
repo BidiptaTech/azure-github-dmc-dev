@@ -1,16 +1,24 @@
 #!/bin/bash
 echo "🔧 Configuring NGINX and Laravel for Azure App Service..."
 
-# Copy our custom NGINX configuration
+# =========================
+# (YOUR ORIGINAL COPY LINES — keep these)
+# =========================
+# Copy our custom NGINX configuration (your existing commands are retained)
 cp /home/site/wwwroot/default /etc/nginx/sites-available/default
 cp /home/site/wwwroot/default /etc/nginx/sites-enabled/default
 
-# Set proper Laravel permissions
+# === ADDED FOR REACT: ensure config copied early and nginx gently reloaded ===
+echo "🌐 Custom NGINX config copied to /etc/nginx/sites-available and sites-enabled."
+service nginx reload || echo "service nginx reload failed (will continue and test later)"
+
+# =====================================================
+# EXISTING LARAVEL SETUP (unchanged — your original script)
+# =====================================================
 echo "📁 Setting Laravel permissions..."
 chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
 chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-# Ensure directories exist
 echo "📁 Ensuring Laravel directories exist..."
 mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/views
 mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/cache/data
@@ -18,23 +26,18 @@ mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/sessions
 mkdir -p /home/site/wwwroot/backadm-dmc/storage/logs
 mkdir -p /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-# Set permissions again after creating directories
 chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
 chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-# Navigate to Laravel directory
-cd /home/site/wwwroot/backadm-dmc
+cd /home/site/wwwroot/backadm-dmc || echo "Could not cd into backadm-dmc"
 
-# Configure Laravel for HTTPS (fix mixed content issues)
 echo "🔒 Configuring Laravel for HTTPS..."
 
-# Update .env for HTTPS if APP_URL is not set to HTTPS
 if ! grep -q "APP_URL=https://" .env 2>/dev/null; then
     echo "🔧 Setting APP_URL to HTTPS in .env..."
-    sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "Could not update APP_URL"
+    sed -i 's|APP_URL=.*|APP_URL=https://uat.travclicks.com|g' .env || echo "Could not update APP_URL"
 fi
 
-# Ensure critical environment variables are set
 echo "🔧 Ensuring critical environment variables are set..."
 if ! grep -q "APP_ENV=" .env 2>/dev/null; then
     echo "APP_ENV=production" >> .env
@@ -43,45 +46,38 @@ if ! grep -q "APP_DEBUG=" .env 2>/dev/null; then
     echo "APP_DEBUG=false" >> .env
 fi
 
-# Add HTTPS enforcement variables
 if ! grep -q "FORCE_HTTPS=" .env 2>/dev/null; then
     echo "FORCE_HTTPS=true" >> .env
 fi
 if ! grep -q "ASSET_URL=" .env 2>/dev/null; then
-    echo "ASSET_URL=https://dev.travclicks.com/backadm-dmc" >> .env
+    echo "ASSET_URL=https://uat.travclicks.com/backadm-dmc" >> .env
 fi
 
-# Force HTTPS in Laravel configuration
-export APP_URL="https://dev.travclicks.com"
-export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
+export APP_URL="https://uat.travclicks.com"
+export ASSET_URL="https://uat.travclicks.com/backadm-dmc"
 export APP_ENV="production"
 export FORCE_HTTPS="true"
 export HTTPS="on"
 export SERVER_PORT="443"
 
-# Generate application key if not set
 echo "🔑 Checking Laravel application key..."
 if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
     echo "🔑 Generating Laravel application key..."
     php artisan key:generate --force || echo "Key generation failed (may already exist)"
 fi
 
-# Clear Laravel caches
 echo "🧹 Clearing Laravel caches..."
 php artisan config:clear || echo "Config clear failed (OK if no config cached)"
 php artisan cache:clear || echo "Cache clear failed (OK if no cache)"
 php artisan view:clear || echo "View clear failed (OK if no views cached)"
 php artisan route:clear || echo "Route clear failed (OK if no routes cached)"
 
-# Try to cache config for better performance
 echo "⚡ Optimizing Laravel..."
 php artisan config:cache || echo "Config cache failed (OK for development)"
 
-# Debug Laravel routes
 echo "🔍 Checking Laravel routes..."
 php artisan route:list --path=login || echo "Route list failed"
 
-# Test NGINX configuration
 echo "🔧 Testing NGINX configuration..."
 nginx -t
 if [ $? -eq 0 ]; then
@@ -89,11 +85,25 @@ if [ $? -eq 0 ]; then
     service nginx reload
     echo "✅ NGINX reloaded successfully"
 else
-    echo "❌ NGINX configuration error"
+    echo "❌ NGINX configuration error - dumping /etc/nginx/sites-available/default for debug"
+    cat /etc/nginx/sites-available/default || true
+    nginx -t || true
     exit 1
 fi
 
+# === ADDED FOR REACT: verify SPA files and set permissions for static files ===
+echo "🌐 Verifying React frontend files..."
+if [ -f "/home/site/wwwroot/index.html" ]; then
+    echo "✅ React index.html found!"
+    # set permissive read for nginx to serve; keep 777 for Laravel as before
+    chmod -R 755 /home/site/wwwroot/*.html || true
+    chmod -R 755 /home/site/wwwroot/static || true
+else
+    echo "❌ React build missing: please ensure React is built into /home/site/wwwroot/ (index.html + static/)"
+fi
+
 echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
+echo "🎯 React frontend should now load correctly at /"
 echo "🔒 HTTPS configuration applied to fix mixed content issues"
 echo "📁 Storage permissions: $(ls -la /home/site/wwwroot/backadm-dmc/storage | head -5)"
-echo "🔍 Debug URL: https://dev.travclicks.com/laravel-debug.php"
+echo "🔍 Debug URL: https://uat.travclicks.com/laravel-debug.php"
