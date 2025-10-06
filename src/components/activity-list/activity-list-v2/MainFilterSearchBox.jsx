@@ -42,9 +42,9 @@ const MainFilterSearchBox = ({ Location }) => {
   const selectedPort = useSelector((state) => state.pickupDrop.selectedPort);
 
   const [pickUpLatLng, setPickupLatLng] = useState(""); // New state for pick-up place_id
-  console.log("pickUpLatLng", pickUpLatLng);
+ 
   const [dropOffLatLng, setDropoffLatLng] = useState(""); // New state for drop-off place_id
-  console.log("dropOffLatLng", dropOffLatLng);
+ 
   const [entryytime, setentryytime] = useState("");
   const [entryytime1, setentryytime1] = useState("");
 

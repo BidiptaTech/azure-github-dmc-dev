@@ -492,7 +492,7 @@ export default function TabStatus() {
                         mx: 1,
                         my: 0.5,
                         '&:hover': {
-                          background: 'linear-gradient(45deg, #9c27b0, #673ab7)',
+                          background: '#13357b',
                           color: 'white',
                         }
                       }
@@ -520,7 +520,7 @@ export default function TabStatus() {
         </Grid>
 
         {/* Active Filters Display */}
-        {hasActiveFilters && (
+        {/* {hasActiveFilters && (
           <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {Object.entries(filters).map(([key, value]) => {
               if (value) {
@@ -547,7 +547,7 @@ export default function TabStatus() {
               return null;
             })}
           </Box>
-        )}
+        )} */}
       </Card>
 
       {/* Desktop Tabs */}

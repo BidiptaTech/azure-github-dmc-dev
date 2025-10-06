@@ -106,7 +106,7 @@ export const fetchZoneVehicles = createAsyncThunk(
         limit: (params1 && params1.limit) || undefined,
       };
 
-      console.log("Zone API parameters:", params);
+     
 
       // ✅ Make API request with dynamic params
       const response = await axios.get(`${BASE_URL}/zone-vehicles`, {
@@ -248,26 +248,9 @@ export const Localtourslice = createAsyncThunk(
         details1,
         tourid,
       } = state.localtour;
-      console.log("State values before FormData population:");
-      console.log({
-        entrypickup,
-        entrydropoff,
-        pickdate,
-        entrytime,
-        adult,
-        children,
-      });
-      console.log({
-        exitpickup,
-        pickdate,
-        entrytime1,
-        hours,
-        vehicletype1,
-        traveller1,
-      });
+     
 
-      console.log("xyz", typeof details);
-      console.log(typeof details);
+     
 
       const authToken = Cookies.get("authToken");
       // Corrected conditional statement
@@ -297,9 +280,7 @@ export const Localtourslice = createAsyncThunk(
       let formData = {};
       let formData1 = {};
 
-      // Create JSON objects based on the provided conditions
-      // let json0 = {};
-      // let json1 = {};
+     
 
       // Populate FormData if entrypickup and related fields exist
       if (
@@ -312,18 +293,7 @@ export const Localtourslice = createAsyncThunk(
         children !== null &&
         children !== undefined
       ) {
-        // json0 = {
-        //   entrypickup,
-        //   entrydropoff,
-        //   pickupdate,
-        //   entrytime,
-        //   vehicletype,
-        //   traveller0,
-        // };
-        // formData.append("data", details);
-        // formData.append("type", type);
-        // formData.append("agent_id", AgentId);
-        // formData.append("tour_id", tourid);
+      
         formData = {
           data: details.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: selectedType === "travelpointzone" ? type2 : type,
@@ -343,18 +313,7 @@ export const Localtourslice = createAsyncThunk(
         children !== null &&
         children !== undefined
       ) {
-        // json1 = {
-        //   exitpickup,
-        //   exitpickupdate,
-        //   entrytime1,
-        //   hours,
-        //   vehicletype1,
-        //   traveller1,
-        // };
-        // formData1.append("data", details1);
-        // formData1.append("type", type1);
-        // formData1.append("agent_id", AgentId);
-        // formData1.append("tour_id", tourid);
+       
         formData1 = {
           data: details1.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: type1,
@@ -363,8 +322,7 @@ export const Localtourslice = createAsyncThunk(
           bookingType: bookingtype,
         };
       }
-      console.log("formdata", formData);
-      console.log("formdata1", formData1);
+      
       let selectedFormData = null;
       if (selectedType === "travelpoint" && "data" in formData) {
         selectedFormData = formData;
@@ -390,16 +348,9 @@ export const Localtourslice = createAsyncThunk(
       } else {
         throw new Error("No valid data to submit.");
       }
-      console.log("formselectLocal", selectedFormData);
+     
 
-      // Debugging: Log selected FormData
-      // console.log("Selected FormData content:");
-      // for (let [key, value] of selectedFormData.entries()) {
-      //   console.log(`${key}: ${value}`);
-      // }
-
-      // Skip API call for debugging
-      //return { message: "Debugging FormData complete, no API call made." };
+     
 
       // Uncomment the code below for the actual API call
 
@@ -425,8 +376,7 @@ export const Localtourslice = createAsyncThunk(
 
       // Extracting response data - CORRECTED to use service.data
       const responseData = response.data.service.data || [];
-      console.log("Response data array:", responseData);
-
+     
       // Check if responseData exists and is an array
       if (!Array.isArray(responseData)) {
         console.error(
@@ -438,8 +388,7 @@ export const Localtourslice = createAsyncThunk(
         const travelPointData = [];
         const travelHourlyData = [];
 
-        console.log("Filtered travel_point data:", travelPointData);
-        console.log("Filtered travel_hourly data:", travelHourlyData);
+     
 
         // Return the response anyway for error handling
         return response.data;
@@ -518,9 +467,7 @@ export const Localtourslice = createAsyncThunk(
         return false; // Default to false for safety
       });
 
-      console.log("Filtered travel_point data:", travelPointData);
-      console.log("Filtered travel_hourly data:", travelHourlyData);
-      console.log("FIltered zone data", travelZoneData);
+    
 
       // Use the service type as fallback
       if (
@@ -528,13 +475,13 @@ export const Localtourslice = createAsyncThunk(
         responseData.length > 0
       ) {
         dispatch(setPointToPoint(responseData));
-        console.log("Dispatched to Point to Point based on service type");
+       
       } else if (
         response.data.service.type === "travel_hourly" &&
         responseData.length > 0
       ) {
         dispatch(setHourly(responseData));
-        console.log("Dispatched to Hourly based on service type");
+     
       } else if (
         response.data.service.type === "local_transport" &&
         responseData.length > 0
@@ -686,7 +633,7 @@ const LocalSlice = createSlice({
     //   },
     setpickupdate: (state, action) => {
       state.pickupdate = action.payload;
-      console.log("Updated pickupdate:", state.pickupdate); // Log AFTER state update
+    
     },
     setpickdate: (state, action) => {
       // Check if payload is a Moment object and convert to string if it is
@@ -695,58 +642,58 @@ const LocalSlice = createSlice({
       } else {
         state.pickdate = action.payload;
       }
-      console.log("abcd", state.pickdate);
+  
     },
 
     setexitpickupdate: (state, action) => {
       state.exitpickupdate = action.payload;
-      console.log("ldrop", state.exitpickupdate);
+ 
     },
     setentrytime: (state, action) => {
       state.entrytime = action.payload;
-      console.log("entrytime00", state.entrytime);
+   
     },
     setPickupPlaceid: (state, action) => {
       state.PickupPlaceid = action.payload;
-      console.log("pickplaceid", state.PickupPlaceid);
+      
     },
     setDropoffPlaceid: (state, action) => {
       state.DropoffPlaceid = action.payload;
-      console.log("dropplaceid", state.DropoffPlaceid);
+     
     },
     setPickupZoneid: (state, action) => {
       state.PickupZoneid = action.payload;
-      console.log("pickplaceid", state.PickupPlaceid);
+      
     },
     setDropoffZoneid: (state, action) => {
       state.DropoffZoneid = action.payload;
-      console.log("dropplaceid", state.DropoffPlaceid);
+     
     },
     setPriceMode1: (state, action) => {
       state.pricemode = action.payload;
-      console.log("m", state.pricemode);
+     
     },
     setbookingtype3: (state, action) => {
       state.bookingtype = action.payload;
-      console.log("bookingtype", state.bookingtype);
+     
     },
     // setexittime: (state, action) => {
     //   state.exittime = action.payload;
     // },
     setentrytime1: (state, action) => {
       state.entrytime1 = action.payload;
-      console.log("entrytime11", state.entrytime1);
+      
     },
     sethour: (state, action) => {
       state.hours = action.payload;
     },
     setadult: (state, action) => {
       state.adult = action.payload;
-      console.log("adult", state.adult);
+    
     },
     setchildren: (state, action) => {
       state.children = action.payload;
-      console.log("chil", state.children);
+     
     },
     setAdultCount: (state, action) => {
       state.adultCount = action.payload;
@@ -785,42 +732,42 @@ const LocalSlice = createSlice({
       } else {
         state.details1[0] = action.payload; // ✅ Insert if empty
       }
-      console.log("xyx", state.details1);
+     
     },
     setPointToPoint: (state, action) => {
       // Append new form data to the existing pointtopoint array
       state.pointtopoint = action.payload;
-      console.log("p2p", state.pointtopoint);
+     
     },
     setHourly: (state, action) => {
       // Append new form data to the existing hourly array
       state.hourly = action.payload;
-      console.log(("hour", state.hourly));
+     
     },
     setZone: (state, action) => {
       // Append new form data to the existing pointtopoint array
       state.Zonebook = action.payload;
-      console.log("z2z", state.Zonebook);
+     
     },
     setSelectionType: (state, action) => {
       state.selectionType = action.payload;
-      console.log("type", state.selectionType);
+      
     },
     setMode: (state, action) => {
       state.mode = { ...state.mode, ...action.payload }; // ✅ Merge new mode
-      console.log("Updated Mode:", state.mode);
+      
     },
     setSelectedVehicle: (state, action) => {
       state.selectedVehicle = action.payload;
-      console.log("mode array", state.selectedVehicle);
+      
     },
     setSelectedPort: (state, action) => {
       state.selectedPort = action.payload;
-      console.log("selectedPort", state.selectedPort);
+      
     },
     setPort: (state, action) => {
       state.port = action.payload;
-      console.log("port", state.port);
+      
     },
     resetVehicles1: (state, action) => {
       state.vehicles = [];
@@ -872,10 +819,10 @@ const LocalSlice = createSlice({
       .addCase(fetchVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
         if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
-          console.log("fetchVehicles - Error response received:", action.payload.message);
+         
           state.vehicles = [];
           state.error = action.payload.message;
-          console.log("fetchVehicles - Set Entry Port vehicles to empty array");
+         
         } else {
           // Support infinite scrolling - check if it's initial load or subsequent load
           const { start = 0 } = action.meta?.arg || {};
@@ -883,25 +830,21 @@ const LocalSlice = createSlice({
           if (start === 0) {
             // First page - replace vehicles
             state.vehicles = action.payload;
-            console.log("fetchVehicles - Replaced vehicles:", state.vehicles);
+           
           } else {
             // Subsequent pages - accumulate vehicles
             const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
             const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
             state.vehicles = [...state.vehicles, ...newVehicles];
-            console.log("fetchVehicles - Accumulated vehicles:", state.vehicles);
+           
           }
         }
-        // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
-        //state.PickupPlaceid = null;
-        //state.DropoffPlaceid = null;
-
-        //console.log("Fetched Attractions Data:", action.payload); // Log the fetched data
+       
       })
       .addCase(fetchVehicles.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload.message; // Save the error in state
-        console.error("Error fetching attractions:", action.payload); // Log error details
+        
       });
 
     builder
@@ -912,10 +855,10 @@ const LocalSlice = createSlice({
       .addCase(fetchZoneVehicles.fulfilled, (state, action) => {
         state.status = "succeeded";
         if(action.payload && typeof action.payload === 'object' && action.payload.success === false){
-          console.log("fetchZoneVehicles - Error response received:", action.payload.message);
+         
           state.vehicles = [];
           state.error = action.payload.message;
-          console.log("fetchZoneVehicles - Set Entry Port vehicles to empty array");
+       
         } else {
           // Support infinite scrolling - check if it's initial load or subsequent load
           const { start = 0 } = action.meta?.arg || {};
@@ -923,26 +866,22 @@ const LocalSlice = createSlice({
           if (start === 0) {
             // First page - replace vehicles
             state.vehicles = action.payload;
-            console.log("fetchZoneVehicles - Replaced vehicles:", state.vehicles);
+           
           } else {
             // Subsequent pages - accumulate vehicles
             const existingIds = new Set(state.vehicles.map(vehicle => vehicle.id));
             const newVehicles = action.payload.filter(vehicle => !existingIds.has(vehicle.id));
             state.vehicles = [...state.vehicles, ...newVehicles];
-            console.log("fetchZoneVehicles - Accumulated vehicles:", state.vehicles);
+           
           }
         }
 
-        // ✅ Reset PickupPlaceid & DropoffPlaceid after API success
-        //state.PickupPlaceid = null;
-        //state.DropoffPlaceid = null;
-
-        //console.log("Fetched Attractions Data:", action.payload); // Log the fetched data
+       
       })
       .addCase(fetchZoneVehicles.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload.message; // Save the error in state
-        console.error("Error fetching attractions:", action.payload); // Log error details
+       
       });
 
     // ... (other extraReducers)

@@ -310,7 +310,7 @@ const VehicleListDropdownZone = ({
     to_zone_id: '',
     from_zone_id: ''
   });
-  console.log("Datazone", data);
+ 
   // Define totalGuests for price calculation
   const totalGuests = adults + children;
   
@@ -346,7 +346,7 @@ const VehicleListDropdownZone = ({
       dispatch(fetchVehicleDetails({ city: vehicle.city, country: vehicle.country, type: portZoneType }))
       .unwrap() // Unwrap the promise to handle the payload directly
       .then((data) => {
-        console.log("data", data);
+       
         setSeatingCapacity(data.seating_capacity || 0);
         
         // Create data structure with prices object - same format as vehiclelistdropdown
@@ -403,15 +403,7 @@ const VehicleListDropdownZone = ({
   const effectivePrice = (selectedVehicle && data && Price === 0) ? 
     (pricemode === "Sharable" ? 50 * totalGuests : 100) : Price;
     
-  console.log("Local Transfer - Price calculation", { 
-    pricemode, 
-    rawPrice: Price,
-    effectivePrice,
-    data,
-    sharedPrice: data?.shared_price,
-    privatePrice: data?.private_price,
-    totalGuests
-  });
+ 
   
   // Create a ref to track previous price
   const prevPriceRef = useRef(0);
@@ -423,7 +415,7 @@ const VehicleListDropdownZone = ({
       const newPrice = effectivePrice;
       
       if (prevPriceRef.current !== newPrice) {
-        console.log("Local Transfer - Updating price to parent:", newPrice);
+      
         onPriceChange(newPrice);
         prevPriceRef.current = newPrice;
         
@@ -460,7 +452,7 @@ const VehicleListDropdownZone = ({
     if (hasInitialized.current) return;
     
     if (preloadedBooking && preloadedBooking.vehicleId && preloadedBooking.price > 0) {
-      console.log("Local Transfer - Initializing with preloaded booking data");
+     
       
       // Ensure zone IDs are set
       const zoneId = preloadedBooking.to_zone_id || preloadedBooking.zoneId || '1';

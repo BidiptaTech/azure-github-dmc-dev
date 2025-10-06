@@ -379,21 +379,7 @@ export const fetchZoneVehicles = createAsyncThunk(
         selectionType,
       } = state.pickupDrop;
 
-      // Debug logging
-      console.log("fetchZoneVehicles - Current state:", {
-        selectionType,
-        PickupPlaceid,
-        PickupPlaceid1,
-        entrypickup,
-        exitpickup,
-        entrydropoff,
-        exitdropoff,
-        pickupdate,
-        entrytime,
-        exittime,
-        picktype,
-        droptype
-      });
+    
 
       // Check for pickup location based on selection type
       if (selectionType === "Entry Port") {
@@ -418,7 +404,7 @@ export const fetchZoneVehicles = createAsyncThunk(
       const authToken = Cookies.get("authToken");
       const AgentId = Cookies.get("AgentId");
       const selectedDmcId = selectDmcId(state);
-      console.log("selectedDmcIdx", selectedDmcId);
+     
       // ✅ Format pickdate as JSON { "0": "YYYY-MM-DD" }
       const travelDate = JSON.stringify({ 0: pickupdate });
 
@@ -452,8 +438,7 @@ export const fetchZoneVehicles = createAsyncThunk(
               limit: (params1 && params1.limit) || undefined,
             };
 
-      console.log("Zone API parameters:", params);
-
+      
       // ✅ Make API request with dynamic params
       const response = await axios.get(`${BASE_URL}/zone-vehicles`, {
         params,
@@ -579,7 +564,7 @@ export const submitPickupDrop = createAsyncThunk(
       } else {
         throw new Error("No valid data to submit.");
       }
-      console.log("formselect", selectedFormData);
+      
 
       
     
@@ -597,7 +582,7 @@ export const submitPickupDrop = createAsyncThunk(
         }
       );
 
-      console.log("API Response:", response.data);
+      
 
       // Check if response has the expected structure
       if (!response.data || !response.data.service) {
@@ -607,7 +592,7 @@ export const submitPickupDrop = createAsyncThunk(
 
       // Extracting response data - CORRECTED to use service.data
       const responseData = response.data.service.data || [];
-      console.log("Response data array:", responseData);
+      
 
       if (!Array.isArray(responseData)) {
         console.error(
@@ -643,8 +628,7 @@ export const submitPickupDrop = createAsyncThunk(
         );
       });
 
-      console.log("Filtered Entry Port data:", EntryPortData);
-      console.log("Filtered Exit Port data:", ExitPortData);
+     
 
       // Since the API might return only one result based on the request type,
       // let's also consider the service type to determine what to dispatch
@@ -653,13 +637,13 @@ export const submitPickupDrop = createAsyncThunk(
         responseData.length > 0
       ) {
         dispatch(setEntryport(responseData));
-        console.log("Dispatched to Entry Port:", responseData);
+        
       } else if (
         response.data.service.type === "exit_port" &&
         responseData.length > 0
       ) {
         dispatch(setExitport(responseData));
-        console.log("Dispatched to Exit Port:", responseData);
+        
       } else {
         // Apply the original filter logic as fallback
         if (EntryPortData.length > 0) {
@@ -673,15 +657,10 @@ export const submitPickupDrop = createAsyncThunk(
 
       // Check the type in the response and assign to formData or formData1
       const data = response.data.order.data;
-      // const cleanedData = data.slice(1, -1); // Remove the first and last character (quotes)
-      // const decodedData = cleanedData
-      //   .replace(/\\"/g, '"')
-      //   .replace(/\\\//g, "/");
+     
       const responseType = response.data.order.type;
 
-      // Parse the 'data' field from the response
-      // const parsedData = JSON.parse(decodedData);
-      // console.log(parsedData);
+      
 
       if (responseType === "entry_port") {
         // Create an array to hold EntryPort data
@@ -713,7 +692,7 @@ export const submitPickupDrop = createAsyncThunk(
               break;
           }
         });
-        console.log("form", formData);
+      
 
         // Update the state with formData
         dispatch(updateFormData(formData));
@@ -747,7 +726,7 @@ export const submitPickupDrop = createAsyncThunk(
               break;
           }
         });
-        console.log("form1", formData1);
+        
 
         // Update the state with formData1
         dispatch(updateFormData1(formData1));

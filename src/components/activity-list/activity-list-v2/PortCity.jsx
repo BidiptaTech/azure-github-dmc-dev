@@ -20,14 +20,7 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
 
   const cityData = useSelector((state) => state.city.city);
 
-  // Check if cityData is available
-  useEffect(() => {
-    console.log("City data available:", Array.isArray(cityData));
-    console.log("City data length:", cityData?.length || 0);
-    if (cityData?.length > 0) {
-      console.log("Sample city:", cityData[0]);
-    }
-  }, [cityData]);
+ 
 
   const transformedCityData =
     cityData && Array.isArray(cityData)
@@ -52,7 +45,7 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
   const handleOptionClick = (item) => {
     if (disabled) return; // Don't process clicks if disabled
     
-    console.log("City option clicked:", item);
+    
     // Only update state if the selection is actually changing
     if (!selectedItem || selectedItem.id !== item.id) {
       setSelectedItem(item);
@@ -101,34 +94,7 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
     if (setError) setError(false);
   };
 
-  // Effect to handle auto-fill from Redux store
-  // useEffect(() => {
-  //   if (!hasUserInteracted && !citySelectedManually && selectedCityFromSlice && !initialSelectionRef.current) {
-  //     console.log("Auto-fill from Redux store:", selectedCityFromSlice);
-
-  //     const cityName = typeof selectedCityFromSlice === 'object' && selectedCityFromSlice.name
-  //       ? selectedCityFromSlice.name
-  //       : selectedCityFromSlice;
-
-  //     const matchingCity = transformedCityData.find(
-  //       city => city.name.toLowerCase() === (cityName || '').toString().toLowerCase()
-  //     );
-
-  //     if (matchingCity) {
-  //       console.log("Found matching city for auto-fill:", matchingCity);
-  //       initialSelectionRef.current = true; // Mark that we've done the initial selection
-  //       setSelectedItem(matchingCity);
-  //       setSearchValue(matchingCity.name);
-  //       setIsDropdownOpen(false);
-  //       if (selectedItem?.id !== matchingCity.id) {
-  //         onLocationSelect(matchingCity);
-  //         if (setError) setError(false);
-
-  //         // Let the parent component handle the API call by passing the selected city
-  //       }
-  //     }
-  //   }
-  // }, [selectedCityFromSlice, transformedCityData, hasUserInteracted, citySelectedManually, selectedItem]);
+ 
 
   // Effect to clear selection when no matching cities
   useEffect(() => {
