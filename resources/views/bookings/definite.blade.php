@@ -17264,6 +17264,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                         onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"
                                         style="border-radius: 25px;">
                                     <i class="ri-close-line me-1"></i>Reject
+                                    
                                 </button>
                                 @endif
                             </div>
