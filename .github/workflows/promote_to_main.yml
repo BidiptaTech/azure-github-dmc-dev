@@ -6,124 +6,109 @@ on:
       - staging
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  build-and-deploy:
+  deploy:
+    name: 🧩 Laravel Backend Deployment (backadm-dmc)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       id-token: write
+      contents: read
 
     steps:
-      - name: 📅 Checkout staging branch
+      - name: 📥 Checkout DEV Main branch
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 🧠 Setup PHP
+      - name: 🔧 Setup PHP for Laravel
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-
-      - name: 🗒️ Check if composer.json exists
-        id: check_files
-        uses: andstor/file-existence-action@v1
-        with:
-          files: 'backadm-dmc/composer.json'
 
       - name: 🔧 Install Composer Globally
         run: |
           curl -sS https://getcomposer.org/installer | php
           mv composer.phar /usr/local/bin/composer
 
-      - name: 📦 Run composer install if composer.json exists
-        if: steps.check_files.outputs.files_exists == 'true'
+      - name: 📦 Install Laravel Dependencies
+        working-directory: backadm-dmc
         run: |
-          cd backadm-dmc
           composer validate --no-check-publish
-          composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+          composer install --prefer-dist --no-dev --optimize-autoloader
 
-      - name: 📦 Create ZIP for deployment
+      - name: 🗂️ Ensure storage directories exist (pre-deploy)
         run: |
-          zip -r release.zip . \
-            -x ".git/*" \
-            -x "node_modules/*" \
-            -x "tests/*" \
-            -x "*.md" \
-            -x ".github/*" \
-            -x ".gitignore" \
-            -x ".gitattributes" \
-            -x ".editorconfig" \
-            -x "phpunit.xml" \
-            -x "vite.config.js" \
-            -x "package*.json"
+          set -e
+          mkdir -p backadm-dmc/storage/app/public
+          mkdir -p backadm-dmc/storage/framework/{cache,sessions,testing,views}
+          mkdir -p backadm-dmc/storage/logs
+          # Pre-create a writable file so logs can initialize
+          touch backadm-dmc/storage/logs/laravel.log
 
-      - name: 🔐 Login to Azure using OIDC
+      - name: 🗂️ Prepare deployment package (Laravel only)
+        run: |
+          echo "📁 Preparing Laravel-only deployment package..."
+          rm -rf deployment
+          mkdir -p deployment
+          cp -r backadm-dmc deployment/backadm-dmc
+          echo "✅ Package contains only backadm-dmc to avoid touching React root"
+
+      - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy to Azure Web App (preserving React files)
+      - name: 🚀 Deploy Laravel folder to Azure Web App (dmc-app-dev)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: dmc-app-dev
+          slot-name: Production
+          package: ./deployment
+
+      - name: 🔧 Post-deploy Laravel maintenance (best-effort)
+        if: ${{ secrets.AZURE_PUBLISH_PROFILE != '' }}
+        env:
+          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          APP_NAME: dmc-app-dev
         run: |
-          az webapp deploy \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --src-path release.zip \
-            --type zip
+          echo "⚙️ Running post-deploy maintenance via Kudu (best-effort)"
+          python3 - << 'PY'
+import os, base64, xml.etree.ElementTree as ET, subprocess
+pf = os.environ.get('AZURE_PUBLISH_PROFILE', '')
+if not pf:
+    raise SystemExit(0)
+xml = base64.b64decode(pf.encode()).decode('utf-8') if pf.strip().startswith(('PD94','PFR1')) else pf
+root = ET.fromstring(xml)
+user = root.find('.//publishProfile[@publishMethod="MSDeploy"]').get('userName')
+pwd  = root.find('.//publishProfile[@publishMethod="MSDeploy"]').get('userPWD')
+app  = os.environ['APP_NAME']
+def kudu(cmd):
+    url = f"https://{app}.scm.azurewebsites.net/api/command"
+    subprocess.run(['curl','-sS','-u',f'{user}:{pwd}','-X','POST',url,'-d',cmd,'-H','Content-Type:text/plain'], check=False)
+commands = [
+  'set -e; cd /home/site/wwwroot; mkdir -p backadm-dmc/storage/app/public backadm-dmc/storage/framework/cache backadm-dmc/storage/framework/sessions backadm-dmc/storage/framework/testing backadm-dmc/storage/framework/views backadm-dmc/storage/logs; touch backadm-dmc/storage/logs/laravel.log; chmod -R 775 backadm-dmc/storage || true',
+  'cd /home/site/wwwroot/backadm-dmc && php artisan config:cache || true',
+  'cd /home/site/wwwroot/backadm-dmc && php artisan route:cache || true',
+  'cd /home/site/wwwroot/backadm-dmc && php artisan view:cache || true',
+  'cd /home/site/wwwroot/backadm-dmc && php artisan storage:link || true'
+]
+for c in commands:
+    kudu(c)
+PY
 
-      - name: ⚙️ Create startup script for Laravel setup
+      - name: ✅ Verify Laravel endpoint
         run: |
-          cat > startup.sh << 'EOF'
-          #!/bin/bash
-          echo "🚀 Starting Laravel setup..."
+          sleep 10
+          curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Laravel may still be warming up"
 
-          cd /home/site/wwwroot/backadm-dmc
-
-          # Create storage directories inside allowed path
-          mkdir -p storage/framework/{sessions,views,cache/data}
-          mkdir -p storage/{logs,app/public} bootstrap/cache
-          chmod -R 775 storage bootstrap/cache
-
-          # Artisan commands
-          php artisan optimize:clear || true
-          php artisan storage:link || true
-          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-              php artisan key:generate --force || true
-          fi
-          php artisan cache:clear || true
-          php artisan route:clear || true
-          php artisan view:clear || true
-          php artisan optimize || true
-          php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
-
-          echo "✅ Laravel setup completed"
-          EOF
-          chmod +x startup.sh
-
-      - name: 📄 Upload and run startup script
+      - name: ✅ Deployment Summary
         run: |
-          az webapp deploy \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --src-path startup.sh \
-            --type startup
-
-      - name: 🔄 Restart Azure Web App
-        run: |
-          az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
-
-      - name: ✅ Verify Deployment
-        run: |
-          sleep 30
-          curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Application may still be starting"
-
-      - name: 📦 Deployment Summary
-        run: |
-          echo "🎉 Deployment finished!"
-          echo "🌍 App URL: https://dev.travclicks.com/backadm-dmc"
-          echo "✔️ Laravel ready, React preserved"
-          echo "🔄 Laravel caches cleared, storage linked, key generated"
-          echo "🛠️ All Laravel directories created and permissioned"
-          echo "🚀 Production-ready optimization applied"
-          echo "📆 Deploy triggered by push to staging branch"
+          echo "🎉 Laravel deployment (backadm-dmc) completed."
+          echo "→ Deployed only /backadm-dmc to avoid affecting React root."
+          echo "→ Ensured storage directories exist and attempted to set permissions."
