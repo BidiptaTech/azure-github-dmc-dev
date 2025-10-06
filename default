@@ -64,12 +64,28 @@ server {
         rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
     }
 
-    # Handle other requests normally
+    # ============================
+    # REACT SPA: serve index.html for non-backend routes
+    # ============================
+    # === ADDED FOR REACT SPA ===
+    # Keep backend handling above untouched; for everything else try the file,
+    # otherwise fallback to index.html so React router can handle the route.
     location / {
-        try_files $uri $uri/ =404;
+        try_files $uri $uri/ /index.html;
     }
 
-    # Handle PHP files in root
+    # === ADDED FOR REACT STATIC ASSET CACHING ===
+    # Cache static assets strongly for performance; index.html still served from root.
+    location ~* \.(?:ico|css|js|json|map|txt|xml|woff2?|woff|ttf|gif|jpe?g|png|svg|webp|mp4|webm)$ {
+        # long-term caching for hashed assets; change to shorter duration if not using hashed filenames
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    # Handle other requests normally (this block will not be reached for valid SPA paths because of the fallback above)
+    # (I keep your original behaviour for root php handling)
+    # (No removal - just kept for PHP in root)
     location ~ \.php$ {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
