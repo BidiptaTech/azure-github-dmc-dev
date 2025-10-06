@@ -1,15 +1,29 @@
 import React, { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 
 // PDF Generator Component - Store booking data globally for PDF access
 let globalBookingData = null;
+let globalAgentInfo = null;
 
 const PDFGenerator = ({ children, bookingData }) => {
+  // Get agent info from Redux store
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  
   // Store booking data globally so PDF functions can access it
   useEffect(() => {
     if (bookingData) {
       globalBookingData = bookingData;
     }
   }, [bookingData]);
+  
+  // Store agent info globally so PDF functions can access it
+  useEffect(() => {
+    globalAgentInfo = {
+      logo: agencyLogo,
+      companyName: agentCompanyName
+    };
+  }, [agencyLogo, agentCompanyName]);
 
   // Add print styles when component mounts
   useEffect(() => {
@@ -223,10 +237,10 @@ const extractBookingData = () => {
     guests = `${bookingData.pax} person(s)`;
   }
 
-  // Extract DMC information
-  const dmcInfo = {
-    companyName: bookingData.dmc_data?.dmc_company_name || 'N/A',
-    logo: bookingData.dmc_data?.dmc_logo || null
+  // Extract Agent information from global state (stored from Redux)
+  const agentInfo = {
+    companyName: globalAgentInfo?.companyName || 'N/A',
+    logo: globalAgentInfo?.logo || null
   };
 
   // Extract itinerary data
@@ -321,7 +335,7 @@ const extractBookingData = () => {
     endDate,
     paymentAmount,
     guests,
-    dmcInfo,
+    agentInfo,
     itinerary
   };
 
@@ -547,18 +561,16 @@ const createCustomPDFHTML = (bookingData) => {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; max-width: 850px; margin: 0 auto; background: white; line-height: 1.5;">
       
-              <!-- DMC Branding Header -->
-        ${bookingData.dmcInfo.companyName ? `
-          <div style="background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); padding: 20px 32px; border-bottom: 2px solid #fde68a;">
-            <div style="display: flex; align-items: center; justify-content: center; position: relative;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                ${bookingData.dmcInfo.logo ? `<img src="${bookingData.dmcInfo.logo}" alt="DMC Logo" style="width: 100px; height: 80px; object-fit: contain; position: relative; top: 15px;" />` : ''}
-                <div>
-                  <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #92400e;">${bookingData.dmcInfo.companyName}</h3>
-                  <p style="margin: 0; font-size: 12px; color: #a16207; text-transform: uppercase; letter-spacing: 1px;">Destination Management Company</p>
-                </div>
-              </div>
-              
+              <!-- Agent Branding Header -->
+        ${bookingData.agentInfo.companyName || bookingData.agentInfo.logo ? `
+          <div style="background: #ffffff; padding: 16px 24px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; ${bookingData.agentInfo.logo ? 'gap: 12px;' : 'justify-content: center;'}">
+              ${bookingData.agentInfo.logo ? `
+                <img src="${bookingData.agentInfo.logo}" alt="Logo" style="width: 60px; height: 45px; object-fit: contain;" />
+              ` : ''}
+              ${bookingData.agentInfo.companyName ? `
+                <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #2d3748; letter-spacing: 0.3px;">${bookingData.agentInfo.companyName}</h2>
+              ` : ''}
             </div>
           </div>
         ` : ''}
@@ -607,7 +619,7 @@ const createCustomPDFHTML = (bookingData) => {
         <div style="max-width: 600px; margin: 0 auto;">
           <h2 style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: white; text-align: center;">Booking Details</h2>
           
-          <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <div style="background: white;height: 200px; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
               <div style="text-align: center; padding: 16px; border-right: 1px solid #e2e8f0;">
                 <div style="color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; letter-spacing: 1px;">Customer Name</div>
@@ -615,7 +627,7 @@ const createCustomPDFHTML = (bookingData) => {
               </div>
               <div style="text-align: center; padding: 16px;">
                 <div style="color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; letter-spacing: 1px;">Total Amount</div>
-                <div style="color: #059669; font-size: 16px; font-weight: 700;">${bookingData.paymentAmount}</div>
+                <div style="color: #059669; font-size: 16px; font-weight: 700;position: relative; top: -5px;">${bookingData.paymentAmount}</div>
               </div>
             </div>
           </div>

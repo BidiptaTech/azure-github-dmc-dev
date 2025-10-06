@@ -461,8 +461,6 @@ const PrintModal = ({
   handleDownloadPDF,
   contentRef,
   viewDetailsStatus,
-  DmcLogo,
-  DmcName,
   displayId,
   bookings,
   modifiedPriceData,
@@ -472,6 +470,10 @@ const PrintModal = ({
   tourId,
   pricehide,
 }) => {
+  // Get agent info from Redux store
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  
   // Store the data in local state to ensure it persists through re-renders
   const [localBookings, setLocalBookings] = useState(bookings || {});
   const [localModifiedPriceData, setLocalModifiedPriceData] =
@@ -1018,11 +1020,11 @@ const PrintModal = ({
             }}
           >
             <Box sx={{ textAlign: "center", mb: 4 }}>
-              {DmcLogo && (
+              {agencyLogo && (
                 <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
                   <Avatar
-                    src={DmcLogo}
-                    alt={DmcName || "DMC Logo"}
+                    src={agencyLogo}
+                    alt={agentCompanyName || "Agent Logo"}
                     sx={{ width: 80, height: 80, border: "2px solid #1976d2" }}
                   />
                 </Box>
@@ -1069,11 +1071,11 @@ const PrintModal = ({
                     <IconWrapper>
                       <AccountCircleIcon fontSize="small" />
                       <Typography variant="subtitle1">
-                        <strong>DMC Name:</strong>
+                        <strong>Agency Name:</strong>
                       </Typography>
                     </IconWrapper>
                     <Typography variant="h6" sx={{ ml: 3, color: "#1976d2" }}>
-                      {DmcName || "Sample DMC"}
+                      {agentCompanyName || "Travel Agency"}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={4}>
@@ -5282,14 +5284,14 @@ const PrintModal = ({
                   }}
                 >
                   <Typography variant="body2" color="textSecondary">
-                    Thank you for booking with us!
+                    Thank you for booking with {agentCompanyName || "us"}!
                   </Typography>
-                  {/* <Typography
+                  <Typography
                     variant="body2"
                     sx={{ mt: 1, fontWeight: "medium", color: "#1976d2" }}
                   >
-                    support@yourtravelagency.com | +1 (123) 456-7890
-                  </Typography> */}
+                    {agentCompanyName || "Travel Agency"}
+                  </Typography>
                 </Box>
               </CardContent>
             </StyledCard>
