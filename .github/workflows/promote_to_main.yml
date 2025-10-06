@@ -65,92 +65,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy to Azure Web App (preserving React files)
+      - name: 🚀 Deploy Laravel ZIP to Azure Web App
         run: |
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
             --src-path release.zip \
             --type zip
-
-      - name: ⚙️ Create Azure-compatible startup script for Laravel
-        run: |
-          cat > startup.sh << 'EOF'
-          #!/bin/bash
-          echo "🔧 Configuring Laravel for Azure App Service..."
-
-          # Set proper Laravel permissions
-          echo "📁 Setting Laravel permissions..."
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
-
-          # Ensure directories exist
-          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/views
-          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/cache/data
-          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/sessions
-          mkdir -p /home/site/wwwroot/backadm-dmc/storage/logs
-          mkdir -p /home/site/wwwroot/backadm-dmc/bootstrap/cache
-
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
-          chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
-
-          # Navigate to Laravel directory
-          cd /home/site/wwwroot/backadm-dmc
-
-          # Configure Laravel for HTTPS
-          echo "🔒 Configuring Laravel for HTTPS..."
-          if ! grep -q "APP_URL=https://" .env 2>/dev/null; then
-              sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "Could not update APP_URL"
-          fi
-
-          # Ensure critical environment variables
-          if ! grep -q "APP_ENV=" .env 2>/dev/null; then
-              echo "APP_ENV=production" >> .env
-          fi
-          if ! grep -q "APP_DEBUG=" .env 2>/dev/null; then
-              echo "APP_DEBUG=false" >> .env
-          fi
-          if ! grep -q "FORCE_HTTPS=" .env 2>/dev/null; then
-              echo "FORCE_HTTPS=true" >> .env
-          fi
-          if ! grep -q "ASSET_URL=" .env 2>/dev/null; then
-              echo "ASSET_URL=https://dev.travclicks.com/backadm-dmc" >> .env
-          fi
-
-          export APP_URL="https://dev.travclicks.com"
-          export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
-          export APP_ENV="production"
-          export FORCE_HTTPS="true"
-          export HTTPS="on"
-          export SERVER_PORT="443"
-
-          # Generate application key if missing
-          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-              php artisan key:generate --force || echo "Key generation failed (may already exist)"
-          fi
-
-          # Clear Laravel caches
-          php artisan config:clear || true
-          php artisan cache:clear || true
-          php artisan view:clear || true
-          php artisan route:clear || true
-
-          # Cache config for performance
-          php artisan config:cache || true
-
-          echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
-          echo "🔒 HTTPS configuration applied"
-          EOF
-
-          chmod +x startup.sh
-
-      - name: 📄 Upload and run startup script
-        run: |
-          az webapp deploy \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --src-path startup.sh \
-            --type startup
 
       - name: 🔄 Restart Azure Web App
         run: |
@@ -166,6 +87,6 @@ jobs:
           echo "🎉 Deployment finished!"
           echo "🌍 App URL: https://dev.travclicks.com/backadm-dmc"
           echo "✔️ Laravel ready, React preserved"
-          echo "🛠️ Storage permissions set, Laravel caches cleared, key generated"
+          echo "🛠️ Storage permissions, Laravel caches cleared, key generation handled"
           echo "🔒 HTTPS configuration applied"
           echo "📆 Deploy triggered by push to staging branch"
