@@ -68,6 +68,13 @@ jobs:
           echo "Warming up Kudu..."
           curl -s -o /dev/null -w "%{http_code}" https://dmc-app-dev.scm.southeastasia-01.azurewebsites.net/api/settings || true
           echo "Kudu is awake."
+          
+      - name: ⚡ Enable Run From Package
+        run: |
+          az webapp config appsettings set \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --settings WEBSITE_RUN_FROM_PACKAGE=1
 
       - name: 🚀 Deploy to Azure Web App (preserving React files)
         run: |
