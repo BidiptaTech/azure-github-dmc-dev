@@ -73,108 +73,73 @@ jobs:
             --src-path release.zip \
             --type zip
 
-      - name: ⚙️ Create startup script for Laravel and NGINX setup
+      - name: ⚙️ Create Azure-compatible startup script for Laravel
         run: |
           cat > startup.sh << 'EOF'
           #!/bin/bash
-          echo "🚀 Starting Laravel and NGINX setup..."
+          echo "🔧 Configuring Laravel for Azure App Service..."
 
-          # Remove only specific files
-          rm -f /home/site/wwwroot/default
-          rm -f /home/site/wwwroot/laravel-debug.php
-          rm -f /home/site/wwwroot/startup.sh
-          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
-          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
+          # Set proper Laravel permissions
+          echo "📁 Setting Laravel permissions..."
+          chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
+          chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-          # Clear OPcache
-          if command -v php >/dev/null 2>&1; then
-              php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
-          fi
+          # Ensure directories exist
+          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/views
+          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/cache/data
+          mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/sessions
+          mkdir -p /home/site/wwwroot/backadm-dmc/storage/logs
+          mkdir -p /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-          # Clear Composer cache
-          composer clear-cache || true
+          chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
+          chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-          # Configure NGINX for Laravel
-          cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
-          server {
-              listen 8080;
-              root /home/site/wwwroot;
-              index index.php index.html;
-              server_name _;
-
-              if ($http_x_forwarded_proto != "https") {
-                  return 301 https://$host$request_uri;
-              }
-
-              location ^~ /backadm-dmc/ {
-                  alias /home/site/wwwroot/backadm-dmc/public/;
-                  index index.php;
-                  try_files $uri $uri/ @backadm_dmc_fallback;
-
-                  location ~ \.php$ {
-                      include fastcgi_params;
-                      fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
-                      fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
-                      fastcgi_param REQUEST_URI $request_uri;
-                      fastcgi_param HTTPS on;
-                      fastcgi_pass 127.0.0.1:9000;
-                  }
-              }
-
-              location = /backadm-dmc {
-                  return 301 $scheme://$host/backadm-dmc/;
-              }
-
-              location @backadm_dmc_fallback {
-                  rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
-              }
-
-              location / {
-                  try_files $uri $uri/ =404;
-              }
-
-              location ~ \.php$ {
-                  include fastcgi_params;
-                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-                  fastcgi_param HTTPS on;
-                  fastcgi_pass 127.0.0.1:9000;
-              }
-
-              add_header X-Content-Type-Options nosniff;
-              add_header X-Frame-Options SAMEORIGIN;
-              add_header X-XSS-Protection "1; mode=block";
-              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-          }
-          NGINX_EOF
-
-          cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
-          nginx -t && service nginx reload
-
+          # Navigate to Laravel directory
           cd /home/site/wwwroot/backadm-dmc
 
-          mkdir -p storage/framework/{sessions,views,cache/data}
-          mkdir -p storage/{logs,app/public} bootstrap/cache
-
-          chmod -R 775 storage bootstrap/cache
-
-          php artisan optimize:clear || true
-          php artisan storage:link || true
-
-          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-              php artisan key:generate --force || true
+          # Configure Laravel for HTTPS
+          echo "🔒 Configuring Laravel for HTTPS..."
+          if ! grep -q "APP_URL=https://" .env 2>/dev/null; then
+              sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "Could not update APP_URL"
           fi
 
-          # 💡 Insert clear and optimize commands here
+          # Ensure critical environment variables
+          if ! grep -q "APP_ENV=" .env 2>/dev/null; then
+              echo "APP_ENV=production" >> .env
+          fi
+          if ! grep -q "APP_DEBUG=" .env 2>/dev/null; then
+              echo "APP_DEBUG=false" >> .env
+          fi
+          if ! grep -q "FORCE_HTTPS=" .env 2>/dev/null; then
+              echo "FORCE_HTTPS=true" >> .env
+          fi
+          if ! grep -q "ASSET_URL=" .env 2>/dev/null; then
+              echo "ASSET_URL=https://dev.travclicks.com/backadm-dmc" >> .env
+          fi
+
+          export APP_URL="https://dev.travclicks.com"
+          export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
+          export APP_ENV="production"
+          export FORCE_HTTPS="true"
+          export HTTPS="on"
+          export SERVER_PORT="443"
+
+          # Generate application key if missing
+          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
+              php artisan key:generate --force || echo "Key generation failed (may already exist)"
+          fi
+
+          # Clear Laravel caches
+          php artisan config:clear || true
           php artisan cache:clear || true
-          php artisan route:clear || true
           php artisan view:clear || true
-          php artisan optimize || true
+          php artisan route:clear || true
 
+          # Cache config for performance
           php artisan config:cache || true
-          php artisan route:cache || true
-          php artisan view:cache || true
 
-          echo "✅ Laravel and NGINX setup completed"
+          echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
+          echo "🔒 HTTPS configuration applied"
           EOF
 
           chmod +x startup.sh
@@ -200,12 +165,7 @@ jobs:
         run: |
           echo "🎉 Deployment finished!"
           echo "🌍 App URL: https://dev.travclicks.com/backadm-dmc"
-          echo "✔️ Laravel ready, React preserved, NGINX optimized"
-          echo "🚫 Azure Key Vault removed, HTTPS enforced"
-          echo "🔄 NGINX routes Laravel under /backadm-dmc and React at root"
-          echo "🔎 Laravel caches cleared, storage linked, key generated"
-          echo "🛠️ All Laravel directories created and permissioned"
-          echo "🔋 OPcache and Composer cache cleared for clean run"
-          echo "🚀 Production-ready optimization: route, view, and config cached"
-          echo "🚧 Secure headers and HTTPS enforced by NGINX"
+          echo "✔️ Laravel ready, React preserved"
+          echo "🛠️ Storage permissions set, Laravel caches cleared, key generated"
+          echo "🔒 HTTPS configuration applied"
           echo "📆 Deploy triggered by push to staging branch"
