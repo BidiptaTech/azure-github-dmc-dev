@@ -753,6 +753,7 @@ class JobSheetController extends Controller
                     ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                     ->get();
                 
+                    
                 // Process guide data for orders
                 $orders->map(function($order) {
                     $orderData = json_decode($order->data, true);
