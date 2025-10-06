@@ -224,7 +224,7 @@ export default function AttractionModal({
         return shouldInclude;
       })
     : [];
-     // console.log('AttractionModal - Filtered bookings:', filteredBookings);
+    
     
 
   return (
