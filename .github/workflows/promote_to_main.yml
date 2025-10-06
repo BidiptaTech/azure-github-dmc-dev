@@ -40,12 +40,22 @@ jobs:
           composer validate --no-check-publish
           composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
 
-      - name: 🗂️ Prepare Laravel-only deployment package
+      - name: 📦 Create ZIP for deployment (follow previous excludes)
         run: |
-          echo "📁 Preparing package with only backadm-dmc to preserve React root..."
-          rm -rf deployment
-          mkdir -p deployment
-          cp -r backadm-dmc deployment/backadm-dmc
+          echo "📦 Creating release.zip from repo with excludes..."
+          rm -f release.zip
+          zip -r release.zip . \
+            -x ".git/*" \
+            -x "node_modules/*" \
+            -x "tests/*" \
+            -x "*.md" \
+            -x ".github/*" \
+            -x ".gitignore" \
+            -x ".gitattributes" \
+            -x ".editorconfig" \
+            -x "phpunit.xml" \
+            -x "vite.config.js" \
+            -x "package*.json"
 
       - name: 🔐 Login to Azure using OIDC
         uses: azure/login@v2
@@ -54,47 +64,108 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy to Azure Web App (Laravel folder only, preserves React files)
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: dmc-app-dev
-          slot-name: Production
-          package: ./deployment
-
-      - name: 🛠️ Ensure storage directories and permissions (best-effort via Kudu)
-        if: ${{ secrets.AZURE_PUBLISH_PROFILE != '' }}
-        env:
-          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          APP_NAME: dmc-app-dev
+      - name: 🚀 Deploy ZIP to Azure Web App (preserve existing root)
         run: |
-          echo "⚙️ Ensuring Laravel storage directories exist and are writable..."
-          python3 - << 'PY'
-  import os, base64, xml.etree.ElementTree as ET, subprocess
-  pf = os.environ.get('AZURE_PUBLISH_PROFILE', '')
-  if not pf:
-      raise SystemExit(0)
-  try:
-      xml = base64.b64decode(pf.encode()).decode('utf-8')
-  except Exception:
-      xml = pf
-  root = ET.fromstring(xml)
-  msdeploy = root.find('.//publishProfile[@publishMethod="MSDeploy"]')
-  user = msdeploy.get('userName')
-  pwd  = msdeploy.get('userPWD')
-  app  = os.environ['APP_NAME']
-  def kudu(cmd):
-      url = f"https://{app}.scm.azurewebsites.net/api/command"
-      subprocess.run(['curl','-sS','-u',f'{user}:{pwd}','-X','POST',url,'-d',cmd,'-H','Content-Type:text/plain'], check=False)
-  commands = [
-    'set -e; cd /home/site/wwwroot; mkdir -p backadm-dmc/storage/app/public backadm-dmc/storage/framework/cache backadm-dmc/storage/framework/sessions backadm-dmc/storage/framework/testing backadm-dmc/storage/framework/views backadm-dmc/storage/logs backadm-dmc/bootstrap/cache; touch backadm-dmc/storage/logs/laravel.log; chmod -R 775 backadm-dmc/storage backadm-dmc/bootstrap/cache || true',
-    'cd /home/site/wwwroot/backadm-dmc && php artisan storage:link || true',
-    'cd /home/site/wwwroot/backadm-dmc && php artisan config:cache || true',
-    'cd /home/site/wwwroot/backadm-dmc && php artisan route:cache || true',
-    'cd /home/site/wwwroot/backadm-dmc && php artisan view:cache || true'
-  ]
-  for c in commands:
-      kudu(c)
-PY
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path release.zip \
+            --type zip
+
+      - name: ⚙️ Create startup script for Laravel and NGINX setup
+        run: |
+          cat > startup.sh << 'EOF'
+          #!/bin/bash
+          echo "🚀 Starting Laravel and NGINX setup..."
+          # Remove only specific files
+          rm -f /home/site/wwwroot/default
+          rm -f /home/site/wwwroot/laravel-debug.php
+          rm -f /home/site/wwwroot/startup.sh
+          rm -f /home/site/wwwroot/backadm-dmc/app/Services/AzureKeyVaultService.php
+          rm -f /home/site/wwwroot/backadm-dmc/app/Providers/KeyVaultServiceProvider.php
+          # Clear OPcache
+          if command -v php >/dev/null 2>&1; then
+              php -r "if (function_exists('opcache_reset')) { opcache_reset(); }"
+          fi
+          # Clear Composer cache
+          composer clear-cache || true
+          # Configure NGINX for Laravel
+          cat > /etc/nginx/sites-available/default << 'NGINX_EOF'
+          server {
+              listen 8080;
+              root /home/site/wwwroot;
+              index index.php index.html;
+              server_name _;
+              if ($http_x_forwarded_proto != "https") {
+                  return 301 https://$host$request_uri;
+              }
+              location ^~ /backadm-dmc/ {
+                  alias /home/site/wwwroot/backadm-dmc/public/;
+                  index index.php;
+                  try_files $uri $uri/ @backadm_dmc_fallback;
+                  location ~ \.php$ {
+                      include fastcgi_params;
+                      fastcgi_param SCRIPT_FILENAME /home/site/wwwroot/backadm-dmc/public/index.php;
+                      fastcgi_param SCRIPT_NAME /backadm-dmc/index.php;
+                      fastcgi_param REQUEST_URI $request_uri;
+                      fastcgi_param HTTPS on;
+                      fastcgi_pass 127.0.0.1:9000;
+                  }
+              }
+              location = /backadm-dmc {
+                  return 301 $scheme://$host/backadm-dmc/;
+              }
+              location @backadm_dmc_fallback {
+                  rewrite ^/backadm-dmc/(.*)$ /backadm-dmc/index.php last;
+              }
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+              location ~ \.php$ {
+                  include fastcgi_params;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  fastcgi_param HTTPS on;
+                  fastcgi_pass 127.0.0.1:9000;
+              }
+              add_header X-Content-Type-Options nosniff;
+              add_header X-Frame-Options SAMEORIGIN;
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+          }
+          NGINX_EOF
+          cp /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+          nginx -t && service nginx reload
+          cd /home/site/wwwroot/backadm-dmc
+          mkdir -p storage/framework/{sessions,views,cache/data}
+          mkdir -p storage/{logs,app/public} bootstrap/cache
+          chmod -R 775 storage bootstrap/cache
+          php artisan optimize:clear || true
+          php artisan storage:link || true
+          if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
+              php artisan key:generate --force || true
+          fi
+          php artisan cache:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          php artisan optimize || true
+          php artisan config:cache || true
+          php artisan route:cache || true
+          php artisan view:cache || true
+          echo "✅ Laravel and NGINX setup completed"
+          EOF
+          chmod +x startup.sh
+
+      - name: 📄 Upload and run startup script
+        run: |
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path startup.sh \
+            --type startup
+
+      - name: 🔄 Restart Azure Web App
+        run: |
+          az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
 
       - name: ✅ Verify Laravel endpoint
         run: |
