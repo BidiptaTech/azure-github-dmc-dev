@@ -163,6 +163,18 @@ const fetchStaticPdf = async (url) => {
 
 
 
+// Preload an image and resolve when it's loaded; useful so html2canvas captures it
+const preloadImage = (src) => {
+  return new Promise((resolve) => {
+    if (!src) return resolve(false);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = src;
+  });
+};
+
 // Updated utility function to generate PDF from DOM element using jsPDF with improved page breaks
 const generateMainPdfBlob = async (element) => {
   return new Promise(async (resolve, reject) => {
@@ -461,8 +473,6 @@ const PrintModal = ({
   handleDownloadPDF,
   contentRef,
   viewDetailsStatus,
-  DmcLogo,
-  DmcName,
   displayId,
   bookings,
   modifiedPriceData,
@@ -472,6 +482,76 @@ const PrintModal = ({
   tourId,
   pricehide,
 }) => {
+  // Get agent info from Redux store
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+
+  // Ensure agency logo is embeddable in html2canvas by resolving to a CORS-safe data URL
+  const [resolvedAgencyLogo, setResolvedAgencyLogo] = useState(agencyLogo || "");
+  // Helper to resolve a URL to data URL with proxy fallbacks
+  const resolveUrlToDataUrl = async (url) => {
+    try {
+      const direct = await fetch(url, { mode: "cors", cache: "force-cache" }).catch(() => null);
+      if (direct && direct.ok) {
+        const blob = await direct.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    // Try AllOrigins
+    try {
+      const proxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+      if (proxy.ok) {
+        const blob = await proxy.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    // Try corsproxy.io
+    try {
+      const proxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+      if (proxy2.ok) {
+        const blob = await proxy2.blob();
+        return await new Promise((res) => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (_) {}
+    return url; // fallback
+  };
+
+  useEffect(() => {
+    let isCancelled = false;
+    async function resolveLogo() {
+      try {
+        if (!agencyLogo || typeof agencyLogo !== "string") {
+          setResolvedAgencyLogo("");
+          return;
+        }
+        if (agencyLogo.startsWith("data:")) {
+          setResolvedAgencyLogo(agencyLogo);
+          return;
+        }
+        const dataUrl = await resolveUrlToDataUrl(agencyLogo);
+        if (!isCancelled) setResolvedAgencyLogo(dataUrl || agencyLogo);
+      } catch (_) {
+        if (!isCancelled) setResolvedAgencyLogo(agencyLogo);
+      }
+    }
+    resolveLogo();
+    return () => {
+      isCancelled = true;
+    };
+  }, [agencyLogo]);
+  
   // Store the data in local state to ensure it persists through re-renders
   const [localBookings, setLocalBookings] = useState(bookings || {});
   const [localModifiedPriceData, setLocalModifiedPriceData] =
@@ -589,6 +669,12 @@ const PrintModal = ({
       setPdfProgress({ status: 'Preparing content...', progress: 15 });
       prepareContentForPdf(internalContentRef.current);
 
+      // Ensure agency logo is loaded before capturing
+      if (resolvedAgencyLogo) {
+        setPdfProgress({ status: 'Loading agency logo...', progress: 28 });
+        await preloadImage(resolvedAgencyLogo);
+      }
+
       // Generate the main content PDF first
       // console.log("Generating content PDF from HTML...");
       setPdfProgress({ status: 'Generating content PDF...', progress: 30 });
@@ -610,7 +696,7 @@ const PrintModal = ({
           throw new Error("Failed to convert content PDF blob to array buffer");
         });
       
-      // console.log("✅ Content PDF generated successfully");
+      console.log("✅ Content PDF generated successfully");
       setPdfProgress({ status: 'Content PDF generated successfully', progress: 60 });
 
       // Try to get header and footer PDFs from API
@@ -1018,11 +1104,12 @@ const PrintModal = ({
             }}
           >
             <Box sx={{ textAlign: "center", mb: 4 }}>
-              {DmcLogo && (
+              {agencyLogo && (
                 <Box sx={{ mb: 2, display: "flex", justifyContent: "center" }}>
                   <Avatar
-                    src={DmcLogo}
-                    alt={DmcName || "DMC Logo"}
+                    src={resolvedAgencyLogo || agencyLogo}
+                    alt={agentCompanyName || "Agent Logo"}
+                    imgProps={{ crossOrigin: "anonymous" }}
                     sx={{ width: 80, height: 80, border: "2px solid #1976d2" }}
                   />
                 </Box>
@@ -1069,11 +1156,11 @@ const PrintModal = ({
                     <IconWrapper>
                       <AccountCircleIcon fontSize="small" />
                       <Typography variant="subtitle1">
-                        <strong>DMC Name:</strong>
+                        <strong>Agency Name:</strong>
                       </Typography>
                     </IconWrapper>
                     <Typography variant="h6" sx={{ ml: 3, color: "#1976d2" }}>
-                      {DmcName || "Sample DMC"}
+                      {agentCompanyName || "Travel Agency"}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={4}>
@@ -5282,14 +5369,14 @@ const PrintModal = ({
                   }}
                 >
                   <Typography variant="body2" color="textSecondary">
-                    Thank you for booking with us!
+                    Thank you for booking with {agentCompanyName || "us"}!
                   </Typography>
-                  {/* <Typography
+                  <Typography
                     variant="body2"
                     sx={{ mt: 1, fontWeight: "medium", color: "#1976d2" }}
                   >
-                    support@yourtravelagency.com | +1 (123) 456-7890
-                  </Typography> */}
+                    {agentCompanyName || "Travel Agency"}
+                  </Typography>
                 </Box>
               </CardContent>
             </StyledCard>

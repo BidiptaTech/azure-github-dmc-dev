@@ -32,6 +32,7 @@ const getInitialState = () => {
   const DmcName = Cookies.get("DmcName") || null;
   const dmcLogo = Cookies.get("dmcLogo") || null; // New field for dmc_logo
   const agencyLogo = Cookies.get("agencyLogo") || null; // New field for agency_logo
+  const agentCompanyName = Cookies.get("agentCompanyName") || null; // New field for agent_company_name
   const dmcCompanyName = Cookies.get("dmcCompanyName") || null; // New field for dmc_company_name
   const dialMaxLength = Cookies.get("dialMaxLength") || null;
   const dialMinLength = Cookies.get("dialMinLength") || null;
@@ -82,6 +83,7 @@ const getInitialState = () => {
     DmcName,
     dmcLogo,
     agencyLogo,
+    agentCompanyName,
     dmcCompanyName,
     usdExchangeRate,
     usdCurrencyCode,
@@ -141,6 +143,7 @@ export const loginUser = createAsyncThunk(
           agent_country_tax: currentTax,
           logo: DmcLogo,
           agency_logo: agencyLogo,
+          agent_company_name: agentCompanyName,
           agent_country_max_length: dialMaxLength,
           agent_country_min_length: dialMinLength,
           price_hide: PriceHide,
@@ -351,7 +354,15 @@ export const loginUser = createAsyncThunk(
             secure: true,
             sameSite: "Strict",
           });
-        }   
+        }
+        
+        if (agentCompanyName) {
+          Cookies.set("agentCompanyName", agentCompanyName, {
+            expires: expiryDate,
+            secure: true,
+            sameSite: "Strict",
+          });
+        }
 
         // Add DmcName to cookies
         Cookies.set("DmcName", DmcName, {
@@ -403,6 +414,7 @@ export const loginUser = createAsyncThunk(
           DmcLogo,
           dmcLogo,
           agencyLogo, // Add agencyLogo to return object
+          agentCompanyName, // Add agentCompanyName to return object
           dmcCompanyName,
           userRole: userRole || "Agent",
           user_country,
@@ -529,6 +541,7 @@ const authSlice = createSlice({
       state.DmcName = null;
       state.dmcLogo = null; // Reset dmcLogo in auth state
       state.agencyLogo = null; // Reset agencyLogo in auth state
+      state.agentCompanyName = null; // Reset agentCompanyName in auth state
       state.dmcCompanyName = null; // Reset dmcCompanyName in auth state
       state.userRole = null; // Reset user role
       state.dmcId = null; // Reset dmcId in auth state
@@ -549,6 +562,7 @@ const authSlice = createSlice({
       Cookies.remove("DmcName");
       Cookies.remove("dmcLogo"); // Remove dmcLogo cookie on logout
       Cookies.remove("agencyLogo"); // Remove agencyLogo cookie on logout
+      Cookies.remove("agentCompanyName"); // Remove agentCompanyName cookie on logout
       Cookies.remove("dmcCompanyName"); // Remove dmcCompanyName cookie on logout
       Cookies.remove("PriceHide");
       Cookies.remove("userRole"); // Remove user role cookie
@@ -672,6 +686,7 @@ const authSlice = createSlice({
         state.DmcLogo = action.payload.DmcLogo;
         state.dmcLogo = action.payload.dmcLogo; // Store dmcLogo in auth state
         state.agencyLogo = action.payload.agencyLogo; // Store agencyLogo in auth state
+        state.agentCompanyName = action.payload.agentCompanyName; // Store agentCompanyName in auth state
         state.dmcCompanyName = action.payload.dmcCompanyName; // Store dmcCompanyName in auth state
         state.dmcId = action.payload.dmcId; // Store dmcId in auth state
         

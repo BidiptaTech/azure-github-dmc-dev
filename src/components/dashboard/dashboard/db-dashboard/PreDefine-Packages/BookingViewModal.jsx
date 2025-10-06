@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -661,6 +662,10 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
   const { generatePDF } = usePDFGenerator();
   
+  // Get agent info from Redux store
+  const agencyLogo = useSelector((state) => state.auth.agencyLogo);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  
   if (!bookingData) {
     return null;
   }
@@ -729,47 +734,98 @@ const BookingViewModal = ({ open, onClose, bookingData }) => {
         
         {/* Dialog content */}
         <DialogContent sx={{ p: 2 }}>
-          {/* DMC Branding Header */}
-          {bookingData.dmc_data && (bookingData.dmc_data.dmc_company_name || bookingData.dmc_data.dmc_logo) && (
+          {/* Agent Branding Header */}
+          {(agentCompanyName || agencyLogo) && (
             <Paper 
-              elevation={1} 
+              elevation={3} 
               sx={{ 
-                borderRadius: '8px', 
-                mb: 2,
+                borderRadius: '12px', 
+                mb: 3,
                 overflow: 'hidden',
-                background: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)',
-                border: '2px solid #fde68a'
+                background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                border: '1px solid #e0e0e0',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
               }}
             >
                 <Box sx={{ 
-                 p: 2,
+                 p: 3,
                  display: 'flex',
-                 flexDirection: 'column',
+                 flexDirection: 'row',
                  alignItems: 'center',
                  justifyContent: 'center',
-                 gap: 1
+                 gap: 3,
+                 position: 'relative',
+                 '&::before': {
+                   content: '""',
+                   position: 'absolute',
+                   top: 0,
+                   left: 0,
+                   right: 0,
+                   height: '4px',
+                   background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                 }
                }}>
-                 {bookingData.dmc_data.dmc_logo && (
+                 {agencyLogo && (
                    <Box 
                      component="img"
-                     src={bookingData.dmc_data.dmc_logo} 
-                     alt={bookingData.dmc_data.dmc_company_name || 'DMC Logo'}
+                     src={agencyLogo} 
+                     alt={agentCompanyName || 'Agent Logo'}
                      sx={{ 
-                       width: 100, 
-                       height: 80,
+                       width: 120, 
+                       height: 90,
                        objectFit: 'contain',
-                       mb: -3,
-                       
+                       filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                       transition: 'transform 0.2s ease',
+                       '&:hover': {
+                         transform: 'scale(1.05)'
+                       }
                      }}
                    />
                  )}
-                 <Box sx={{ textAlign: 'center' }}>
-                   <Typography variant="h6" fontWeight={700} sx={{ color: '#92400e', mb: 0.5 }}>
-                     {bookingData.dmc_data.dmc_company_name || 'DMC'}
+                 <Box sx={{ textAlign: agencyLogo ? 'left' : 'center' }}>
+                   <Typography 
+                     variant="h5" 
+                     fontWeight={700} 
+                     sx={{ 
+                       color: '#1a237e', 
+                       mb: 0.5,
+                       letterSpacing: '-0.5px',
+                       lineHeight: 1.2
+                     }}
+                   >
+                     {agentCompanyName || 'Travel Agency'}
                    </Typography>
-                   <Typography variant="caption" sx={{ color: '#a16207', textTransform: 'uppercase', letterSpacing: 1 }}>
-                     Destination Management Company
-                   </Typography>
+                   {/* <Box sx={{ 
+                     display: 'flex', 
+                     alignItems: 'center', 
+                     justifyContent: agencyLogo ? 'flex-start' : 'center',
+                     gap: 1 
+                   }}>
+                     <Box sx={{ 
+                       width: '30px', 
+                       height: '2px', 
+                       background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                       borderRadius: '2px'
+                     }} />
+                     <Typography 
+                       variant="body2" 
+                       sx={{ 
+                         color: '#5e6e82', 
+                         textTransform: 'uppercase', 
+                         letterSpacing: '1.5px',
+                         fontSize: '0.75rem',
+                         fontWeight: 600
+                       }}
+                     >
+                       Travel Agency
+                     </Typography>
+                     <Box sx={{ 
+                       width: '30px', 
+                       height: '2px', 
+                       background: 'linear-gradient(90deg, #764ba2 0%, #667eea 100%)',
+                       borderRadius: '2px'
+                     }} />
+                   </Box> */}
                  </Box>
                </Box>
             </Paper>
