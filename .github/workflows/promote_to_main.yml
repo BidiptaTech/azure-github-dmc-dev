@@ -6,7 +6,6 @@ on:
       - staging
   workflow_dispatch:
 
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -25,9 +24,12 @@ jobs:
 
       - name: 🗒️ Check if composer.json exists
         id: check_files
-        uses: andstor/file-existence-action@v1
-        with:
-          files: 'backadm-dmc/composer.json'
+        run: |
+          if [ -f "backadm-dmc/composer.json" ]; then
+            echo "files_exist=true" >> $GITHUB_ENV
+          else
+            echo "files_exist=false" >> $GITHUB_ENV
+          fi
 
       - name: 🔧 Install Composer Globally
         run: |
@@ -35,7 +37,7 @@ jobs:
           mv composer.phar /usr/local/bin/composer
           
       - name: 📦 Run composer install if composer.json exists
-        if: steps.check_files.outputs.files_exists == 'true'
+        if: env.files_exist == 'true'
         run: |
           cd backadm-dmc
           composer validate --no-check-publish
@@ -168,7 +170,6 @@ jobs:
           php artisan view:clear || true
           php artisan optimize || true
 
-          
           php artisan config:cache || true
           php artisan route:cache || true
           php artisan view:cache || true
@@ -207,4 +208,4 @@ jobs:
           echo "🔋 OPcache and Composer cache cleared for clean run"
           echo "🚀 Production-ready optimization: route, view, and config cached"
           echo "🚧 Secure headers and HTTPS enforced by NGINX"
-          echo "📆 Deploy triggered by push to staging branch" 
+          echo "📆 Deploy triggered by push to staging branch"
