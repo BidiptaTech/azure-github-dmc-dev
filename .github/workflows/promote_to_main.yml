@@ -6,7 +6,6 @@ on:
       - staging
   workflow_dispatch:
 
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -33,7 +32,7 @@ jobs:
         run: |
           curl -sS https://getcomposer.org/installer | php
           mv composer.phar /usr/local/bin/composer
-          
+
       - name: 📦 Run composer install if composer.json exists
         if: steps.check_files.outputs.files_exists == 'true'
         run: |
@@ -68,21 +67,13 @@ jobs:
           echo "Warming up Kudu..."
           curl -s -o /dev/null -w "%{http_code}" https://dmc-app-dev.scm.southeastasia-01.azurewebsites.net/api/settings || true
           echo "Kudu is awake."
-          
-      - name: ⚡ Enable Run From Package
-        run: |
-          az webapp config appsettings set \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --settings WEBSITE_RUN_FROM_PACKAGE=1
 
-      - name: 🚀 Deploy to Azure Web App (preserving React files)
+      - name: ⚡ Upload ZIP via Run From Package (avoids timeout)
         run: |
-          az webapp deploy \
+          az webapp deployment source config-zip \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
-            --src-path release.zip \
-            --type zip
+            --src release.zip
 
       - name: ⚙️ Create startup script for Laravel and NGINX setup
         run: |
@@ -175,12 +166,10 @@ jobs:
               php artisan key:generate --force || true
           fi
 
-          # 💡 Insert clear and optimize commands here
           php artisan cache:clear || true
           php artisan route:clear || true
           php artisan view:clear || true
           php artisan optimize || true
-
           
           php artisan config:cache || true
           php artisan route:cache || true
@@ -220,4 +209,4 @@ jobs:
           echo "🔋 OPcache and Composer cache cleared for clean run"
           echo "🚀 Production-ready optimization: route, view, and config cached"
           echo "🚧 Secure headers and HTTPS enforced by NGINX"
-          echo "📆 Deploy triggered by push to staging branch" 
+          echo "📆 Deploy triggered by push to staging branch"
