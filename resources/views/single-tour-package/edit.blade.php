@@ -990,24 +990,53 @@
                                                     $mealType = '';
                                                     $dishName = '';
                                                     $guestSummary = '';
+                                                    $totalPrice = 0;
+                                                    $mealDescription = null;
                                                     
                                                     if (is_array($restaurantData)) {
                                                         if (isset($restaurantData[0])) {
+                                                            // Array format (first element contains the data)
                                                             $restaurantName = $restaurantData[0]['restaurantName'] ?? 'N/A';
                                                             $mealType = $restaurantData[0]['mealType'] ?? 'N/A';
                                                             $mealSpecificType = $restaurantData[0]['mealSpecificType'] ?? 'N/A';
                                                             $adultCount = $restaurantData[0]['adultCount'] ?? 0;
                                                             $childCount = $restaurantData[0]['childCount'] ?? 0;
                                                             $totalPrice = $restaurantData[0]['totalPrice'] ?? 0;
+                                                            $mealDescription = $restaurantData[0]['MealDescription'] ?? null;
                                                             $guestSummary = $adultCount . ' adults, ' . $childCount . ' children';
                                                         } else {
+                                                            // Direct array format
                                                             $restaurantName = $restaurantData['restaurantName'] ?? 'N/A';
                                                             $mealType = $restaurantData['mealType'] ?? 'N/A';
                                                             $mealSpecificType = $restaurantData['mealSpecificType'] ?? 'N/A';
                                                             $adultCount = $restaurantData['adultCount'] ?? 0;
                                                             $childCount = $restaurantData['childCount'] ?? 0;
                                                             $totalPrice = $restaurantData['totalPrice'] ?? 0;
+                                                            $mealDescription = $restaurantData['MealDescription'] ?? null;
                                                             $guestSummary = $adultCount . ' adults, ' . $childCount . ' children';
+                                                        }
+                                                    }
+                                                    
+                                                    // Calculate total price from meal descriptions if totalPrice is 0 or missing
+                                                    if ($totalPrice <= 0 && is_array($mealDescription)) {
+                                                        $calculatedTotal = 0;
+                                                        foreach ($mealDescription as $meal) {
+                                                            $mealPrice = $meal['price'] ?? 0;
+                                                            $quantity = $meal['quantity'] ?? 1;
+                                                            $calculatedTotal += $mealPrice * $quantity;
+                                                        }
+                                                        if ($calculatedTotal > 0) {
+                                                            $totalPrice = $calculatedTotal;
+                                                        }
+                                                    }
+                                                    
+                                                    // Ensure meal prices are populated in meal description if missing
+                                                    if (is_array($mealDescription) && $totalPrice > 0) {
+                                                        foreach ($mealDescription as &$meal) {
+                                                            if (!isset($meal['price']) || $meal['price'] <= 0) {
+                                                                // If individual meal price is missing, distribute total price across meals
+                                                                $meal['price'] = $totalPrice / count($mealDescription);
+                                                            }
                                                         }
                                                     }
                                                 @endphp
@@ -1035,7 +1064,7 @@
                                                 </div>
                                                 
                                                 <!-- Meal Details Display -->
-                                                @if(isset($restaurantData[0]['MealDescription']) || isset($restaurantData['MealDescription']))
+                                                @if(is_array($mealDescription) && count($mealDescription) > 0)
                                                 <div class="row mt-2">
                                                     <div class="col-12">
                                                         <label class="form-label small fw-semibold">Meal Details:</label>
@@ -1053,7 +1082,7 @@
                                                                 </thead>
                                                                 <tbody>
                                                                     @php
-                                                                        $mealDescription = isset($restaurantData[0]) ? $restaurantData[0]['MealDescription'] : $restaurantData['MealDescription'];
+                                                                        // Use the processed $mealDescription variable from above
                                                                         if (is_array($mealDescription)) {
                                                                             foreach ($mealDescription as $meal) {
                                                                                 echo '<tr>';
@@ -8438,8 +8467,13 @@
         // For demo purposes, show sample restaurants
         // In production, this would fetch from API
         const all_restaurants = @json($restaurants);
-
-        const restaurants = all_restaurants.filter(restaurant => restaurant.city == city);
+        console.log('All Restaurants:', all_restaurants);
+        
+        // Convert object to array if needed
+        const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
+        console.log('Restaurants Array:', restaurantsArray);
+        
+        const restaurants = restaurantsArray.filter(restaurant => restaurant.city == city);
         console.log('Restaurants:', restaurants);
         
         // Add restaurant options
