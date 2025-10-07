@@ -1,5 +1,5 @@
 name: React Deploy Design Staging to Azure
- 
+
 on:
   push:
     branches:
@@ -157,29 +157,32 @@ jobs:
           EOF
           echo "✅ React deployment info created"
 
-      - name: 🔐 Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: 🛡️ Preserve backadm-dmc and default from existing site
+      - name: 🔐 Prepare Kudu credentials
+        id: kudu-creds
+        env:
+          AZURE_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
         run: |
-          echo "🔍 Downloading existing content to preserve Laravel backend..."
-          az webapp ssh --name dmc-app-dev --resource-group rg-dmc-app-dev --timeout 5 || true
-          # If we can access, copy out critical assets via Kudu Zip API best-effort
-          curl -fsS -o existing.zip https://dmc-app-dev.scm.azurewebsites.net/api/zip/site/wwwroot/ || echo "Could not fetch existing site zip"
-          mkdir -p existing && unzip -q existing.zip -d existing || true
-          [ -d existing/backadm-dmc ] && cp -r existing/backadm-dmc deployment/ && echo "✅ Preserved backadm-dmc" || true
-          [ -f existing/default ] && cp existing/default deployment/ && echo "✅ Preserved default" || true
+          printf "%s" "$AZURE_PUBLISH_PROFILE" | base64 -d > pf.xml 2>/dev/null || printf "%s" "$AZURE_PUBLISH_PROFILE" > pf.xml
+          USER=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userName="\([^"]*\)".*/\1/p' pf.xml)
+          PASS=$(sed -n 's/.*publishMethod="MSDeploy"[^>]*userPWD="\([^"]*\)".*/\1/p' pf.xml)
+          echo "user=$USER" >> $GITHUB_OUTPUT
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
 
-      - name: 🚀 Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: dmc-app-dev
-          slot-name: Production
-          package: ./deployment
+      - name: 📦 Create React deployment zip
+        run: |
+          cd deployment
+          zip -r ../react.zip .
+          cd -
+
+      - name: 🚀 Deploy React to root via Kudu ZIP push (non-destructive)
+        env:
+          APP_NAME: dmc-app-dev
+          KUDU_USER: ${{ steps.kudu-creds.outputs.user }}
+          KUDU_PASS: ${{ steps.kudu-creds.outputs.pass }}
+        run: |
+          curl -sS -u "${KUDU_USER}:${KUDU_PASS}" -X PUT \
+            "https://${APP_NAME}.scm.azurewebsites.net/api/zip/" \
+            -H "Content-Type: application/zip" --data-binary @react.zip
 
       - name: 🎉 Deployment Summary
         run: |
