@@ -1283,12 +1283,12 @@
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
                                                                 $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
                                                                 $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
@@ -1337,12 +1337,12 @@
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
                                                                 $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
                                                                 $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
