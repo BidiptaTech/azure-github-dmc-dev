@@ -694,14 +694,16 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
@@ -755,14 +757,16 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
@@ -1113,14 +1117,16 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
