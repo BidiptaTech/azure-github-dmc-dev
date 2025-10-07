@@ -1,101 +1,73 @@
 #!/bin/bash
 echo "🔧 Configuring NGINX and Laravel for Azure App Service..."
 
-# =====================================================
-# Copy NGINX configuration
-# =====================================================
-if [ -f /home/site/wwwroot/default ]; then
-  cp /home/site/wwwroot/default /etc/nginx/sites-available/default
-  cp /home/site/wwwroot/default /etc/nginx/sites-enabled/default
-  echo "🌐 Custom NGINX config copied successfully."
-else
-  echo "⚠️ default NGINX config not found in /home/site/wwwroot/"
-fi
+# =========================
+# COPY CUSTOM NGINX CONFIG
+# =========================
+cp /home/site/wwwroot/default /etc/nginx/sites-available/default
+cp /home/site/wwwroot/default /etc/nginx/sites-enabled/default
+echo "🌐 NGINX config copied."
+service nginx reload || echo "service nginx reload failed (continuing...)"
 
-service nginx reload || echo "⚠️ NGINX reload failed (may continue)"
+# =========================
+# WRITABLE STORAGE (hybrid fix)
+# =========================
+echo "📁 Ensuring Laravel writable storage..."
 
-# =====================================================
-# WRITABLE STORAGE FIX FOR AZURE
-# =====================================================
-echo "🔧 Fixing Laravel writable directories..."
-
-# Create persistent writable storage
-mkdir -p /home/laravel-storage/logs
-mkdir -p /home/laravel-storage/framework/{cache,sessions,views}
-chmod -R 777 /home/laravel-storage
-
-# Re-link Laravel storage if wwwroot is writable
-if [ -w "/home/site/wwwroot/backadm-dmc" ]; then
-  echo "🔁 Relinking Laravel storage..."
-  rm -rf /home/site/wwwroot/backadm-dmc/storage
-  ln -sfn /home/laravel-storage /home/site/wwwroot/backadm-dmc/storage
-else
-  echo "⚠️ /home/site/wwwroot/backadm-dmc is read-only; skipping storage symlink"
-fi
-
-# =====================================================
-# LARAVEL SETUP
-# =====================================================
-echo "📁 Ensuring Laravel bootstrap cache exists..."
-mkdir -p /home/site/wwwroot/backadm-dmc/bootstrap/cache
+mkdir -p /home/site/wwwroot/backadm-dmc/storage/framework/{cache,sessions,views}
+mkdir -p /home/site/wwwroot/backadm-dmc/storage/logs
+chmod -R 777 /home/site/wwwroot/backadm-dmc/storage
 chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-cd /home/site/wwwroot/backadm-dmc || {
-  echo "❌ Could not cd into backadm-dmc"
-  exit 1
-}
+echo "✅ Writable storage fixed locally (no external symlink)."
 
-# Set environment variables
-echo "🔧 Ensuring environment configuration..."
+# =========================
+# LARAVEL CONFIG
+# =========================
+cd /home/site/wwwroot/backadm-dmc || echo "❌ Could not cd into backadm-dmc"
+
+echo "🔒 Setting Laravel environment variables..."
+sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "APP_URL update failed"
+sed -i 's|ASSET_URL=.*|ASSET_URL=https://dev.travclicks.com/backadm-dmc|g' .env || echo "ASSET_URL update failed"
+
 export APP_URL="https://dev.travclicks.com"
 export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
 export APP_ENV="production"
+export APP_DEBUG="false"
 export FORCE_HTTPS="true"
 export HTTPS="on"
 export SERVER_PORT="443"
 
-# Ensure .env contains defaults
-if [ ! -f .env ]; then
-  echo "⚙️ Creating missing .env file..."
-  cp .env.example .env || touch .env
-fi
-
-sed -i 's|^APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env
-sed -i 's|^ASSET_URL=.*|ASSET_URL=https://dev.travclicks.com/backadm-dmc|g' .env
-
-# Laravel key check
+echo "🔑 Checking APP_KEY..."
 if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-  echo "🔑 Generating Laravel key..."
-  php artisan key:generate --force || echo "⚠️ Key generation failed"
+    php artisan key:generate --force || echo "APP_KEY already exists."
 fi
 
-# Clear and optimize caches
-echo "🧹 Clearing Laravel caches..."
-php artisan optimize:clear || echo "⚠️ Failed to clear cache"
+# =========================
+# OPTIMIZE & CLEAR CACHE
+# =========================
+echo "🧹 Clearing and caching Laravel..."
+php artisan optimize:clear || echo "optimize:clear failed"
+php artisan config:cache || echo "config:cache failed"
+php artisan route:clear || true
+php artisan view:clear || true
 
-echo "⚡ Optimizing Laravel..."
-php artisan config:cache || echo "⚠️ Failed to cache config"
-
-# =====================================================
-# NGINX VALIDATION
-# =====================================================
-echo "🔧 Testing NGINX configuration..."
-nginx -t
-if [ $? -eq 0 ]; then
-  echo "✅ NGINX configuration valid"
-  service nginx reload
-else
-  echo "❌ NGINX configuration invalid!"
-  nginx -t || true
-fi
-
-# =====================================================
-# REACT BUILD CHECK
-# =====================================================
+# =========================
+# VERIFY REACT BUILD
+# =========================
+echo "🌐 Checking React build..."
 if [ -f "/home/site/wwwroot/index.html" ]; then
-  echo "✅ React index.html found"
+    echo "✅ index.html found"
+    chmod -R 755 /home/site/wwwroot
 else
-  echo "⚠️ React build not found at /home/site/wwwroot/"
+    echo "❌ React build missing under /home/site/wwwroot/"
 fi
 
-echo "✅ Startup completed. Laravel storage path: /home/laravel-storage"
+# =========================
+# NGINX VALIDATION
+# =========================
+echo "🔧 Validating NGINX config..."
+nginx -t && service nginx reload && echo "✅ NGINX OK" || echo "❌ NGINX validation failed"
+
+echo "🎯 Deployment completed."
+echo "🔍 Debug: https://dev.travclicks.com/laravel-debug.php"
