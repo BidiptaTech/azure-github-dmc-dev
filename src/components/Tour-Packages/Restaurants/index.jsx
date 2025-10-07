@@ -279,7 +279,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       isInitializingRef.current = false;
       console.log('Restaurant initialization completed, handleInputChange is now enabled');
     }, 100);
-  }, [restaurantspack, dayIndex, bookingDate, tour, tourDates]); // Added tourDates to dependencies
+  }, [restaurantspack, dayIndex, bookingDate, tour]); // Added tourDates to dependencies
 
   // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
   const dispatchAllRestaurantsToRedux = useCallback(() => {

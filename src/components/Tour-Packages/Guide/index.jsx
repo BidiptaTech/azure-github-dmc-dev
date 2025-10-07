@@ -264,7 +264,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [guidespack, dayIndex, bookingDate, date, formatDateToString, guides, tourDates]);
+  }, [guidespack, dayIndex, bookingDate, date, formatDateToString, guides]);
 
   // Function to dispatch ALL guides from guidespack to Redux state
   const dispatchAllGuidesToRedux = useCallback(() => {
