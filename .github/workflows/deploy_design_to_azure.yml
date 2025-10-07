@@ -164,19 +164,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 📦 Create React deployment zip
-        run: |
-          cd deployment
-          zip -r ../react.zip .
-          cd -
-
-      - name: 🚀 Deploy React to Azure Web App (preserve backadm-dmc)
-        run: |
-          az webapp deploy \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --src-path react.zip \
-            --type zip
+      - name: 🚀 Deploy React via GitHub Actions (preserve backadm-dmc and default)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: dmc-app-dev
+          slot-name: Production
+          package: ./deployment
+          clean: false
 
       - name: 🎉 Deployment Summary
         run: |
