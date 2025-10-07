@@ -1,60 +1,52 @@
 #!/bin/bash
 echo "🔧 Configuring NGINX and Laravel for Azure App Service..."
 
-# =========================
-# (YOUR ORIGINAL COPY LINES — keep these)
-# =========================
-cp /home/site/wwwroot/default /etc/nginx/sites-available/default
-cp /home/site/wwwroot/default /etc/nginx/sites-enabled/default
+# =====================================================
+# Copy NGINX configuration
+# =====================================================
+if [ -f /home/site/wwwroot/default ]; then
+  cp /home/site/wwwroot/default /etc/nginx/sites-available/default
+  cp /home/site/wwwroot/default /etc/nginx/sites-enabled/default
+  echo "🌐 Custom NGINX config copied successfully."
+else
+  echo "⚠️ default NGINX config not found in /home/site/wwwroot/"
+fi
 
-echo "🌐 Custom NGINX config copied to /etc/nginx/sites-available and sites-enabled."
-service nginx reload || echo "service nginx reload failed (will continue and test later)"
+service nginx reload || echo "⚠️ NGINX reload failed (may continue)"
 
 # =====================================================
 # WRITABLE STORAGE FIX FOR AZURE
 # =====================================================
 echo "🔧 Fixing Laravel writable directories..."
 
-# Create writable storage under /home
+# Create persistent writable storage
 mkdir -p /home/laravel-storage/logs
 mkdir -p /home/laravel-storage/framework/{cache,sessions,views}
 chmod -R 777 /home/laravel-storage
 
-# Remove old (read-only) storage link if exists and re-link
-rm -rf /home/site/wwwroot/backadm-dmc/storage
-ln -sfn /home/laravel-storage /home/site/wwwroot/backadm-dmc/storage
-
-echo "✅ Writable storage directory linked successfully."
+# Re-link Laravel storage if wwwroot is writable
+if [ -w "/home/site/wwwroot/backadm-dmc" ]; then
+  echo "🔁 Relinking Laravel storage..."
+  rm -rf /home/site/wwwroot/backadm-dmc/storage
+  ln -sfn /home/laravel-storage /home/site/wwwroot/backadm-dmc/storage
+else
+  echo "⚠️ /home/site/wwwroot/backadm-dmc is read-only; skipping storage symlink"
+fi
 
 # =====================================================
-# EXISTING LARAVEL SETUP (slightly optimized)
+# LARAVEL SETUP
 # =====================================================
 echo "📁 Ensuring Laravel bootstrap cache exists..."
 mkdir -p /home/site/wwwroot/backadm-dmc/bootstrap/cache
 chmod -R 777 /home/site/wwwroot/backadm-dmc/bootstrap/cache
 
-cd /home/site/wwwroot/backadm-dmc || echo "❌ Could not cd into backadm-dmc"
+cd /home/site/wwwroot/backadm-dmc || {
+  echo "❌ Could not cd into backadm-dmc"
+  exit 1
+}
 
-echo "🔒 Configuring Laravel for HTTPS..."
-if ! grep -q "APP_URL=https://" .env 2>/dev/null; then
-    echo "🔧 Setting APP_URL to HTTPS in .env..."
-    sed -i 's|APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env || echo "Could not update APP_URL"
-fi
-
-echo "🔧 Ensuring critical environment variables are set..."
-if ! grep -q "APP_ENV=" .env 2>/dev/null; then
-    echo "APP_ENV=production" >> .env
-fi
-if ! grep -q "APP_DEBUG=" .env 2>/dev/null; then
-    echo "APP_DEBUG=false" >> .env
-fi
-if ! grep -q "FORCE_HTTPS=" .env 2>/dev/null; then
-    echo "FORCE_HTTPS=true" >> .env
-fi
-if ! grep -q "ASSET_URL=" .env 2>/dev/null; then
-    echo "ASSET_URL=https://dev.travclicks.com/backadm-dmc" >> .env
-fi
-
+# Set environment variables
+echo "🔧 Ensuring environment configuration..."
 export APP_URL="https://dev.travclicks.com"
 export ASSET_URL="https://dev.travclicks.com/backadm-dmc"
 export APP_ENV="production"
@@ -62,23 +54,27 @@ export FORCE_HTTPS="true"
 export HTTPS="on"
 export SERVER_PORT="443"
 
-echo "🔑 Checking Laravel application key..."
-if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
-    echo "🔑 Generating Laravel application key..."
-    php artisan key:generate --force || echo "Key generation failed (may already exist)"
+# Ensure .env contains defaults
+if [ ! -f .env ]; then
+  echo "⚙️ Creating missing .env file..."
+  cp .env.example .env || touch .env
 fi
 
-# =====================================================
-# CLEAR & OPTIMIZE CACHES
-# =====================================================
+sed -i 's|^APP_URL=.*|APP_URL=https://dev.travclicks.com|g' .env
+sed -i 's|^ASSET_URL=.*|ASSET_URL=https://dev.travclicks.com/backadm-dmc|g' .env
+
+# Laravel key check
+if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
+  echo "🔑 Generating Laravel key..."
+  php artisan key:generate --force || echo "⚠️ Key generation failed"
+fi
+
+# Clear and optimize caches
 echo "🧹 Clearing Laravel caches..."
-php artisan optimize:clear || echo "Optimize clear failed (read-only system skipped)"
+php artisan optimize:clear || echo "⚠️ Failed to clear cache"
 
 echo "⚡ Optimizing Laravel..."
-php artisan config:cache || echo "Config cache failed (OK for development)"
-
-echo "🔍 Checking Laravel routes..."
-php artisan route:list --path=login || echo "Route list failed"
+php artisan config:cache || echo "⚠️ Failed to cache config"
 
 # =====================================================
 # NGINX VALIDATION
@@ -86,33 +82,20 @@ php artisan route:list --path=login || echo "Route list failed"
 echo "🔧 Testing NGINX configuration..."
 nginx -t
 if [ $? -eq 0 ]; then
-    echo "✅ NGINX configuration is valid"
-    service nginx reload
-    echo "✅ NGINX reloaded successfully"
+  echo "✅ NGINX configuration valid"
+  service nginx reload
 else
-    echo "❌ NGINX configuration error - dumping /etc/nginx/sites-available/default for debug"
-    cat /etc/nginx/sites-available/default || true
-    nginx -t || true
-    exit 1
+  echo "❌ NGINX configuration invalid!"
+  nginx -t || true
 fi
 
 # =====================================================
 # REACT BUILD CHECK
 # =====================================================
-echo "🌐 Verifying React frontend files..."
 if [ -f "/home/site/wwwroot/index.html" ]; then
-    echo "✅ React index.html found!"
-    chmod -R 755 /home/site/wwwroot/*.html || true
-    chmod -R 755 /home/site/wwwroot/static || true
+  echo "✅ React index.html found"
 else
-    echo "❌ React build missing: please ensure React is built into /home/site/wwwroot/"
+  echo "⚠️ React build not found at /home/site/wwwroot/"
 fi
 
-# =====================================================
-# FINAL STATUS
-# =====================================================
-echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
-echo "🎯 React frontend should now load correctly at /"
-echo "🔒 HTTPS configuration applied to fix mixed content issues"
-echo "📁 Storage linked to writable path: /home/laravel-storage"
-echo "🔍 Debug URL: https://dev.travclicks.com/laravel-debug.php"
+echo "✅ Startup completed. Laravel storage path: /home/laravel-storage"
