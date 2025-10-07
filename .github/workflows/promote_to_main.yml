@@ -162,6 +162,26 @@ jobs:
             --name dmc-app-dev \
             --startup-file '/home/site/wwwroot/startup.sh'
 
+      - name: 🗂️ Create storage directories with write permissions
+        run: |
+          # Create a simple script to ensure storage directories exist
+          cat > ensure_storage.sh << 'EOF'
+          #!/bin/bash
+          cd /home/site/wwwroot/backadm-dmc
+          mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache
+          touch storage/logs/laravel.log
+          chmod -R 775 storage bootstrap/cache || true
+          php artisan storage:link || true
+          echo "Storage directories created successfully"
+          EOF
+          
+          # Upload and run the script
+          az webapp deploy \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --src-path ensure_storage.sh \
+            --type startup
+
       - name: 🔄 Restart Azure Web App
         run: |
           az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
