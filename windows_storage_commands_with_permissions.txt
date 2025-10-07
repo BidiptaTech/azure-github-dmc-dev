@@ -1,0 +1,42 @@
+# Windows PowerShell Commands for Laravel Storage Setup with Permissions
+
+# Navigate to Laravel backend directory
+cd backadm-dmc
+
+# Create missing Laravel storage directories
+New-Item -ItemType Directory -Path "storage\framework\cache\data" -Force
+New-Item -ItemType Directory -Path "storage\framework\views" -Force
+New-Item -ItemType Directory -Path "storage\framework\sessions" -Force
+New-Item -ItemType Directory -Path "storage\framework\testing" -Force
+
+# Create .gitkeep files to ensure folders are tracked in Git
+New-Item -ItemType File -Path "storage\framework\cache\data\.gitkeep" -Force
+New-Item -ItemType File -Path "storage\framework\views\.gitkeep" -Force
+New-Item -ItemType File -Path "storage\framework\sessions\.gitkeep" -Force
+New-Item -ItemType File -Path "storage\framework\testing\.gitkeep" -Force
+
+# Set write permissions for Laravel storage directories
+# Grant full control to Everyone (equivalent to chmod 777)
+icacls "storage" /grant Everyone:F /T
+
+# Alternative: Grant specific permissions to current user and IIS users
+# icacls "storage" /grant "${env:USERNAME}:F" /T
+# icacls "storage" /grant "IIS_IUSRS:F" /T
+# icacls "storage" /grant "IUSR:F" /T
+
+# Alternative: Grant modify permissions (safer than full control)
+# icacls "storage" /grant Everyone:M /T
+
+# Return to root directory
+cd ..
+
+# Verify permissions (optional)
+# icacls storage /T
+
+# Permission Legend:
+# F = Full Control
+# M = Modify (Read, Write, Execute, Delete)
+# RX = Read & Execute
+# R = Read
+# W = Write
+# /T = Apply to this folder, subfolders and files
