@@ -1101,6 +1101,1144 @@
             margin-right: 90px;
         }
     }
+    
+    /* Hotel Details Styles - Enhanced & Compact */
+    .hotel-details {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(59, 130, 246, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .hotel-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .hotel-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .hotel-info-item i {
+        width: 16px;
+        text-align: center;
+        color: var(--primary-color);
+        font-size: 12px;
+    }
+    
+    .hotel-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .rooms-summary {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 12px;
+        border: 1px solid rgba(37, 99, 235, 0.15);
+    }
+    
+    .rooms-header {
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid var(--primary-color);
+    }
+    
+    .rooms-header small {
+        color: var(--primary-color) !important;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    
+    .room-item {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        border-left: 4px solid #10b981;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+    
+    .room-item::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+    }
+    
+    .room-basic-info {
+        margin-bottom: 6px;
+    }
+    
+    .room-basic-info small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .bed-details {
+        margin-left: 8px;
+        padding-left: 8px;
+        border-left: 2px solid #e5e7eb;
+    }
+    
+    .bed-info {
+        margin-bottom: 6px;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+    }
+    
+    .bed-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .meal-info {
+        margin-left: 0;
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .meal-badge {
+        background: linear-gradient(135deg, #059669, #10b981) !important;
+        color: white !important;
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);
+        border: none !important;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .meal-badge i {
+        font-size: 10px;
+        margin-right: 4px;
+    }
+    
+    .meal-price {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin-left: 4px;
+        font-size: 10px;
+        font-weight: 700;
+    }
+    
+    .badge-sm {
+        font-size: 10px;
+        padding: 3px 6px;
+        font-weight: 600;
+    }
+    
+    .price-mode-badge {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Attraction Details Styles - Similar to Hotel */
+    .attraction-details {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(248, 113, 113, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .attraction-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .attraction-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .attraction-info-item i {
+        width: 16px;
+        text-align: center;
+        color: #ef4444;
+        font-size: 12px;
+    }
+    
+    .attraction-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .ticket-summary {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 12px;
+        border: 1px solid rgba(239, 68, 68, 0.15);
+    }
+    
+    .ticket-header {
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #ef4444;
+    }
+    
+    .ticket-header small {
+        color: #ef4444 !important;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    
+    .ticket-item {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        border-left: 4px solid #f59e0b;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+    
+    .ticket-item::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #f59e0b;
+        border-radius: 50%;
+    }
+    
+    .ticket-basic-info {
+        margin-bottom: 6px;
+    }
+    
+    .ticket-basic-info small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .ticket-id-badge {
+        background: linear-gradient(135deg, #6b7280, #9ca3af);
+        color: white;
+        font-size: 8px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin-left: 6px;
+        font-weight: 600;
+    }
+    
+    .visitor-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .visitor-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .pricing-info {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .pricing-badge {
+        background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+        color: white !important;
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+        border-radius: 5px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+        border: none !important;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .pricing-badge i {
+        font-size: 9px;
+        margin-right: 3px;
+    }
+    
+    .transport-info {
+        margin-top: 6px;
+    }
+    
+    .transport-badge {
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa) !important;
+        color: white !important;
+        font-size: 10px !important;
+        padding: 3px 8px !important;
+        border-radius: 5px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+        border: none !important;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .transport-badge i {
+        font-size: 9px;
+        margin-right: 4px;
+    }
+    
+    /* Restaurant Details Styles - Similar to Hotel/Attraction */
+    .restaurant-details {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(74, 222, 128, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(34, 197, 94, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .restaurant-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .restaurant-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .restaurant-info-item i {
+        width: 16px;
+        text-align: center;
+        color: #22c55e;
+        font-size: 12px;
+    }
+    
+    .restaurant-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .meal-summary {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 12px;
+        border: 1px solid rgba(34, 197, 94, 0.15);
+    }
+    
+    .meal-header {
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #22c55e;
+    }
+    
+    .meal-header small {
+        color: #22c55e !important;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    
+    .meal-item {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        border-left: 4px solid #f97316;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+    
+    .meal-item::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #f97316;
+        border-radius: 50%;
+    }
+    
+    .meal-basic-info {
+        margin-bottom: 6px;
+    }
+    
+    .meal-basic-info small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .meal-price-badge {
+        background: linear-gradient(135deg, #16a34a, #22c55e);
+        color: white;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+        font-weight: 600;
+    }
+    
+    .guest-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .guest-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .meal-items-info {
+        margin-top: 8px;
+    }
+    
+    .meal-items-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .meal-item-badge {
+        background: linear-gradient(135deg, #f97316, #fb923c) !important;
+        color: white !important;
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+        border-radius: 5px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3);
+        border: none !important;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1.2;
+    }
+    
+    .item-category {
+        opacity: 0.8;
+        font-size: 8px !important;
+        margin-left: 2px;
+    }
+    
+    .item-type {
+        opacity: 0.9;
+        font-size: 8px !important;
+        margin-left: 2px;
+    }
+    
+    /* Guide Details Styles - Purple Theme */
+    .guide-details {
+        background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(168, 85, 247, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(147, 51, 234, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .guide-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .guide-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .guide-info-item i {
+        width: 16px;
+        text-align: center;
+        color: #9333ea;
+        font-size: 12px;
+    }
+    
+    .guide-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .guide-summary {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 12px;
+        border: 1px solid rgba(147, 51, 234, 0.15);
+    }
+    
+    .guide-header {
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #9333ea;
+    }
+    
+    .guide-header small {
+        color: #9333ea !important;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    
+    .guide-item {
+        background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        border-left: 4px solid #06b6d4;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+    
+    .guide-item::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #06b6d4;
+        border-radius: 50%;
+    }
+    
+    .guide-basic-info {
+        margin-bottom: 6px;
+    }
+    
+    .guide-basic-info small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .experience-badge {
+        background: linear-gradient(135deg, #0891b2, #06b6d4);
+        color: white;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+        font-weight: 600;
+    }
+    
+    .group-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .group-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .languages-info {
+        margin-top: 8px;
+    }
+    
+    .languages-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .language-badge {
+        background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+        color: white !important;
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+        border-radius: 5px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
+        border: none !important;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1.2;
+    }
+    
+    .proficiency {
+        opacity: 0.8;
+        font-size: 8px !important;
+        margin-left: 2px;
+    }
+    
+    /* Entry Port Details Styles - Orange/Amber Theme */
+    .entry-port-details {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .entry-port-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .entry-port-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .entry-port-info-item i {
+        width: 16px;
+        text-align: center;
+        color: #f59e0b;
+        font-size: 12px;
+    }
+    
+    .entry-port-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .transfer-summary {
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+        padding: 12px;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .transfer-summary::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #f59e0b;
+        border-radius: 50%;
+    }
+    
+    .transfer-header {
+        margin-bottom: 6px;
+    }
+    
+    .transfer-header small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .transfer-item {
+        margin-top: 8px;
+    }
+    
+    .pickup-info, .dropoff-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .pickup-info small, .dropoff-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .vehicle-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-top: 6px;
+    }
+    
+    .vehicle-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    /* Exit Port Details Styles - Teal/Cyan Theme */
+    .exit-port-details {
+        background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(45, 212, 191, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(20, 184, 166, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .exit-port-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .exit-port-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .exit-port-info-item i {
+        width: 16px;
+        text-align: center;
+        color: #14b8a6;
+        font-size: 12px;
+    }
+    
+    .exit-port-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .departure-summary {
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+        padding: 12px;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .departure-summary::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #14b8a6;
+        border-radius: 50%;
+    }
+    
+    .departure-header {
+        margin-bottom: 6px;
+    }
+    
+    .departure-header small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .departure-item {
+        margin-top: 8px;
+    }
+    
+    .departure-pickup-info, .departure-dropoff-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .departure-pickup-info small, .departure-dropoff-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .departure-vehicle-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-top: 6px;
+    }
+    
+    .departure-vehicle-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    /* Transfer Details Styles - Purple/Indigo Theme */
+    .transfer-details {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(129, 140, 248, 0.05));
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 10px;
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .transfer-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .transfer-info-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .transfer-info-item i {
+        width: 16px;
+        text-align: center;
+        color: #6366f1;
+        font-size: 12px;
+    }
+    
+    .transfer-info-item small {
+        color: #374151 !important;
+        font-weight: 500;
+    }
+    
+    .tax-info {
+        font-size: 10px;
+        color: #6b7280 !important;
+        margin-left: 4px;
+    }
+    
+    .transportation-summary {
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+        padding: 12px;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .transportation-summary::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #6366f1;
+        border-radius: 50%;
+    }
+    
+    .transportation-header {
+        margin-bottom: 6px;
+    }
+    
+    .transportation-header small {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    .service-category-badge {
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+        color: white;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+        font-weight: 600;
+    }
+    
+    .transportation-item {
+        margin-top: 8px;
+    }
+    
+    .transport-pickup-info, .transport-dropoff-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+    }
+    
+    .transport-pickup-info small, .transport-dropoff-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    .transport-vehicle-info {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-top: 6px;
+    }
+    
+    .transport-vehicle-info small {
+        color: #4b5563 !important;
+        font-weight: 500;
+    }
+    
+    /* Responsive adjustments for hotel details */
+    @media (max-width: 768px) {
+        .hotel-details {
+            padding: 12px;
+        }
+        
+        .hotel-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .hotel-info-item {
+            padding: 6px 8px;
+        }
+        
+        .rooms-summary {
+            padding: 10px;
+        }
+        
+        .room-item {
+            padding: 8px;
+        }
+        
+        .bed-details {
+            margin-left: 6px;
+            padding-left: 6px;
+        }
+        
+        .bed-info {
+            padding: 4px 6px;
+        }
+        
+        .meal-badge {
+            font-size: 10px !important;
+            padding: 3px 6px !important;
+        }
+        
+        .meal-price {
+            font-size: 9px;
+        }
+        
+        /* Attraction responsive styles */
+        .attraction-details {
+            padding: 12px;
+        }
+        
+        .attraction-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .attraction-info-item {
+            padding: 6px 8px;
+        }
+        
+        .ticket-summary {
+            padding: 10px;
+        }
+        
+        .ticket-item {
+            padding: 8px;
+        }
+        
+        .visitor-info {
+            padding: 4px 6px;
+        }
+        
+        .pricing-badge {
+            font-size: 9px !important;
+            padding: 2px 5px !important;
+        }
+        
+        .transport-badge {
+            font-size: 9px !important;
+            padding: 2px 6px !important;
+        }
+        
+        /* Restaurant responsive styles */
+        .restaurant-details {
+            padding: 12px;
+        }
+        
+        .restaurant-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .restaurant-info-item {
+            padding: 6px 8px;
+        }
+        
+        .meal-summary {
+            padding: 10px;
+        }
+        
+        .meal-item {
+            padding: 8px;
+        }
+        
+        .guest-info {
+            padding: 4px 6px;
+        }
+        
+        .meal-item-badge {
+            font-size: 9px !important;
+            padding: 2px 5px !important;
+        }
+        
+        .item-category, .item-type {
+            font-size: 7px !important;
+        }
+        
+        /* Guide responsive styles */
+        .guide-details {
+            padding: 12px;
+        }
+        
+        .guide-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .guide-info-item {
+            padding: 6px 8px;
+        }
+        
+        .guide-summary {
+            padding: 10px;
+        }
+        
+        .guide-item {
+            padding: 8px;
+        }
+        
+        .group-info {
+            padding: 4px 6px;
+        }
+        
+        .language-badge {
+            font-size: 9px !important;
+            padding: 2px 5px !important;
+        }
+        
+        .proficiency {
+            font-size: 7px !important;
+        }
+        
+        /* Entry Port responsive styles */
+        .entry-port-details {
+            padding: 12px;
+        }
+        
+        .entry-port-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .entry-port-info-item {
+            padding: 6px 8px;
+        }
+        
+        .transfer-summary {
+            padding: 10px;
+        }
+        
+        .transfer-item {
+            padding: 8px;
+        }
+        
+        .pickup-info, .dropoff-info, .vehicle-info {
+            padding: 4px 6px;
+        }
+        
+        /* Exit Port responsive styles */
+        .exit-port-details {
+            padding: 12px;
+        }
+        
+        .exit-port-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .exit-port-info-item {
+            padding: 6px 8px;
+        }
+        
+        .departure-summary {
+            padding: 10px;
+        }
+        
+        .departure-item {
+            padding: 8px;
+        }
+        
+        .departure-pickup-info, .departure-dropoff-info, .departure-vehicle-info {
+            padding: 4px 6px;
+        }
+        
+        /* Transfer responsive styles */
+        .transfer-details {
+            padding: 12px;
+        }
+        
+        .transfer-info-grid {
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        
+        .transfer-info-item {
+            padding: 6px 8px;
+        }
+        
+        .transportation-summary {
+            padding: 10px;
+        }
+        
+        .transportation-item {
+            padding: 8px;
+        }
+        
+        .transport-pickup-info, .transport-dropoff-info, .transport-vehicle-info {
+            padding: 4px 6px;
+        }
+        
+        .service-category-badge {
+            font-size: 8px !important;
+            padding: 1px 4px !important;
+        }
+    }
 </style>
 
 <div class="content-wrapper">
@@ -1677,9 +2815,9 @@
                                         $pax = 3; // Default to 3 passengers
                                         
                                         // Change Entry Port to Arrival and Exit Port to Departure
-                                        if (strtolower($serviceType) == 'entry port') {
+                                        if (strtolower($serviceType) == 'entry_port') {
                                             $serviceType = 'Arrival';
-                                        } elseif (strtolower($serviceType) == 'exit port') {
+                                        } elseif (strtolower($serviceType) == 'exit_port') {
                                             $serviceType = 'Departure';
                                         }
                                         
@@ -1730,8 +2868,8 @@
                                             }
                                         } elseif (strtolower($serviceType) == 'attraction') {
                                             // For attractions
-                                            if (!empty($data['attractionname'])) {
-                                                $serviceName = $data['attractionname'];
+                                            if (!empty($data['AttractionName'])) {
+                                                $serviceName = $data['AttractionName'];
                                             } elseif (!empty($data['name'])) {
                                                 $serviceName = $data['name'];
                                             } else {
@@ -1739,8 +2877,8 @@
                                             }
                                         } elseif (strtolower($serviceType) == 'restaurant') {
                                             // For restaurants
-                                            if (!empty($data['restaurantname'])) {
-                                                $serviceName = $data['restaurantname'];
+                                            if (!empty($data['restaurantName'])) {
+                                                $serviceName = $data['restaurantName'];
                                             } elseif (!empty($data['name'])) {
                                                 $serviceName = $data['name'];
                                             } else {
@@ -1768,28 +2906,7 @@
                                         // Format date
                                         $serviceDate = \Carbon\Carbon::parse($date)->format('l, F j, Y');
                                         
-                                        // Format time to match example (04:00 PM) with a default value
-                                        if (!$timeSlot) {
-                                            // Default time for examples
-                                            $exampleTimes = [
-                                                'entry port' => '04:00 PM',
-                                                'guide' => '14:02',
-                                                'default' => '12:00 PM'
-                                            ];
-                                            
-                                            $timeSlot = $exampleTimes[strtolower($serviceType)] ?? $exampleTimes['default'];
-                                        } elseif (strpos($timeSlot, 'AM') === false && strpos($timeSlot, 'PM') === false) {
-                                            // Convert 24-hour format to 12-hour format if needed
-                                            $timeParts = explode(':', $timeSlot);
-                                            $hour = (int)$timeParts[0];
-                                            $min = isset($timeParts[1]) ? (int)$timeParts[1] : 0;
-                                            
-                                            $suffix = ($hour >= 12) ? 'PM' : 'AM';
-                                            $hour = ($hour > 12) ? $hour - 12 : $hour;
-                                            $hour = ($hour == 0) ? 12 : $hour; // Handle midnight
-                                            
-                                            $timeSlot = sprintf('%02d:%02d %s', $hour, $min, $suffix);
-                                        }
+                                        // Time processing removed as time badge is no longer displayed
                                         
                                         // Determine service type class for styling
                                         $serviceTypeClass = '';
@@ -1882,23 +2999,849 @@
                                                                 Hotel accommodation
                                                             @endif
                                                         </p>
+                                                        
+                                                        <!-- Enhanced Hotel Details -->
+                                                        <div class="hotel-details mt-2">
+                                                            @if(isset($data['hotelDetails']))
+                                                                <div class="hotel-info-grid">
+                                                                    @if(!empty($data['hotelDetails']['checkInTime']) || !empty($data['hotelDetails']['checkOutTime']))
+                                                                        <div class="hotel-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-clock me-1"></i>
+                                                                                Check-in: {{ $data['hotelDetails']['checkInTime'] ?? 'N/A' }} | 
+                                                                                Check-out: {{ $data['hotelDetails']['checkOutTime'] ?? 'N/A' }}
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($data['totalPrice']))
+                                                                        <div class="hotel-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($data['totalPrice'], 2) }}
+                                                                                @if(!empty($data['priceMode']))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($data['priceMode']) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            @endif
+                                                            
+                                                            <!-- Room Information -->
+                                                            @if(isset($data['rooms']) && is_array($data['rooms']) && count($data['rooms']) > 0)
+                                                                <div class="rooms-summary mt-2">
+                                                                    <div class="rooms-header">
+                                                                        <small class="text-primary fw-semibold">
+                                                                            <i class="fas fa-bed me-1"></i>
+                                                                            {{ count($data['rooms']) }} {{ count($data['rooms']) > 1 ? 'Rooms' : 'Room' }}
+                                                                        </small>
+                                                                    </div>
+                                                                    
+                                                                    @foreach($data['rooms'] as $index => $room)
+                                                                        <div class="room-item mt-1">
+                                                                            <div class="room-basic-info">
+                                                                                <small class="text-dark">
+                                                                                    <strong>Room {{ $index + 1 }}:</strong> {{ $room['room_type'] ?? 'Standard Room' }}
+                                                                                </small>
+                                                                            </div>
+                                                                            
+                                                                            @if(isset($room['beds']) && is_array($room['beds']) && count($room['beds']) > 0)
+                                                                                <div class="bed-details mt-1">
+                                                                                    @foreach($room['beds'] as $bedIndex => $bed)
+                                                                                        <div class="bed-info">
+                                                                                            <small class="text-muted">
+                                                                                                • {{ $bed['bed_type'] ?? 'Standard Bed' }}
+                                                                                                @if(!empty($bed['head_count']))
+                                                                                                    ({{ $bed['head_count'] }} pax)
+                                                                                                @endif
+                                                                                                @if(!empty($bed['price']))
+                                                                                                    - SGD {{ number_format($bed['price'], 2) }}
+                                                                                                @endif
+                                                                                            </small>
+                                                                                            
+                                                                                            @if(isset($bed['selectedMeals']) && is_array($bed['selectedMeals']) && count($bed['selectedMeals']) > 0)
+                                                                                                <div class="meal-info mt-1">
+                                                                                                    @foreach($bed['selectedMeals'] as $mealKey => $meal)
+                                                                                                        <span class="badge meal-badge me-1 mb-1">
+                                                                                                            <i class="fas fa-utensils me-1"></i>{{ $meal['type'] ?? 'Meal' }}
+                                                                                                            @if(!empty($meal['price']))
+                                                                                                                <span class="meal-price">+${{ number_format($meal['price'], 2) }}</span>
+                                                                                                            @endif
+                                                                                                        </span>
+                                                                                                    @endforeach
+                                                                                                </div>
+                                                                                            @endif
+                                                                                        </div>
+                                                                                    @endforeach
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        </div>
                                                     @elseif(strtolower($serviceType) == 'guide')
                                                         <p class="service-description">Professional tour guide service</p>
+                                                        
+                                                        <!-- Enhanced Guide Details -->
+                                                        <div class="guide-details mt-2">
+                                                            @php 
+                                                                // $data is already the guide item data
+                                                                $guideData = $data;
+                                                            @endphp
+                                                            
+                                                            @if($guideData && is_array($guideData))
+                                                                @php
+                                                                    // Debug: Show all guide data
+                                                                    $debugGuideData = json_encode($guideData, JSON_PRETTY_PRINT);
+                                                                    
+                                                                    // Check for different possible field names
+                                                                    $bookingDate = $guideData['bookingDate'] ?? $guideData['booking_date'] ?? $guideData['pickupdate'] ?? null;
+                                                                    $totalPrice = $guideData['totalPrice'] ?? $guideData['total_price'] ?? $guideData['price'] ?? null;
+                                                                    $basePrice = $guideData['basePrice'] ?? $guideData['base_price'] ?? null;
+                                                                    $hours = $guideData['hours'] ?? null;
+                                                                    $adults = $guideData['adults'] ?? $guideData['adult_count'] ?? null;
+                                                                    $children = $guideData['children'] ?? $guideData['child_count'] ?? null;
+                                                                    $guideName = $guideData['guide_name'] ?? $guideData['guideName'] ?? null;
+                                                                    $experience = $guideData['experience'] ?? null;
+                                                                    $languages = $guideData['languages'] ?? null;
+                                                                    $city = $guideData['city'] ?? null;
+                                                                    $mode = $guideData['Mode'] ?? $guideData['mode'] ?? null;
+                                                                @endphp
+                                                                
+                                                                
+                                                                
+                                                                <div class="guide-info-grid">
+                                                                    @if(!empty($bookingDate))
+                                                                        <div class="guide-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                                {{ date('d M Y', strtotime($bookingDate)) }}
+                                                                                @if(!empty($hours))
+                                                                                    • {{ $hours }} hour{{ $hours > 1 ? 's' : '' }}
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($totalPrice))
+                                                                        <div class="guide-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($totalPrice, 2) }}
+                                                                                @if(!empty($mode))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Guide Information -->
+                                                                @if(!empty($guideName) || !empty($experience) || !empty($languages) || !empty($adults) || !empty($children))
+                                                                    <div class="guide-summary mt-2">
+                                                                        <div class="guide-header">
+                                                                            <small class="text-primary fw-semibold">
+                                                                                <i class="fas fa-user-tie me-1"></i>
+                                                                                Guide Information
+                                                                            </small>
+                                                                        </div>
+                                                                        
+                                                                        <div class="guide-item mt-1">
+                                                                            @if(!empty($guideName))
+                                                                                <div class="guide-basic-info">
+                                                                                    <small class="text-dark">
+                                                                                        <strong>{{ $guideName }}</strong>
+                                                                                        @if(!empty($experience))
+                                                                                            <span class="experience-badge">{{ $experience }} years exp.</span>
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Group Size -->
+                                                                            @if(!empty($adults) || !empty($children))
+                                                                                <div class="group-info mt-1">
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-users me-1"></i>
+                                                                                        @if(!empty($adults))
+                                                                                            {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
+                                                                                        @endif
+                                                                                        @if(!empty($children))
+                                                                                            @if(!empty($adults)) • @endif
+                                                                                            {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
+                                                                                        @endif
+                                                                                        @if(!empty($city))
+                                                                                            • {{ $city }}
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Languages -->
+                                                                            @php
+                                                                                // Debug: Check what languages data we have
+                                                                                $debugLanguages = $languages ?? 'NULL';
+                                                                                if (is_array($debugLanguages)) {
+                                                                                    $debugLanguages = 'ARRAY with ' . count($debugLanguages) . ' items: ' . json_encode($debugLanguages);
+                                                                                }
+                                                                            @endphp
+                                                                            
+                                                                            @if(isset($languages) && is_array($languages) && count($languages) > 0)
+                                                                                <div class="languages-info mt-1">
+                                                                                    <small class="text-muted mb-1 d-block">
+                                                                                        <i class="fas fa-language me-1"></i>Languages:
+                                                                                    </small>
+                                                                                    <div class="languages-list">
+                                                                                        @foreach($languages as $lang)
+                                                                                            <span class="badge language-badge me-1 mb-1">
+                                                                                                {{ $lang['language'] ?? 'Language' }}
+                                                                                                @if(!empty($lang['proficiency']))
+                                                                                                    <small class="proficiency">({{ $lang['proficiency'] }})</small>
+                                                                                                @endif
+                                                                                            </span>
+                                                                                        @endforeach
+                                                                                    </div>
+                                                                                </div>
+                                                                            @else
+                                                                                
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                                     @elseif(strpos(strtolower($serviceType), 'transfer') !== false)
                                                         <p class="service-description">Private transportation service</p>
+                                                        
+                                                        <!-- Enhanced Transfer Details -->
+                                                        <div class="transfer-details mt-2">
+                                                            @php 
+                                                                // $data is already the transfer item data
+                                                                $transferData = $data;
+                                                            @endphp
+                                                            
+                                                            @if($transferData && is_array($transferData))
+                                                                @php
+                                                                    // Check for different possible field names
+                                                                    $bookingDate = $transferData['bookingDate'] ?? $transferData['booking_date'] ?? $transferData['exitpickupdate'] ?? null;
+                                                                    $totalPrice = $transferData['totalPrice'] ?? $transferData['total_price'] ?? $transferData['price'] ?? null;
+                                                                    $entryPickup = $transferData['entrypickup'] ?? $transferData['entry_pickup'] ?? $transferData['pickup'] ?? null;
+                                                                    $dropoffLocation = $transferData['dropoffLocation'] ?? $transferData['dropoff_location'] ?? $transferData['dropoff'] ?? null;
+                                                                    $entryTime = $transferData['entrytime'] ?? $transferData['entry_time'] ?? $transferData['time'] ?? null;
+                                                                    $selectedHours = $transferData['selectedHours'] ?? $transferData['selected_hours'] ?? $transferData['hours'] ?? null;
+                                                                    $vehicleName = $transferData['vehicles_name'] ?? $transferData['vehicle_name'] ?? null;
+                                                                    $vehicleType = $transferData['type'] ?? $transferData['vehicle_type'] ?? null;
+                                                                    $adults = $transferData['adults'] ?? $transferData['adult_count'] ?? null;
+                                                                    $children = $transferData['children'] ?? $transferData['child_count'] ?? null;
+                                                                    $mode = $transferData['Mode'] ?? $transferData['mode'] ?? null;
+                                                                    $serviceCategory = $transferData['service_category'] ?? null;
+                                                                    $tax = $transferData['Tax'] ?? $transferData['tax'] ?? null;
+                                                                @endphp
+                                                                
+                                                                <div class="transfer-info-grid">
+                                                                    @if(!empty($bookingDate))
+                                                                        <div class="transfer-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                                {{ date('d M Y', strtotime($bookingDate)) }}
+                                                                                @if(!empty($entryTime))
+                                                                                    • {{ $entryTime }}
+                                                                                @endif
+                                                                                @if(!empty($selectedHours))
+                                                                                    • {{ $selectedHours }}h
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($totalPrice))
+                                                                        <div class="transfer-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($totalPrice, 2) }}
+                                                                                @if(!empty($tax) && $tax > 0)
+                                                                                    <span class="tax-info">+{{ number_format($tax, 2) }} tax</span>
+                                                                                @endif
+                                                                                @if(!empty($mode))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Transportation Information -->
+                                                                @if(!empty($entryPickup) || !empty($dropoffLocation) || !empty($vehicleName))
+                                                                    <div class="transportation-summary mt-2">
+                                                                        <div class="transportation-header">
+                                                                            <small class="text-primary fw-semibold">
+                                                                                <i class="fas fa-car-side me-1"></i>
+                                                                                Transportation Details
+                                                                                @if(!empty($serviceCategory))
+                                                                                    <span class="service-category-badge">{{ ucwords(str_replace('_', ' ', $serviceCategory)) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                        
+                                                                        <div class="transportation-item mt-1">
+                                                                            @if(!empty($entryPickup))
+                                                                                <div class="transport-pickup-info">
+                                                                                    <small class="text-dark">
+                                                                                        <i class="fas fa-map-marker-alt me-1 text-success"></i>
+                                                                                        <strong>From:</strong> {{ $entryPickup }}
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            @if(!empty($dropoffLocation))
+                                                                                <div class="transport-dropoff-info mt-1">
+                                                                                    <small class="text-dark">
+                                                                                        <i class="fas fa-map-marker-alt me-1 text-danger"></i>
+                                                                                        <strong>To:</strong> {{ $dropoffLocation }}
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Vehicle Information -->
+                                                                            @if(!empty($vehicleName) || !empty($vehicleType) || !empty($selectedHours))
+                                                                                <div class="transport-vehicle-info mt-1">
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-car me-1"></i>
+                                                                                        @if(!empty($vehicleName))
+                                                                                            {{ $vehicleName }}
+                                                                                        @endif
+                                                                                        @if(!empty($vehicleType))
+                                                                                            @if(!empty($vehicleName)) • @endif
+                                                                                            {{ ucfirst($vehicleType) }}
+                                                                                        @endif
+                                                                                        @if(!empty($selectedHours))
+                                                                                            @if(!empty($vehicleName) || !empty($vehicleType)) • @endif
+                                                                                            {{ $selectedHours }} Hour{{ $selectedHours > 1 ? 's' : '' }}
+                                                                                        @endif
+                                                                                        @if(!empty($adults) || !empty($children))
+                                                                                            • 
+                                                                                            @if(!empty($adults))
+                                                                                                {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
+                                                                                            @endif
+                                                                                            @if(!empty($children))
+                                                                                                @if(!empty($adults)) + @endif
+                                                                                                {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
+                                                                                            @endif
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                                     @elseif(strpos(strtolower($serviceType), 'entry') !== false || strtolower($serviceType) == 'arrival')
                                                         <p class="service-description">Airport arrival transfer service</p>
+                                                        
+                                                        <!-- Enhanced Entry Port Details -->
+                                                        <div class="entry-port-details mt-2">
+                                                            @php 
+                                                                // $data is already the entry port item data
+                                                                $entryPortData = $data;
+                                                            @endphp
+                                                            
+                                                            @if($entryPortData && is_array($entryPortData))
+                                                                @php
+                                                                    // Check for different possible field names
+                                                                    $pickupDate = $entryPortData['pickupdate'] ?? $entryPortData['pickup_date'] ?? $entryPortData['bookingDate'] ?? null;
+                                                                    $totalPrice = $entryPortData['totalPrice'] ?? $entryPortData['total_price'] ?? $entryPortData['price'] ?? null;
+                                                                    $entryDropoff = $entryPortData['entrydropoff'] ?? $entryPortData['entry_dropoff'] ?? $entryPortData['dropoff'] ?? null;
+                                                                    $entryPickup = $entryPortData['entrypickup'] ?? $entryPortData['entry_pickup'] ?? $entryPortData['pickup'] ?? null;
+                                                                    $entryTime = $entryPortData['entrytime'] ?? $entryPortData['entry_time'] ?? $entryPortData['time'] ?? null;
+                                                                    $vehicleName = $entryPortData['vehicles_name'] ?? $entryPortData['vehicle_name'] ?? null;
+                                                                    $vehicleType = $entryPortData['type'] ?? $entryPortData['vehicle_type'] ?? null;
+                                                                    $adults = $entryPortData['adults'] ?? $entryPortData['adult_count'] ?? null;
+                                                                    $children = $entryPortData['children'] ?? $entryPortData['child_count'] ?? null;
+                                                                    $mode = $entryPortData['Mode'] ?? $entryPortData['mode'] ?? null;
+                                                                @endphp
+                                                                
+                                                                <div class="entry-port-info-grid">
+                                                                    @if(!empty($pickupDate))
+                                                                        <div class="entry-port-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                                {{ date('d M Y', strtotime($pickupDate)) }}
+                                                                                @if(!empty($entryTime))
+                                                                                    • {{ $entryTime }}
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($totalPrice))
+                                                                        <div class="entry-port-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($totalPrice, 2) }}
+                                                                                @if(!empty($mode))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Transfer Information -->
+                                                                @if(!empty($entryPickup) || !empty($entryDropoff) || !empty($vehicleName))
+                                                                    <div class="transfer-summary mt-2">
+                                                                        <div class="transfer-header">
+                                                                            <small class="text-primary fw-semibold">
+                                                                                <i class="fas fa-route me-1"></i>
+                                                                                Transfer Details
+                                                                            </small>
+                                                                        </div>
+                                                                        
+                                                                        <div class="transfer-item mt-1">
+                                                                            @if(!empty($entryPickup))
+                                                                                <div class="pickup-info">
+                                                                                    <small class="text-dark">
+                                                                                        <i class="fas fa-map-marker-alt me-1 text-success"></i>
+                                                                                        <strong>From:</strong> {{ $entryPickup }}
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            @if(!empty($entryDropoff))
+                                                                                <div class="dropoff-info mt-1">
+                                                                                    <small class="text-dark">
+                                                                                        <i class="fas fa-map-marker-alt me-1 text-danger"></i>
+                                                                                        <strong>To:</strong> {{ $entryDropoff }}
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Vehicle Information -->
+                                                                            @if(!empty($vehicleName) || !empty($vehicleType))
+                                                                                <div class="vehicle-info mt-1">
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-car me-1"></i>
+                                                                                        @if(!empty($vehicleName))
+                                                                                            {{ $vehicleName }}
+                                                                                        @endif
+                                                                                        @if(!empty($vehicleType))
+                                                                                            @if(!empty($vehicleName)) • @endif
+                                                                                            {{ ucfirst($vehicleType) }}
+                                                                                        @endif
+                                                                                        @if(!empty($adults) || !empty($children))
+                                                                                            • 
+                                                                                            @if(!empty($adults))
+                                                                                                {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
+                                                                                            @endif
+                                                                                            @if(!empty($children))
+                                                                                                @if(!empty($adults)) + @endif
+                                                                                                {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
+                                                                                            @endif
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                                     @elseif(strpos(strtolower($serviceType), 'exit') !== false || strtolower($serviceType) == 'departure')
                                                         <p class="service-description">Airport departure transfer service</p>
+                                                        
+                                                        <!-- Enhanced Exit Port Details -->
+                                                        <div class="exit-port-details mt-2">
+                                                            @php 
+                                                                // $data is already the exit port item data
+                                                                $exitPortData = $data;
+                                                            @endphp
+                                                            
+                                                            @if($exitPortData && is_array($exitPortData))
+                                                                @php
+                                                                    // Check for different possible field names
+                                                                    $pickupDate = $exitPortData['pickupdate'] ?? $exitPortData['pickup_date'] ?? $exitPortData['bookingDate'] ?? null;
+                                                                    $totalPrice = $exitPortData['totalPrice'] ?? $exitPortData['total_price'] ?? $exitPortData['price'] ?? null;
+                                                                    $entryDropoff = $exitPortData['entrydropoff'] ?? $exitPortData['entry_dropoff'] ?? $exitPortData['dropoff'] ?? null;
+                                                                    $entryPickup = $exitPortData['entrypickup'] ?? $exitPortData['entry_pickup'] ?? $exitPortData['pickup'] ?? null;
+                                                                    $entryTime = $exitPortData['entrytime'] ?? $exitPortData['entry_time'] ?? $exitPortData['time'] ?? null;
+                                                                    $vehicleName = $exitPortData['vehicles_name'] ?? $exitPortData['vehicle_name'] ?? null;
+                                                                    $vehicleType = $exitPortData['type'] ?? $exitPortData['vehicle_type'] ?? null;
+                                                                    $adults = $exitPortData['adults'] ?? $exitPortData['adult_count'] ?? null;
+                                                                    $children = $exitPortData['children'] ?? $exitPortData['child_count'] ?? null;
+                                                                    $mode = $exitPortData['Mode'] ?? $exitPortData['mode'] ?? null;
+                                                                @endphp
+                                                                
+                                                                <div class="exit-port-info-grid">
+                                                                    @if(!empty($pickupDate))
+                                                                        <div class="exit-port-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                                {{ date('d M Y', strtotime($pickupDate)) }}
+                                                                                @if(!empty($entryTime))
+                                                                                    • {{ $entryTime }}
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($totalPrice))
+                                                                        <div class="exit-port-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($totalPrice, 2) }}
+                                                                                @if(!empty($mode))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Departure Transfer Information -->
+                                                                @if(!empty($entryPickup) || !empty($entryDropoff) || !empty($vehicleName))
+                                                                    <div class="departure-summary mt-2">
+                                                                        <div class="departure-header">
+                                                                            <small class="text-primary fw-semibold">
+                                                                                <i class="fas fa-plane-departure me-1"></i>
+                                                                                Departure Details
+                                                                            </small>
+                                                                        </div>
+                                                                        
+                                                                        <div class="departure-item mt-1">
+                                                                            @if(!empty($entryPickup))
+                                                                                <div class="departure-pickup-info">
+                                                                                    <small class="text-dark">
+                                                                                        <i class="fas fa-map-marker-alt me-1 text-success"></i>
+                                                                                        <strong>From:</strong> {{ $entryPickup }}
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            @if(!empty($entryDropoff))
+                                                                                <div class="departure-dropoff-info mt-1">
+                                                                                    <small class="text-dark">
+                                                                                        <i class="fas fa-plane me-1 text-primary"></i>
+                                                                                        <strong>To:</strong> {{ $entryDropoff }}
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Vehicle Information -->
+                                                                            @if(!empty($vehicleName) || !empty($vehicleType))
+                                                                                <div class="departure-vehicle-info mt-1">
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-car me-1"></i>
+                                                                                        @if(!empty($vehicleName))
+                                                                                            {{ $vehicleName }}
+                                                                                        @endif
+                                                                                        @if(!empty($vehicleType))
+                                                                                            @if(!empty($vehicleName)) • @endif
+                                                                                            {{ ucfirst($vehicleType) }}
+                                                                                        @endif
+                                                                                        @if(!empty($adults) || !empty($children))
+                                                                                            • 
+                                                                                            @if(!empty($adults))
+                                                                                                {{ $adults }} Adult{{ $adults > 1 ? 's' : '' }}
+                                                                                            @endif
+                                                                                            @if(!empty($children))
+                                                                                                @if(!empty($adults)) + @endif
+                                                                                                {{ $children }} Child{{ $children > 1 ? 'ren' : '' }}
+                                                                                            @endif
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                                     @elseif(strtolower($serviceType) == 'attraction')
                                                         <p class="service-description">Sightseeing and attraction visit</p>
+                                                        
+                                                        <!-- Enhanced Attraction Details -->
+                                                        <div class="attraction-details mt-2">
+                                                            @php 
+                                                                // $data is already the attraction item data (not an array of items)
+                                                                $attractionData = $data;
+                                                            @endphp
+                                                            
+                                                            @if($attractionData && is_array($attractionData))
+                                                                
+                                                                <div class="attraction-info-grid">
+                                                                    @php
+                                                                        // Check for different possible field names
+                                                                        $bookingDate = $attractionData['bookingDate'] ?? $attractionData['booking_date'] ?? $attractionData['date'] ?? null;
+                                                                        $visitTime = $attractionData['visitTime'] ?? $attractionData['visit_time'] ?? $attractionData['time'] ?? null;
+                                                                        $totalPrice = $attractionData['totalPrice'] ?? $attractionData['total_price'] ?? $attractionData['price'] ?? null;
+                                                                        $mode = $attractionData['mode'] ?? $attractionData['price_mode'] ?? null;
+                                                                    @endphp
+                                                                    
+                                                                    @if(!empty($bookingDate) || !empty($visitTime))
+                                                                        <div class="attraction-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                                @if(!empty($bookingDate))
+                                                                                    {{ date('d M Y', strtotime($bookingDate)) }}
+                                                                                @endif
+                                                                                @if(!empty($visitTime))
+                                                                                    • {{ $visitTime }}
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($totalPrice))
+                                                                        <div class="attraction-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($totalPrice, 2) }}
+                                                                                @if(!empty($mode))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($mode) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Ticket Information -->
+                                                                @php
+                                                                    $ticketName = $attractionData['ticketName'] ?? $attractionData['ticket_name'] ?? null;
+                                                                    $ticketId = $attractionData['ticketId'] ?? $attractionData['ticket_id'] ?? null;
+                                                                    $ticketDetails = $attractionData['ticket_details'] ?? null;
+                                                                    $adultCount = $attractionData['adultCount'] ?? $attractionData['adult_count'] ?? null;
+                                                                    $childCount = $attractionData['childCount'] ?? $attractionData['child_count'] ?? null;
+                                                                    $seniorCount = $attractionData['seniorCount'] ?? $attractionData['senior_count'] ?? null;
+                                                                    $selection = $attractionData['Selection'] ?? $attractionData['selection'] ?? $attractionData['transport'] ?? null;
+                                                                @endphp
+                                                                
+                                                                @if(!empty($ticketName) || !empty($ticketDetails) || !empty($adultCount) || !empty($childCount) || !empty($seniorCount))
+                                                                    <div class="ticket-summary mt-2">
+                                                                        <div class="ticket-header">
+                                                                            <small class="text-primary fw-semibold">
+                                                                                <i class="fas fa-ticket-alt me-1"></i>
+                                                                                Ticket Details
+                                                                            </small>
+                                                                        </div>
+                                                                        
+                                                                        <div class="ticket-item mt-1">
+                                                                            @if(!empty($ticketName))
+                                                                                <div class="ticket-basic-info">
+                                                                                    <small class="text-dark">
+                                                                                        <strong>{{ $ticketName }}</strong>
+                                                                                        @if(!empty($ticketId))
+                                                                                            <span class="ticket-id-badge">#{{ $ticketId }}</span>
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Visitor Count -->
+                                                                            @if(!empty($adultCount) || !empty($childCount) || !empty($seniorCount))
+                                                                                <div class="visitor-info mt-1">
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-users me-1"></i>
+                                                                                        @if(!empty($adultCount))
+                                                                                            {{ $adultCount }} Adult{{ $adultCount > 1 ? 's' : '' }}
+                                                                                        @endif
+                                                                                        @if(!empty($childCount))
+                                                                                            @if(!empty($adultCount)) • @endif
+                                                                                            {{ $childCount }} Child{{ $childCount > 1 ? 'ren' : '' }}
+                                                                                        @endif
+                                                                                        @if(!empty($seniorCount))
+                                                                                            @if(!empty($adultCount) || !empty($childCount)) • @endif
+                                                                                            {{ $seniorCount }} Senior{{ $seniorCount > 1 ? 's' : '' }}
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Ticket Pricing -->
+                                                                            @if(isset($ticketDetails) && is_array($ticketDetails))
+                                                                                <div class="pricing-info mt-1">
+                                                                                    @if(!empty($ticketDetails['adult_price']))
+                                                                                        <span class="badge pricing-badge me-1 mb-1">
+                                                                                            <i class="fas fa-user me-1"></i>Adult: ${{ number_format($ticketDetails['adult_price'], 2) }}
+                                                                                        </span>
+                                                                                    @endif
+                                                                                    @if(!empty($ticketDetails['child_price']))
+                                                                                        <span class="badge pricing-badge me-1 mb-1">
+                                                                                            <i class="fas fa-child me-1"></i>Child: ${{ number_format($ticketDetails['child_price'], 2) }}
+                                                                                        </span>
+                                                                                    @endif
+                                                                                    @if(!empty($ticketDetails['senior_price']))
+                                                                                        <span class="badge pricing-badge me-1 mb-1">
+                                                                                            <i class="fas fa-user-plus me-1"></i>Senior: ${{ number_format($ticketDetails['senior_price'], 2) }}
+                                                                                        </span>
+                                                                                    @endif
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Transport Information -->
+                                                                            @if(!empty($selection))
+                                                                                <div class="transport-info mt-1">
+                                                                                    <span class="badge transport-badge">
+                                                                                        <i class="fas fa-car me-1"></i>
+                                                                                        {{ $selection == 'withoutTransport' ? 'Without Transport' : 'With Transport' }}
+                                                                                    </span>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                                     @elseif(strtolower($serviceType) == 'restaurant')
                                                         <p class="service-description">Dining experience</p>
+                                                        
+                                                        <!-- Enhanced Restaurant Details -->
+                                                        <div class="restaurant-details mt-2">
+                                                            @php 
+                                                                // $data is already the restaurant item data
+                                                                $restaurantData = $data;
+                                                            @endphp
+                                                            
+                                                            @if($restaurantData && is_array($restaurantData))
+                                                                @php
+                                                                    // Check for different possible field names
+                                                                    $bookingDate = $restaurantData['bookingDate'] ?? $restaurantData['booking_date'] ?? $restaurantData['date'] ?? null;
+                                                                    $visitTime = $restaurantData['visitTime'] ?? $restaurantData['visit_time'] ?? $restaurantData['time'] ?? null;
+                                                                    $totalPrice = $restaurantData['totalPrice'] ?? $restaurantData['total_price'] ?? $restaurantData['price'] ?? null;
+                                                                    $mealPrice = $restaurantData['mealPrice'] ?? $restaurantData['meal_price'] ?? null;
+                                                                    $transportPrice = $restaurantData['transportPrice'] ?? $restaurantData['transport_price'] ?? 0;
+                                                                    $mealType = $restaurantData['mealType'] ?? $restaurantData['meal_type'] ?? null;
+                                                                    $mealSpecificType = $restaurantData['mealSpecificType'] ?? $restaurantData['meal_specific_type'] ?? null;
+                                                                    $adultCount = $restaurantData['adultCount'] ?? $restaurantData['adult_count'] ?? null;
+                                                                    $childCount = $restaurantData['childCount'] ?? $restaurantData['child_count'] ?? null;
+                                                                    $mealDescription = $restaurantData['MealDescription'] ?? $restaurantData['meal_description'] ?? null;
+                                                                    $transport = $restaurantData['transport'] ?? null;
+                                                                    $priceTypes = $restaurantData['priceTypes'] ?? $restaurantData['price_types'] ?? null;
+                                                                @endphp
+                                                                
+                                                                <div class="restaurant-info-grid">
+                                                                    @if(!empty($bookingDate) || !empty($visitTime))
+                                                                        <div class="restaurant-info-item">
+                                                                            <small class="text-muted">
+                                                                                <i class="fas fa-calendar-alt me-1"></i>
+                                                                                @if(!empty($bookingDate))
+                                                                                    {{ date('d M Y', strtotime($bookingDate)) }}
+                                                                                @endif
+                                                                                @if(!empty($visitTime))
+                                                                                    • {{ $visitTime }}
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                    
+                                                                    @if(!empty($totalPrice))
+                                                                        <div class="restaurant-info-item">
+                                                                            <small class="text-success fw-bold">
+                                                                                <i class="fas fa-dollar-sign me-1"></i>
+                                                                                SGD {{ number_format($totalPrice, 2) }}
+                                                                                @if(!empty($priceTypes) && is_array($priceTypes))
+                                                                                    <span class="price-mode-badge">{{ ucfirst($priceTypes[0]) }}</span>
+                                                                                @endif
+                                                                            </small>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                
+                                                                <!-- Meal Information -->
+                                                                @if(!empty($mealType) || !empty($mealSpecificType) || !empty($adultCount) || !empty($childCount) || !empty($mealDescription))
+                                                                    <div class="meal-summary mt-2">
+                                                                        <div class="meal-header">
+                                                                            <small class="text-primary fw-semibold">
+                                                                                <i class="fas fa-utensils me-1"></i>
+                                                                                Meal Details
+                                                                            </small>
+                                                                        </div>
+                                                                        
+                                                                        <div class="meal-item mt-1">
+                                                                            @if(!empty($mealType) || !empty($mealSpecificType))
+                                                                                <div class="meal-basic-info">
+                                                                                    <small class="text-dark">
+                                                                                        <strong>
+                                                                                            @if(!empty($mealType))
+                                                                                                {{ ucfirst($mealType) }}
+                                                                                            @endif
+                                                                                            @if(!empty($mealSpecificType))
+                                                                                                @if(!empty($mealType)) - @endif
+                                                                                                {{ $mealSpecificType }}
+                                                                                            @endif
+                                                                                        </strong>
+                                                                                        @if(!empty($mealPrice))
+                                                                                            <span class="meal-price-badge">SGD {{ number_format($mealPrice, 2) }}</span>
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Guest Count -->
+                                                                            @if(!empty($adultCount) || !empty($childCount))
+                                                                                <div class="guest-info mt-1">
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-users me-1"></i>
+                                                                                        @if(!empty($adultCount))
+                                                                                            {{ $adultCount }} Adult{{ $adultCount > 1 ? 's' : '' }}
+                                                                                        @endif
+                                                                                        @if(!empty($childCount))
+                                                                                            @if(!empty($adultCount)) • @endif
+                                                                                            {{ $childCount }} Child{{ $childCount > 1 ? 'ren' : '' }}
+                                                                                        @endif
+                                                                                    </small>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Meal Items -->
+                                                                            @if(isset($mealDescription) && is_array($mealDescription) && count($mealDescription) > 0)
+                                                                                <div class="meal-items-info mt-1">
+                                                                                    <small class="text-muted mb-1 d-block">
+                                                                                        <i class="fas fa-list me-1"></i>Menu Items:
+                                                                                    </small>
+                                                                                    <div class="meal-items-list">
+                                                                                        @foreach($mealDescription as $item)
+                                                                                            <span class="badge meal-item-badge me-1 mb-1">
+                                                                                                {{ $item['name'] ?? $item['item_name'] ?? 'Menu Item' }}
+                                                                                                @if(!empty($item['category']))
+                                                                                                    <small class="item-category">({{ $item['category'] }})</small>
+                                                                                                @endif
+                                                                                                @if(!empty($item['item_type']))
+                                                                                                    <small class="item-type">• {{ $item['item_type'] }}</small>
+                                                                                                @endif
+                                                                                            </span>
+                                                                                        @endforeach
+                                                                                    </div>
+                                                                                </div>
+                                                                            @endif
+                                                                            
+                                                                            <!-- Transport Information -->
+                                                                            @if(!empty($transport) || !empty($transportPrice))
+                                                                                <div class="transport-info mt-1">
+                                                                                    <span class="badge transport-badge">
+                                                                                        <i class="fas fa-car me-1"></i>
+                                                                                        @if(!empty($transport))
+                                                                                            {{ $transport }}
+                                                                                        @else
+                                                                                            @if($transportPrice > 0)
+                                                                                                Transport Included (+SGD {{ number_format($transportPrice, 2) }})
+                                                                                            @else
+                                                                                                No Transport
+                                                                                            @endif
+                                                                                        @endif
+                                                                                    </span>
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                                     @endif
                                                 </div>
                                                 
                                                 <div class="service-details-row">
-                                                    <div class="service-time-badge">{{ $timeSlot }}</div>
                                                     <div class="service-pax-badge">{{ $pax }}</div>
                                                 </div>
                                             </div>
