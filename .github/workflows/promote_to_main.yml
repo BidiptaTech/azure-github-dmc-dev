@@ -167,14 +167,13 @@ jobs:
           KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
           set -e
-          echo "🌐 Resolving Kudu hostname..."
-          HOST=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query defaultHostName -o tsv)
-          SCM_HOST=${HOST/azurewebsites.net/scm.azurewebsites.net}
-          echo "✅ Using Kudu host: $SCM_HOST"
+          echo "🌐 Getting Kudu SCM URL..."
+          SCM_URL=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
+          echo "✅ Using Kudu URL: $SCM_URL"
           echo "🚀 Uploading laravel backadm-dmc zip to Kudu subfolder..."
           for i in 1 2 3; do 
             curl -sS -u "$KUDU_USER:$KUDU_PASS" -X PUT \
-              "https://$SCM_HOST/api/zip/backadm-dmc" \
+              "$SCM_URL/api/zip/backadm-dmc" \
               -H "Content-Type: application/zip" --data-binary @release.zip && break || sleep 2; 
           done
 
@@ -184,10 +183,9 @@ jobs:
           KUDU_USER: ${{ steps.kudu.outputs.user }}
           KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
-          HOST=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query defaultHostName -o tsv)
-          SCM_HOST=${HOST/azurewebsites.net/scm.azurewebsites.net}
+          SCM_URL=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
           curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
-            "https://$SCM_HOST/api/command" \
+            "$SCM_URL/api/command" \
             -H "Content-Type:text/plain" \
             -d "chmod +x /home/site/wwwroot/startup.sh && echo done"
 
@@ -197,15 +195,14 @@ jobs:
           KUDU_USER: ${{ steps.kudu.outputs.user }}
           KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
-          HOST=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query defaultHostName -o tsv)
-          SCM_HOST=${HOST/azurewebsites.net/scm.azurewebsites.net}
+          SCM_URL=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
           CMD='set -e; cd /home/site/wwwroot/backadm-dmc; \
           mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache; \
           touch storage/logs/laravel.log; \
           chmod -R 775 storage bootstrap/cache || true; \
           php artisan storage:link || true'
           curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
-            "https://$SCM_HOST/api/command" \
+            "$SCM_URL/api/command" \
             -H "Content-Type:text/plain" \
             -d "$CMD"
 
