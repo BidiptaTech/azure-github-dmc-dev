@@ -164,13 +164,37 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🚀 Deploy React via GitHub Actions (preserve backadm-dmc and default)
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: dmc-app-dev
-          slot-name: Production
-          package: ./deployment
-          clean: false
+      - name: 🚀 Deploy React files individually (preserve backadm-dmc and default)
+        run: |
+          # Get Kudu credentials for targeted file upload
+          CREDS=$(az webapp deployment list-publishing-credentials \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --query "{user:publishingUserName, pass:publishingPassword}" -o tsv)
+          USER=$(echo "$CREDS" | awk '{print $1}')
+          PASS=$(echo "$CREDS" | awk '{print $2}')
+          
+          # Get SCM URL
+          SCM_URL=$(az webapp show --name dmc-app-dev --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
+          
+          # Upload React files to root without touching backadm-dmc
+          cd deployment
+          for file in *; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file to root..."
+              curl -sS -u "$USER:$PASS" -X PUT \
+                "$SCM_URL/api/vfs/site/wwwroot/$file" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file"
+            elif [ -d "$file" ]; then
+              echo "Uploading directory $file..."
+              zip -r "../$file.zip" "$file"
+              curl -sS -u "$USER:$PASS" -X PUT \
+                "$SCM_URL/api/zip/site/wwwroot/$file" \
+                -H "Content-Type: application/zip" \
+                --data-binary @"../$file.zip"
+            fi
+          done
 
       - name: 🎉 Deployment Summary
         run: |
