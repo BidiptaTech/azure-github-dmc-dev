@@ -147,64 +147,20 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🔑 Fetch Kudu publishing credentials
-        id: kudu
+      - name: 🚀 Deploy ZIP to Azure Web App (preserve existing root)
         run: |
-          CREDS=$(az webapp deployment list-publishing-credentials \
+          az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
-            --query "{user:publishingUserName, pass:publishingPassword}" -o tsv)
-          USER=$(echo "$CREDS" | awk '{print $1}')
-          PASS=$(echo "$CREDS" | awk '{print $2}')
-          if [ -z "$USER" ] || [ -z "$PASS" ]; then echo "❌ Failed to fetch Kudu creds"; exit 1; fi
-          echo "user=$USER" >> $GITHUB_OUTPUT
-          echo "pass=$PASS" >> $GITHUB_OUTPUT
-
-      - name: 🚀 Deploy backadm-dmc via Kudu ZIP push (non-destructive)
-        env:
-          APP_NAME: dmc-app-dev
-          KUDU_USER: ${{ steps.kudu.outputs.user }}
-          KUDU_PASS: ${{ steps.kudu.outputs.pass }}
-        run: |
-          set -e
-          echo "🌐 Getting Kudu SCM URL..."
-          SCM_URL=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
-          echo "✅ Using Kudu URL: $SCM_URL"
-          echo "🚀 Uploading laravel backadm-dmc zip to Kudu subfolder..."
-          for i in 1 2 3; do 
-            curl -sS -u "$KUDU_USER:$KUDU_PASS" -X PUT \
-              "$SCM_URL/api/zip/backadm-dmc" \
-              -H "Content-Type: application/zip" --data-binary @release.zip && break || sleep 2; 
-          done
+            --src-path release.zip \
+            --type zip
 
       - name: ⚙️ Configure startup file to run uploaded script
-        env:
-          APP_NAME: dmc-app-dev
-          KUDU_USER: ${{ steps.kudu.outputs.user }}
-          KUDU_PASS: ${{ steps.kudu.outputs.pass }}
         run: |
-          SCM_URL=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
-          curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
-            "$SCM_URL/api/command" \
-            -H "Content-Type:text/plain" \
-            -d "chmod +x /home/site/wwwroot/startup.sh && echo done"
-
-      - name: 🗂️ Ensure storage directories exist with write permissions (immediate)
-        env:
-          APP_NAME: dmc-app-dev
-          KUDU_USER: ${{ steps.kudu.outputs.user }}
-          KUDU_PASS: ${{ steps.kudu.outputs.pass }}
-        run: |
-          SCM_URL=$(az webapp show --name "$APP_NAME" --resource-group rg-dmc-app-dev --query scmUrl -o tsv)
-          CMD='set -e; cd /home/site/wwwroot/backadm-dmc; \
-          mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache; \
-          touch storage/logs/laravel.log; \
-          chmod -R 775 storage bootstrap/cache || true; \
-          php artisan storage:link || true'
-          curl -sS -u "$KUDU_USER:$KUDU_PASS" -X POST \
-            "$SCM_URL/api/command" \
-            -H "Content-Type:text/plain" \
-            -d "$CMD"
+          az webapp config set \
+            --resource-group rg-dmc-app-dev \
+            --name dmc-app-dev \
+            --startup-file '/home/site/wwwroot/startup.sh'
 
       - name: 🔄 Restart Azure Web App
         run: |
