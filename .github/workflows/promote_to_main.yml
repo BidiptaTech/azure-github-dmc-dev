@@ -32,14 +32,34 @@ jobs:
         run: |
           curl -sS https://getcomposer.org/installer | php
           mv composer.phar /usr/local/bin/composer
-
+          
       - name: 📦 Run composer install if composer.json exists
         if: steps.check_files.outputs.files_exists == 'true'
         run: |
           cd backadm-dmc
           composer validate --no-check-publish
           composer install --prefer-dist --no-progress --no-dev --optimize-autoloader
+      - name: 🗂️ Prepare deployment package (Laravel only)
+        run: |
+          echo "📁 Preparing Laravel-only deployment package..."
+          rm -rf deployment
+          mkdir -p deployment
+          cp -r backadm-dmc deployment/backadm-dmc
+          echo "✅ Package contains only backadm-dmc to avoid touching React root"
+          
+      - name: 🔐 Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: 🚀 Deploy Laravel folder to Azure Web App (preserving React files)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: dmc-app-dev
+          slot-name: Production
+          package: ./deployment
       - name: ⚙️ Create startup script for Laravel and NGINX setup
         run: |
           cat > startup.sh << 'EOF'
@@ -112,90 +132,43 @@ jobs:
           if ! grep -q "APP_KEY=base64:" .env 2>/dev/null; then
               php artisan key:generate --force || true
           fi
+          # 💡 Insert clear and optimize commands here
           php artisan cache:clear || true
           php artisan route:clear || true
           php artisan view:clear || true
           php artisan optimize || true
+          
           php artisan config:cache || true
           php artisan route:cache || true
           php artisan view:cache || true
           echo "✅ Laravel and NGINX setup completed"
           EOF
           chmod +x startup.sh
-
-      - name: 📦 Create ZIP for deployment (follow previous excludes)
+      - name: 📄 Upload and run startup script
         run: |
-          echo "📦 Creating release.zip from repo with excludes..."
-          rm -f release.zip
-          zip -r release.zip . \
-            -x ".git/*" \
-            -x "node_modules/*" \
-            -x "tests/*" \
-            -x "*.md" \
-            -x ".github/*" \
-            -x ".gitignore" \
-            -x ".gitattributes" \
-            -x ".editorconfig" \
-            -x "phpunit.xml" \
-            -x "vite.config.js" \
-            -x "package*.json"
-
-      - name: 🔐 Login to Azure using OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: 🚀 Deploy Laravel via GitHub Actions (preserve React root)
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: dmc-app-dev
-          slot-name: Production
-          package: ./release.zip
-          clean: false
-
-      - name: ⚙️ Configure startup file to run uploaded script
-        run: |
-          az webapp config set \
-            --resource-group rg-dmc-app-dev \
-            --name dmc-app-dev \
-            --startup-file '/home/site/wwwroot/startup.sh'
-
-      - name: 🗂️ Create storage directories with write permissions
-        run: |
-          # Create a simple script to ensure storage directories exist
-          cat > ensure_storage.sh << 'EOF'
-          #!/bin/bash
-          cd /home/site/wwwroot/backadm-dmc
-          mkdir -p storage/app/public storage/logs storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views bootstrap/cache
-          touch storage/logs/laravel.log
-          chmod -R 775 storage bootstrap/cache || true
-          php artisan storage:link || true
-          echo "Storage directories created successfully"
-          EOF
-          
-          # Upload and run the script
           az webapp deploy \
             --resource-group rg-dmc-app-dev \
             --name dmc-app-dev \
-            --src-path ensure_storage.sh \
+            --src-path startup.sh \
             --type startup
-
       - name: 🔄 Restart Azure Web App
         run: |
           az webapp restart --resource-group rg-dmc-app-dev --name dmc-app-dev
-
-      - name: ✅ Verify Laravel endpoint
+      - name: ✅ Verify Deployment
         run: |
-          sleep 10
+          sleep 30
           curl -f https://dev.travclicks.com/backadm-dmc/ || echo "Application may still be starting"
-
       - name: 📦 Deployment Summary
         run: |
           echo "🎉 Deployment finished!"
           echo "🌍 App URL: https://dev.travclicks.com/backadm-dmc"
-          echo "✔️ Deployed only backadm-dmc; React at root preserved"
-          echo "🛠️ Storage directories ensured and permissions attempted via Kudu"
+          echo "✔️ Laravel ready, React preserved, NGINX optimized"
+          echo "🚫 Azure Key Vault removed, HTTPS enforced"
+          echo "🔄 NGINX routes Laravel under /backadm-dmc and React at root"
+          echo "🔎 Laravel caches cleared, storage linked, key generated"
+          echo "🛠️ All Laravel directories created and permissioned"
+          echo "🔋 OPcache and Composer cache cleared for clean run"
+          echo "🚀 Production-ready optimization: route, view, and config cached"
+          echo "🚧 Secure headers and HTTPS enforced by NGINX"
           echo "📆 Deploy triggered by push to staging branch"
 
