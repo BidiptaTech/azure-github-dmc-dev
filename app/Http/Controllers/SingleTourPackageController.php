@@ -3100,6 +3100,20 @@ class SingleTourPackageController extends Controller
                 }
             }
 
+            // After all services are stored, check if any orders have type 'local_transfer' and update to 'local_transport'
+            $localTransferOrders = Order::where('tour_id', $tourId)
+                ->where('type', 'local_transfer')
+                ->get();
+            
+            if ($localTransferOrders->count() > 0) {
+                \Log::info("Found {$localTransferOrders->count()} orders with type 'local_transfer', updating to 'local_transport'");
+                
+                foreach ($localTransferOrders as $order) {
+                    $order->update(['type' => 'local_transport']);
+                    \Log::info("Updated order {$order->booking_id} from 'local_transfer' to 'local_transport'");
+                }
+            }
+
             DB::commit();
 
             // Get tour details for thank you page
@@ -3169,6 +3183,7 @@ class SingleTourPackageController extends Controller
                 'services_by_date' => $servicesByDate
             ];
 
+            
             return response()->json([
                 'success' => true,
                 'message' => 'All service orders saved successfully!',
