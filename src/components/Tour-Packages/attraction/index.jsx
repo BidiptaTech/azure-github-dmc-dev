@@ -183,14 +183,10 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
 
     // Filter attractions - show all for first dayIndex, match by bookingDate for other days
-    console.log(`=== FILTERING FOR DAYINDEX ${dayIndex} ===`);
+   
     const dayAttractions = attractionspack.filter((attractionService, index) => {
       const attractionData = attractionService.data?.[0];
-      console.log(`Processing attraction ${index}:`, {
-        attractionName: attractionData?.AttractionName,
-        bookingDate: attractionData?.bookingDate,
-        dayIndex: dayIndex
-      });
+      
 
       if (!attractionData) {
         console.log(`Attraction ${index}: No data, skipping`);
@@ -272,7 +268,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       isInitializingRef.current = false;
       console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [attractionspack, dayIndex, bookingDate, tour, tourDates]); // Added tourDates to dependencies
+  }, [attractionspack, dayIndex, bookingDate, tour]); // Added tourDates to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {
