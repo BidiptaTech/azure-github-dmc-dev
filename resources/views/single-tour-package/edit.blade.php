@@ -2406,7 +2406,7 @@
                                     </small>
                                 </div>
                                 <div class="col-md-2">
-                                            <div class="form-group">
+                                            <div class="form-group" style="display: none;">
                                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
@@ -2916,8 +2916,8 @@
                                         </div>
 
                                         <!-- Number of Passengers -->
-                                        <div class="col-md-2">
-                                            <label class="form-label fw-semibold">Passengers</label>
+                                        <div class="col-md-2" style="display: none;">
+                                            <label class="form-label fw-semibold">Passengers1</label>
                                             <div class="input-group">
                                                 <span class="input-group-text"><i class="ri-user-line"></i></span>
                                                 <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()">
@@ -3156,7 +3156,7 @@
                             <!-- Guest Information -->
                             <div class="row mt-3">
                                 <div class="col-md-12">
-                                    <div class="form-group">
+                                    <div class="form-group" style="display: none;">
                                         <label class="form-label fw-semibold">Number of Passengers</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="ri-user-line"></i></span>
