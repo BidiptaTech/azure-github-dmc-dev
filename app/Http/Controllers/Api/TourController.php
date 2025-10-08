@@ -78,8 +78,8 @@ class TourController extends Controller
             $formEnquiry = null;
             if($enquiryId){
                 $formEnquiry = EnquiryForm::where('enquiry_id', $enquiryId)
-                                    //   ->where('agent_id', $agent_id)
-                                    //   ->whereNull('unique_tour_id')
+                                      ->where('agent_id', $agent_id)
+                                      ->whereNull('unique_tour_id')
                                       ->first();
                 $multi_enq_id = $formEnquiry->multi_enq_id ?? '';
             }

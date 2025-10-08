@@ -2362,7 +2362,7 @@
                                 <!-- Vehicle + Service Type in one row -->
                                 <div class="col-12">
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle</label>
                                             <select class="form-select vehicle-select" 
                                                     id="modal_transport_vehicle_id" 
@@ -2371,23 +2371,42 @@
                                                 <option value="">Choose vehicle</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">Service Type</label>
-                                            <select class="form-select service-type-select" 
-                                                    id="modal_transport_service_type" 
-                                                    name="service_type" 
-                                                    onchange="updatePricing()">
-                                                <option value="">Select service type</option>
-                                                <option value="Shared">Shared</option>
-                                                <option value="Private">Private</option>
-                                            </select>
-                                        </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Service Type</label>
+                                    <select class="form-select service-type-select" 
+                                            id="modal_transport_service_type" 
+                                            name="service_type" 
+                                            onchange="updatePricing()">
+                                        <option value="">Select service type</option>
+                                        <option value="Shared">Shared</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                </div>
+
+                                <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="modal_transport_manual_price" 
+                                               name="manual_price" 
+                                               step="0.01" 
+                                               min="0" 
+                                               placeholder="0.00"
+                                               onchange="updatePricing()"
+                                               oninput="updatePricing()">
                                     </div>
-                                    
-                                    <!-- Guest Information -->
-                                    <div class="row mt-3">
-                                        <div class="col-md-12">
-                                            <div class="form-group">
+                                    <small class="form-text text-muted">
+                                        <i class="ri-information-line me-1"></i>
+                                        Override vehicle price with custom amount
+                                    </small>
+                                </div>
+                                <div class="col-md-2">
+                                            <div class="form-group" style="display: none;">
                                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
@@ -2398,7 +2417,12 @@
                                                 </small>
                                             </div>
                                         </div>
-                                    </div>
+                            </div>
+                                    
+                                    <!-- Guest Information -->
+                                    <!-- <div class="row mt-3">
+                                        
+                                    </div> -->
                                     
                                     <!-- Price Display for Transport -->
                                     <div class="col-12 mt-3">
@@ -2479,12 +2503,14 @@
                                             <i class="ri-time-line me-1"></i>Hourly
                                         </label>
                                     </div>
+                                    @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
                                     <div class="form-check">
                                         <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
                                         <label class="form-check-label fw-semibold text-success" for="local_transfer_service_type_local">
                                             <i class="ri-car-line me-1"></i>Local Transfer
                                         </label>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
                             
@@ -2730,7 +2756,7 @@
                                 <!-- Hourly Fields (Hidden Initially) -->
                                 <div class="col-12">
                                     <div id="hourly_fields" class="hourly-fields row g-4 col-12 align-items-end d-none">
-                                        <div class="col-md-4 hourly-fields">
+                                        <div class="col-md-3 hourly-fields">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
@@ -2744,7 +2770,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4 hourly-fields">
+                                        <div class="col-md-3 hourly-fields">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
@@ -2781,7 +2807,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4 hourly-fields">
+                                        <div class="col-md-3 hourly-fields">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
@@ -2789,6 +2815,32 @@
                                                 <div class="position-relative">
                                                     <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-info me-2"></i>Number of Hours
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_hourly_hours" name="hourly_hours" style="padding-left: 45px;">
+                                                        <option value="">Select hours</option>
+                                                        <option value="1">1 Hour</option>
+                                                        <option value="2">2 Hours</option>
+                                                        <option value="3">3 Hours</option>
+                                                        <option value="4">4 Hours</option>
+                                                        <option value="5">5 Hours</option>
+                                                        <option value="6">6 Hours</option>
+                                                        <option value="7">7 Hours</option>
+                                                        <option value="8">8 Hours</option>
+                                                        <option value="9">9 Hours</option>
+                                                        <option value="10">10 Hours</option>
+                                                        <option value="11">11 Hours</option>
+                                                        <option value="12">12 Hours</option>
+                                                        <option value="24">24 Hours</option>
+                                                    </select>
+                                                    <i class="ri-hourglass-fill position-absolute text-info" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -2818,7 +2870,7 @@
                                 <!-- Vehicle + Service Type in one row -->
                                 <div class="col-12">
                                     <div class="row g-3">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle</label>
                                             <select class="form-select vehicle-select" 
                                                     id="local_transfer_vehicle_id" 
@@ -2840,10 +2892,10 @@
                                             </select>
                                         </div>
 
-                                        <!-- Manual Price Input for Point-to-Point -->
+                                        <!-- Manual Price Input (Only available for Point-to-Point) -->
                                         <div class="col-md-3" id="manual_price_field_container" style="display: none;">
                                             <label class="form-label fw-semibold">
-                                                <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price
+                                                <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
                                             </label>
                                             <div class="input-group">
                                                 <span class="input-group-text">$</span>
@@ -2859,24 +2911,20 @@
                                             </div>
                                             <small class="form-text text-muted">
                                                 <i class="ri-information-line me-1"></i>
-                                                Override vehicle price for point-to-point
+                                                Override vehicle price with custom amount
                                             </small>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Guest Information -->
-                                    <div class="row mt-3">
-                                        <div class="col-md-12">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold">Number of Passengers</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()">
-                                                </div>
-                                                <small class="form-text text-muted">
-                                                    Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                                </small>
+
+                                        <!-- Number of Passengers -->
+                                        <div class="col-md-2" style="display: none;">
+                                            <label class="form-label fw-semibold">Passengers1</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                                <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()">
                                             </div>
+                                            <small class="form-text text-muted">
+                                                Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}
+                                            </small>
                                         </div>
                                     </div>
                                     
@@ -3080,12 +3128,35 @@
                                         
                                     </select>
                                 </div>
+
+                                <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                <div class="col-md-4" id="dropoff_transport_manual_price_field_container" style="display: none;">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="modal_dropoff_transport_manual_price" 
+                                               name="manual_price" 
+                                               step="0.01" 
+                                               min="0" 
+                                               placeholder="0.00"
+                                               onchange="updateDropoffPricing()"
+                                               oninput="updateDropoffPricing()">
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        <i class="ri-information-line me-1"></i>
+                                        Override vehicle price with custom amount
+                                    </small>
+                                </div>
                             </div>
                             
                             <!-- Guest Information -->
                             <div class="row mt-3">
                                 <div class="col-md-12">
-                                    <div class="form-group">
+                                    <div class="form-group" style="display: none;">
                                         <label class="form-label fw-semibold">Number of Passengers</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="ri-user-line"></i></span>
@@ -3234,10 +3305,36 @@
         console.log('Vehicle data updateServiceTypeOptions:', vehicleData);
         console.log('vehicleData.sharable:', vehicleData.sharable);
         
+        // Check if this is for local transfer and what type
+        const currentServiceType = window.currentLocalTransferServiceType || 'local_transfer';
+        console.log('Current service type:', currentServiceType);
+        
         // Clear existing options
         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
         console.log('Cleared service type options');
         
+        // For point-to-point and hourly, only show Private option
+        if (currentServiceType === 'point_to_point' || currentServiceType === 'hourly') {
+            console.log('Point-to-point or Hourly mode: Adding Private option only');
+            const privateOption = document.createElement('option');
+            privateOption.value = 'Private';
+            privateOption.textContent = 'Private';
+            serviceTypeSelect.appendChild(privateOption);
+            
+            // Auto-select Private since it's the only option
+            serviceTypeSelect.value = 'Private';
+            serviceTypeSelect.disabled = false;
+            console.log('Service type options updated (Private only for point-to-point/hourly) and auto-selected');
+            
+            // Trigger pricing update after auto-selection
+            if (serviceTypeSelectId === 'local_transfer_service_type') {
+                setTimeout(() => updateLocalTransferPricing(), 100);
+            }
+            
+            return;
+        }
+        
+        // For local transfer (zone-based), use sharable property
         // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
         if (vehicleData.sharable == 1) {
             // Private only
@@ -4030,6 +4127,9 @@
         if (localTransferServiceType) {
             localTransferServiceType.checked = true;
             handleLocalTransferServiceTypeChange('local_transfer');
+        } else {
+            // If local transfer radio doesn't exist, set default to point_to_point
+            window.currentLocalTransferServiceType = 'point_to_point';
         }
         
         // Initialize Google Maps autocomplete for the modal
@@ -4187,14 +4287,40 @@
         const point_to_point_fields = document.getElementById('point_to_point_fields');
         const hourly_fields = document.getElementById('hourly_fields');
         
-        // Note: Vehicle results section will be shown/hidden by individual search functions
-        // Don't hide it here as it interferes with the search results display
+        // Store the current service type for service type options filtering
+        window.currentLocalTransferServiceType = serviceType;
+        console.log('Service type changed to:', serviceType);
+        
+        // Hide vehicle results section when switching service types
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
+        }
         
         // Clear vehicle dropdown when switching service types
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         if (vehicleSelect) {
             vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
             vehicleSelect.disabled = true;
+        }
+        
+        // Clear service type dropdown when switching service types
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        if (serviceTypeSelect) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+        }
+        
+        // Reset passengers to default value when switching service types
+        const passengersInput = document.getElementById('local_transfer_passengers');
+        if (passengersInput) {
+            passengersInput.value = '1';
+        }
+        
+        // Hide price display when switching service types
+        const priceDisplay = document.getElementById('local_transfer_price_display');
+        if (priceDisplay) {
+            priceDisplay.style.display = 'none';
         }
         
         // Hide manual price field when switching service types
@@ -4250,6 +4376,9 @@
             searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
             searchBtn.disabled = true;
         }
+        
+        // Store that this is a point-to-point search
+        window.currentLocalTransferServiceType = 'point_to_point';
         
         // Fetch vehicles from API - for point-to-point, show all vehicles regardless of city
         fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
@@ -4367,6 +4496,9 @@
             searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
             searchBtn.disabled = true;
         }
+        
+        // Store that this is a hourly search
+        window.currentLocalTransferServiceType = 'hourly';
         
         // Fetch vehicles from API - for hourly service, show all vehicles regardless of city
         fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
@@ -4809,6 +4941,9 @@
         const toZoneId = dropoffZoneSelect.value;
         const searchBtn = document.getElementById('local_transfer_search_btn');
         
+        // Store that this is a local transfer (zone-based) search
+        window.currentLocalTransferServiceType = 'local_transfer';
+        
         console.log('Searching vehicles for local transfer:', { fromZoneId, toZoneId, pickupTime, pickupDate });
         
         // Get location types from the selected options
@@ -4945,6 +5080,7 @@
     function updateVehicleDetails() {
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        const manualPriceContainer = document.getElementById('transport_manual_price_field_container');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -4964,6 +5100,12 @@
             updateServiceTypeOptions(vehicleData, 'modal_transport_service_type');
             
             serviceTypeSelect.disabled = false;
+            
+            // Always show manual price field for both zone on and zone off modes
+            if (manualPriceContainer) {
+                manualPriceContainer.style.display = 'block';
+            }
+            
             updatePricing();
         }
     }
@@ -4978,18 +5120,11 @@
         console.log('serviceTypeSelect:', serviceTypeSelect);
         console.log('vehicleSelect.value:', vehicleSelect ? vehicleSelect.value : 'null');
         
-        // Check if point-to-point is selected and show/hide manual price field
-        const isPointToPoint = document.getElementById('is_point_to_point') ? 
-            document.getElementById('is_point_to_point').value === '1' : false;
-        const serviceTypeSelection = document.querySelector('input[name="service_type_selection"]:checked');
-        const isPointToPointSelected = serviceTypeSelection && serviceTypeSelection.value === 'point_to_point';
-        
-        if (manualPriceContainer) {
-            if ((isPointToPoint || isPointToPointSelected) && vehicleSelect && vehicleSelect.value) {
-                manualPriceContainer.style.display = 'block';
-            } else {
-                manualPriceContainer.style.display = 'none';
-            }
+        // Only show manual price field for Point to Point mode
+        if (manualPriceContainer && vehicleSelect && vehicleSelect.value && window.currentLocalTransferServiceType === 'point_to_point') {
+            manualPriceContainer.style.display = 'block';
+        } else if (manualPriceContainer) {
+            manualPriceContainer.style.display = 'none';
         }
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
@@ -5342,6 +5477,7 @@
     function updateDropoffVehicleDetails() {
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
+        const manualPriceContainer = document.getElementById('dropoff_transport_manual_price_field_container');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -5373,6 +5509,12 @@
             updateServiceTypeOptions(vehicleData, 'modal_dropoff_transport_service_type');
             
             serviceTypeSelect.disabled = false;
+            
+            // Always show manual price field for both zone on and zone off modes
+            if (manualPriceContainer) {
+                manualPriceContainer.style.display = 'block';
+            }
+            
             updateDropoffPricing();
         }
     }
@@ -5381,6 +5523,7 @@
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
         const passengersInput = document.getElementById('modal_dropoff_transport_passengers');
+        const manualPriceInput = document.getElementById('modal_dropoff_transport_manual_price');
         const priceDisplay = document.getElementById('dropoff_transport_price_display');
         const priceDetails = document.getElementById('dropoff_transport_price_details');
         
@@ -5427,27 +5570,47 @@
             const serviceType = serviceTypeSelect.value;
             const passengers = parseInt(passengersInput.value) || 1;
             
-            // Get correct price based on service type
+            // Check if manual price is provided (for zone off mode)
+            const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
+            const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
+            
+            // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
-            if (serviceType === 'Private') {
-                basePrice = parseFloat(vehicleData.base_price) || 0;
-                totalPrice = basePrice;
-            } else if (serviceType === 'Shared') {
-                basePrice = parseFloat(vehicleData.sharable_base_price) || 0;
-                totalPrice = basePrice * passengers; // Fix: multiply by passengers for shared service
+            
+            if (isManualPriceUsed) {
+                // Use manual price for zone off mode
+                basePrice = manualPrice;
+                totalPrice = manualPrice;
+            } else {
+                // Use vehicle's default pricing
+                if (serviceType === 'Private') {
+                    basePrice = parseFloat(vehicleData.base_price) || 0;
+                    totalPrice = basePrice;
+                } else if (serviceType === 'Shared') {
+                    basePrice = parseFloat(vehicleData.sharable_base_price) || 0;
+                    totalPrice = basePrice * passengers; // Fix: multiply by passengers for shared service
+                }
             }
             
             // Format price details
+            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
+            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">
+                        <i class="${priceSourceIcon} me-1"></i>
+                        ${priceSource}: $${basePrice.toFixed(2)}
+                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
+                    </div>
                     <div class="col-md-4">Service: ${serviceType}</div>
                     <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
                     Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom manual price override' : ''}
                 </div>
             `;
             
@@ -5648,6 +5811,7 @@
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         const passengersInput = document.getElementById('modal_transport_passengers');
+        const manualPriceInput = document.getElementById('modal_transport_manual_price');
         const priceDisplay = document.getElementById('transport_price_display');
         const priceDetails = document.getElementById('transport_price_details');
         
@@ -5683,29 +5847,49 @@
             };
             console.log('vehicle data:', vehicleData);
             const serviceType = serviceTypeSelect.value;
-            const passengers = parseInt(passengersInput.value) || 1;
+            const validatedPassengers = parseInt(passengersInput.value) || 1;
             
-            // Get correct price based on service type
+            // Check if manual price is provided (for zone off mode)
+            const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
+            const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
+            
+            // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
-            if (serviceType === 'Private') {
-                basePrice = parseFloat(vehicleData.privatePrice) || 0;
-                totalPrice = basePrice;
-            } else if (serviceType === 'Shared') {
-                basePrice = parseFloat(vehicleData.sharedPrice) || 0;
-                totalPrice = basePrice*passengers;
+            
+            if (isManualPriceUsed) {
+                // Use manual price for zone off mode
+                basePrice = manualPrice;
+                totalPrice = manualPrice;
+            } else {
+                // Use vehicle's default pricing
+                if (serviceType === 'Private') {
+                    basePrice = parseFloat(vehicleData.privatePrice) || 0;
+                    totalPrice = basePrice;
+                } else if (serviceType === 'Shared') {
+                    basePrice = parseFloat(vehicleData.sharedPrice) || 0;
+                    totalPrice = basePrice * validatedPassengers;
+                }
             }
             
             // Format price details
+            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
+            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">
+                        <i class="${priceSourceIcon} me-1"></i>
+                        ${priceSource}: $${basePrice.toFixed(2)}
+                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
+                    </div>
                     <div class="col-md-4">Service: ${serviceType}</div>
                     <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                    Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${validatedPassengers} passengers
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom manual price override' : ''}
                 </div>
             `;
             
@@ -5727,6 +5911,7 @@
         const manualPriceInput = document.getElementById('local_transfer_manual_price');
         const priceDisplay = document.getElementById('local_transfer_price_display');
         const priceDetails = document.getElementById('local_transfer_price_details');
+        const hoursSelect = document.getElementById('local_transfer_hourly_hours');
         
         if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
             return;
@@ -5761,9 +5946,16 @@
             const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
             const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
             
+            // Check if this is hourly service
+            const selectedServiceType = document.querySelector('input[name="service_type_selection"]:checked');
+            const isHourlyService = selectedServiceType && selectedServiceType.value === 'hourly';
+            const selectedHours = hoursSelect ? parseInt(hoursSelect.value) || 0 : 0;
+            
             // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
+            let priceMultiplier = 1;
+            let priceMultiplierText = '';
             
             if (isManualPriceUsed) {
                 // Use manual price for point-to-point
@@ -5773,10 +5965,25 @@
                 // Use vehicle's default pricing
                 if (serviceType == 'Private') {
                     basePrice = parseFloat(vehicleData.privatePrice) || 0;
-                    totalPrice = basePrice;
+                    
+                    // Apply hourly multiplier if this is hourly service
+                    if (isHourlyService && selectedHours > 0) {
+                        priceMultiplier = selectedHours;
+                        totalPrice = basePrice * selectedHours;
+                        priceMultiplierText = ` × ${selectedHours} hours`;
+                    } else {
+                        totalPrice = basePrice;
+                    }
                 } else if (serviceType == 'Shared') {
                     basePrice = parseFloat(vehicleData.sharedPrice) || 0;
                     totalPrice = basePrice * validatedPassengers;
+                    
+                    // Apply hourly multiplier if this is hourly service
+                    if (isHourlyService && selectedHours > 0) {
+                        priceMultiplier = selectedHours;
+                        totalPrice = (basePrice * validatedPassengers) * selectedHours;
+                        priceMultiplierText = ` × ${selectedHours} hours`;
+                    }
                 }
             }
             
@@ -5788,8 +5995,9 @@
                 <div class="row">
                     <div class="col-md-4">
                         <i class="${priceSourceIcon} me-1"></i>
-                        ${priceSource}: $${basePrice.toFixed(2)}
+                        ${priceSource}: $${basePrice.toFixed(2)}${priceMultiplierText}
                         ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
+                        ${isHourlyService && selectedHours > 0 ? '<span class="badge bg-warning ms-1">Hourly</span>' : ''}
                     </div>
                     <div class="col-md-4">Service: ${serviceType}</div>
                     <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
@@ -5797,7 +6005,8 @@
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
                     Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom price for point-to-point service' : ''}
+                    ${isHourlyService && selectedHours > 0 ? `<br><i class="ri-time-line me-1"></i>Duration: ${selectedHours} hour${selectedHours > 1 ? 's' : ''}` : ''}
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom manual price override' : ''}
                 </div>
             `;
             
@@ -7801,7 +8010,7 @@
         const maxOccupancy = selectedBedOption ? selectedBedOption.getAttribute('data-bed-max-occupancy') : 1;
         const selectedRoomType = selectedRoomOption ? selectedRoomOption.getAttribute('data-room-type') : 'Standard';
         const selectedBedType = selectedBedOption ? selectedBedOption.getAttribute('data-bed-type') : 'King Bed';
-        const selectedMealPlan = mealPlan.value || 'Room Only';
+        const selectedMealPlan = mealPlan.value || 'room_only';
         
         // Get bed data from the selected bed option
         let bedData = {};
@@ -7812,6 +8021,48 @@
                 console.log('Error parsing bed data:', e);
             }
         }
+        
+        // Get room data for pricing
+        const roomData = window.roomData ? window.roomData.find(r => r.room_id == roomId) : null;
+        
+        // Calculate number of nights
+        const checkInDate = new Date(checkIn);
+        const checkOutDate = new Date(checkOut);
+        const numberOfNights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+        
+        // Get the selected number of persons
+        const personCountSelect = document.getElementById('person_count_select');
+        const headCount = personCountSelect ? parseInt(personCountSelect.value) : 1;
+        
+        // Determine pricing based on occupancy
+        const isSingleOccupancy = headCount <= 1;
+        let pricePerNight = 0;
+        
+        if (roomData) {
+            if (isSingleOccupancy) {
+                pricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
+            } else {
+                pricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
+            }
+        } else {
+            pricePerNight = parseFloat(bedData.price || 190);
+        }
+        
+        // Calculate total price
+        const totalPrice = pricePerNight * numberOfNights;
+        
+        // Generate selectedMeals object for each night
+        const selectedMeals = {};
+        for (let i = 1; i <= numberOfNights; i++) {
+            selectedMeals[`meal_${i}`] = {
+                type: selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                price: pricePerNight
+            };
+        }
+        
+        // Get check-in and check-out times from room data or hotel data
+        const checkInTime = roomData?.check_in_time || hotelData.check_in_time || "15:00:00";
+        const checkOutTime = roomData?.check_out_time || hotelData.check_out_time || "12:00:00";
         
         // Build the complex data structure
         const bookingData = {
@@ -7833,15 +8084,10 @@
                             bed_id: parseInt(bedId) || 1,
                             bed_type: selectedBedType,
                             max_occupancy: parseInt(maxOccupancy) || 1,
-                            mealTypes: [selectedMealPlan],
-                            selectedMeals: {
-                                meal_1: {
-                                    type: selectedMealPlan,
-                                    price: parseFloat(bedData.price) || 190
-                                }
-                            },
-                            head_count: parseInt(maxOccupancy) || 1,
-                            price: parseFloat(bedData.price) || 190,
+                            mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
+                            selectedMeals: selectedMeals,
+                            head_count: headCount,
+                            price: pricePerNight,
                             baby_cot: parseInt(bedData.baby_cot) || 0,
                             room_type: selectedRoomType
                         }
@@ -7849,15 +8095,17 @@
                 }
             ],
             bookingType: "booking",
-            totalPrice: parseFloat(bedData.price) || 190,
+            totalPrice: totalPrice,
             priceMode: "dmc",
             priceModeId: parseInt(hotelData.dmc_id) || 4,
             hotelDetails: {
                 hotel_id: hotelId,
                 hotel_name: hotelData.name || "Hotel",
-                location: hotelData.location || "Location",
-                image: hotelData.image || "",
-                cancellation_charge: []
+                checkInTime: checkInTime,
+                checkOutTime: checkOutTime,
+                location: hotelData.location || null,
+                image: hotelData.master_image || hotelData.image || "",
+                cancellation_charge: null
             },
             bookingDate: [checkIn, checkOut]
         };
@@ -9496,6 +9744,7 @@
         const hourlyPickupTimeField = document.getElementById('local_transfer_hourly_pickup_time');
         const hourlyPickupDateField = document.getElementById('local_transfer_hourly_pickup_date');
         const hourlyPickupLocationField = document.getElementById('local_transfer_hourly_pickup_location');
+        const hourlyHoursField = document.getElementById('local_transfer_hourly_hours');
         
         if (hourlyPickupTimeField) {
             hourlyPickupTimeField.addEventListener('change', checkHourlyFormCompletion);
@@ -9505,6 +9754,12 @@
         }
         if (hourlyPickupLocationField) {
             hourlyPickupLocationField.addEventListener('input', checkHourlyFormCompletion);
+        }
+        if (hourlyHoursField) {
+            hourlyHoursField.addEventListener('change', function() {
+                checkHourlyFormCompletion();
+                updateLocalTransferPricing(); // Update pricing when hours change
+            });
         }
         
         // Local Transfer (zone-based) fields
