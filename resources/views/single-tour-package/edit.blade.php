@@ -4291,14 +4291,36 @@
         window.currentLocalTransferServiceType = serviceType;
         console.log('Service type changed to:', serviceType);
         
-        // Note: Vehicle results section will be shown/hidden by individual search functions
-        // Don't hide it here as it interferes with the search results display
+        // Hide vehicle results section when switching service types
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
+        }
         
         // Clear vehicle dropdown when switching service types
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         if (vehicleSelect) {
             vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
             vehicleSelect.disabled = true;
+        }
+        
+        // Clear service type dropdown when switching service types
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        if (serviceTypeSelect) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+        }
+        
+        // Reset passengers to default value when switching service types
+        const passengersInput = document.getElementById('local_transfer_passengers');
+        if (passengersInput) {
+            passengersInput.value = '1';
+        }
+        
+        // Hide price display when switching service types
+        const priceDisplay = document.getElementById('local_transfer_price_display');
+        if (priceDisplay) {
+            priceDisplay.style.display = 'none';
         }
         
         // Hide manual price field when switching service types
@@ -7988,7 +8010,7 @@
         const maxOccupancy = selectedBedOption ? selectedBedOption.getAttribute('data-bed-max-occupancy') : 1;
         const selectedRoomType = selectedRoomOption ? selectedRoomOption.getAttribute('data-room-type') : 'Standard';
         const selectedBedType = selectedBedOption ? selectedBedOption.getAttribute('data-bed-type') : 'King Bed';
-        const selectedMealPlan = mealPlan.value || 'Room Only';
+        const selectedMealPlan = mealPlan.value || 'room_only';
         
         // Get bed data from the selected bed option
         let bedData = {};
@@ -7999,6 +8021,48 @@
                 console.log('Error parsing bed data:', e);
             }
         }
+        
+        // Get room data for pricing
+        const roomData = window.roomData ? window.roomData.find(r => r.room_id == roomId) : null;
+        
+        // Calculate number of nights
+        const checkInDate = new Date(checkIn);
+        const checkOutDate = new Date(checkOut);
+        const numberOfNights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+        
+        // Get the selected number of persons
+        const personCountSelect = document.getElementById('person_count_select');
+        const headCount = personCountSelect ? parseInt(personCountSelect.value) : 1;
+        
+        // Determine pricing based on occupancy
+        const isSingleOccupancy = headCount <= 1;
+        let pricePerNight = 0;
+        
+        if (roomData) {
+            if (isSingleOccupancy) {
+                pricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
+            } else {
+                pricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
+            }
+        } else {
+            pricePerNight = parseFloat(bedData.price || 190);
+        }
+        
+        // Calculate total price
+        const totalPrice = pricePerNight * numberOfNights;
+        
+        // Generate selectedMeals object for each night
+        const selectedMeals = {};
+        for (let i = 1; i <= numberOfNights; i++) {
+            selectedMeals[`meal_${i}`] = {
+                type: selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                price: pricePerNight
+            };
+        }
+        
+        // Get check-in and check-out times from room data or hotel data
+        const checkInTime = roomData?.check_in_time || hotelData.check_in_time || "15:00:00";
+        const checkOutTime = roomData?.check_out_time || hotelData.check_out_time || "12:00:00";
         
         // Build the complex data structure
         const bookingData = {
@@ -8020,15 +8084,10 @@
                             bed_id: parseInt(bedId) || 1,
                             bed_type: selectedBedType,
                             max_occupancy: parseInt(maxOccupancy) || 1,
-                            mealTypes: [selectedMealPlan],
-                            selectedMeals: {
-                                meal_1: {
-                                    type: selectedMealPlan,
-                                    price: parseFloat(bedData.price) || 190
-                                }
-                            },
-                            head_count: parseInt(maxOccupancy) || 1,
-                            price: parseFloat(bedData.price) || 190,
+                            mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
+                            selectedMeals: selectedMeals,
+                            head_count: headCount,
+                            price: pricePerNight,
                             baby_cot: parseInt(bedData.baby_cot) || 0,
                             room_type: selectedRoomType
                         }
@@ -8036,15 +8095,17 @@
                 }
             ],
             bookingType: "booking",
-            totalPrice: parseFloat(bedData.price) || 190,
+            totalPrice: totalPrice,
             priceMode: "dmc",
             priceModeId: parseInt(hotelData.dmc_id) || 4,
             hotelDetails: {
                 hotel_id: hotelId,
                 hotel_name: hotelData.name || "Hotel",
-                location: hotelData.location || "Location",
-                image: hotelData.image || "",
-                cancellation_charge: []
+                checkInTime: checkInTime,
+                checkOutTime: checkOutTime,
+                location: hotelData.location || null,
+                image: hotelData.master_image || hotelData.image || "",
+                cancellation_charge: null
             },
             bookingDate: [checkIn, checkOut]
         };
