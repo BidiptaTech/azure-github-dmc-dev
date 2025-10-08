@@ -200,8 +200,9 @@ const ActivityListPage3 = () => {
   console.log("vehicles69", vehicles);
   const status = useSelector((state) => state.localtour.status);
   const PriceHide = useSelector((state) => state.auth.PriceHide);
-
-
+  const rawZoneOn = useSelector((state) => state.auth.zone_on);
+  const zone_on = rawZoneOn !== null ? Number(rawZoneOn) : null;
+console.log("zone_on5", zone_on);
   // Add this to check if vehicles is an array or an error object
   const isVehiclesArray = Array.isArray(vehicles);
   const vehiclesError = !isVehiclesArray && vehicles?.message;
@@ -473,9 +474,13 @@ const ActivityListPage3 = () => {
   };
 
   const handleBookTransfer = (booking, id, type) => {
+    if(zone_on === 1){
+      console.log("zone_on567", zone_on);
     dispatch(fetchLocalZone({ id, type }));
     dispatch(setSelectbooking(booking));
     dispatch(setPicktype(type));
+    dispatch(setSelectedPort("Local Transfer"));
+    }
     setShowBookingTable(false);
   };
 
@@ -1413,7 +1418,7 @@ const ActivityListPage3 = () => {
                                           booking.hotelDetails.hotel_id,
                                           "hotel"
                                         );
-                                        dispatch(setSelectedPort("Local Transfer"));
+                                        //dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Attraction"
                                       ) {
@@ -1422,7 +1427,7 @@ const ActivityListPage3 = () => {
                                           booking.service_details.attraction_id,
                                           "attraction"
                                         );
-                                        dispatch(setSelectedPort("Local Transfer"));
+                                       // dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Attraction Package"
                                       ) {
@@ -1431,7 +1436,7 @@ const ActivityListPage3 = () => {
                                           booking.package_attraction_id,
                                           "attraction_package"
                                         );
-                                        dispatch(setSelectedPort("Local Transfer"));
+                                       // dispatch(setSelectedPort("Local Transfer"));
                                       } else if (
                                         booking.serviceType === "Restaurant"
                                       ) {
@@ -1440,7 +1445,7 @@ const ActivityListPage3 = () => {
                                           booking.service_details.restaurant_id,
                                           "restaurant"
                                         );
-                                        dispatch(setSelectedPort("Local Transfer"));
+                                       // dispatch(setSelectedPort("Local Transfer"));
                                       }
                                     }}
                                     style={{

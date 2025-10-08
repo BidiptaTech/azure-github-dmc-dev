@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { BASE_URL } from "@/services/api";
 import { resetguide } from "@/slice/tourguide/guideslice";
-import { resetVehicles1 } from "@/slice/localtour/Localslice";
+import { resetVehicles1, setSelectedPort } from "@/slice/localtour/Localslice";
 import { resetVehicles } from "@/slice/port/pickupDropSlice";
 import Box from "@mui/material/Box";
 // import { blue } from "@mui/material/colors";
@@ -740,6 +740,7 @@ export default function Pending({ filters = {} }) {
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
 
+
     // Reset stepper button state for edit
     dispatch(resetAllServiceResponses());
 
@@ -764,6 +765,8 @@ export default function Pending({ filters = {} }) {
     dispatch(resetguide());
     dispatch(resetVehicles());
     dispatch(resetVehicles1());
+    dispatch(setSelectedPort(""));
+    
 
     dispatch(fetchEditid())
       .unwrap()
