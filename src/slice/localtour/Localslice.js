@@ -763,7 +763,7 @@ const LocalSlice = createSlice({
     },
     setSelectedPort: (state, action) => {
       state.selectedPort = action.payload;
-      
+      console.log("selectedPort", state.selectedPort);
     },
     setPort: (state, action) => {
       state.port = action.payload;
@@ -779,7 +779,7 @@ const LocalSlice = createSlice({
       state.entrytime = "";
       state.DropoffPlaceid = "";
       state.PickupPlaceid = "";
-      
+    
       state.PickupZoneid = "";
       state.DropoffZoneid = "";
       //state.selectedVehicleId = null;
