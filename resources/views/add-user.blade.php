@@ -11,6 +11,7 @@ function updateFields() {
 
     resetHiddenFieldValues();
 
+    
     if (userRole >= 5 && userRole <= 9) {
         country_names.style.display = 'block';
     } else if (userRole == 10){
