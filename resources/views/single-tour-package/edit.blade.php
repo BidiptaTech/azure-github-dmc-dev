@@ -526,16 +526,16 @@
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
-                                <i class="ri-calendar-line me-2"></i>Day-by-Day Tour Itinerary
+                                <i class="ri-calendar-line me-2"></i>Tour Itinerary
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body mb-4">
                             @foreach($tourDays as $dateKey => $dayInfo)
                             <!-- Day {{ $dayInfo['day_number'] }} Services -->
                             <div class="day-services mb-4">
-                                <h6 class="fw-bold text-primary mb-3">
+                                <!-- <h6 class="fw-bold text-primary mb-3">
                                     <i class="ri-calendar-check-line me-2"></i>Day {{ $dayInfo['day_number'] }} ({{ $dayInfo['date']->format('l, jS F Y') }})
-                                </h6>
+                                </h6> -->
                                 
                                 @if(count($dayInfo['orders']) > 0)
                                     @php
@@ -566,118 +566,11 @@
                                             </div>
                                         </div>
                                         <div class="card-body mt-3">
-                                            @if(isset($dayOrdersByType['travel_hourly']))
-                                                @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
-                                                                                                                                                                             <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleType = '';
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
-                                                            } else {
-                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @endif
-
-                                            @if(isset($dayOrdersByType['travel_point']))
-                                                @foreach($dayOrdersByType['travel_point'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
-                                                                                                                                                                 <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleType = '';
-                                                        
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
-                                                            } else {
-                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @endif
-
                                             @if(isset($dayOrdersByType['entry_port']))
                                                 @foreach($dayOrdersByType['entry_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Entry Port Transfer #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -710,26 +603,17 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                    <div class="service-details">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
+                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -738,7 +622,7 @@
 
                                             @if(isset($dayOrdersByType['exit_port']))
                                                 @foreach($dayOrdersByType['exit_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
@@ -773,26 +657,17 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                    <div class="service-details">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
+                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -803,8 +678,8 @@
                                 </div>
                                     @endif
                                     
-                                    <!-- Attractions Section -->
-                                    @if(isset($dayOrdersByType['attraction']))
+                                <!-- Attractions Section -->
+                                @if(isset($dayOrdersByType['attraction']))
                                 <div class="service-section mb-3">
                                     <div class="card border-danger shadow-sm">
                                         <div class="card-header bg-danger text-white">
@@ -820,9 +695,9 @@
                                         </div>
                                         <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['attraction'] as $index => $order)
-                                            <div class="attraction-item mb-3 p-3 border rounded">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Attraction Booking #{{ $index + 1 }}</h6>
+                                            <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
@@ -858,26 +733,17 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <div class="row g-2">
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Attraction</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $attractionName }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Time Slot</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $timeSlot }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Ticket</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $ticket }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guests</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guestSummary }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Total Price</label>
-                                                        <input type="text" class="form-control form-control-sm" value="${{ number_format($totalPrice, 2) }}" readonly>
+                                                <div class="service-details">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Attraction:</strong> <span class="text-dark">{{ $attractionName }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time Slot:</strong> <span class="text-dark">{{ $timeSlot }}</span></p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-ticket-line me-2 text-info"></i><strong>Ticket:</strong> <span class="text-dark">{{ $ticket }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Guests:</strong> <span class="text-dark">{{ $guestSummary }}</span></p>
+                                                            <p class="small mb-0 text-muted"><i class="ri-money-dollar-circle-line me-2 text-success"></i><strong>Total Price:</strong> <span class="text-dark fw-bold">${{ number_format($totalPrice, 2) }}</span></p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -887,8 +753,8 @@
                                 </div>
                                 @endif
 
-                                    <!-- Guide Services Section -->
-                                    @if(isset($dayOrdersByType['guide']))
+                                <!-- Guide Services Section -->
+                                @if(isset($dayOrdersByType['guide']))
                                 <div class="service-section mb-3">
                                     <div class="card border-info shadow-sm">
                                         <div class="card-header bg-info text-white">
@@ -904,9 +770,9 @@
                                         </div>
                                         <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['guide'] as $index => $order)
-                                            <div class="guide-item mb-3 p-3 border rounded">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Tour Guide Booking #{{ $index + 1 }}</h6>
+                                            <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
@@ -933,22 +799,16 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <div class="row g-2">
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guide</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guideName }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Package</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $package }} hours" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Pickup Time</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guests</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guestSummary }}" readonly>
+                                                <div class="service-details">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-user-star-line me-2 text-primary"></i><strong>Guide:</strong> <span class="text-dark">{{ $guideName }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Package:</strong> <span class="text-dark">{{ $package }} hours</span></p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-info"></i><strong>Pickup Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                            <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Guests:</strong> <span class="text-dark">{{ $guestSummary }}</span></p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -975,9 +835,9 @@
                                         </div>
                                         <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['restaurant'] as $index => $order)
-                                            <div class="restaurant-item mb-3 p-3 border rounded">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Restaurant Booking #{{ $index + 1 }}</h6>
+                                            <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
@@ -1040,66 +900,44 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <div class="row g-2">
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Restaurant</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $restaurantName }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Meal Type</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $mealType }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Meal Specific</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $mealSpecificType }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guests</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guestSummary }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Total Price</label>
-                                                        <input type="text" class="form-control form-control-sm" value="${{ number_format($totalPrice, 2) }}" readonly>
+                                                <div class="service-details">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-restaurant-line me-2 text-primary"></i><strong>Restaurant:</strong> <span class="text-dark">{{ $restaurantName }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-restaurant-2-line me-2 text-warning"></i><strong>Meal Type:</strong> <span class="text-dark">{{ $mealType }}</span></p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-bowl-line me-2 text-info"></i><strong>Meal Specific:</strong> <span class="text-dark">{{ $mealSpecificType }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Guests:</strong> <span class="text-dark">{{ $guestSummary }}</span></p>
+                                                            <p class="small mb-0 text-muted"><i class="ri-money-dollar-circle-line me-2 text-success"></i><strong>Total Price:</strong> <span class="text-dark fw-bold">${{ number_format($totalPrice, 2) }}</span></p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 
                                                 <!-- Meal Details Display -->
                                                 @if(is_array($mealDescription) && count($mealDescription) > 0)
-                                                <div class="row mt-2">
-                                                    <div class="col-12">
-                                                        <label class="form-label small fw-semibold">Meal Details:</label>
-                                                        <div class="table-responsive">
-                                                            <table class="table table-sm table-bordered">
-                                                                <thead class="table-light">
-                                                                    <tr>
-                                                                        <th>Item Name</th>
-                                                                        <th>Description</th>
-                                                                        <th>Category</th>
-                                                                        <th>Type</th>
-                                                                        <th>Quantity</th>
-                                                                        <th>Price</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    @php
-                                                                        // Use the processed $mealDescription variable from above
-                                                                        if (is_array($mealDescription)) {
-                                                                            foreach ($mealDescription as $meal) {
-                                                                                echo '<tr>';
-                                                                                echo '<td>' . ($meal['item_name'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['name'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['category'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['item_type'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['quantity'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>$' . number_format($meal['price'] ?? 0, 2) . '</td>';
-                                                                                echo '</tr>';
-                                                                            }
-                                                                        }
-                                                                    @endphp
-                                                                </tbody>
-                                                            </table>
+                                                <div class="meal-details mt-3">
+                                                    <h6 class="small fw-semibold mb-3 text-primary"><i class="ri-restaurant-2-line me-2"></i>Meal Details:</h6>
+                                                    @foreach($mealDescription as $index => $meal)
+                                                    <div class="meal-item mb-3 p-3 border rounded shadow-sm bg-light">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-file-list-line me-2 text-primary"></i><strong>Item:</strong> <span class="text-dark">{{ $meal['item_name'] ?? 'N/A' }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-file-text-line me-2 text-info"></i><strong>Description:</strong> <span class="text-dark">{{ $meal['name'] ?? 'N/A' }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-folder-line me-2 text-warning"></i><strong>Category:</strong> <span class="text-dark">{{ $meal['category'] ?? 'N/A' }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-price-tag-3-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $meal['item_type'] ?? 'N/A' }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-0 text-muted"><i class="ri-number-1 me-2 text-success"></i><strong>Quantity:</strong> <span class="text-dark">{{ $meal['quantity'] ?? 'N/A' }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-0 text-muted"><i class="ri-money-dollar-circle-line me-2 text-success"></i><strong>Price:</strong> <span class="text-dark fw-bold">${{ number_format($meal['price'] ?? 0, 2) }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                    @endforeach
                                                 </div>
                                                 @endif
                                             </div>
@@ -1127,7 +965,7 @@
                                         <div class="card-body mt-3">
                                             @if(isset($dayOrdersByType['exit_port']))
                                                 @foreach($dayOrdersByType['exit_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
@@ -1162,26 +1000,17 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                    <div class="service-details">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
+                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1210,9 +1039,9 @@
                                         <div class="card-body mt-3">
                                             @if(isset($dayOrdersByType['travel_hourly']))
                                                 @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -1240,23 +1069,11 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
+                                                    <div class="transport-details">
+                                                        <p class="small mb-1"><i class="ri-map-pin-line me-1"></i><strong>Pickup Location:</strong> {{ $pickupLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-map-pin-2-line me-1"></i><strong>Dropoff Location:</strong> {{ $dropoffLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-time-line me-1"></i><strong>Pickup Time:</strong> {{ $pickupTime }}</p>
+                                                        <p class="small mb-0"><i class="ri-car-line me-1"></i><strong>Vehicle Type:</strong> {{ $vehicleType }}</p>
                                                     </div>
                                                 </div>
                                                 @endforeach
@@ -1264,9 +1081,9 @@
 
                                             @if(isset($dayOrdersByType['travel_point']))
                                                 @foreach($dayOrdersByType['travel_point'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -1294,23 +1111,11 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
+                                                    <div class="transport-details">
+                                                        <p class="small mb-1"><i class="ri-map-pin-line me-1"></i><strong>Pickup Location:</strong> {{ $pickupLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-map-pin-2-line me-1"></i><strong>Dropoff Location:</strong> {{ $dropoffLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-time-line me-1"></i><strong>Pickup Time:</strong> {{ $pickupTime }}</p>
+                                                        <p class="small mb-0"><i class="ri-car-line me-1"></i><strong>Vehicle Type:</strong> {{ $vehicleType }}</p>
                                                     </div>
                                                 </div>
                                                 @endforeach
@@ -1318,9 +1123,9 @@
 
                                             @if(isset($dayOrdersByType['local_transport']))
                                                 @foreach($dayOrdersByType['local_transport'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Local Transport #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                                                                                                                                             <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -1348,23 +1153,11 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
+                                                    <div class="transport-details">
+                                                        <p class="small mb-1"><i class="ri-map-pin-line me-1"></i><strong>Pickup Location:</strong> {{ $pickupLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-map-pin-2-line me-1"></i><strong>Dropoff Location:</strong> {{ $dropoffLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-time-line me-1"></i><strong>Pickup Time:</strong> {{ $pickupTime }}</p>
+                                                        <p class="small mb-0"><i class="ri-car-line me-1"></i><strong>Vehicle Type:</strong> {{ $vehicleType }}</p>
                                                     </div>
                                                 </div>
                                                 @endforeach
