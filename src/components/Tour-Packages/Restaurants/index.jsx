@@ -43,7 +43,7 @@ import RestaurantBookingSummaryModal from './RestaurantBookingSummaryModal';
 import { setAllServices } from '../../../slice/tour-packages/tourPackageSlice';
 import { fetchRestaurants } from '../../../slice/restaurant/RestaurantsSlice';
 import PortCity from './PortCity';
-
+import { shallowEqual } from 'react-redux';
 const initialFormState = {
   restaurant: '',
   mealType: '',
@@ -62,13 +62,13 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const restaurants = useSelector((state) => state.restaurants.restaurants);
   const restaurantDetails = useSelector((state) => state.restaurants.restaurantDetails);
-  const searchParams = useSelector((state) => state.restaurants.searchParams);
+  const searchParams = useSelector((state) => state.restaurants.searchParams, shallowEqual);
   const status = useSelector((state) => state.restaurants.status);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
   const country = useSelector((state) => state.tourPackages.searchCriteria.country);
-  const tour = useSelector((state) => state.hotels.tourdetails);
+  const tour = useSelector((state) => state.hotels.tourdetails, shallowEqual);
   console.log('Restaurant update', restaurantspack);
   console.log("tour", tour);
   
@@ -279,7 +279,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       isInitializingRef.current = false;
       console.log('Restaurant initialization completed, handleInputChange is now enabled');
     }, 100);
-  }, [restaurantspack, dayIndex, bookingDate, tour]); // Added tourDates to dependencies
+  }, [ dayIndex, bookingDate, tour]); // Added tourDates to dependencies
 
   // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
   const dispatchAllRestaurantsToRedux = useCallback(() => {
