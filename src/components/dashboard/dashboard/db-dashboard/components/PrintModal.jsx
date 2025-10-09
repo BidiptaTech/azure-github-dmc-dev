@@ -485,6 +485,7 @@ const PrintModal = ({
   // Get agent info from Redux store
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
   const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
 
   // Ensure agency logo is embeddable in html2canvas by resolving to a CORS-safe data URL
   const [resolvedAgencyLogo, setResolvedAgencyLogo] = useState(agencyLogo || "");
@@ -5308,15 +5309,29 @@ const PrintModal = ({
                             <Typography variant="h6">
                               <strong>Total Price:</strong>
                             </Typography>
-                            <Typography
-                              variant="h6"
-                              sx={{ color: "#2e7d32", fontWeight: "bold" }}
-                            >
-                              SGD{" "}
-                              {(localTotalPrice || totalPrice || 0) +
-                                (localMarkupAmount || markupAmount || 0) -
-                                (localDiscountAmount || discountAmount || 0)}
-                            </Typography>
+                            <Box sx={{ textAlign: "right" }}>
+                              <Typography
+                                variant="h6"
+                                sx={{ color: "#2e7d32", fontWeight: "bold" }}
+                              >
+                                SGD{" "}
+                                {(() => {
+                                  const baseTotal = (localTotalPrice || totalPrice || 0) +
+                                    (localMarkupAmount || markupAmount || 0) -
+                                    (localDiscountAmount || discountAmount || 0);
+                                  const withTax = Math.ceil(baseTotal + (baseTotal * (sgdTax || 0)) / 100);
+                                  return withTax;
+                                })()}
+                              </Typography>
+                              {sgdTax > 0 && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{ fontSize: "0.75rem", color: "#5E35B1", fontWeight: 600 }}
+                                >
+                                  (incl. {sgdTax}% tax)
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
                         </Stack>
                       </Grid>
@@ -5330,7 +5345,7 @@ const PrintModal = ({
                           justifyContent: "center",
                         }}
                       >
-                        <Box
+                        {/* <Box
                           sx={{
                             width: "100%",
                             p: 3,
@@ -5353,7 +5368,7 @@ const PrintModal = ({
                             Your tour package is confirmed and ready for your
                             adventure!
                           </Typography>
-                        </Box>
+                        </Box> */}
                       </Grid>
                     </Grid>
                   </CardContent>
