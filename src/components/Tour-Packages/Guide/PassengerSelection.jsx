@@ -16,7 +16,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -111,7 +111,7 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   
   // Get the search parameters from Redux store
-  const searchParams = useSelector((state) => state.tourguide.searchParams);
+  const searchParams = useSelector((state) => state.tourguide.searchParams, shallowEqual);
   const initialAdults = searchParams?.adults || 1;
   const initialChildren = searchParams?.children || 0;
   const totalAllowed = initialAdults + initialChildren; // Total passengers allowed from search

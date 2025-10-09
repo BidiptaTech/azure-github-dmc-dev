@@ -50,6 +50,7 @@ const MainFilterSearchBox = ({ Location }) => {
   const [selectedDateZone, setSelectedDateZone] = useState("");
   //const [selectedPort, setSelectedPort] = useState("Point To Point"); // Default selection
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
+  console.log("selectedPort2", selectedPort);
   const [pickUpLatLng, setPickupLatLng] = useState(""); // New state for pick-up place_id
   const [dropOffLatLng, setDropoffLatLng] = useState(""); // New state for drop-off place_id
   const [entryytime, setentryytime] = useState("");

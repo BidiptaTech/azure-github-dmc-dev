@@ -89,6 +89,7 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
   const tourStatus = useMemo(() => bookings?.tour?.status, [bookings?.tour?.status]);
   console.log("tourStatus", tourStatus);
 
@@ -496,24 +497,50 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                     
 
                     <TableCell>
-                      {PriceHide ==="0"?(
-                         <Chip
-                         size="medium"
-                         label={booking.totalPrice ? `SGD ${booking.totalPrice}` : "N/A"}
-                         sx={{
-                           fontWeight: "bold",
-                           bgcolor: alpha('#673AB7', 0.1),
-                           color: '#5E35B1',
-                           height: '26px',
-                           fontSize: '0.85rem',
-                         }}
-                       />
-                      ):(
+                      {PriceHide === "0" ? (
+                        <>
+                          <Chip
+                            size="small"
+                            label={
+                              booking.totalPrice
+                                ? `SGD ${Math.ceil(
+                                    Math.ceil(booking.totalPrice)
+                                    //  +
+                                    //   (Math.ceil(booking.totalPrice) * sgdTax) /
+                                    //     100
+                                  )}`
+                                : "N/A"
+                            }
+                            sx={{
+                              fontWeight: "bold",
+                              bgcolor: alpha('#673AB7', 0.1),
+                              color: '#5E35B1',
+                              height: '26px',
+                              fontSize: '0.85rem',
+                            }}
+                          />
+                          {/* {sgdTax > 0 && (
+                            <Typography
+                              variant="caption"
+                              display="block"
+                              sx={{
+                                color: "#5E35B1",
+                                fontSize: "0.59rem",
+                                mt: 0.1,
+                                fontWeight: "medium",
+                                textAlign: "center",
+                                maxWidth: "90px",
+                              }}
+                            >
+                              (incl. {sgdTax}% tax)
+                            </Typography>
+                          )} */}
+                        </>
+                      ) : (
                         <div className="text-15 lh-12">
-                        Price available on request
-                      </div>
+                          Price available on request
+                        </div>
                       )}
-                     
                     </TableCell>
                     {/* <TableCell>
                       <Typography

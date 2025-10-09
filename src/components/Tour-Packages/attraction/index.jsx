@@ -36,6 +36,7 @@ import TimeSlotSelector from './TimeSlotSelector';
 import TicketTypeSelector from './TicketTypeSelector';
 import BookingSummaryModal from './BookingSummaryModal';
 import PortCity from './PortCity';
+import { shallowEqual } from 'react-redux';
 
 const initialFormState = {
   attraction: '',
@@ -53,7 +54,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const theme = useTheme();
   const dispatch = useDispatch();
   const attractions = useSelector(selectAttractions);
-  const searchParams = useSelector((state) => state.attractions.searchParams);
+  const searchParams = useSelector((state) => state.attractions.searchParams, shallowEqual);
   const attractionDetails = useSelector((state) => state.attractions.attractionDetails);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
@@ -107,7 +108,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const [isAttractionListingEnabled, setIsAttractionListingEnabled] = useState(false);
   console.log("selectedCity", selectedCity);
   const country = useSelector((state) => state.tourPackages.searchCriteria.country);
-  const tour = useSelector((state) => state.hotels.tourdetails);
+  const tour = useSelector((state) => state.hotels.tourdetails, shallowEqual);
   console.log("tour", tour);
   // Refs to prevent infinite loops
   const hasInitializedRef = useRef(false);
@@ -183,27 +184,42 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
     }
 
     // Filter attractions - show all for first dayIndex, match by bookingDate for other days
-    const dayAttractions = attractionspack.filter(attractionService => {
+   
+    const dayAttractions = attractionspack.filter((attractionService, index) => {
       const attractionData = attractionService.data?.[0];
-      console.log('Attraction data:', attractionData);
+      
 
-      if (!attractionData) return false;
+      if (!attractionData) {
+        console.log(`Attraction ${index}: No data, skipping`);
+        return false;
+      }
 
-      // For first dayIndex (dayIndex === 0), show all attractions regardless of bookingDate
+      // For first dayIndex (dayIndex === 0), show attractions that either match current bookingDate OR don't match any tour dates
       if (dayIndex === 0) {
-        console.log('First dayIndex - showing all attractions regardless of bookingDate');
-        return true;
+        
+        
+        // Show if it matches current bookingDate OR doesn't match any tour dates
+        const matchesCurrentDate = attractionData.bookingDate === bookingDate;
+        const notInTourDates = !tourDates.includes(attractionData.bookingDate);
+        const shouldShow = matchesCurrentDate || notInTourDates;
+        
+       
+        return shouldShow;
       }
 
       // For other dayIndexes, match by bookingDate
-      return attractionData.bookingDate === bookingDate;
+      const matchesBookingDate = attractionData.bookingDate === bookingDate;
+    
+      return matchesBookingDate;
     });
 
     if (dayAttractions.length === 0) {
-      console.log(`No attractions found for dayIndex ${dayIndex}${dayIndex === 0 ? ' (showing all dates)' : ` (bookingDate: ${bookingDate})`}`);
+     
       isInitializingRef.current = false; // Ensure flag is reset when no attractions found
       return;
     }
+
+   
 
     // Convert attraction data to form sections for current day
     const newFormSections = dayAttractions.map((attractionService, index) => {
@@ -243,12 +259,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       return formSection;
     });
 
-    console.log('Initialized form sections for current day:', newFormSections);
-    console.log('Form sections by type:', {
-      attractions: newFormSections.filter(s => s.type === 'attraction').length,
-      packages: newFormSections.filter(s => s.type === 'attraction_package').length
-    });
-    console.log('Setting form sections with data:', newFormSections);
+   
+    
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
     
@@ -257,7 +269,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       isInitializingRef.current = false;
       console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [attractionspack, dayIndex, bookingDate, tour]); // Added tour to dependencies
+  }, [ dayIndex, bookingDate, tour]); // Added tourDates to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {

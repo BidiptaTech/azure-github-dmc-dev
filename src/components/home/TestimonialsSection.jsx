@@ -51,19 +51,32 @@ const TestimonialsSection = () => {
         minHeight: '100vh', 
         position: 'relative',
         overflow: 'hidden',
-        display: 'flex'
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' }
       }}
     >
       {/* Left Side Component */}
-      <TestimonialsLeft />
+      <Box sx={{ 
+        width: { xs: '100%', md: '50%' },
+        height: { xs: '50vh', md: '100vh' },
+        order: { xs: 2, md: 1 }
+      }}>
+        <TestimonialsLeft />
+      </Box>
       
       {/* Right Side Component */}
-      <TestimonialsRight 
-        testimonials={testimonials}
-        currentTestimonial={currentTestimonial}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-      />
+      <Box sx={{ 
+        width: { xs: '100%', md: '50%' },
+        height: { xs: '50vh', md: '100vh' },
+        order: { xs: 1, md: 2 }
+      }}>
+        <TestimonialsRight 
+          testimonials={testimonials}
+          currentTestimonial={currentTestimonial}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+        />
+      </Box>
     </Box>
   );
 };

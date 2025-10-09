@@ -28,7 +28,7 @@ import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
 import PersonIcon from '@mui/icons-material/Person';
 import AssistantIcon from '@mui/icons-material/Assistant';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import GuideListing from './GuideListing';
 import TimeSelection from './TimeSelection';
 import PackageSelection from './PackageSelection';
@@ -63,7 +63,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const selectedGuide = useSelector((state) => state.tourguide.selectedGuide);
   const guides = useSelector((state) => state.tourguide.Guides);
   const status = useSelector((state) => state.tourguide.status);
-  const searchParams = useSelector((state) => state.tourguide.searchParams);
+  const searchParams = useSelector((state) => state.tourguide.searchParams, shallowEqual);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
@@ -152,10 +152,17 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       
       if (!guideData) return false;
 
-      // For first dayIndex (dayIndex === 0), show all guides regardless of bookingDate
+      // For first dayIndex (dayIndex === 0), show guides that either match current bookingDate OR don't match any tour dates
       if (dayIndex === 0) {
-        console.log('First dayIndex - showing all guides regardless of bookingDate');
-        return true;
+       
+        
+        // Show if it matches current bookingDate OR doesn't match any tour dates
+        const matchesCurrentDate = guideData.bookingDate === bookingDate;
+        const notInTourDates = !tourDates.includes(guideData.bookingDate);
+        const shouldShow = matchesCurrentDate || notInTourDates;
+        
+       
+        return shouldShow;
       }
       
       // If we have dayIndex, use it for filtering (backward compatibility)
@@ -257,7 +264,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
     
     setFormSections(newFormSections);
     setExpandedSections(newFormSections.map((_, index) => index));
-  }, [guidespack, dayIndex, bookingDate, date, formatDateToString, guides]);
+  }, [ dayIndex, bookingDate, date, formatDateToString, guides]);
 
   // Function to dispatch ALL guides from guidespack to Redux state
   const dispatchAllGuidesToRedux = useCallback(() => {
