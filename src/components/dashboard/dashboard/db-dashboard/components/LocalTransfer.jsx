@@ -579,9 +579,10 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
                             label={
                               booking.totalPrice
                                 ? `SGD ${Math.ceil(
-                                    Math.ceil(booking.totalPrice) +
-                                      (Math.ceil(booking.totalPrice) * sgdTax) /
-                                        100
+                                    Math.ceil(booking.totalPrice) 
+                                    // +
+                                    //   (Math.ceil(booking.totalPrice) * sgdTax) /
+                                    //     100
                                   )}`
                                 : "N/A"
                             }
@@ -596,7 +597,7 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
                               },
                             }}
                           />
-                          {sgdTax > 0 && (
+                          {/* {sgdTax > 0 && (
                             <Typography
                               variant="caption"
                               display="block"
@@ -611,7 +612,7 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
                             >
                               (incl. {sgdTax}% tax)
                             </Typography>
-                          )}
+                          )} */}
                         </>
                       ) : (
                         <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Divider, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { useSelector } from 'react-redux';
 
 const StyledTooltipContent = styled(Box)(({ theme }) => ({
   backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -58,6 +59,8 @@ const PaymentRow = styled(Box)(({ theme, variant = 'default' }) => ({
 }));
 
 const PaymentDetailsTooltip = ({ list }) => {
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   const getStatusColor = (status) => {
     switch (status) {
       case 'Not Paid':
@@ -98,46 +101,76 @@ const PaymentDetailsTooltip = ({ list }) => {
 
       <Divider sx={{ mb: 1.5 }} />
 
-      {/* Original Amount */}
-      <PaymentRow variant="original">
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <i className="icon-tag" style={{ fontSize: '11px', color: '#1976d2' }}></i>
-          <Typography variant="caption" fontWeight={600} color="#1976d2" sx={{ fontSize: '0.7rem' }}>
-            Original
-          </Typography>
-        </Box>
-        <Typography variant="caption" fontWeight={700} color="#1976d2" sx={{ fontSize: '0.7rem' }}>
-          SGD {Math.ceil(list.finalAmount + list.discountAmount)}
-        </Typography>
-      </PaymentRow>
-
-      {/* Discount Amount */}
-      {list.discountAmount > 0 && (
-        <PaymentRow variant="discount">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <i className="icon-usd" style={{ fontSize: '11px', color: '#d32f2f' }}></i>
-            <Typography variant="caption" fontWeight={600} color="#d32f2f" sx={{ fontSize: '0.7rem' }}>
-              Discount
+      {PriceHide === '0' ? (
+        <>
+          {/* Original Amount (from API, no tax) */}
+          <PaymentRow variant="original">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <i className="icon-tag" style={{ fontSize: '11px', color: '#1976d2' }}></i>
+              <Typography variant="caption" fontWeight={600} color="#1976d2" sx={{ fontSize: '0.7rem' }}>
+                Original
+              </Typography>
+            </Box>
+            <Typography variant="caption" fontWeight={700} color="#1976d2" sx={{ fontSize: '0.7rem' }}>
+              {(() => {
+                const original = Math.ceil(
+                  list.tour_total_price != null
+                    ? Number(list.tour_total_price)
+                    : Number(list.finalAmount || 0) + Number(list.discountAmount || 0)
+                );
+                return `SGD ${original}`;
+              })()}
             </Typography>
-          </Box>
-          <Typography variant="caption" fontWeight={700} color="#d32f2f" sx={{ fontSize: '0.7rem' }}>
-            -SGD {Math.ceil(list.discountAmount)}
-          </Typography>
-        </PaymentRow>
-      )}
+          </PaymentRow>
 
-      {/* Final Amount */}
-      <PaymentRow variant="final">
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <i className="icon-wallet" style={{ fontSize: '11px', color: '#4caf50' }}></i>
-          <Typography variant="caption" fontWeight={600} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
-            Final
+          {/* Discount Amount (no tax) */}
+          {list.discountAmount > 0 && (
+            <PaymentRow variant="discount">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <i className="icon-usd" style={{ fontSize: '11px', color: '#d32f2f' }}></i>
+                <Typography variant="caption" fontWeight={600} color="#d32f2f" sx={{ fontSize: '0.7rem' }}>
+                  Discount
+                </Typography>
+              </Box>
+              <Typography variant="caption" fontWeight={700} color="#d32f2f" sx={{ fontSize: '0.7rem' }}>
+                -SGD {Math.ceil(list.discountAmount)}
+              </Typography>
+            </PaymentRow>
+          )}
+
+          {/* Final Amount (API final + tax) */}
+          <PaymentRow variant="final">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <i className="icon-wallet" style={{ fontSize: '11px', color: '#4caf50' }}></i>
+              <Typography variant="caption" fontWeight={600} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
+                Final
+              </Typography>
+            </Box>
+            <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
+              {(() => {
+                const baseFinal = Number(list.finalAmount || 0);
+                const withTax = Math.ceil(baseFinal + (baseFinal * (sgdTax || 0)) / 100);
+                return `SGD ${withTax}`;
+              })()}
+            </Typography>
+          </PaymentRow>
+
+          {sgdTax > 0 && (
+            <Box sx={{ textAlign: 'center', mt: 0.5 }}>
+              <Typography variant="caption" sx={{ fontSize: '0.6rem', color: '#5E35B1', fontWeight: 600 }}>
+                (Final amount incl. {sgdTax}% tax)
+              </Typography>
+            </Box>
+          )}
+
+        </>
+      ) : (
+        <Box sx={{ textAlign: 'center', my: 1 }}>
+          <Typography variant="caption" sx={{ fontSize: '0.75rem', color: '#1976d2', fontWeight: 600 }}>
+            Price Hidden
           </Typography>
         </Box>
-        <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
-          SGD {Math.ceil(list.finalAmount)}
-        </Typography>
-      </PaymentRow>
+      )}
 
       <Divider sx={{ my: 1 }} />
 
@@ -168,7 +201,7 @@ const PaymentDetailsTooltip = ({ list }) => {
         />
       </PaymentRow>
 
-      {/* Due Amount Warning */}
+      {/* Due Amount Warning (with tax) */}
       {list.dueAmount > 0 && (
         <PaymentRow variant="due">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -178,18 +211,22 @@ const PaymentDetailsTooltip = ({ list }) => {
             </Typography>
           </Box>
           <Typography variant="caption" fontWeight={700} color="#ff9800" sx={{ fontSize: '0.7rem' }}>
-            SGD {Math.ceil(list.dueAmount)}
+            {(() => {
+              const baseDue = Number(list.dueAmount || 0);
+              const withTax = Math.ceil(baseDue + (baseDue * (sgdTax || 0)) / 100);
+              return `SGD ${withTax}`;
+            })()}
           </Typography>
         </PaymentRow>
       )}
 
       {/* Footer */}
-      <Divider sx={{ mt: 1.5, mb: 0.5 }} />
+      {/* <Divider sx={{ mt: 1.5, mb: 0.5 }} />
       <Box sx={{ textAlign: 'center' }}>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
           Click for details
         </Typography>
-      </Box>
+      </Box> */}
     </StyledTooltipContent>
   );
 };

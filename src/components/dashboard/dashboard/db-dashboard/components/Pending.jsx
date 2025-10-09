@@ -265,6 +265,8 @@ export default function Pending({ filters = {} }) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
   const userRole = useSelector((state) => state.auth.userRole);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
+  const PriceHide = useSelector((state) => state.auth.PriceHide);
   const [isEnquiryModalVisible, setIsEnquiryModalVisible] = useState(false);
   
   // Get the view details from the Redux store BEFORE using it in useState
@@ -344,6 +346,7 @@ export default function Pending({ filters = {} }) {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
       ];
 
       services.forEach((item) => {
@@ -1085,6 +1088,8 @@ export default function Pending({ filters = {} }) {
       modifiedData.exit_port || modifiedData.data?.exit_port || [];
     const travelPoints =
       modifiedData.travel_point || modifiedData.data?.travel_point || [];
+    const travelHourly =
+      modifiedData.travel_hourly || modifiedData.data?.travel_hourly || [];
     const attractions =
       modifiedData.attraction || modifiedData.data?.attraction || [];
     const guides = modifiedData.guide || modifiedData.data?.guide || [];
@@ -1111,6 +1116,12 @@ export default function Pending({ filters = {} }) {
     });
 
     travelPoints.forEach((travel) => {
+      if (travel.totalPrice) {
+        totalOriginalPrice += parseFloat(travel.totalPrice);
+      }
+    });
+
+    travelHourly.forEach((travel) => {
       if (travel.totalPrice) {
         totalOriginalPrice += parseFloat(travel.totalPrice);
       }
@@ -1150,6 +1161,7 @@ export default function Pending({ filters = {} }) {
       ...entryPorts,
       ...exitPorts,
       ...travelPoints,
+      ...travelHourly,
       ...attractions,
       ...guides,
       ...restaurants,
@@ -1293,6 +1305,38 @@ export default function Pending({ filters = {} }) {
 
     // Process travel points
     travelPoints.forEach((travel) => {
+      if (travel.totalPrice) {
+        // Store original price
+        travel.basePrice = travel.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const travelMarkupAmount = travel.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(travel.totalPrice) + travelMarkupAmount;
+        travel.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const travelDiscountAmount = travel.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        travel.totalPrice = (markedUpPrice - travelDiscountAmount).toString();
+
+        // Store markup and discount amounts
+        travel.markupAmount = travelMarkupAmount.toString();
+        if (discount > 0) {
+          travel.discountAmount = travelDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete travel.calculatedMarkup;
+        delete travel.calculatedDiscount;
+      }
+    });
+
+    // Process travel hourly
+    travelHourly.forEach((travel) => {
       if (travel.totalPrice) {
         // Store original price
         travel.basePrice = travel.totalPrice;
@@ -1655,6 +1699,8 @@ export default function Pending({ filters = {} }) {
     const restaurants = bookings.restaurant || bookings.data?.restaurant || [];
     const travelPoints =
       bookings.travel_point || bookings.data?.travel_point || [];
+    const travelHourly =
+      bookings.travel_hourly || bookings.data?.travel_hourly || [];
 
     // Calculate total original price - using a more efficient approach
     const allItems = [
@@ -1665,6 +1711,7 @@ export default function Pending({ filters = {} }) {
       ...guides,
       ...restaurants,
       ...travelPoints,
+      ...travelHourly,
     ];
 
     allItems.forEach((item) => {
@@ -1848,6 +1895,8 @@ export default function Pending({ filters = {} }) {
         bookings.restaurant || bookings.data?.restaurant || [];
       const travelPoints =
         bookings.travel_point || bookings.data?.travel_point || [];
+      const travelHourly =
+        bookings.travel_hourly || bookings.data?.travel_hourly || [];
 
       // Calculate total original price
       hotels.forEach((hotel) => {
@@ -1887,6 +1936,12 @@ export default function Pending({ filters = {} }) {
       });
 
       travelPoints.forEach((travelPoint) => {
+        if (travelPoint.totalPrice) {
+          actualPrice += parseFloat(travelPoint.totalPrice);
+        }
+      });
+
+      travelHourly.forEach((travelPoint) => {
         if (travelPoint.totalPrice) {
           actualPrice += parseFloat(travelPoint.totalPrice);
         }
@@ -1987,6 +2042,8 @@ export default function Pending({ filters = {} }) {
       const exitPorts = bookings.exit_port || bookings.data?.exit_port || [];
       const travelPoints =
         bookings.travel_point || bookings.data?.travel_point || [];
+      const travelHourly =
+        bookings.travel_hourly || bookings.data?.travel_hourly || [];
       const attractions =
         bookings.attraction || bookings.data?.attraction || [];
       const guides = bookings.guide || bookings.data?.guide || [];
@@ -2013,6 +2070,12 @@ export default function Pending({ filters = {} }) {
       });
 
       travelPoints.forEach((travel) => {
+        if (travel.totalPrice) {
+          calculatedTotalPrice += parseFloat(travel.totalPrice);
+        }
+      });
+
+      travelHourly.forEach((travel) => {
         if (travel.totalPrice) {
           calculatedTotalPrice += parseFloat(travel.totalPrice);
         }
@@ -2065,6 +2128,7 @@ export default function Pending({ filters = {} }) {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
       ];
 
       services.forEach((item) => {
@@ -3238,80 +3302,101 @@ export default function Pending({ filters = {} }) {
                                 e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                               }}
                             >
-                              {/* Original Amount */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  marginBottom: "4px",
-                                  padding: "3px 6px",
-                                  backgroundColor: "rgba(255, 255, 255, 0.8)",
-                                  borderRadius: "6px",
-                                  border: "1px solid rgba(0, 0, 0, 0.1)",
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-tag" style={{ fontSize: "10px", color: "#1976d2" }}></i>
-                                  <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "600" }}>
-                                    Original
-                                  </span>
-                                </div>
-                                <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "700" }}>
-                                  SGD {Math.ceil(list.finalAmount + list.discountAmount)}
-                                </span>
-                              </div>
-
-                              {/* Discount Amount */}
-                              {list.discountAmount > 0 && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    marginBottom: "4px",
-                                    padding: "3px 6px",
-                                    backgroundColor: "rgba(229, 57, 53, 0.1)",
-                                    borderRadius: "6px",
-                                    border: "1px solid rgba(229, 57, 53, 0.2)",
-                                  }}
-                                >
-                                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                    <i className="icon-usd" style={{ fontSize: "10px", color: "#e53935" }}></i>
-                                    <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "600" }}>
-                                      Discount
+                         
+                                <>
+                                  {/* Original Amount (from API, no tax) */}
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      marginBottom: "4px",
+                                      padding: "3px 6px",
+                                      backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                      borderRadius: "6px",
+                                      border: "1px solid rgba(0, 0, 0, 0.1)",
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                      <i className="icon-tag" style={{ fontSize: "10px", color: "#1976d2" }}></i>
+                                      <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "600" }}>
+                                        Original
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "700" }}>
+                                      {(() => {
+                                        const original = Math.ceil(
+                                          list.tour_total_price != null
+                                            ? Number(list.tour_total_price)
+                                            : Number(list.finalAmount || 0) + Number(list.discountAmount || 0)
+                                        );
+                                        return `SGD ${original}`;
+                                      })()}
                                     </span>
                                   </div>
-                                  <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "700" }}>
-                                    -SGD {Math.ceil(list.discountAmount)}
-                                  </span>
-                                </div>
-                              )}
 
-                              {/* Final Amount */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  marginBottom: "6px",
-                                  padding: "4px 8px",
-                                  backgroundColor: "rgba(76, 175, 80, 0.1)",
-                                  borderRadius: "6px",
-                                  border: "1px solid rgba(76, 175, 80, 0.2)",
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
-                                  <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
-                                    Final
-                                  </span>
-                                </div>
-                                <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
-                                  SGD {Math.ceil(list.finalAmount)}
-                                </span>
-                              </div>
+                                  {/* Discount Amount (no tax) */}
+                                  {list.discountAmount > 0 && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        marginBottom: "4px",
+                                        padding: "3px 6px",
+                                        backgroundColor: "rgba(229, 57, 53, 0.1)",
+                                        borderRadius: "6px",
+                                        border: "1px solid rgba(229, 57, 53, 0.2)",
+                                      }}
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                        <i className="icon-usd" style={{ fontSize: "10px", color: "#e53935" }}></i>
+                                        <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "600" }}>
+                                          Discount
+                                        </span>
+                                      </div>
+                                      <span style={{ fontSize: "9px", color: "#e53935", fontWeight: "700" }}>
+                                        -SGD {Math.ceil(list.discountAmount)}
+                                      </span>
+                                    </div>
+                                  )}
 
+                                  {/* Final Amount (API final + tax) */}
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      marginBottom: "6px",
+                                      padding: "4px 8px",
+                                      backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                      borderRadius: "6px",
+                                      border: "1px solid rgba(76, 175, 80, 0.2)",
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                      <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                      <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                        Final
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
+                                      {(() => {
+                                        const baseFinal = Number(list.finalAmount || 0);
+                                        const withTax = Math.ceil(baseFinal + (baseFinal * (sgdTax || 0)) / 100);
+                                        return `SGD ${withTax}`;
+                                      })()}
+                                    </span>
+                                  </div>
+                                  {sgdTax > 0 && (
+                                    <div style={{ textAlign: "center", marginTop: "2px" }}>
+                                      <span style={{ fontSize: "8px", color: "#5E35B1", fontWeight: "600" }}>
+                                        (incl. {sgdTax}% tax)
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                            
                               {/* Payment Status */}
                               <div
                                 style={{
@@ -3379,7 +3464,7 @@ export default function Pending({ filters = {} }) {
                                 </span>
                               </div>
 
-                              {/* Due Amount Warning */}
+                              {/* Due Amount Warning (with tax) */}
                               {list.dueAmount > 0 && (
                                 <div
                                   style={{
@@ -3396,7 +3481,11 @@ export default function Pending({ filters = {} }) {
                                 >
                                   <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
                                   <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
-                                    Due: SGD {Math.ceil(list.dueAmount)}
+                                    {(() => {
+                                      const baseDue = Number(list.dueAmount || 0);
+                                      const withTax = Math.ceil(baseDue + (baseDue * (sgdTax || 0)) / 100);
+                                      return `Due: SGD ${withTax}`;
+                                    })()}
                                   </span>
                                 </div>
                               )}
