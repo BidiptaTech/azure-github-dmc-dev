@@ -353,7 +353,7 @@
                             <th>Tour Details</th>
                             <th>Destination</th>
                             <th>Guests</th>
-                            <th>Services</th>
+                            <th>Manage Services</th>
                             <th>Agent</th>
                             <th>Travel Dates</th>
                             <th>Execution Status</th>
@@ -907,7 +907,7 @@
                                     @if(auth()->user()->role_id == 33 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125||auth()->user()->role_id == 11)
                                     <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-warning btn-sm rounded-pill">
-                                        <i class="ri-settings-3-line"></i> Edit Tour
+                                        <i class="ri-settings-3-line"></i> Add/Remove Services
                                     </a>
                                     @endif
                                     <button type="button" 
