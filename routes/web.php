@@ -557,6 +557,16 @@ Route::get('/clear', function () {
         Route::post('/booking/approve-local-transport-booking', [HotelBookingController::class, 'approveLocalTransportBooking'])->name('booking.approve.local.transport.booking');
         Route::post('/booking/reject-local-transport-booking', [HotelBookingController::class, 'rejectLocalTransportBooking'])->name('booking.reject.local.transport.booking'); 
         
+        // Attraction file management routes
+Route::post('/hotel-booking/get-attraction-files', [HotelBookingController::class, 'getAttractionFiles'])->name('hotel.booking.get.attraction.files');
+Route::post('/hotel-booking/remove-attraction-file', [HotelBookingController::class, 'removeAttractionFile'])->name('hotel.booking.remove.attraction.file');
+Route::post('/hotel-booking/upload-attraction-files', [HotelBookingController::class, 'uploadAttractionFiles'])->name('hotel.booking.upload.attraction.files');
+
+// Restaurant file management routes
+Route::post('/hotel-booking/get-restaurant-files', [HotelBookingController::class, 'getRestaurantFiles'])->name('hotel.booking.get.restaurant.files');
+Route::post('/hotel-booking/remove-restaurant-file', [HotelBookingController::class, 'removeRestaurantFile'])->name('hotel.booking.remove.restaurant.file');
+Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::class, 'uploadRestaurantFiles'])->name('hotel.booking.upload.restaurant.files');
+        
         // Route::get('/approve-attraction', [BookingAttractionController::class, 'index'])->name('booking.attraction');
         // Route::post('/booking-attraction/approve', [BookingAttractionController::class, 'approve'])->name('booking.attraction.approve');
         // Route::post('/booking-attraction/decline', [BookingAttractionController::class, 'decline'])->name('booking.attraction.decline');
