@@ -16,11 +16,64 @@ use App\Models\Guide;
 use App\Models\Order;
 use App\Models\Tour;
 use App\Models\Jobsheet;
+use App\Models\Zone;
+use App\Models\Hotel;
+use App\Models\Attraction;
+use App\Models\Restaurant;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class JobSheetController extends Controller
 {
+    /**
+     * Get zone information for a location based on its type and name
+     */
+    private function getZoneForLocation($locationName, $dmcId)
+    {
+        if (empty($locationName) || empty($dmcId)) {
+            return 'N/A';
+        }
+
+        // Check if it's a port (airports, seaports, etc.)
+        $port = Port::where('port_name', 'like', '%' . $locationName . '%')->first();
+        if ($port) {
+            // For ports, we can return the port type or a default zone
+            return $port->type ?? 'Port';
+        }
+
+        // Check if it's a hotel
+        $hotel = Hotel::where('name', 'like', '%' . $locationName . '%')->first();
+        if ($hotel) {
+            $zoneId = $hotel->getZoneForDmc($dmcId);
+            if ($zoneId) {
+                $zone = Zone::where('zone_id', $zoneId)->first();
+                return $zone ? $zone->zone_name : 'N/A';
+            }
+        }
+
+        // Check if it's an attraction
+        $attraction = Attraction::where('name', 'like', '%' . $locationName . '%')->first();
+        if ($attraction) {
+            $zoneId = $attraction->getZoneForDmc($dmcId);
+            if ($zoneId) {
+                $zone = Zone::where('zone_id', $zoneId)->first();
+                return $zone ? $zone->zone_name : 'N/A';
+            }
+        }
+
+        // Check if it's a restaurant
+        $restaurant = Restaurant::where('name', 'like', '%' . $locationName . '%')->first();
+        if ($restaurant) {
+            $zoneId = $restaurant->getZoneForDmc($dmcId);
+            if ($zoneId) {
+                $zone = Zone::where('zone_id', $zoneId)->first();
+                return $zone ? $zone->zone_name : 'N/A';
+            }
+        }
+
+        return 'N/A';
+    }
+
     /**
      * Display a listing of the ports.
      */
@@ -119,10 +172,35 @@ class JobSheetController extends Controller
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
                 if(!is_null($dmcId)){
                     $tomorrow = Carbon::tomorrow()->toDateString();
-                    $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
+                    $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])
                         ->where('data->0->>dmc_id', $dmcId)
                         ->where('data->0->>pickupdate', $tomorrow)
-                        ->get();
+                        ->get()
+                        ->map(function($order) use ($dmcId, $tomorrow) {
+                            // Add zone information for pickup and dropoff
+                            $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                            if (is_array($orderData) && isset($orderData[0])) {
+                                $dataItem = $orderData[0];
+                                $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
+                                $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
+                                
+                                // Check if there's an assignment in the jobsheets table
+                                $jobsheet = Jobsheet::where('date', $tomorrow)
+                                    ->where('type', $order->type)
+                                    ->where('service_type', $dataItem['type'] ?? null)
+                                    ->where('journey_time', $dataItem['entrytime'] ?? null)
+                                    ->first();
+                                
+                                // Attach driver and vehicle info from jobsheet
+                                if ($jobsheet) {
+                                    $order->assigned_driver_id = $jobsheet->driver_id;
+                                    $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                                    $order->driver = $jobsheet->driver_id ? Driver::find($jobsheet->driver_id) : null;
+                                    $order->vehicle = $jobsheet->vehicle_id ? Vehicle::find($jobsheet->vehicle_id) : null;
+                                }
+                            }
+                            return $order;
+                        });
                 }
             }
             else{
@@ -1031,42 +1109,79 @@ class JobSheetController extends Controller
     public function updateDriverVehicleAssignment(Request $request)
     {
         try {
+            // Validate required fields
+            $validator = Validator::make($request->all(), [
+                'date' => 'required|date',
+                'dmc_id' => 'required',
+                'order_type' => 'required',
+                'type' => 'required',
+                'entry_time' => 'required',
+                'order_id' => 'required'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Get the actual numeric tour_id from the order
+            $order = Order::find($request->order_id);
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            // Get the actual numeric tour_id (not the display_id)
+            $actualTourId = $order->getOriginal('tour_id');
+
             $jobsheet = null;
             $vehicle = null;
+            
             // Check if a record with the same date, order_type, type, and entry_time exists
             $existingJobsheet = Jobsheet::where('date', $request->date)
                 ->where('type', $request->order_type)
                 ->where('service_type', $request->type)
                 ->where('journey_time', $request->entry_time)
                 ->first(); 
-                $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
-                $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
-                $jobsheetId = CommonHelper::createId($jobsheet_max_id);
-                while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
-                    $jobsheetId = CommonHelper::createId($jobsheetId);
-                }    
+                
+            $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
+            $jobsheet_max_id = $lastJobsheet->jobsheet_id ?? 0;
+            $jobsheetId = CommonHelper::createId($jobsheet_max_id);
+            while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
+                $jobsheetId = CommonHelper::createId($jobsheetId);
+            }    
+            
             $user = auth()->user();
+            
             if ($existingJobsheet) {
                 // Update existing record
-                if ($request->has('driver_id')) {
+                if ($request->has('driver_id') && !empty($request->driver_id)) {
                     $existingJobsheet->driver_id = $request->driver_id;
-                    $drivers = Driver::where('driver_id', $request->driver_id)->first();
-                    $vehicle = Vehicle::where('driver_id', $request->driver_id)->where('dmc_id', $request->dmc_id)->orderBy('created_at', 'desc')->first();
+                    $vehicle = Vehicle::where('driver_id', $request->driver_id)
+                        ->where('dmc_id', $request->dmc_id)
+                        ->orderBy('created_at', 'desc')
+                        ->first();
                 }
-                if ($request->has('vehicle_id')) {
+                if ($request->has('vehicle_id') && !empty($request->vehicle_id)) {
                     $existingJobsheet->vehicle_id = $request->vehicle_id;
                 }
-                if ($request->has('guide_id')) {
+                if ($request->has('guide_id') && !empty($request->guide_id)) {
                     $existingJobsheet->guide_id = $request->guide_id;
                 }
                 $existingJobsheet->save();
+                $jobsheet = $existingJobsheet;
             } else {
                 // Create new record
                 $jobsheet = new Jobsheet();
                 $jobsheet->jobsheet_id = $jobsheetId;
                 $jobsheet->dmc_id = $request->dmc_id;
                 $jobsheet->created_by = $user->userId;
-                $jobsheet->tour_id = $request->tour_id;
+                $jobsheet->tour_id = $actualTourId; // Use the actual numeric tour_id
                 $jobsheet->date = $request->date;
                 $jobsheet->type = $request->order_type;
                 $jobsheet->journey_time = $request->entry_time;
@@ -1076,24 +1191,27 @@ class JobSheetController extends Controller
                 ]);
                 $jobsheet->service_type = $request->type;
                 
-                if ($request->has('driver_id')) {
+                if ($request->has('driver_id') && !empty($request->driver_id)) {
                     $jobsheet->driver_id = $request->driver_id;
+                    $vehicle = Vehicle::where('driver_id', $request->driver_id)
+                        ->where('dmc_id', $request->dmc_id)
+                        ->orderBy('created_at', 'desc')
+                        ->first();
                 }
-                if ($request->has('vehicle_id')) {
+                if ($request->has('vehicle_id') && !empty($request->vehicle_id)) {
                     $jobsheet->vehicle_id = $request->vehicle_id;
                 }
-                if ($request->has('guide_id')) {
+                if ($request->has('guide_id') && !empty($request->guide_id)) {
                     $jobsheet->guide_id = $request->guide_id;
                 }
                 
                 $jobsheet->save();
             }
-            
 
             // Return success
             return response()->json([
                 'success' => true,
-                'message' => 'Driver jobsheet updated successfully',
+                'message' => 'Assignment updated successfully',
                 'jobsheet' => $jobsheet,
                 'vehicle' => $vehicle
             ]);
@@ -1671,14 +1789,22 @@ class JobSheetController extends Controller
                     ->get();
             }
             
-            // Fetch assigned drivers/guides for each order
+            // Fetch assigned drivers/guides for each order and add zone information
             if ($type === 'guide') {
-                $orders->map(function($order) {
+                $orders->map(function($order) use ($dmcId) {
                     // Logic for guide data
                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                     if (is_array($orderData) && isset($orderData[0]) && isset($orderData[0]['guide_id'])) {
                         $order->guide_id = $orderData[0]['guide_id'];
                     }
+                    
+                    // Add zone information for pickup and dropoff
+                    if (is_array($orderData) && isset($orderData[0])) {
+                        $dataItem = $orderData[0];
+                        $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
+                        $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
+                    }
+                    
                     return $order;
                 });
                 return response()->json([
@@ -1687,8 +1813,37 @@ class JobSheetController extends Controller
                     'guides' => $guides ?? []
                 ]);
             } else {
-                $orders->map(function($order) {
-                    $order->driver = $order->driver_id ? Driver::find($order->driver_id) : null;
+                $orders->map(function($order) use ($dmcId, $date) {
+                    // Get order data
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
+                    
+                    // Check if there's an assignment in the jobsheets table
+                    $jobsheet = Jobsheet::where('date', $date)
+                        ->where('type', $order->type)
+                        ->where('service_type', $dataItem['type'] ?? null)
+                        ->where('journey_time', $dataItem['entrytime'] ?? null)
+                        ->first();
+                    
+                    // Attach driver and vehicle info from jobsheet
+                    if ($jobsheet) {
+                        $order->assigned_driver_id = $jobsheet->driver_id;
+                        $order->assigned_vehicle_id = $jobsheet->vehicle_id;
+                        $order->driver = $jobsheet->driver_id ? Driver::find($jobsheet->driver_id) : null;
+                        $order->vehicle = $jobsheet->vehicle_id ? Vehicle::find($jobsheet->vehicle_id) : null;
+                    } else {
+                        $order->assigned_driver_id = null;
+                        $order->assigned_vehicle_id = null;
+                        $order->driver = null;
+                        $order->vehicle = null;
+                    }
+                    
+                    // Add zone information for pickup and dropoff
+                    if (is_array($orderData) && isset($orderData[0])) {
+                        $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
+                        $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
+                    }
+                    
                     return $order;
                 });
                 

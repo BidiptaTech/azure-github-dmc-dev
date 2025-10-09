@@ -7,6 +7,43 @@
 <link href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
 <style>
+    /* Better Select2 styling */
+    .select2-container--default .select2-selection--single {
+        border-color: #e2e5ec;
+        height: 38px;
+        line-height: 38px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+        padding-left: 12px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    
+    /* Select2 in table cells */
+    .table td .select2-container {
+        width: 100% !important;
+        min-width: 150px;
+    }
+    
+    /* Select2 dropdown styling */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #6777ef;
+    }
+    
+    .select2-search--dropdown .select2-search__field {
+        border-color: #e2e5ec;
+        padding: 6px 12px;
+    }
+    
+    .select2-dropdown {
+        border-color: #e2e5ec;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
     /* Custom alert styling */
     .alert {
         padding: 15px;
@@ -139,6 +176,11 @@ $(document).ready(function() {
     let datePicker = null;
     // Store the current tour guide orders data for export
     let tourGuideOrdersData = [];
+    
+    // Calculate tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
     // Custom alert function
     function showAlert(type, message) {
@@ -228,6 +270,9 @@ $(document).ready(function() {
             $('#tourOrdersTableBody').html(tableHTML);
             $('#exportOrdersBtn').show();
             
+            // Initialize Select2 for guide dropdowns
+            initializeSelect2();
+            
             // Initialize DataTable
             initializeDataTable();
         } else {
@@ -248,16 +293,23 @@ $(document).ready(function() {
             return;
         }
 
-        // Set hidden date field
-        $('#dateSelect').val(date);
-        
         // Show loading indicator
         $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
-        $.ajax({
-            url: getOrdersByDateUrl.replace(':date', date) + '?type=guide',
+        fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
-            success: function(response) {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(function(response) {
                 if (response.success) {
                     const orders = response.data;
                     let tableHTML = '';
@@ -325,6 +377,9 @@ $(document).ready(function() {
                         $('#tourOrdersTableBody').html(tableHTML);
                         $('#exportOrdersBtn').show();
                         
+                        // Initialize Select2 for guide dropdowns
+                        initializeSelect2();
+                        
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
@@ -338,14 +393,13 @@ $(document).ready(function() {
                     $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching orders by date:', {xhr, status, error});
-                const errorMessage = xhr.responseJSON?.message || 'Error fetching orders';
-                showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
-                $('#exportOrdersBtn').hide();
-            }
+        })
+        .catch(error => {
+            console.error('Error fetching orders by date:', error);
+            const errorMessage = error.message || 'Error fetching orders';
+            showAlert('error', errorMessage);
+            $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
+            $('#exportOrdersBtn').hide();
         });
     }
     
@@ -410,25 +464,53 @@ $(document).ready(function() {
             console.error("DataTable initialization error:", e);
         }
     }
-
-    // First load the table with initial data from controller
-    initializeTable();
-
-    // Calculate tomorrow's date
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Initialize Flatpickr for date input
+    // Function to initialize Select2 on guide dropdowns
+    function initializeSelect2() {
+        try {
+            // Destroy existing Select2 instances first
+            $('.guide-select').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2('destroy');
+                }
+            });
+            
+            // Initialize Select2 on guide dropdowns
+            $('.guide-select').select2({
+                placeholder: "Select Guide",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#tourOrdersTable').parent()
+            });
+            
+            console.log("Select2 initialized successfully");
+        } catch (e) {
+            console.error("Select2 initialization error:", e);
+        }
+    }
+
+    // Initialize Flatpickr for date input FIRST
     datePicker = flatpickr("#dateSelect", {
         dateFormat: "Y-m-d",
         disableMobile: "true",
-        defaultDate: tomorrow,
+        defaultDate: tomorrowStr,
         onChange: function(selectedDates, dateStr) {
             // Load orders based on selected date
             loadOrdersByDate(dateStr);
-        },
-        enabled: true
+        }
     });
+    
+    // Set the date value explicitly
+    setTimeout(function() {
+        if (datePicker) {
+            datePicker.setDate(tomorrowStr);
+        }
+        $('#dateSelect').val(tomorrowStr);
+        console.log("Date set to:", tomorrowStr, "Input value:", $('#dateSelect').val());
+    }, 100);
+    
+    // Then load the table with initial data from controller
+    initializeTable();
 
     // Handle guide selection change
     $(document).on('change', '.guide-select', function() {
@@ -446,33 +528,39 @@ $(document).ready(function() {
             item.assigned_guide = selectedGuideName;
         }
         
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('tour_id', tourId);
+        formData.append('order_id', orderId);
+        formData.append('guide_id', guideId);
+        formData.append('date', date);
+        formData.append('dmc_id', dmcId);
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
         
-        // Make AJAX call to update the guide assignment
-        $.ajax({
-            url: updateDriverVehicleAssignmentUrl,
+        // Make fetch API call to update the guide assignment
+        fetch(updateDriverVehicleAssignmentUrl, {
             method: 'POST',
-            data: {
-                tour_id: tourId,
-                order_id: orderId,
-                guide_id: guideId,
-                date: date,
-                dmc_id: dmcId,
-                
-            },
+            body: formData,
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    showAlert('success', 'Guide assigned successfully');
-                } else {
-                    showAlert('error', response.message || 'Failed to assign guide');
-                }
-            },
-            error: function(xhr) {
-                showAlert('error', 'Error updating guide assignment');
-                console.error('Error updating guide assignment:', xhr);
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Guide assigned successfully');
+            } else {
+                showAlert('error', data.message || 'Failed to assign guide');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating guide assignment:', error);
+            showAlert('error', 'Error updating guide assignment: ' + error.message);
         });
     });
 
@@ -530,37 +618,38 @@ $(document).ready(function() {
     $('#guideJobsheetForm').on('submit', function(e) {
         e.preventDefault();
         
-        const formData = {
-            date: $('#dateSelect').val(),
-            dmc_id: $('#dmc_id').val()
-        };
+        const formData = new FormData();
+        formData.append('date', $('#dateSelect').val());
+        formData.append('dmc_id', $('#dmc_id').val());
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
-        $.ajax({
-            url: $(this).attr('action'),
+        const dateValue = $('#dateSelect').val();
+
+        fetch($(this).attr('action'), {
             method: 'POST',
-            data: formData,
+            body: formData,
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    showAlert('success', response.message);
-                    // Reload guide orders to reflect the changes
-                    loadOrdersByDate(formData.date);
-                } else {
-                    showAlert('error', response.message);
-                }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
-                    Object.keys(errors).forEach(key => {
-                        showAlert('error', errors[key][0]);
-                    });
-                } else {
-                    showAlert('error', xhr.responseJSON.message || 'An error occurred while creating the guide jobsheet');
-                }
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                // Reload guide orders to reflect the changes
+                loadOrdersByDate(dateValue);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating guide jobsheet:', error);
+            showAlert('error', 'An error occurred while creating the guide jobsheet: ' + error.message);
         });
     });
 });
