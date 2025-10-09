@@ -694,14 +694,16 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
@@ -755,14 +757,16 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
@@ -1113,14 +1117,16 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
@@ -1248,12 +1254,12 @@
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
                                                                 $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
                                                                 $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
@@ -1302,12 +1308,12 @@
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
                                                                 $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
                                                                 $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
@@ -2356,7 +2362,7 @@
                                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="" onchange="updatePricing()">
+                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="" onkeyup="updatePricing()" onchange="updatePricing()">
                                                 </div>
                                                 <small class="form-text text-muted">
                                                     Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
@@ -2836,7 +2842,7 @@
                                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onchange="updateLocalTransferPricing()">
+                                                    <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()">
                                                 </div>
                                                 <small class="form-text text-muted">
                                                     Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
@@ -3054,7 +3060,7 @@
                                         <label class="form-label fw-semibold">Number of Passengers</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                            <input type="number" class="form-control" id="modal_dropoff_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" oninput="updateDropoffPricing()">
+                                            <input type="number" class="form-control" id="modal_dropoff_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateDropoffPricing()" onchange="updateDropoffPricing()">
                                         </div>
                                         <small class="form-text text-muted">
                                             Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
@@ -4779,25 +4785,16 @@
         // Get location types from the selected options
         let fromZoneType, toZoneType;
         
-        // Determine zone types based on option attributes or default values
+        // Determine zone types based on option attributes
         const pickupOption = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
         const dropoffOption = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
         
-        fromZoneType = pickupOption?.dataset?.type || 'port';
-        toZoneType = dropoffOption?.dataset?.type || 'attraction';
+        fromZoneType = pickupOption?.dataset?.type || 'Port';
+        toZoneType = dropoffOption?.dataset?.type || 'Hotel';
         
-        // Get the actual zone IDs based on type
+        // Get the actual zone IDs - use the selected values directly
         let actualFromZoneId = fromZoneId;
         let actualToZoneId = toZoneId;
-        
-        // For ports, use port_id from data attribute if available
-        if (fromZoneType === 'port') {
-            actualFromZoneId = pickupOption?.dataset?.portId || fromZoneId;
-        }
-        
-        if (toZoneType === 'port') {
-            actualToZoneId = dropoffOption?.dataset?.portId || toZoneId;
-        }
         
         console.log('Zone mapping:', {
             originalFromZoneId: fromZoneId,
@@ -4815,12 +4812,17 @@
         }
         const selectedCity = document.getElementById('modal_local_transfer_city').value;
         
+        // Get zone status from UserDmc
+        const user_dmc = @json($UserDmc);
+        const zone_status = user_dmc.zone_on;
+        
         const params = {
             from_zone_id: actualFromZoneId,
             to_zone_id: actualToZoneId,
             from_zone_type: fromZoneType,
             to_zone_type: toZoneType,
-            city: selectedCity
+            city: selectedCity,
+            zone_status: zone_status
         };
 
         console.log('API Request Parameters:', {
@@ -4828,7 +4830,8 @@
             to_zone_id: actualToZoneId,
             from_zone_type: fromZoneType,
             to_zone_type: toZoneType,
-            city: selectedCity
+            city: selectedCity,
+            zone_status: zone_status
         });
         
         // Fetch vehicles from API using zone-based endpoint
