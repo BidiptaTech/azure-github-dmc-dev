@@ -282,7 +282,7 @@ const Index = () => {
           px: { xs: 1, sm: 2, md: 3 }
         }}>
           <div className="masthead__content">
-            <div className="row y-gap-3">
+            <div className="row y-gap-3" style={{marginTop: "110px"}}>
               <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-xs-12" data-aos="fade-up" data-aos-offset="0">
                 {/* Dynamic heading based on current page */}
                 {getPageHeading()}

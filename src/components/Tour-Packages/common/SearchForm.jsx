@@ -543,11 +543,22 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     setDateValidationDialog({ open: false, conflictingServices: [], newDateRange: { start: null, end: null } });
   };
 
+  useEffect(() => {
+    dispatch(setSearchCriteria({}));
+    dispatch(setAttractionSearchParams({}));
+    dispatch(setGuideSearchParams({}));
+    dispatch(setRestaurantSearchParams({}));
+    dispatch(updateSearchState({}));
+    dispatch(setGuest({}));
+    dispatch(settourdetails({}));
+    dispatch(clearAllServices());
+  }, []);
   // Extract the actual update logic into a separate function
   const proceedWithUpdate = async () => {
     // Clear previous customer info when starting update
     dispatch(clearUserInfo());
     dispatch(clearAllServices());
+    
     // Clear previous data
     dispatch(clearAttractions());
     dispatch(resetIsFromMainSearch());
