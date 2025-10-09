@@ -1408,12 +1408,12 @@
                             </li> --}}
                             <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
                                 <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
-                                    <div data-i18n="Guide Jobsheet">Guide Jobsheet</div>
+                                    <div data-i18n="Guide Jobsheet">Assign Guide</div>
                                 </a>
                             </li>
                             <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet')) active @endif">
                                 <a href="{{ route('jobsheet.create.driver') }}" class="menu-link">
-                                    <div data-i18n="Driver Jobsheet">Driver Jobsheet</div>
+                                    <div data-i18n="Driver Jobsheet">Assign Driver</div>
                                 </a>
                             </li>
                             </ul>
