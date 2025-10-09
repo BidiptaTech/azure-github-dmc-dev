@@ -706,7 +706,7 @@ export default function RestaurantModal({
                                 const sgdGrandTotal = sgdPrice + sgdTaxAmount;
                                 
                                 return sgdTax > 0 
-                                  ? `SGD ${sgdGrandTotal}`
+                                  ? `SGD ${sgdPrice}`
                                   : `SGD ${sgdPrice}`;
                               })()}
                               sx={{
@@ -732,7 +732,7 @@ export default function RestaurantModal({
                                 }
                               }}
                             />
-                            {PriceHide === "0" && sgdTax > 0 && (
+                            {/* {PriceHide === "0" && sgdTax > 0 && (
                               <Typography 
                                 variant="caption" 
                                 display="block" 
@@ -745,7 +745,7 @@ export default function RestaurantModal({
                               >
                                 (incl. {sgdTax}% tax)
                               </Typography>
-                            )}
+                            )} */}
                           </TableCell>
                           
                           <TableCell sx={{ py: 1 }}>

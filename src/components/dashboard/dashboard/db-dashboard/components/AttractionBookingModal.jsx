@@ -846,13 +846,13 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                           <Typography variant="subtitle2" color="textSecondary">
                             Total Price
                           </Typography>
-                          <Chip
+                          {/* <Chip
                             label={`Includes tax`}
                             size="small"
                             color="success"
                             variant="outlined"
                             sx={{ height: "24px", fontSize: "0.75rem" }}
-                          />
+                          /> */}
                         </Box>
 
                         {PriceHide === "0" ? (
@@ -869,7 +869,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                               boxShadow: "0 3px 8px rgba(53, 84, 209, 0.2)",
                             }}
                           >
-                            <Box
+                            {/* <Box
                               sx={{
                                 display: "flex",
                                 justifyContent: "space-between",
@@ -889,7 +889,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                               >
                                 Tax Rates
                               </Typography>
-                            </Box>
+                            </Box> */}
 
                             {/* Current Currency Section */}
                             <Box sx={{ mb: 1.5 }}>
@@ -932,7 +932,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                               </Box>
 
                               {/* Tax Amount */}
-                              <Box
+                              {/* <Box
                                 sx={{
                                   display: "flex",
                                   justifyContent: "space-between",
@@ -956,10 +956,10 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                 >
                                   {currentTaxAmount}
                                 </Typography>
-                              </Box>
+                              </Box> */}
 
                               {/* Total With Tax */}
-                              <Box
+                              {/* <Box
                                 sx={{
                                   display: "flex",
                                   justifyContent: "space-between",
@@ -990,7 +990,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                 >
                                   {convertedGrandTotal}
                                 </Typography>
-                              </Box>
+                              </Box> */}
                             </Box>
 
                             {/* Other currencies with tax included */}
@@ -1029,7 +1029,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                       >
                                         {usdCurrencyCode}
                                       </Typography>
-                                      <Typography
+                                      {/* <Typography
                                         sx={{
                                           fontSize: "0.7rem",
                                           color: "rgba(255, 255, 255, 0.7)",
@@ -1037,7 +1037,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                         }}
                                       >
                                         ({usdTax}%)
-                                      </Typography>
+                                      </Typography> */}
                                     </Box>
                                     <Typography
                                       sx={{
@@ -1045,7 +1045,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                         color: "rgba(255, 255, 255, 0.9)",
                                       }}
                                     >
-                                      {usdGrandTotal}
+                                      {Math.ceil(usdPrice)}
                                     </Typography>
                                   </Box>
                                 )}
@@ -1073,7 +1073,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                     >
                                       SGD
                                     </Typography>
-                                    <Typography
+                                    {/* <Typography
                                       sx={{
                                         fontSize: "0.7rem",
                                         color: "rgba(255, 255, 255, 0.7)",
@@ -1081,7 +1081,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                       }}
                                     >
                                       ({sgdTax}%)
-                                    </Typography>
+                                    </Typography> */}
                                   </Box>
                                   <Typography
                                     sx={{
@@ -1089,7 +1089,7 @@ const AttractionBookingModal = ({ open, onClose, booking }) => {
                                       color: "rgba(255, 255, 255, 0.9)",
                                     }}
                                   >
-                                    {sgdGrandTotal}
+                                    {Math.ceil(sgdPrice)}
                                   </Typography>
                                 </Box>
                               </Box>

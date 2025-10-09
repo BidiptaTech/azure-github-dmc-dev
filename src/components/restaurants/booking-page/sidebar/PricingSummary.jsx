@@ -66,17 +66,17 @@ const PricingSummary = ({ totalPrice }) => {
         // Show prices when PriceHide is "0"
         <>
           {/* Meal Price */}
-          <div className="row y-gap-5 justify-between">
+          {/* <div className="row y-gap-5 justify-between">
             <div className="col-auto">
               <div className="text-15">Meal Price</div>
             </div>
             <div className="col-auto">
               <div className="text-15">SGD {formatPrice(mealPrice)}</div>
             </div>
-          </div>
+          </div> */}
           
           {/* Transport Price - if transport is selected */}
-          {transport && (
+          {/* {transport && (
             <div className="row y-gap-5 justify-between pt-5">
               <div className="col-auto">
                 <div className="text-15">
@@ -90,12 +90,12 @@ const PricingSummary = ({ totalPrice }) => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Subtotal */}
           <div className="row y-gap-5 justify-between pt-5">
             <div className="col-auto">
-              <div className="text-15 fw-500">Subtotal</div>
+              <div className="text-15 fw-500">Total Price</div>
             </div>
             <div className="col-auto">
               <div className="text-15 fw-500">
@@ -113,7 +113,7 @@ const PricingSummary = ({ totalPrice }) => {
           </div>
 
           {/* Taxes */}
-          <div className="row y-gap-5 justify-between pt-5">
+          {/* <div className="row y-gap-5 justify-between pt-5">
             <div className="col-auto">
               <div className="text-15">Taxes and fees ({currentTax}%)</div>
             </div>
@@ -130,10 +130,10 @@ const PricingSummary = ({ totalPrice }) => {
                 )}
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Total */}
-          <div className="px-20 py-20 bg-blue-2 rounded-4 mt-20">
+          {/* <div className="px-20 py-20 bg-blue-2 rounded-4 mt-20">
             <div className="row y-gap-5 justify-between">
               <div className="col-auto">
                 <div className="text-18 lh-13 fw-500">Total Price</div>
@@ -152,7 +152,7 @@ const PricingSummary = ({ totalPrice }) => {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </>
       ) : (
         // Show message when PriceHide is not "0"
