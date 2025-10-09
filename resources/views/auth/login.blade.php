@@ -53,17 +53,14 @@
                   <label class="form-check-label" for="flexSwitchCheckChecked">Remember Me</label>
                 </div>
               </div>
-              <div class="col-md-6 text-end"> <a href="{{ route('password.request') }}">Forgot Password ?</a>
-              </div>
               <div class="col-12">
                 <div class="d-grid">
                   <button type="submit" class="btn btn-primary">Login</button>
                 </div>
               </div>
               <div class="col-12">
-                <div class="text-start">
-                  <p class="mb-0">Don't have an account yet? <a href="{{ route('register') }}">Sign up here</a>
-                  </p>
+                <div class="mt-2">
+                  <p class="mb-0"><span>Welcome back! Please log in to continue your journey with us.</span></p>
                 </div>
               </div>
             </form>
