@@ -173,10 +173,10 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
   const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
   const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
   
-  // Get tax percentages from auth slice
-  const currentTax = useSelector((state) => state.auth.currentTax || 0);
-  const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
-  const usdTax = useSelector((state) => state.auth.usdTax || 0);
+  // Get tax percentages from auth slice (COMMENTED OUT - TAX NOT APPLIED)
+  // const currentTax = useSelector((state) => state.auth.currentTax || 0);
+  // const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
+  // const usdTax = useSelector((state) => state.auth.usdTax || 0);
     const PriceHide = useSelector((state) => state.auth.PriceHide);
   
 
@@ -1128,13 +1128,6 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                          <Typography variant="subtitle2" color="textSecondary">
                            Total Price
                          </Typography>
-                         <Chip
-                           label={`Includes tax`}
-                           size="small"
-                           color="success"
-                           variant="outlined"
-                           sx={{ height: '24px', fontSize: '0.75rem' }}
-                         />
                        </Box>
                        
                        <Box sx={{ 
@@ -1147,43 +1140,19 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                          color: 'white',
                          boxShadow: '0 3px 8px rgba(53, 84, 209, 0.2)',
                        }}>
-                         <Box sx={{ 
-                           display: 'flex', 
-                           justifyContent: 'space-between', 
-                           alignItems: 'center',
-                           mb: 1,
-                           pb: 1,
-                           borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
-                         }}>
-                           <Typography 
-                             sx={{ 
-                               fontSize: '0.85rem', 
-                               color: 'rgba(255, 255, 255, 0.9)',
-                               fontWeight: 'medium'
-                             }}
-                           >
-                             Tax Rates
-                           </Typography>
-                         </Box>
- 
-                         {/* Calculate price with tax */}
+                         {/* Calculate price without tax */}
                          {(() => {
                            const basePrice = safeParse(booking.totalPrice) || 0;
                            
-                           // Step 1: Ceiling the base prices
+                           // Ceiling the base prices (NO TAX)
                            const sgdPrice = Math.ceil(basePrice);
                            const usdPrice = Math.ceil(basePrice * usdExchangeRate);
                            const convertedPrice = Math.ceil(basePrice * exchangeRate);
                            
-                           // Step 2: Calculate tax amounts for all currencies
-                           const currentTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
-                           const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-                           const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
-                           
-                           // Step 3: Calculate grand totals for all currencies
-                           const convertedGrandTotal = convertedPrice + currentTaxAmount;
-                           const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-                           const usdGrandTotal = usdPrice + usdTaxAmount;
+                           // Grand totals (WITHOUT TAX)
+                           const convertedGrandTotal = convertedPrice;
+                           const sgdGrandTotal = sgdPrice;
+                           const usdGrandTotal = usdPrice;
                            
                            return (
                              <>
@@ -1198,37 +1167,7 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                                    {currencyCode}
                                  </Typography>
                                  
-                                 {/* Base Price */}
-                                 <Box sx={{ 
-                                   display: 'flex', 
-                                   justifyContent: 'space-between', 
-                                   alignItems: 'center',
-                                   py: 0.5,
-                                 }}>
-                                   <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                                     Base Price (Without Tax)
-                                   </Typography>
-                                   <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                     {convertedPrice.toFixed(2)}
-                                   </Typography>
-                                 </Box>
-                                 
-                                 {/* Tax Amount */}
-                                 <Box sx={{ 
-                                   display: 'flex', 
-                                   justifyContent: 'space-between', 
-                                   alignItems: 'center',
-                                   py: 0.5,
-                                 }}>
-                                   <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                                     Tax Amount ({currentTax}%)
-                                   </Typography>
-                                   <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                     {currentTaxAmount.toFixed(2)}
-                                   </Typography>
-                                 </Box>
-                                 
-                                 {/* Total With Tax */}
+                                 {/* Total Price (Without Tax) */}
                                  <Box sx={{ 
                                    display: 'flex', 
                                    justifyContent: 'space-between', 
@@ -1239,7 +1178,7 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                                    borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
                                  }}>
                                    <Typography sx={{ fontWeight: 'bold', fontSize: '0.85rem', color: "white" }}>
-                                     Total (With Tax)
+                                     Total Price
                                    </Typography>
                                    <Typography sx={{ fontWeight: 'bold', fontSize: '0.95rem', color: "white" }}>
                                      {convertedGrandTotal.toFixed(2)}
@@ -1247,7 +1186,7 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                                  </Box>
                                </Box>
                                
-                               {/* Other currencies with tax included */}
+                               {/* Other currencies (without tax) */}
                                <Box sx={{ mt: 1 }}>
                                  <Typography sx={{ 
                                    fontSize: '0.8rem', 
@@ -1263,20 +1202,9 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                                    alignItems: 'center',
                                    py: 0.5,
                                  }}>
-                                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                     <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                       {usdCurrencyCode}
-                                     </Typography>
-                                     <Typography 
-                                       sx={{ 
-                                         fontSize: '0.7rem', 
-                                         color: 'rgba(255, 255, 255, 0.7)',
-                                         ml: 0.5
-                                       }}
-                                     >
-                                       ({usdTax}%)
-                                     </Typography>
-                                   </Box>
+                                   <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
+                                     {usdCurrencyCode}
+                                   </Typography>
                                    <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                                      {usdGrandTotal.toFixed(2)}
                                    </Typography>
@@ -1288,20 +1216,9 @@ const HotelBookingModal = ({ open, onClose, booking }) => {
                                    alignItems: 'center',
                                    py: 0.5,
                                  }}>
-                                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                     <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                       SGD
-                                     </Typography>
-                                     <Typography 
-                                       sx={{ 
-                                         fontSize: '0.7rem', 
-                                         color: 'rgba(255, 255, 255, 0.7)',
-                                         ml: 0.5
-                                       }}
-                                     >
-                                       ({sgdTax}%)
-                                     </Typography>
-                                   </Box>
+                                   <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
+                                     SGD
+                                   </Typography>
                                    <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                                      {sgdGrandTotal.toFixed(2)}
                                    </Typography>
