@@ -640,6 +640,7 @@
                         </h5>
                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close"></button>
                     </div>
+                    
                 @endif
                 <div class="modal-body p-4">
                     @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)

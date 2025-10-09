@@ -8534,13 +8534,13 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
             </div>
 
             <div class="mb-3">
-                <label for="referenceFile_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                <label for="referenceFiles_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference Files (Optional)
                 </label>
-                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="reference_file"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                <input type="file" class="form-control form-control-lg" id="referenceFiles_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="reference_files[]"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                <div class="form-text">Upload multiple supporting documents if available (PDF, DOC, JPG, PNG)</div>
             </div>
 
             <div class="mb-3">
@@ -8788,39 +8788,75 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
             return;
         }
         
+        // Check for file uploads and show appropriate message
+        const fileInput = form.querySelector('input[type="file"]');
+        const fileCount = fileInput && fileInput.files ? fileInput.files.length : 0;
+        
         // Disable submit button to prevent double submission
         const submitButton = form.closest('.modal').querySelector('.btn-success');
         if (submitButton) {
             submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+            if (fileCount > 0) {
+                submitButton.innerHTML = `<i class="ri-loader-4-line me-2"></i>Uploading ${fileCount} file(s)...`;
+            } else {
+                submitButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+            }
         }
         
-        // Submit to backend
+        // Show progress overlay for file uploads
+        if (fileCount > 0) {
+            showApprovalProgressOverlay(fileCount);
+        }
+        
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, fileCount > 0 ? 120000 : 30000); // 2 minutes for file uploads, 30 seconds for regular approval
+        
+        // Submit to backend with timeout handling
         fetch('{{ url("/booking/approve-attraction-booking") }}', {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
+            },
+            signal: controller.signal
         })
-        .then(response => response.json())
+        .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            hideApprovalProgressOverlay();
             if (data.success) {
                 console.log('Attraction booking approved successfully:', data);
-                alert(`Attraction booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                showToast(`Attraction booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`, 'success');
                 
                 // Close modal and refresh page
                 const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_approve`;
                 closeIndividualAttractionModal(modalId);
-                location.reload();
+                setTimeout(() => location.reload(), 1000);
             } else {
                 console.error('Failed to approve attraction booking:', data);
-                alert('Failed to approve attraction booking: ' + (data.message || 'Unknown error'));
+                showToast('Failed to approve attraction booking: ' + (data.message || 'Unknown error'), 'error');
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId);
+            hideApprovalProgressOverlay();
             console.error('Error approving attraction booking:', error);
-            alert('Error approving attraction booking. Please try again.');
+            
+            if (error.name === 'AbortError') {
+                showToast('Request timed out. This may happen with large file uploads. Please try with fewer or smaller files.', 'warning');
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                showToast('Network error. Please check your connection and try again.', 'error');
+            } else {
+                showToast('Error approving attraction booking. Please try again.', 'error');
+            }
         })
         .finally(() => {
             // Re-enable submit button
@@ -8832,7 +8868,7 @@ window.confirmIndividualAttractionApproval = function(tourId, attractionOrderInd
         
     } catch (error) {
         console.error('Error in confirmIndividualAttractionApproval:', error);
-        alert('Error processing approval. Please try again.');
+        showToast('Error processing approval. Please try again.', 'error');
     }
 }
 
@@ -9313,11 +9349,20 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                             <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
                         ${attractionBooking.isApprove ? 
-                            `<div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                <i class="ri-check-circle-fill me-1"></i>
-                                <small><strong>Approved Booking</strong></small>
-                                ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
-                                ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
+                            `<div class="d-flex align-items-center gap-3">
+                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+                                    <i class="ri-check-circle-fill me-1"></i>
+                                    <small><strong>Approved Booking</strong></small>
+                                    ${attractionBooking.referenceId ? `<br><small class="text-muted">Ref: ${attractionBooking.referenceId}</small>` : ''}
+                                    ${attractionBooking.displayDueDate ? `<br><small class="text-muted">Due: ${attractionBooking.displayDueDate}</small>` : ''}
+                                </div>
+                                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes({{ auth()->user()->role_id ?? 0 }}) ? `
+                                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                                            onclick="openAttractionFilesModal('${tourId}', '${attractionOrderIndex}', '${bookingIndex}')"
+                                            title="View and manage uploaded files">
+                                        <i class="ri-file-list-3-line me-1"></i>View Files
+                                    </button>
+                                ` : ''}
                             </div>` :
                             `<div class="d-flex gap-2" id="attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}">
                                 <!-- Buttons will be dynamically added based on user role -->
@@ -10087,11 +10132,20 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
     
     if (isApproved) {
         return `
-            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
-                <i class="ri-check-circle-fill me-1"></i>
-                <small><strong>Approved Booking</strong></small>
-                ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
-                ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+            <div class="d-flex align-items-center gap-3">
+                <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 25px;">
+                    <i class="ri-check-circle-fill me-1"></i>
+                    <small><strong>Approved Booking</strong></small>
+                    ${booking.reference_id ? `<br><small class="text-muted">Ref: ${booking.reference_id}</small>` : ''}
+                    ${booking.display_due_date ? `<br><small class="text-muted">Due: ${booking.display_due_date}</small>` : ''}
+                </div>
+                ${[11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138].includes(userRole) ? `
+                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                            onclick="openRestaurantFilesModal('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                            title="View and manage uploaded files">
+                        <i class="ri-file-list-3-line me-1"></i>View Files
+                    </button>
+                ` : ''}
             </div>
         `;
     }
@@ -23050,13 +23104,13 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
             </div>
 
             <div class="mb-3">
-                <label for="referenceFile_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
+                <label for="referenceFiles_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                    <i class="ri-attachment-line me-2"></i>Reference Files (Optional)
                 </label>
-                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="reference_file"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                <input type="file" class="form-control form-control-lg" id="referenceFiles_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="reference_files[]"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
+                <div class="form-text">Upload multiple supporting documents if available (PDF, DOC, JPG, PNG)</div>
             </div>
 
             <div class="mb-3">
@@ -23744,25 +23798,52 @@ function confirmIndividualRestaurantApproval(tourId, restaurantOrderIndex, booki
         const formData = new FormData(form);
         formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '');
         
+        // Check for file uploads and show appropriate message
+        const fileInput = form.querySelector('input[type="file"]');
+        const fileCount = fileInput && fileInput.files ? fileInput.files.length : 0;
+        
         // Show loading state
         const approveButton = event.target;
         const originalText = approveButton.innerHTML;
-        approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Approving...';
+        if (fileCount > 0) {
+            approveButton.innerHTML = `<i class="ri-loader-4-line me-2"></i>Uploading ${fileCount} file(s)...`;
+        } else {
+            approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Processing...';
+        }
         approveButton.disabled = true;
+        
+        // Show progress overlay for file uploads
+        if (fileCount > 0) {
+            showApprovalProgressOverlay(fileCount);
+        }
         
         console.log('Approving individual restaurant booking:', Object.fromEntries(formData.entries()));
         
-        // Submit to backend
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, fileCount > 0 ? 120000 : 30000); // 2 minutes for file uploads, 30 seconds for regular approval
+        
+        // Submit to backend with timeout handling
         fetch('{{ url("/booking/approve-restaurant-booking") }}', {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRF-TOKEN': formData.get('_token'),
                 'Accept': 'application/json'
-            }
+            },
+            signal: controller.signal
         })
-        .then(response => response.json())
+        .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            hideApprovalProgressOverlay();
             // Reset button
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
@@ -23771,29 +23852,38 @@ function confirmIndividualRestaurantApproval(tourId, restaurantOrderIndex, booki
                 console.log('Restaurant booking approved successfully:', data);
                 const referenceId = formData.get('reference_id');
                 const displayDueDate = formData.get('display_due_date');
-                alert(`Restaurant booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`);
+                showToast(`Restaurant booking approved successfully!\nReference ID: ${referenceId}\nDue Date: ${displayDueDate}`, 'success');
                 
                 // Close modal and refresh page
                 const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_approve`;
                 closeIndividualRestaurantModal(modalId);
-                window.location.reload();
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 console.error('Failed to approve restaurant booking:', data);
-                alert('Failed to approve restaurant booking: ' + (data.message || 'Unknown error'));
+                showToast('Failed to approve restaurant booking: ' + (data.message || 'Unknown error'), 'error');
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId);
+            hideApprovalProgressOverlay();
             // Reset button
             approveButton.innerHTML = originalText;
             approveButton.disabled = false;
             
             console.error('Error approving restaurant booking:', error);
-            alert('Error approving restaurant booking. Please try again.');
+            
+            if (error.name === 'AbortError') {
+                showToast('Request timed out. This may happen with large file uploads. Please try with fewer or smaller files.', 'warning');
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                showToast('Network error. Please check your connection and try again.', 'error');
+            } else {
+                showToast('Error approving restaurant booking. Please try again.', 'error');
+            }
         });
         
     } catch (error) {
         console.error('Error approving individual restaurant booking:', error);
-        alert('Error approving booking. Please try again.');
+        showToast('Error approving booking. Please try again.', 'error');
     }
 }
 
@@ -26120,6 +26210,1224 @@ window.showNotification = function(message, type = 'info') {
         </div>
     </div>
 </div>
+
+<!-- Attraction Files Management Modal -->
+<div class="modal fade" id="attractionFilesModal" tabindex="-1" aria-labelledby="attractionFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="attractionFilesModalLabel" style="font-size: 1.25rem;">
+                    <i class="ri-file-list-3-line me-2"></i>Manage Attraction Files
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+            </div>
+            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+                <div id="attractionFilesContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+                    Close
+                </button>
+                <button type="button" class="btn btn-success px-4 py-2" id="saveAttractionFiles" onclick="saveAttractionChanges()" 
+                        style="display: none; border-radius: 8px; font-weight: 500;">
+                    <i class="ri-save-line me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restaurant Files Management Modal -->
+<div class="modal fade" id="restaurantFilesModal" tabindex="-1" aria-labelledby="restaurantFilesModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fd9853 0%, #fe7854 100%); border-radius: 16px 16px 0 0; padding: 24px 32px; border: none;">
+                <h5 class="modal-title text-white fw-bold" id="restaurantFilesModalLabel" style="font-size: 1.25rem;">
+                    <i class="ri-restaurant-line me-2"></i>Manage Restaurant Files
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+            </div>
+            <div class="modal-body" style="padding: 32px; background-color: #f8f9fa;">
+                <div id="restaurantFilesContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 text-muted fw-medium">Loading files...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 24px 32px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+                    Close
+                </button>
+                <button type="button" class="btn btn-success px-4 py-2" id="saveRestaurantFiles" onclick="saveRestaurantChanges()" 
+                        style="display: none; border-radius: 8px; font-weight: 500;">
+                    <i class="ri-save-line me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Function to open attraction files modal
+function openAttractionFilesModal(tourId, attractionOrderIndex, bookingIndex) {
+    console.log('Opening attraction files modal:', tourId, attractionOrderIndex, bookingIndex);
+    
+    // Set higher z-index to ensure it appears on top
+    const modalElement = document.getElementById('attractionFilesModal');
+    modalElement.style.zIndex = '1060';
+    
+    // Show modal with backdrop set to static to prevent closing the underlying modal
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: 'static',
+        keyboard: true
+    });
+    modal.show();
+    
+    // Load files data
+    loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
+}
+
+// Function to load attraction files
+function loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex) {
+    fetch('{{ url("/hotel-booking/get-attraction-files") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayAttractionFiles(data.data, tourId, attractionOrderIndex, bookingIndex);
+        } else {
+            document.getElementById('attractionFilesContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>Error loading files: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading files:', error);
+        document.getElementById('attractionFilesContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ri-error-warning-line me-2"></i>Error loading files. Please try again.
+            </div>
+        `;
+    });
+}
+
+// Function to display attraction files
+function displayAttractionFiles(data, tourId, attractionOrderIndex, bookingIndex) {
+    const files = data.upload_files || [];
+    const attractionName = data.attraction_name || 'Unknown Attraction';
+    
+    let content = `
+        <div class="mb-4 p-4 bg-white rounded-3 shadow-sm">
+            <div class="d-flex align-items-center mb-2">
+                <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                    <i class="ri-camera-line text-primary fs-5"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="fw-bold text-dark mb-1">${attractionName}</h6>
+                    <p class="text-muted small mb-0">Order ${parseInt(attractionOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                </div>
+                ${hasPendingChanges ? `
+                    <div class="ms-auto">
+                        <span class="badge bg-warning bg-opacity-20 text-dark px-3 py-2" style="border-radius: 20px;">
+                            <i class="ri-time-line me-1"></i>
+                            Unsaved Changes
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        ${hasPendingChanges ? `
+            <div class="alert alert-warning border-0 mb-4" style="background: linear-gradient(45deg, #fff3cd, #fef7e0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 text-warning fs-4"></i>
+                    <div>
+                        <strong class="text-warning">Pending Changes</strong>
+                        <p class="mb-0 text-muted small mt-1">You have unsaved changes. Click "Save Changes" to apply them and refresh the page.</p>
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-folder-open-line text-secondary fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Existing Files (${files.length})</h6>
+                    </div>
+                    <div id="existingFilesList" style="max-height: 400px; overflow-y: auto;">
+    `;
+    
+    if (files.length > 0) {
+        files.forEach((file, index) => {
+            const fileName = file.split('/').pop();
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension);
+            
+            content += `
+                <div class="border rounded-3 p-3 mb-3 bg-light file-item" id="file_${index}" style="transition: all 0.3s ease;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 position-relative">
+                                ${isImage ? 
+                                    `<img src="${file}" alt="${fileName}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover; border: 2px solid #e9ecef;">` :
+                                    `<div class="bg-white rounded-2 d-flex align-items-center justify-content-center border" style="width: 48px; height: 48px;">
+                                        <i class="ri-file-text-line text-primary fs-4"></i>
+                                    </div>`
+                                }
+                                ${hasPendingChanges ? `
+                                    <div class="position-absolute top-0 end-0 translate-middle">
+                                        <span class="badge bg-warning rounded-pill" style="font-size: 0.6rem;">
+                                            <i class="ri-time-line"></i>
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div>
+                                <p class="mb-1 fw-semibold text-dark" style="font-size: 0.95rem;">${fileName}</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted fw-medium">${fileExtension.toUpperCase()}</small>
+                                    ${hasPendingChanges ? `
+                                        <span class="badge bg-warning bg-opacity-20 text-dark" style="font-size: 0.65rem;">
+                                            Pending Save
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-2" onclick="previewFile('${file}', '${fileName}')" title="Preview">
+                                <i class="ri-eye-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-2" onclick="removeFile(${index}, '${tourId}', '${attractionOrderIndex}', '${bookingIndex}')" title="Delete">
+                                <i class="ri-delete-bin-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        content += `
+            <div class="text-center py-5">
+                <div class="bg-light rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <i class="ri-file-list-line fs-1 text-muted"></i>
+                </div>
+                <p class="text-muted fw-medium">No files uploaded yet</p>
+                <small class="text-muted">Upload your first file using the form on the right</small>
+            </div>
+        `;
+    }
+    
+    content += `
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-upload-line text-success fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Upload New Files</h6>
+                    </div>
+                    <form id="attractionFilesUploadForm" enctype="multipart/form-data">
+                        <input type="hidden" name="tour_id" value="${tourId}">
+                        <input type="hidden" name="attraction_order_index" value="${attractionOrderIndex}">
+                        <input type="hidden" name="booking_index" value="${bookingIndex}">
+                        
+                        <div class="mb-4">
+                            <label for="newAttractionFiles" class="form-label fw-semibold text-dark">Select Files</label>
+                            <input type="file" class="form-control form-control-lg" id="newAttractionFiles" name="new_files[]" 
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
+                                   style="border-radius: 12px; border: 2px dashed #dee2e6; padding: 16px;">
+                            <div class="form-text mt-2">
+                                <small class="text-muted">Upload multiple files (PDF, DOC, JPG, PNG)</small>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success w-100 py-3 fw-semibold" onclick="uploadNewAttractionFiles()" 
+                                style="border-radius: 12px; font-size: 1.1rem;">
+                            <i class="ri-upload-cloud-line me-2"></i>Upload Files
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('attractionFilesContent').innerHTML = content;
+}
+
+// Function to preview file
+function previewFile(fileUrl, fileName) {
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension);
+    
+    if (isImage) {
+        // Show image in modal with higher z-index
+        const previewModal = `
+            <div class="modal fade" id="filePreviewModal" tabindex="-1" style="z-index: 1070;">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px 16px 0 0; padding: 20px 24px; border: none;">
+                            <h5 class="modal-title text-white fw-bold">${fileName}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="filter: brightness(0) invert(1);"></button>
+                        </div>
+                        <div class="modal-body text-center p-4" style="background-color: #f8f9fa;">
+                            <img src="${fileUrl}" alt="${fileName}" class="img-fluid rounded-3 shadow-sm" style="max-height: 70vh;">
+                        </div>
+                        <div class="modal-footer" style="padding: 20px 24px; background-color: #ffffff; border-radius: 0 0 16px 16px; border: none;">
+                            <button type="button" class="btn btn-light px-4 py-2" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 500;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing preview modal if any
+        const existingModal = document.getElementById('filePreviewModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add new modal
+        document.body.insertAdjacentHTML('beforeend', previewModal);
+        const modal = new bootstrap.Modal(document.getElementById('filePreviewModal'), {
+            backdrop: 'static',
+            keyboard: true
+        });
+        modal.show();
+    } else {
+        // Open file in new tab for PDFs and documents
+        window.open(fileUrl, '_blank');
+    }
+}
+
+// Function to remove file
+function removeFile(fileIndex, tourId, attractionOrderIndex, bookingIndex) {
+    if (confirm('Are you sure you want to remove this file?')) {
+        // Show loading state for the specific file
+        const fileElement = document.getElementById(`file_${fileIndex}`);
+        const originalContent = fileElement.innerHTML;
+        fileElement.style.opacity = '0.5';
+        fileElement.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Removing...</span>
+                </div>
+                <span class="text-muted">Removing file...</span>
+            </div>
+        `;
+        
+        fetch('{{ url("/hotel-booking/remove-attraction-file") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                attraction_order_index: attractionOrderIndex,
+                booking_index: bookingIndex,
+                file_index: fileIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mark as having pending changes
+                hasPendingChanges = true;
+                updateSaveChangesButton();
+                
+                // Reload files
+                loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
+                showToast('File removed successfully! Click "Save Changes" to apply.', 'success');
+            } else {
+                // Restore original content on error
+                fileElement.style.opacity = '1';
+                fileElement.innerHTML = originalContent;
+                showToast('Error removing file: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            // Restore original content on error
+            fileElement.style.opacity = '1';
+            fileElement.innerHTML = originalContent;
+            console.error('Error removing file:', error);
+            showToast('Error removing file', 'error');
+        });
+    }
+}
+
+// Global variable to track pending changes
+let hasPendingChanges = false;
+
+// Function to upload new files with advanced loading
+function uploadNewAttractionFiles() {
+    const form = document.getElementById('attractionFilesUploadForm');
+    const formData = new FormData(form);
+    const fileInput = document.getElementById('newAttractionFiles');
+    const uploadButton = document.querySelector('button[onclick="uploadNewAttractionFiles()"]');
+    
+    if (fileInput.files.length === 0) {
+        showToast('Please select files to upload', 'warning');
+        return;
+    }
+    
+    // Show loading state
+    const originalButtonText = uploadButton.innerHTML;
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = `
+        <div class="d-flex align-items-center justify-content-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            Uploading ${fileInput.files.length} file(s)...
+        </div>
+    `;
+    
+    // Show upload progress overlay
+    showUploadProgress(fileInput.files.length);
+    
+    fetch('{{ url("/hotel-booking/upload-attraction-files") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide upload progress
+        hideUploadProgress();
+        
+        if (data.success) {
+            // Mark as having pending changes
+            hasPendingChanges = true;
+            updateSaveChangesButton();
+            
+            // Reload files
+            const tourId = formData.get('tour_id');
+            const attractionOrderIndex = formData.get('attraction_order_index');
+            const bookingIndex = formData.get('booking_index');
+            
+            loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
+            showToast(`${data.data.uploaded_files.length} file(s) uploaded successfully! Click "Save Changes" to apply.`, 'success');
+            
+            // Clear file input
+            fileInput.value = '';
+        } else {
+            showToast('Error uploading files: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        hideUploadProgress();
+        console.error('Error uploading files:', error);
+        showToast('Error uploading files', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        uploadButton.disabled = false;
+        uploadButton.innerHTML = originalButtonText;
+    });
+}
+
+// Function to show upload progress overlay
+function showUploadProgress(fileCount) {
+    const progressOverlay = `
+        <div id="uploadProgressOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.7); z-index: 1080;">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 350px;">
+                <div class="mb-4">
+                    <div class="bg-primary bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-upload-cloud-line text-primary" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Uploading Files</h5>
+                    <p class="text-muted mb-0">Processing ${fileCount} file(s)...</p>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">Please wait while your files are being uploaded</small>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', progressOverlay);
+}
+
+// Function to hide upload progress overlay
+function hideUploadProgress() {
+    const overlay = document.getElementById('uploadProgressOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Function to update Save Changes button state
+function updateSaveChangesButton() {
+    const saveButton = document.getElementById('saveAttractionFiles');
+    if (hasPendingChanges) {
+        saveButton.style.display = 'inline-block';
+        saveButton.classList.remove('btn-primary');
+        saveButton.classList.add('btn-success');
+        saveButton.innerHTML = `
+            <i class="ri-save-line me-1"></i>Save Changes
+            <span class="badge bg-white text-success ms-2">!</span>
+        `;
+        
+        // Add pulsing animation
+        saveButton.style.animation = 'pulse 2s infinite';
+    } else {
+        saveButton.style.display = 'none';
+        saveButton.style.animation = 'none';
+    }
+}
+
+// Function to handle Save Changes
+function saveAttractionChanges() {
+    if (!hasPendingChanges) {
+        return;
+    }
+    
+    const saveButton = document.getElementById('saveAttractionFiles');
+    const originalContent = saveButton.innerHTML;
+    
+    // Show saving state
+    saveButton.disabled = true;
+    saveButton.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Saving...</span>
+            </div>
+            Saving Changes...
+        </div>
+    `;
+    
+    // Show saving overlay
+    const savingOverlay = `
+        <div id="savingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.7); z-index: 1080;">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 350px;">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-save-line text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Saving Changes</h5>
+                    <p class="text-muted mb-0">Applying your file changes...</p>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">Please wait while changes are being saved</small>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', savingOverlay);
+    
+    // Simulate save process and refresh page
+    setTimeout(() => {
+        // Hide saving overlay
+        const overlay = document.getElementById('savingOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        
+        // Show success message
+        showToast('Changes saved successfully! Refreshing page...', 'success');
+        
+        // Reset pending changes
+        hasPendingChanges = false;
+        
+        // Close the files modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('attractionFilesModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Refresh the page after a short delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    }, 2000); // 2 second delay to show the saving process
+}
+
+// Add event listener for Save Changes button
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click event to save button when it's created
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.id === 'saveAttractionFiles') {
+            saveAttractionChanges();
+        }
+    });
+});
+
+// ============ RESTAURANT FILES MANAGEMENT ============
+
+// Global variable to track pending changes for restaurant
+let hasRestaurantPendingChanges = false;
+
+// Function to open restaurant files modal
+function openRestaurantFilesModal(tourId, restaurantOrderIndex, bookingIndex) {
+    console.log('Opening restaurant files modal:', tourId, restaurantOrderIndex, bookingIndex);
+    
+    // Set higher z-index to ensure it appears on top
+    const modalElement = document.getElementById('restaurantFilesModal');
+    modalElement.style.zIndex = '1060';
+    
+    // Show modal with backdrop set to static to prevent closing the underlying modal
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: 'static',
+        keyboard: true
+    });
+    modal.show();
+    
+    // Load files data
+    loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
+}
+
+// Function to load restaurant files
+function loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex) {
+    fetch('{{ url("/hotel-booking/get-restaurant-files") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            tour_id: tourId,
+            restaurant_order_index: restaurantOrderIndex,
+            booking_index: bookingIndex
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayRestaurantFiles(data.data, tourId, restaurantOrderIndex, bookingIndex);
+        } else {
+            document.getElementById('restaurantFilesContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>Error loading files: ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading files:', error);
+        document.getElementById('restaurantFilesContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ri-error-warning-line me-2"></i>Error loading files. Please try again.
+            </div>
+        `;
+    });
+}
+
+// Function to display restaurant files
+function displayRestaurantFiles(data, tourId, restaurantOrderIndex, bookingIndex) {
+    const files = data.upload_files || [];
+    const restaurantName = data.restaurant_name || 'Unknown Restaurant';
+    
+    let content = `
+        <div class="mb-4 p-4 bg-white rounded-3 shadow-sm">
+            <div class="d-flex align-items-center mb-2">
+                <div class="bg-warning bg-opacity-10 rounded-circle p-2 me-3">
+                    <i class="ri-restaurant-line text-warning fs-5"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="fw-bold text-dark mb-1">${restaurantName}</h6>
+                    <p class="text-muted small mb-0">Order ${parseInt(restaurantOrderIndex) + 1}, Booking ${parseInt(bookingIndex) + 1}</p>
+                </div>
+                ${hasRestaurantPendingChanges ? `
+                    <div class="ms-auto">
+                        <span class="badge bg-warning bg-opacity-20 text-dark px-3 py-2" style="border-radius: 20px;">
+                            <i class="ri-time-line me-1"></i>
+                            Unsaved Changes
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        ${hasRestaurantPendingChanges ? `
+            <div class="alert alert-warning border-0 mb-4" style="background: linear-gradient(45deg, #fff3cd, #fef7e0); border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line me-2 text-warning fs-4"></i>
+                    <div>
+                        <strong class="text-warning">Pending Changes</strong>
+                        <p class="mb-0 text-muted small mt-1">You have unsaved changes. Click "Save Changes" to apply them and refresh the page.</p>
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-secondary bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-folder-open-line text-secondary fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Existing Files (${files.length})</h6>
+                    </div>
+                    <div id="existingRestaurantFilesList" style="max-height: 400px; overflow-y: auto;">
+    `;
+    
+    if (files.length > 0) {
+        files.forEach((file, index) => {
+            const fileName = file.split('/').pop();
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension);
+            
+            content += `
+                <div class="border rounded-3 p-3 mb-3 bg-light file-item" id="restaurant_file_${index}" style="transition: all 0.3s ease;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 position-relative">
+                                ${isImage ? 
+                                    `<img src="${file}" alt="${fileName}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover; border: 2px solid #e9ecef;">` :
+                                    `<div class="bg-white rounded-2 d-flex align-items-center justify-content-center border" style="width: 48px; height: 48px;">
+                                        <i class="ri-file-text-line text-primary fs-4"></i>
+                                    </div>`
+                                }
+                                ${hasRestaurantPendingChanges ? `
+                                    <div class="position-absolute top-0 end-0 translate-middle">
+                                        <span class="badge bg-warning rounded-pill" style="font-size: 0.6rem;">
+                                            <i class="ri-time-line"></i>
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div>
+                                <p class="mb-1 fw-semibold text-dark" style="font-size: 0.95rem;">${fileName}</p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted fw-medium">${fileExtension.toUpperCase()}</small>
+                                    ${hasRestaurantPendingChanges ? `
+                                        <span class="badge bg-warning bg-opacity-20 text-dark" style="font-size: 0.65rem;">
+                                            Pending Save
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-2" onclick="previewFile('${file}', '${fileName}')" title="Preview">
+                                <i class="ri-eye-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-2" onclick="removeRestaurantFile(${index}, '${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')" title="Delete">
+                                <i class="ri-delete-bin-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        content += `
+            <div class="text-center py-5">
+                <div class="bg-light rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <i class="ri-file-list-line fs-1 text-muted"></i>
+                </div>
+                <p class="text-muted fw-medium">No files uploaded yet</p>
+                <small class="text-muted">Upload your first file using the form on the right</small>
+            </div>
+        `;
+    }
+    
+    content += `
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-white rounded-3 shadow-sm p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
+                            <i class="ri-upload-line text-success fs-5"></i>
+                        </div>
+                        <h6 class="fw-semibold mb-0 text-dark">Upload New Files</h6>
+                    </div>
+                    <form id="restaurantFilesUploadForm" enctype="multipart/form-data">
+                        <input type="hidden" name="tour_id" value="${tourId}">
+                        <input type="hidden" name="restaurant_order_index" value="${restaurantOrderIndex}">
+                        <input type="hidden" name="booking_index" value="${bookingIndex}">
+                        
+                        <div class="mb-4">
+                            <label for="newRestaurantFiles" class="form-label fw-semibold text-dark">Select Files</label>
+                            <input type="file" class="form-control form-control-lg" id="newRestaurantFiles" name="new_files[]" 
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple
+                                   style="border-radius: 12px; border: 2px dashed #dee2e6; padding: 16px;">
+                            <div class="form-text mt-2">
+                                <small class="text-muted">Upload multiple files (PDF, DOC, JPG, PNG)</small>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success w-100 py-3 fw-semibold" onclick="uploadNewRestaurantFiles()" 
+                                style="border-radius: 12px; font-size: 1.1rem;">
+                            <i class="ri-upload-cloud-line me-2"></i>Upload Files
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('restaurantFilesContent').innerHTML = content;
+}
+
+// Function to remove restaurant file
+function removeRestaurantFile(fileIndex, tourId, restaurantOrderIndex, bookingIndex) {
+    if (confirm('Are you sure you want to remove this file?')) {
+        // Show loading state for the specific file
+        const fileElement = document.getElementById(`restaurant_file_${fileIndex}`);
+        const originalContent = fileElement.innerHTML;
+        fileElement.style.opacity = '0.5';
+        fileElement.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Removing...</span>
+                </div>
+                <span class="text-muted">Removing file...</span>
+            </div>
+        `;
+        
+        fetch('{{ url("/hotel-booking/remove-restaurant-file") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                tour_id: tourId,
+                restaurant_order_index: restaurantOrderIndex,
+                booking_index: bookingIndex,
+                file_index: fileIndex
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mark as having pending changes
+                hasRestaurantPendingChanges = true;
+                updateRestaurantSaveChangesButton();
+                
+                // Reload files
+                loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
+                showToast('File removed successfully! Click "Save Changes" to apply.', 'success');
+            } else {
+                // Restore original content on error
+                fileElement.style.opacity = '1';
+                fileElement.innerHTML = originalContent;
+                showToast('Error removing file: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            // Restore original content on error
+            fileElement.style.opacity = '1';
+            fileElement.innerHTML = originalContent;
+            console.error('Error removing file:', error);
+            showToast('Error removing file', 'error');
+        });
+    }
+}
+
+// Function to upload new restaurant files
+function uploadNewRestaurantFiles() {
+    const form = document.getElementById('restaurantFilesUploadForm');
+    const formData = new FormData(form);
+    const fileInput = document.getElementById('newRestaurantFiles');
+    const uploadButton = document.querySelector('button[onclick="uploadNewRestaurantFiles()"]');
+    
+    if (fileInput.files.length === 0) {
+        showToast('Please select files to upload', 'warning');
+        return;
+    }
+    
+    // Show loading state
+    const originalButtonText = uploadButton.innerHTML;
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = `
+        <div class="d-flex align-items-center justify-content-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            Uploading ${fileInput.files.length} file(s)...
+        </div>
+    `;
+    
+    // Show upload progress overlay
+    showUploadProgress(fileInput.files.length);
+    
+    fetch('{{ url("/hotel-booking/upload-restaurant-files") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide upload progress
+        hideUploadProgress();
+        
+        if (data.success) {
+            // Mark as having pending changes
+            hasRestaurantPendingChanges = true;
+            updateRestaurantSaveChangesButton();
+            
+            // Reload files
+            const tourId = formData.get('tour_id');
+            const restaurantOrderIndex = formData.get('restaurant_order_index');
+            const bookingIndex = formData.get('booking_index');
+            
+            loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
+            showToast(`${data.data.uploaded_files.length} file(s) uploaded successfully! Click "Save Changes" to apply.`, 'success');
+            
+            // Clear file input
+            fileInput.value = '';
+        } else {
+            showToast('Error uploading files: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        hideUploadProgress();
+        console.error('Error uploading files:', error);
+        showToast('Error uploading files', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        uploadButton.disabled = false;
+        uploadButton.innerHTML = originalButtonText;
+    });
+}
+
+// Function to update Restaurant Save Changes button state
+function updateRestaurantSaveChangesButton() {
+    const saveButton = document.getElementById('saveRestaurantFiles');
+    if (hasRestaurantPendingChanges) {
+        saveButton.style.display = 'inline-block';
+        saveButton.classList.remove('btn-primary');
+        saveButton.classList.add('btn-success');
+        saveButton.innerHTML = `
+            <i class="ri-save-line me-1"></i>Save Changes
+            <span class="badge bg-white text-success ms-2">!</span>
+        `;
+        
+        // Add pulsing animation
+        saveButton.style.animation = 'pulse 2s infinite';
+    } else {
+        saveButton.style.display = 'none';
+        saveButton.style.animation = 'none';
+    }
+}
+
+// Function to handle Restaurant Save Changes
+function saveRestaurantChanges() {
+    if (!hasRestaurantPendingChanges) {
+        return;
+    }
+    
+    const saveButton = document.getElementById('saveRestaurantFiles');
+    const originalContent = saveButton.innerHTML;
+    
+    // Show saving state
+    saveButton.disabled = true;
+    saveButton.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Saving...</span>
+            </div>
+            Saving Changes...
+        </div>
+    `;
+    
+    // Show saving overlay
+    const savingOverlay = `
+        <div id="savingRestaurantOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.7); z-index: 1080;">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 350px;">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-save-line text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Saving Changes</h5>
+                    <p class="text-muted mb-0">Applying your file changes...</p>
+                </div>
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">Please wait while changes are being saved</small>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', savingOverlay);
+    
+    // Simulate save process and refresh page
+    setTimeout(() => {
+        // Hide saving overlay
+        const overlay = document.getElementById('savingRestaurantOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+        
+        // Show success message
+        showToast('Changes saved successfully! Refreshing page...', 'success');
+        
+        // Reset pending changes
+        hasRestaurantPendingChanges = false;
+        
+        // Close the files modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('restaurantFilesModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Refresh the page after a short delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    }, 2000); // 2 second delay to show the saving process
+}
+
+// Function to show approval progress overlay
+function showApprovalProgressOverlay(fileCount) {
+    const progressOverlay = `
+        <div id="approvalProgressOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+             style="background: rgba(0,0,0,0.8); z-index: 1090; backdrop-filter: blur(5px);">
+            <div class="bg-white rounded-4 p-5 text-center shadow-lg" style="min-width: 400px; max-width: 500px;">
+                <div class="mb-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ri-upload-cloud-line text-success" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Processing Approval</h5>
+                    <p class="text-muted mb-0">Uploading ${fileCount} file(s) and processing approval...</p>
+                </div>
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">This may take a few moments for multiple files. Please wait...</small>
+                <div class="mt-3">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing overlay if any
+    const existingOverlay = document.getElementById('approvalProgressOverlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+    
+    document.body.insertAdjacentHTML('beforeend', progressOverlay);
+}
+
+// Function to hide approval progress overlay
+function hideApprovalProgressOverlay() {
+    const overlay = document.getElementById('approvalProgressOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Helper function to show toast notifications
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toastId = 'toast_' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-info';
+    
+    const toastHtml = `
+        <div class="toast align-items-center text-white ${bgClass} border-0" role="alert" id="${toastId}">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    // Add to toast container or create one
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    // Show toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+    
+    // Remove toast element after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+</script>
+
+<style>
+/* Ensure proper modal layering */
+.modal {
+    z-index: 1050;
+}
+
+#attractionFilesModal, #restaurantFilesModal {
+    z-index: 1060 !important;
+}
+
+#filePreviewModal {
+    z-index: 1070 !important;
+}
+
+/* File item hover effects */
+.border.rounded-3.p-3.mb-3.bg-light:hover {
+    background-color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+/* Upload area styling */
+input[type="file"].form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Custom scrollbar for file list */
+#existingFilesList::-webkit-scrollbar {
+    width: 6px;
+}
+
+#existingFilesList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#existingFilesList::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+#existingFilesList::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Button hover effects */
+.btn-outline-primary:hover, .btn-outline-danger:hover {
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+/* Modal backdrop adjustments */
+.modal-backdrop {
+    z-index: 1040;
+}
+
+.modal-backdrop.show {
+    opacity: 0.5;
+}
+
+/* Ensure attraction files modal backdrop is above the main modal */
+#attractionFilesModal + .modal-backdrop {
+    z-index: 1055 !important;
+}
+
+#filePreviewModal + .modal-backdrop {
+    z-index: 1065 !important;
+}
+
+/* Pulse animation for Save Changes button */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+
+/* Upload progress overlay styling */
+#uploadProgressOverlay, #savingOverlay {
+    backdrop-filter: blur(5px);
+}
+
+/* File input drag and drop styling */
+input[type="file"].form-control:hover {
+    border-color: #667eea;
+    background-color: #f8f9ff;
+}
+
+/* Loading states */
+.loading-file {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Success state for uploaded files */
+.file-uploaded {
+    border-color: #198754 !important;
+    background-color: #f0f9f4 !important;
+}
+
+/* Removed file animation */
+.file-removing {
+    animation: fadeOut 0.5s ease-out;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(-20px); }
+}
+
+/* Progress bar custom styling */
+.progress-bar-custom {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+}
+</style>
 
 @endsection
 
