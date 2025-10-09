@@ -36,6 +36,7 @@ import TimeSlotSelector from './TimeSlotSelector';
 import TicketTypeSelector from './TicketTypeSelector';
 import BookingSummaryModal from './BookingSummaryModal';
 import PortCity from './PortCity';
+import { shallowEqual } from 'react-redux';
 
 const initialFormState = {
   attraction: '',
@@ -53,7 +54,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const theme = useTheme();
   const dispatch = useDispatch();
   const attractions = useSelector(selectAttractions);
-  const searchParams = useSelector((state) => state.attractions.searchParams);
+  const searchParams = useSelector((state) => state.attractions.searchParams, shallowEqual);
   const attractionDetails = useSelector((state) => state.attractions.attractionDetails);
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
@@ -107,7 +108,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const [isAttractionListingEnabled, setIsAttractionListingEnabled] = useState(false);
   console.log("selectedCity", selectedCity);
   const country = useSelector((state) => state.tourPackages.searchCriteria.country);
-  const tour = useSelector((state) => state.hotels.tourdetails);
+  const tour = useSelector((state) => state.hotels.tourdetails, shallowEqual);
   console.log("tour", tour);
   // Refs to prevent infinite loops
   const hasInitializedRef = useRef(false);
@@ -268,7 +269,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       isInitializingRef.current = false;
       console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [attractionspack, dayIndex, bookingDate, tour]); // Added tourDates to dependencies
+  }, [ dayIndex, bookingDate, tour]); // Added tourDates to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {

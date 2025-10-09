@@ -729,7 +729,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
             {/* Form Fields Row */}
             <Grid container spacing={{ xs: 1.5, sm: 1.5, md: 1.5 }} alignItems="flex-end" sx={{ mb: 2 }}>
               {/* Location Search */}
-              <Grid item xs={12} sm={12} md={selectedPort === "Point To Point" ? 6 : selectedPort === "Local Transfer" ? 8 : 4}>
+              <Grid item xs={12} sm={12} md={selectedPort === "Point To Point" ? 8 : selectedPort === "Local Transfer" ? 8 : 6}>
                 <Box>
                   {selectedPort === "Point To Point" ? (
                     <LocationSearch
@@ -801,9 +801,8 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               </Grid>
 
               {/* Time Selection */}
-              <Grid item xs={12} sm={6} md={2} sx={{mt: 0.5}}>
-                <Box sx={{ 
-                  mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? { xs: 0, sm: 0, md: -11 } : 0 
+              <Grid item xs={12} sm={12} md={3}>
+                <Box sx={{ mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? { xs: 0, sm: 0, md: -11 } : 0 
                 }}>
                   {selectedPort === "Point To Point" ? (
                     <Pickuptime
@@ -837,7 +836,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
               </Grid>
 
               {/* Date Selection */}
-              <Grid item xs={12} sm={6} md={2}>
+              {/* <Grid item xs={12} sm={6} md={2}>
                 <Box sx={{ 
                   mt: (selectedPort === "Point To Point" || selectedPort === "Hourly") ? { xs: 0, sm: 0, md: -10 } : 0 
                 }}>
@@ -886,7 +885,7 @@ const SearchLocationTransport = ({ Location, dayIndex = 0, date }) => {
                     />
                   )}
                 </Box>
-              </Grid>
+              </Grid> */}
             </Grid>
 
             {/* Search Button Row */}

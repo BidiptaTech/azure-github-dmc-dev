@@ -21,7 +21,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import ElderlyIcon from '@mui/icons-material/Elderly';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import GroupIcon from '@mui/icons-material/Group';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -114,7 +114,7 @@ const Counter = ({ name, value, minValue, onCounterChange, maxValue, disabled = 
 
 const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren, disabled }) => {
   const [anchorEl, setAnchorEl] = useState(null);
-  const attractionDetails = useSelector((state) => state.attractions.attractionDetails || {});
+  const attractionDetails = useSelector((state) => state.attractions.attractionDetails, shallowEqual) || {};
 
   // Get age limits from attractionDetails or use defaults
   const childMaxAge = attractionDetails.child_max_age || 17;
@@ -181,7 +181,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
 
       setOriginalAdultCount(defaultAdults);
     }
-  }, [defaultAdults, defaultChildren, selectedPax]);
+  }, [defaultAdults, defaultChildren, selectedPax, attractionDetails]);
 
   useEffect(() => {
     // Skip calling onPaxChange if we're updating from selectedPax props

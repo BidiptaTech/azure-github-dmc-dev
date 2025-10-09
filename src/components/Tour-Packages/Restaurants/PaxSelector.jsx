@@ -19,7 +19,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import GroupIcon from '@mui/icons-material/Group';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -114,7 +114,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
   const [anchorEl, setAnchorEl] = useState(null);
   
   // Get the search parameters from Redux store as fallback
-  const searchParams = useSelector((state) => state.restaurants.searchParams);
+  const searchParams = useSelector((state) => state.restaurants.searchParams, shallowEqual);
   const fallbackAdults = searchParams?.adults || 1;
   const fallbackChildren = searchParams?.children || 0;
 
