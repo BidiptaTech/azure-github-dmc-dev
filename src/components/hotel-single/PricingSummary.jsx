@@ -46,14 +46,14 @@ const PricingSummary = ({ selectedRooms, totalPrice, priceMode }) => {
         );
       })}
       
-      <div className="row y-gap-5 justify-between pt-5">
+      {/* <div className="row y-gap-5 justify-between pt-5">
         <div className="col-auto">
           <div className="text-15">Taxes and fees</div>
         </div>
         <div className="col-auto">
           <div className="text-15">Included</div>
         </div>
-      </div>
+      </div> */}
       
       <div className="row y-gap-5 justify-between pt-10">
         <div className="col-auto">

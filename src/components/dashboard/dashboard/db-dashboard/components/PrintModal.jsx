@@ -486,6 +486,14 @@ const PrintModal = ({
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
   const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
   const sgdTax = useSelector((state) => state.auth.sgdTax);
+  
+  // Get currency information from Redux store
+  const currencySymbol = useSelector((state) => state.auth.currencySymbol);
+  const currencyCode = useSelector((state) => state.auth.currencyCode);
+  const exchangeRate = useSelector((state) => state.auth.exchangeRate);
+  const usdExchangeRate = useSelector((state) => state.auth.usdExchangeRate);
+  const usdCurrencySymbol = useSelector((state) => state.auth.usdCurrencySymbol);
+  const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
 
   // Ensure agency logo is embeddable in html2canvas by resolving to a CORS-safe data URL
   const [resolvedAgencyLogo, setResolvedAgencyLogo] = useState(agencyLogo || "");
@@ -5310,27 +5318,53 @@ const PrintModal = ({
                               <strong>Total Price:</strong>
                             </Typography>
                             <Box sx={{ textAlign: "right" }}>
-                              <Typography
-                                variant="h6"
-                                sx={{ color: "#2e7d32", fontWeight: "bold" }}
-                              >
-                                SGD{" "}
-                                {(() => {
-                                  const baseTotal = (localTotalPrice || totalPrice || 0) +
-                                    (localMarkupAmount || markupAmount || 0) -
-                                    (localDiscountAmount || discountAmount || 0);
-                                  const withTax = Math.ceil(baseTotal + (baseTotal * (sgdTax || 0)) / 100);
-                                  return withTax;
-                                })()}
-                              </Typography>
-                              {sgdTax > 0 && (
-                                <Typography
-                                  variant="caption"
-                                  sx={{ fontSize: "0.75rem", color: "#5E35B1", fontWeight: 600 }}
-                                >
-                                  (incl. {sgdTax}% tax)
-                                </Typography>
-                              )}
+                              {(() => {
+                                const baseTotal = (localTotalPrice || totalPrice || 0) +
+                                  (localMarkupAmount || markupAmount || 0) -
+                                  (localDiscountAmount || discountAmount || 0);
+                                const sgdWithTax = Math.ceil(baseTotal + (baseTotal * (sgdTax || 0)) / 100);
+                                const usdWithTax = Math.ceil((baseTotal * usdExchangeRate) + ((baseTotal * usdExchangeRate) * (sgdTax || 0)) / 100);
+                                const convertedWithTax = Math.ceil((baseTotal * exchangeRate) + ((baseTotal * exchangeRate) * (sgdTax || 0)) / 100);
+                                
+                                const formatPrice = (price) => {
+                                  if (typeof price !== 'number') return '0.00';
+                                  return price.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  });
+                                };
+                                
+                                return (
+                                  <>
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ color: "#2e7d32", fontWeight: "bold" }}
+                                    >
+                                      {currencyCode} {formatPrice(convertedWithTax)}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ color: "#666", mt: 0.5 }}
+                                    >
+                                      {usdCurrencyCode} {formatPrice(usdWithTax)}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ color: "#666" }}
+                                    >
+                                      SGD {formatPrice(sgdWithTax)}
+                                    </Typography>
+                                    {sgdTax > 0 && (
+                                      <Typography
+                                        variant="caption"
+                                        sx={{ fontSize: "0.75rem", color: "#5E35B1", fontWeight: 600, display: "block", mt: 0.5 }}
+                                      >
+                                        (incl. {sgdTax}% tax)
+                                      </Typography>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </Box>
                           </Box>
                         </Stack>
