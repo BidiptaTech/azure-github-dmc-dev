@@ -988,7 +988,7 @@ const TravelHourlyBooking = ({
                                   />
                                 </Box>
 
-                                <Box
+                                {/* <Box
                                   sx={{
                                     display: "flex",
                                     justifyContent: "space-between",
@@ -1019,7 +1019,7 @@ const TravelHourlyBooking = ({
                                       fontSize: "0.7rem",
                                     }}
                                   />
-                                </Box>
+                                </Box> */}
 
                                 {/* Current Currency Section */}
                                 <Box sx={{ mb: 1.5 }}>
@@ -1066,7 +1066,7 @@ const TravelHourlyBooking = ({
                                   </Box>
 
                                   {/* Tax Amount */}
-                                  <Box
+                                  {/* <Box
                                     sx={{
                                       display: "flex",
                                       justifyContent: "space-between",
@@ -1096,7 +1096,7 @@ const TravelHourlyBooking = ({
                                           safeParseFloat(exchangeRate || 1)
                                       )}
                                     </Typography>
-                                  </Box>
+                                  </Box> */}
 
                                   {/* Total With Tax */}
                                   <Box
@@ -1119,7 +1119,7 @@ const TravelHourlyBooking = ({
                                         color: "white",
                                       }}
                                     >
-                                      Total (With Tax)
+                                      Total (Without Tax)
                                     </Typography>
                                     <Typography
                                       sx={{
@@ -1131,13 +1131,14 @@ const TravelHourlyBooking = ({
                                       {formatPrice(
                                         (safeParseFloat(
                                           bookingDetails.totalPrice
-                                        ) +
-                                          (safeParseFloat(
-                                            bookingDetails.totalPrice
-                                          ) *
-                                            safeParseFloat(currentTax)) /
-                                            100) *
-                                          safeParseFloat(exchangeRate || 1)
+                                        ) * safeParseFloat(exchangeRate || 1))
+                                          // (safeParseFloat(
+                                          //  (safeParseFloat(
+                                          //   bookingDetails.totalPrice
+                                          // ) *
+                                          //   safeParseFloat(currentTax)) /
+                                          //   100) *
+                                          // safeParseFloat(exchangeRate || 1)
                                       )}
                                     </Typography>
                                   </Box>
@@ -1178,7 +1179,7 @@ const TravelHourlyBooking = ({
                                         >
                                           {usdCurrencyCode}
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -1186,7 +1187,7 @@ const TravelHourlyBooking = ({
                                           }}
                                         >
                                           ({usdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -1197,13 +1198,14 @@ const TravelHourlyBooking = ({
                                         {formatPrice(
                                           (safeParseFloat(
                                             bookingDetails.totalPrice
-                                          ) +
-                                            (safeParseFloat(
-                                              bookingDetails.totalPrice
-                                            ) *
-                                              safeParseFloat(usdTax)) /
-                                              100) *
-                                            safeParseFloat(usdExchangeRate || 1)
+                                          ) * safeParseFloat(usdExchangeRate || 1))
+                                            // (safeParseFloat(
+                                            //    (safeParseFloat(
+                                            //   bookingDetails.totalPrice
+                                            // ) *
+                                            //   safeParseFloat(usdTax)) /
+                                            //   100) *
+                                            // safeParseFloat(usdExchangeRate || 1)
                                         )}
                                       </Typography>
                                     </Box>
@@ -1231,7 +1233,7 @@ const TravelHourlyBooking = ({
                                         >
                                           SGD
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -1239,7 +1241,7 @@ const TravelHourlyBooking = ({
                                           }}
                                         >
                                           ({sgdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -1249,13 +1251,13 @@ const TravelHourlyBooking = ({
                                       >
                                         {formatPrice(
                                           safeParseFloat(
-                                            bookingDetails.totalPrice
-                                          ) +
-                                            (safeParseFloat(
-                                              bookingDetails.totalPrice
-                                            ) *
-                                              safeParseFloat(sgdTax)) /
-                                              100 || 0
+                                            bookingDetails.totalPrice)
+                                            // (safeParseFloat(
+                                            // (safeParseFloat(
+                                            //   bookingDetails.totalPrice
+                                            // ) *
+                                            //   safeParseFloat(sgdTax)) /
+                                            //   100 || 0
                                         )}
                                       </Typography>
                                     </Box>

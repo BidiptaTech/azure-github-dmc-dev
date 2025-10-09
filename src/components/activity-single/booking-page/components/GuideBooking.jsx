@@ -977,7 +977,7 @@ const GuideBooking = ({
                           />
                         </Box>
 
-                        <Box
+                        {/* <Box
                           sx={{
                             display: "flex",
                             justifyContent: "space-between",
@@ -1007,7 +1007,7 @@ const GuideBooking = ({
                               fontSize: "0.7rem",
                             }}
                           />
-                        </Box>
+                        </Box> */}
 
                         {/* Current Currency Section */}
                         <Box sx={{ mb: 1.5 }}>
@@ -1053,7 +1053,7 @@ const GuideBooking = ({
                           </Box>
 
                           {/* Tax Amount */}
-                          <Box
+                          {/* <Box
                             sx={{
                               display: "flex",
                               justifyContent: "space-between",
@@ -1081,7 +1081,7 @@ const GuideBooking = ({
                                   safeParseFloat(exchangeRate || 1)
                               )}
                             </Typography>
-                          </Box>
+                          </Box> */}
 
                           {/* Total With Tax */}
                           <Box
@@ -1103,7 +1103,7 @@ const GuideBooking = ({
                                 color: "white",
                               }}
                             >
-                              Total (With Tax)
+                              Total (Without Tax)
                             </Typography>
                             <Typography
                               sx={{
@@ -1113,11 +1113,12 @@ const GuideBooking = ({
                               }}
                             >
                               {formatPrice(
-                                (safeParseFloat(bookingDetails.totalPrice) +
-                                  (safeParseFloat(bookingDetails.totalPrice) *
-                                    safeParseFloat(currentTax)) /
-                                    100) *
-                                  safeParseFloat(exchangeRate || 1)
+                                (safeParseFloat(bookingDetails.totalPrice) * safeParseFloat(exchangeRate || 1))
+                                  // (safeParseFloat(bookingDetails.totalPrice) +
+                                  //   safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(currentTax)) /
+                                    //   100) *
+                                    // safeParseFloat(exchangeRate || 1)
                               )}
                             </Typography>
                           </Box>
@@ -1155,7 +1156,7 @@ const GuideBooking = ({
                                 >
                                   {usdCurrencyCode}
                                 </Typography>
-                                <Typography
+                                {/* <Typography
                                   sx={{
                                     fontSize: "0.7rem",
                                     color: "rgba(255, 255, 255, 0.7)",
@@ -1163,7 +1164,7 @@ const GuideBooking = ({
                                   }}
                                 >
                                   ({usdTax}%)
-                                </Typography>
+                                </Typography> */}
                               </Box>
                               <Typography
                                 sx={{
@@ -1172,11 +1173,12 @@ const GuideBooking = ({
                                 }}
                               >
                                 {formatPrice(
-                                  (safeParseFloat(bookingDetails.totalPrice) +
-                                    (safeParseFloat(bookingDetails.totalPrice) *
-                                      safeParseFloat(usdTax)) /
-                                      100) *
-                                    safeParseFloat(usdExchangeRate || 1)
+                                  (safeParseFloat(bookingDetails.totalPrice) * safeParseFloat(usdExchangeRate || 1))
+                                    // (safeParseFloat(bookingDetails.totalPrice) +
+                                    //   safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(usdTax)) /
+                                    //   100) *
+                                    // safeParseFloat(usdExchangeRate || 1)
                                 )}
                               </Typography>
                             </Box>
@@ -1202,7 +1204,7 @@ const GuideBooking = ({
                                 >
                                   SGD
                                 </Typography>
-                                <Typography
+                                {/* <Typography
                                   sx={{
                                     fontSize: "0.7rem",
                                     color: "rgba(255, 255, 255, 0.7)",
@@ -1210,7 +1212,7 @@ const GuideBooking = ({
                                   }}
                                 >
                                   ({sgdTax}%)
-                                </Typography>
+                                </Typography> */}
                               </Box>
                               <Typography
                                 sx={{
@@ -1219,10 +1221,11 @@ const GuideBooking = ({
                                 }}
                               >
                                 {formatPrice(
-                                  safeParseFloat(bookingDetails.totalPrice) +
-                                    (safeParseFloat(bookingDetails.totalPrice) *
-                                      safeParseFloat(sgdTax)) /
-                                      100 || 0
+                                    safeParseFloat(bookingDetails.totalPrice) 
+                                    // safeParseFloat(bookingDetails.totalPrice) +
+                                    //   safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(sgdTax)) /
+                                    //   100 || 0
                                 )}
                               </Typography>
                             </Box>

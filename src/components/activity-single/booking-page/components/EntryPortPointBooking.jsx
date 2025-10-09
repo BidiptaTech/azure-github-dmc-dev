@@ -962,7 +962,7 @@ const EntryPortPointBooking = ({
                           />
                         </Box>
 
-                        <Box
+                        {/* <Box
                           sx={{
                             display: "flex",
                             justifyContent: "space-between",
@@ -992,7 +992,7 @@ const EntryPortPointBooking = ({
                               fontSize: "0.7rem",
                             }}
                           />
-                        </Box>
+                        </Box> */}
 
                         {/* Current Currency Section */}
                         <Box sx={{ mb: 1.5 }}>
@@ -1038,7 +1038,7 @@ const EntryPortPointBooking = ({
                           </Box>
 
                           {/* Tax Amount */}
-                          <Box
+                          {/* <Box
                             sx={{
                               display: "flex",
                               justifyContent: "space-between",
@@ -1066,7 +1066,7 @@ const EntryPortPointBooking = ({
                                   safeParseFloat(exchangeRate || 1)
                               )}
                             </Typography>
-                          </Box>
+                          </Box> */}
 
                           {/* Total With Tax */}
                           <Box
@@ -1088,7 +1088,7 @@ const EntryPortPointBooking = ({
                                 color: "white",
                               }}
                             >
-                              Total (With Tax)
+                              Total (Without Tax)
                             </Typography>
                             <Typography
                               sx={{
@@ -1098,11 +1098,11 @@ const EntryPortPointBooking = ({
                               }}
                             >
                               {formatPrice(
-                                (safeParseFloat(bookingDetails.totalPrice) +
-                                  (safeParseFloat(bookingDetails.totalPrice) *
-                                    safeParseFloat(currentTax)) /
-                                    100) *
-                                  safeParseFloat(exchangeRate || 1)
+                                (safeParseFloat(bookingDetails.totalPrice) * safeParseFloat(exchangeRate || 1))
+                                  // (safeParseFloat(bookingDetails.totalPrice) *
+                                  //   safeParseFloat(currentTax)) /
+                                  //   100) *
+                                  // safeParseFloat(exchangeRate || 1)
                               )}
                             </Typography>
                           </Box>
@@ -1139,7 +1139,7 @@ const EntryPortPointBooking = ({
                                 >
                                   {usdCurrencyCode}
                                 </Typography>
-                                <Typography
+                                {/* <Typography
                                   sx={{
                                     fontSize: "0.7rem",
                                     color: "rgba(255, 255, 255, 0.7)",
@@ -1147,7 +1147,7 @@ const EntryPortPointBooking = ({
                                   }}
                                 >
                                   ({usdTax}%)
-                                </Typography>
+                                </Typography> */}
                               </Box>
                               <Typography
                                 sx={{
@@ -1156,11 +1156,11 @@ const EntryPortPointBooking = ({
                                 }}
                               >
                                 {formatPrice(
-                                  (safeParseFloat(bookingDetails.totalPrice) +
-                                    (safeParseFloat(bookingDetails.totalPrice) *
-                                      safeParseFloat(usdTax)) /
-                                      100) *
-                                    safeParseFloat(usdExchangeRate || 1)
+                                  (safeParseFloat(bookingDetails.totalPrice) * safeParseFloat(usdExchangeRate || 1))
+                                    // (safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(usdTax)) /
+                                    //   100) *
+                                    // safeParseFloat(usdExchangeRate || 1)
                                 )}
                               </Typography>
                             </Box>
@@ -1186,7 +1186,7 @@ const EntryPortPointBooking = ({
                                 >
                                   SGD
                                 </Typography>
-                                <Typography
+                                {/* <Typography
                                   sx={{
                                     fontSize: "0.7rem",
                                     color: "rgba(255, 255, 255, 0.7)",
@@ -1194,7 +1194,7 @@ const EntryPortPointBooking = ({
                                   }}
                                 >
                                   ({sgdTax}%)
-                                </Typography>
+                                </Typography> */}
                               </Box>
                               <Typography
                                 sx={{
@@ -1203,10 +1203,10 @@ const EntryPortPointBooking = ({
                                 }}
                               >
                                 {formatPrice(
-                                  safeParseFloat(bookingDetails.totalPrice) +
-                                    (safeParseFloat(bookingDetails.totalPrice) *
-                                      safeParseFloat(sgdTax)) /
-                                      100 || 0
+                                  safeParseFloat(bookingDetails.totalPrice) 
+                                    // (safeParseFloat(bookingDetails.totalPrice) *
+                                    //   safeParseFloat(sgdTax)) /
+                                    //   100 || 0
                                 )}
                               </Typography>
                             </Box>
