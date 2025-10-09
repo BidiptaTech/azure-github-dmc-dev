@@ -307,7 +307,8 @@ class SingleTourPackageController extends Controller
                 ->get()
                 ->filter(function ($hotel) use ($userDmcId) {
                     // Check if this hotel has zone assignments for the current DMC
-                    return $hotel->isAssignedToZoneByDmc($userDmcId);
+                    // return $hotel->isAssignedToZoneByDmc($userDmcId);
+                    return true;
                 });
             
          } else {
@@ -322,7 +323,8 @@ class SingleTourPackageController extends Controller
         ->get()
         ->filter(function ($restaurant) use ($userDmcId) {
             // Check if this restaurant has zone assignments for the current DMC
-            return $restaurant->isAssignedToZoneByDmc($userDmcId);
+            // return $restaurant->isAssignedToZoneByDmc($userDmcId);
+            return true;
         });
 
         $attractions = Attraction::with(['tickets' => function($query) use ($userDmcId) {
@@ -332,7 +334,8 @@ class SingleTourPackageController extends Controller
         ->get()
         ->filter(function ($attraction) use ($userDmcId) {
             // Check if this attraction has zone assignments for the current DMC
-            return $attraction->isAssignedToZoneByDmc($userDmcId);
+            // return $attraction->isAssignedToZoneByDmc($userDmcId);
+            return true;
         });
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
