@@ -2177,6 +2177,7 @@
                                 </div>
 
                                 <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
                                 <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
@@ -2198,8 +2199,9 @@
                                         Override vehicle price with custom amount
                                     </small>
                                 </div>
+                                @endif
                                 <div class="col-md-2">
-                                            <div class="form-group" style="display: none;">
+                                            <div class="form-group">
                                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
@@ -2923,6 +2925,7 @@
                                 </div>
 
                                 <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
                                 <div class="col-md-4" id="dropoff_transport_manual_price_field_container" style="display: none;">
                                     <label class="form-label fw-semibold">
                                         <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
@@ -2944,12 +2947,13 @@
                                         Override vehicle price with custom amount
                                     </small>
                                 </div>
+                                @endif
                             </div>
                             
                             <!-- Guest Information -->
                             <div class="row mt-3">
                                 <div class="col-md-12">
-                                    <div class="form-group" style="display: none;">
+                                    <div class="form-group">
                                         <label class="form-label fw-semibold">Number of Passengers</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="ri-user-line"></i></span>
