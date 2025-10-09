@@ -1401,11 +1401,11 @@
                                 <div data-i18n="Jobsheets">Jobsheets</div>
                                 </a>
                                 <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
+                            {{-- <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
                                 <a href="{{ route('jobsheet.view') }}" class="menu-link">
                                     <div data-i18n="View Jobsheets">View Jobsheets</div>
                                 </a>
-                            </li>
+                            </li> --}}
                             <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
                                 <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
                                     <div data-i18n="Guide Jobsheet">Guide Jobsheet</div>
@@ -1433,7 +1433,7 @@
                             <!-- Driver Jobs -->
                             <li class="menu-item @if(Request::is('jobsheet/drivers')) active @endif">
                                 <a href="{{ route('jobsheet.drivers') }}" class="menu-link">
-                                    <div data-i18n="Driver Jobs">Driver Jobs</div>
+                                    <div data-i18n="Assigned Driver">Assigned Driver</div>
                                 </a>
                             </li>
                             @endif
@@ -1442,7 +1442,7 @@
                             <!-- Guide Jobs -->
                             <li class="menu-item @if(Request::is('jobsheet/guides')) active @endif">
                                 <a href="{{ route('jobsheet.guides') }}" class="menu-link">
-                                    <div data-i18n="Guide Jobs">Guide Jobs</div>
+                                    <div data-i18n="Assigned Guide">Assigned Guide</div>
                                 </a>
                             </li>
 
