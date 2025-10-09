@@ -879,10 +879,11 @@ export default function PickupDropModal({
                                   }
                                   label={
                                     Math.ceil(
-                                      Math.ceil(booking.totalPrice) +
-                                        (Math.ceil(booking.totalPrice) *
-                                          parseFloat(sgdTax)) /
-                                          100
+                                      Math.ceil(booking.totalPrice) 
+                                      // Math.ceil(booking.totalPrice) +
+                                      //     (Math.ceil(booking.totalPrice) *
+                                      //       parseFloat(sgdTax)) /
+                                      //       100
                                     ) || "N/A"
                                   }
                                   sx={{

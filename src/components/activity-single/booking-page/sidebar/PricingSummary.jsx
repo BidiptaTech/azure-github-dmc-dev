@@ -35,7 +35,7 @@ const PricingSummary = ({ totalPrice, Tax }) => {
       </div>
       {/* End .row */}
 
-      <div className="row y-gap-5 justify-between pt-5">
+      {/* <div className="row y-gap-5 justify-between pt-5">
         <div className="col-auto">
           <div className="text-15">Taxes and fees</div>
         </div>
@@ -63,7 +63,7 @@ const PricingSummary = ({ totalPrice, Tax }) => {
             </div>
           )}
         </div>
-      </div>
+      </div> */}
       {/* End .row */}
 
       {/* <div className="row y-gap-5 justify-between pt-5">
@@ -76,7 +76,7 @@ const PricingSummary = ({ totalPrice, Tax }) => {
       </div> */}
       {/* End .row */}
 
-      <div className="px-20 py-20 bg-blue-2 rounded-4 mt-20">
+      {/* <div className="px-20 py-20 bg-blue-2 rounded-4 mt-20">
         <div className="row y-gap-5 justify-between">
           <div className="col-auto">
             <div className="text-18 lh-13 fw-500">Price</div>
@@ -113,7 +113,7 @@ const PricingSummary = ({ totalPrice, Tax }) => {
             )}
           </div>
         </div>
-      </div>
+      </div> */}
       {/* End .row */}
     </div>
     // End px-30
