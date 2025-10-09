@@ -25,15 +25,15 @@ const PricingSummary = ({ totalPrice, rooms }) => {
   const usdPrice = Math.ceil(sgdPrice * usdExchangeRate);
   const convertedPrice = Math.ceil(sgdPrice * (priceMode === "dmc" ? exchangeRate : usdExchangeRate));
   
-  // Step 2: Calculate tax amount using percentages from Redux
-  const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-  const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
-  const currentTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
+  // Step 2: Calculate tax amount using percentages from Redux (COMMENTED OUT)
+  // const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
+  // const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
+  // const currentTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
   
-  // Step 3: Calculate the grand totals
-  const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-  const usdGrandTotal = usdPrice + usdTaxAmount;
-  const convertedGrandTotal = convertedPrice + currentTaxAmount;
+  // Step 3: Calculate the grand totals (WITHOUT TAX)
+  const sgdGrandTotal = sgdPrice; // + sgdTaxAmount;
+  const usdGrandTotal = usdPrice; // + usdTaxAmount;
+  const convertedGrandTotal = convertedPrice; // + currentTaxAmount;
 
   // Format price with commas for thousands
   const formatPrice = (price) => {
@@ -69,7 +69,7 @@ const PricingSummary = ({ totalPrice, rooms }) => {
             </div>
           </div>
 
-          <div className="row y-gap-5 justify-between pt-5">
+          {/* <div className="row y-gap-5 justify-between pt-5">
             <div className="col-auto">
               <div className="text-15">Taxes and fees ({currentTax}%)</div>
             </div>
@@ -84,7 +84,7 @@ const PricingSummary = ({ totalPrice, rooms }) => {
                 SGD {formatPrice(sgdTaxAmount)} ({sgdTax}%)
               </div>
             </div>
-          </div>
+          </div> */}
 
           <div className="py-20 bg-blue-2 rounded-4 mt-20">
             <div className="row y-gap-5 justify-between">

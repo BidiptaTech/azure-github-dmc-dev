@@ -52,10 +52,10 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
-  // Get tax percentages from auth slice
-  const currentTax = useSelector((state) => state.auth.currentTax || 0);
-  const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
-  const usdTax = useSelector((state) => state.auth.usdTax || 0);
+  // Get tax percentages from auth slice (COMMENTED OUT - TAX NOT APPLIED)
+  // const currentTax = useSelector((state) => state.auth.currentTax || 0);
+  // const sgdTax = useSelector((state) => state.auth.sgdTax || 0);
+  // const usdTax = useSelector((state) => state.auth.usdTax || 0);
 
   const formatDate = (inputDate) => {
     if (!inputDate) return "N/A";
@@ -536,15 +536,11 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                               size="medium"
                               icon={<PriceCheckIcon style={{ fontSize: '16px' }} />}
                               label={(() => {
-                                // Calculate price with tax using sgdTax from auth slice
+                                // Calculate price without tax
                                 const basePrice = parseFloat(booking.totalPrice) || 0;
                                 const sgdPrice = Math.ceil(basePrice);
-                                const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-                                const sgdGrandTotal = sgdPrice + sgdTaxAmount;
                                 
-                                return sgdTax > 0 
-                                  ? `SGD ${formatPrice(sgdGrandTotal)}`
-                                  : `SGD ${formatPrice(sgdPrice)}`;
+                                return `SGD ${formatPrice(sgdPrice)}`;
                               })()}
                               sx={{
                                 fontWeight: "bold",
@@ -560,20 +556,6 @@ export default function HotelModal({ open, onClose, bookings = [], date }) {
                                 }
                               }}
                             />
-                            {sgdTax > 0 && (
-                              <Typography 
-                                variant="caption" 
-                                display="block" 
-                                sx={{ 
-                                  color: '#5E35B1', 
-                                  fontSize: '0.75rem',
-                                  mt: 0.5,
-                                  fontWeight: 'medium'
-                                }}
-                              >
-                                (incl. {sgdTax}% tax)
-                              </Typography>
-                            )}
                         </TableCell>
                         ):(
                           <TableCell>

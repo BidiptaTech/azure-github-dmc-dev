@@ -631,7 +631,7 @@ export default function AttractionModal({
                                 const sgdGrandTotal = sgdPrice + sgdTaxAmount;
                                 
                                 return sgdTax > 0 
-                                  ? `SGD ${sgdGrandTotal}`
+                                  ? `SGD ${sgdPrice}`
                                   : `SGD ${sgdPrice}`;
                               })()}
                               sx={{
@@ -657,7 +657,7 @@ export default function AttractionModal({
                                 }
                               }}
                             />
-                            {PriceHide === "0" && sgdTax > 0 && (
+                            {/* {PriceHide === "0" && sgdTax > 0 && (
                               <Typography 
                                 variant="caption" 
                                 display="block" 
@@ -670,7 +670,7 @@ export default function AttractionModal({
                               >
                                 (incl. {sgdTax}% tax)
                               </Typography>
-                            )}
+                            )} */}
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
                             <Button

@@ -59,15 +59,15 @@ const OrderSubmittedInfo = () => {
   const usdPrice = Math.ceil(basePrice * usdExchangeRate);
   const convertedPrice = Math.ceil(basePrice * exchangeRate);
   
-  // Step 2: Calculate tax amounts for all currencies
-  const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-  const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
-  const convertedTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
+  // Step 2: Calculate tax amounts for all currencies (COMMENTED OUT)
+  // const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
+  // const usdTaxAmount = Math.ceil((usdPrice * usdTax) / 100);
+  // const convertedTaxAmount = Math.ceil((convertedPrice * currentTax) / 100);
   
-  // Step 3: Calculate grand totals for all currencies
-  const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-  const usdGrandTotal = usdPrice + usdTaxAmount;
-  const convertedGrandTotal = convertedPrice + convertedTaxAmount;
+  // Step 3: Calculate grand totals for all currencies (WITHOUT TAX)
+  const sgdGrandTotal = sgdPrice; // + sgdTaxAmount;
+  const usdGrandTotal = usdPrice; // + usdTaxAmount;
+  const convertedGrandTotal = convertedPrice; // + convertedTaxAmount;
   
   // Get DMC logo and company name from DMC slice instead of auth slice
   const dmcLogo = useSelector(selectSelectedDmcLogo);
@@ -163,14 +163,14 @@ const OrderSubmittedInfo = () => {
                   (
                   <>
                   <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
-                    {currencyCode} {formatPrice(convertedGrandTotal)} <span className="text-13 text-light-1">(incl. {currentTax}% tax)</span>
+                    {currencyCode} {formatPrice(convertedGrandTotal)}
                   </div>
                  
                   <div className="text-13 lh-12 text-light-1">
-                    {usdCurrencyCode} {formatPrice(usdGrandTotal)} <span className="text-12">(incl. {usdTax}% tax)</span>
+                    {usdCurrencyCode} {formatPrice(usdGrandTotal)}
                   </div>
                   <div className="text-13 lh-12 text-light-1">
-                    SGD {formatPrice(sgdGrandTotal)} <span className="text-12">(incl. {sgdTax}% tax)</span>
+                    SGD {formatPrice(sgdGrandTotal)}
                   </div>
                   </>
                   ):(

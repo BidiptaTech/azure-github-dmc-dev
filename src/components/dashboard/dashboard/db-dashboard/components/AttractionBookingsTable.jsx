@@ -651,58 +651,54 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                       </Box>
                     </TableCell>
                     <TableCell sx={{ py: 0.75 }}>
-                      <Chip
-                        size="small"
-                        icon={<PriceCheckIcon style={{ fontSize: '12px' }} />}
-                        label={(() => {
-                          // Check PriceHide before displaying the price
-                          if (PriceHide !== "0") {
-                            return "Price Hidden";
-                          }
-                          
-                          let basePrice = 0;
-                          
-                          // Calculate price based on booking type
-                          if (booking.bookingType === 'package' && booking.ticket_details) {
-                            // For package bookings, calculate total from ticket details
-                            const adultPrice = (booking.ticket_details.adult_price || 0) * (booking.adultCount || 0);
-                            const childPrice = (booking.ticket_details.child_price || 0) * (booking.childCount || 0);
-                            const seniorPrice = (booking.ticket_details.senior_price || 0) * (booking.seniorCount || 0);
-                            basePrice = adultPrice + childPrice + seniorPrice;
-                          } else {
-                            // For attraction bookings, use totalPrice
-                            basePrice = booking.totalPrice || 0;
-                          }
-                          
-                          const sgdPrice = Math.ceil(basePrice);
-                          const sgdTaxAmount = Math.ceil((sgdPrice * sgdTax) / 100);
-                          const sgdGrandTotal = sgdPrice + sgdTaxAmount;
-                          
-                          return sgdTax > 0 
-                            ? `SGD ${sgdGrandTotal} (incl. ${sgdTax}% tax)`
-                            : `SGD ${sgdPrice}`;
-                        })()}
-                        sx={{
-                          fontWeight: "bold",
-                          bgcolor: alpha('#673AB7', 0.1),
-                          color: '#5E35B1',
-                          height: 'auto',
-                          minHeight: '24px',
-                          fontSize: '0.75rem',
-                          py: 0.5,
-                          maxWidth: '90px',
-                          position: 'relative',
-                          '& .MuiChip-icon': {
-                            color: '#5E35B1'
-                          },
-                          '& .MuiChip-label': {
-                            px: 0.8,
-                            whiteSpace: 'normal',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }
-                        }}
-                      />
+                      {PriceHide === "0" ? (
+                        <>
+                          <Chip
+                            size="medium"
+                            icon={<PriceCheckIcon fontSize="small" />}
+                            label={
+                              booking.totalPrice
+                                ? `SGD ${Math.ceil(
+                                    Math.ceil(booking.totalPrice) 
+                                    // +
+                                    //   (Math.ceil(booking.totalPrice) * sgdTax) /
+                                    //     100
+                                  )}`
+                                : "N/A"
+                            }
+                            sx={{
+                              fontWeight: "bold",
+                              bgcolor: alpha("#673AB7", 0.1),
+                              color: "#5E35B1",
+                              height: "26px",
+                              fontSize: "0.85rem",
+                              "& .MuiChip-icon": {
+                                color: "#5E35B1",
+                              },
+                            }}
+                          />
+                          {/* {sgdTax > 0 && (
+                            <Typography
+                              variant="caption"
+                              display="block"
+                              sx={{
+                                color: "#5E35B1",
+                                fontSize: "0.59rem",
+                                mt: 0.1,
+                                fontWeight: "medium",
+                                textAlign: "center",
+                                maxWidth: "90px",
+                              }}
+                            >
+                              (incl. {sgdTax}% tax)
+                            </Typography>
+                          )} */}
+                        </>
+                      ) : (
+                        <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">
+                          Price Hidden
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell sx={{ py: 0.75 }}>
                       {booking.mode === "travClicks" || booking.mode === "travclicks" ? (
