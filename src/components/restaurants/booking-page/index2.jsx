@@ -1421,7 +1421,7 @@ const truncateToWords = (text, wordLimit) => {
                               Final Price
                             </Typography>
 
-                            <Chip
+                            {/* <Chip
                               size="small"
                               label="Tax for display only"
                               color="warning"
@@ -1433,7 +1433,7 @@ const truncateToWords = (text, wordLimit) => {
                                 color: "white",
                                 borderColor: "rgba(255, 255, 255, 0.3)",
                               }}
-                            />
+                            /> */}
                           </Box>
 
                           {(() => {
@@ -1493,11 +1493,11 @@ const truncateToWords = (text, wordLimit) => {
                                         Meal Price
                                       </Typography>
                                         <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                        {currencyCode} {formatPrice(mealPrice * exchangeRate)}
+                                        {currencyCode} {formatPrice(Math.ceil(mealPrice * exchangeRate))}
                                         </Typography>
                                     </Box>
 
-                                    {transportPrice > 0 && (
+                                    {/* {transportPrice > 0 && (
                                       <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
@@ -1511,10 +1511,10 @@ const truncateToWords = (text, wordLimit) => {
                                           {currencyCode} {formatPrice(transportPrice * exchangeRate)}
                                         </Typography>
                                       </Box>
-                                    )}
+                                    )} */}
                                       
                                     {/* Base price (what's sent to the server) */}
-                                      <Box sx={{ 
+                                      {/* <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
@@ -1528,10 +1528,10 @@ const truncateToWords = (text, wordLimit) => {
                                       <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 500 }}>
                                         {currencyCode} {formatPrice(convertedPrice)}
                                         </Typography>
-                                      </Box>
+                                      </Box> */}
                                       
                                     {/* Tax amount - display only */}
-                                      <Box sx={{ 
+                                      {/* <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
@@ -1543,10 +1543,10 @@ const truncateToWords = (text, wordLimit) => {
                                       <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)' }}>
                                         {currencyCode} {formatPrice(taxAmount)}
                                         </Typography>
-                                      </Box>
+                                      </Box> */}
                                       
                                     {/* Total with tax (for display only) */}
-                                      <Box sx={{ 
+                                      {/* <Box sx={{ 
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
@@ -1561,7 +1561,7 @@ const truncateToWords = (text, wordLimit) => {
                                       <Typography sx={{ fontSize: '1rem', color: 'white', fontWeight: 'bold' }}>
                                         {currencyCode} {formatPrice(grandTotal)}
                                         </Typography>
-                                    </Box>
+                                    </Box> */}
                                     
                                     {/* USD Equivalent - always show if not USD */}
                                     {currencyCode !== 'USD' && (
@@ -1573,10 +1573,10 @@ const truncateToWords = (text, wordLimit) => {
                                         mt: 0.5,
                                           }}>
                                         <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                                          USD Total (with {usdTax}% tax)
+                                          USD Total 
                                               </Typography>
                                         <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)' }}>
-                                          USD {formatPrice(usdPrice + usdTaxAmount)}
+                                          USD {formatPrice(Math.ceil(usdPrice))}
                                             </Typography>
                                           </Box>
                                         )}
@@ -1590,10 +1590,10 @@ const truncateToWords = (text, wordLimit) => {
                                             py: 0.5,
                                           }}>
                                         <Typography sx={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-                                          SGD Total (with {sgdTax}% tax)
+                                          SGD Total 
                                               </Typography>
                                         <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)' }}>
-                                          SGD {formatPrice(sgdPrice + sgdTaxAmount)}
+                                          SGD {formatPrice(Math.ceil(sgdPrice))}
                                             </Typography>
                                       </Box>
                                     )}
