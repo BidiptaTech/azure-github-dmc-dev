@@ -1600,7 +1600,7 @@ export default function Index2() {
                                           color: "rgba(255, 255, 255, 0.7)",
                                         }}
                                       >
-                                        Tour Price
+                                        Total Price
                                       </Typography>
                                       <Typography
                                         sx={{
@@ -1609,11 +1609,11 @@ export default function Index2() {
                                         }}
                                       >
                                         {currencyCode}{" "}
-                                        {formatPrice(tourPrice * exchangeRate)}
+                                        {formatPrice(Math.ceil(tourPrice * exchangeRate))}
                                       </Typography>
                                     </Box>
 
-                                    {transportPrice > 0 && (
+                                    {/* {transportPrice > 0 && (
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -1643,10 +1643,10 @@ export default function Index2() {
                                           )}
                                         </Typography>
                                       </Box>
-                                    )}
+                                    )} */}
 
                                     {/* Base price (what's sent to the server) */}
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -1676,10 +1676,10 @@ export default function Index2() {
                                         {currencyCode}{" "}
                                         {formatPrice(convertedPrice)}
                                       </Typography>
-                                    </Box>
+                                    </Box> */}
 
                                     {/* Tax amount - display only */}
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -1704,10 +1704,10 @@ export default function Index2() {
                                       >
                                         {currencyCode} {formatPrice(taxAmount)}
                                       </Typography>
-                                    </Box>
+                                    </Box> */}
 
                                     {/* Total with tax (for display only) */}
-                                    <Box
+                                    {/* <Box
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
@@ -1737,7 +1737,7 @@ export default function Index2() {
                                       >
                                         {currencyCode} {formatPrice(grandTotal)}
                                       </Typography>
-                                    </Box>
+                                    </Box> */}
 
                                     {/* USD Equivalent - always show if not USD */}
                                     {currencyCode !== "USD" && (
@@ -1756,7 +1756,7 @@ export default function Index2() {
                                             color: "rgba(255, 255, 255, 0.7)",
                                           }}
                                         >
-                                          USD Total (with {usdTax}% tax)
+                                          USD Total
                                         </Typography>
                                         <Typography
                                           sx={{
@@ -1765,7 +1765,7 @@ export default function Index2() {
                                           }}
                                         >
                                           USD{" "}
-                                          {formatPrice(usdPrice + usdTaxAmount)}
+                                          {formatPrice(Math.ceil(usdPrice))}
                                         </Typography>
                                       </Box>
                                     )}
@@ -1786,7 +1786,7 @@ export default function Index2() {
                                             color: "rgba(255, 255, 255, 0.7)",
                                           }}
                                         >
-                                          SGD Total (with {sgdTax}% tax)
+                                          SGD Total
                                         </Typography>
                                         <Typography
                                           sx={{
@@ -1795,7 +1795,7 @@ export default function Index2() {
                                           }}
                                         >
                                           SGD{" "}
-                                          {formatPrice(sgdPrice + sgdTaxAmount)}
+                                          {formatPrice(Math.ceil(sgdPrice))}
                                         </Typography>
                                       </Box>
                                     )}

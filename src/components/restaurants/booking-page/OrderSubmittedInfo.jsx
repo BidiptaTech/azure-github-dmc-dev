@@ -150,18 +150,21 @@ const OrderSubmittedInfo = () => {
                               {index > 0 && ", "}
                               <div className="d-flex flex-column" style={{ gap: '2px' }}>
                                 <div style={{ fontWeight: 'bold', color: '#3554D1' }}>
-                                  {currencyCode} {formatPrice(convertedGrandTotal)} <span style={{ fontWeight: 'normal', opacity: 0.75 }}>(incl. {currentTax}% tax)</span>
+                                  {currencyCode} {formatPrice(convertedPrice)}
+                                   {/* <span style={{ fontWeight: 'normal', opacity: 0.75 }}>(incl. {currentTax}% tax)</span> */}
                                 </div>
                                 
                                 {currencyCode !== 'USD' && (
                                   <div className="text-14" style={{ color: '#697488', marginTop: '1px' }}>
-                                    USD {formatPrice(usdGrandTotal)} <span className="text-12" style={{ opacity: 0.75 }}>(incl. {usdTax}% tax)</span>
+                                    USD {formatPrice(usdPrice)}
+                                     {/* <span className="text-12" style={{ opacity: 0.75 }}>(incl. {usdTax}% tax)</span> */}
                                   </div>
                                 )}
                                 
                                 {currencyCode !== 'SGD' && (
                                   <div className="text-14" style={{ color: '#697488', marginTop: '1px' }}>
-                                    SGD {formatPrice(sgdGrandTotal)} <span className="text-12" style={{ opacity: 0.75 }}>(incl. {sgdTax}% tax)</span>
+                                    SGD {formatPrice(sgdPrice)}
+                                     {/* <span className="text-12" style={{ opacity: 0.75 }}>(incl. {sgdTax}% tax)</span> */}
                                   </div>
                                 )}
                               </div>

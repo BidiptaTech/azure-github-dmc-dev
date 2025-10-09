@@ -156,20 +156,23 @@ const OrderSubmittedInfo = () => {
                               <div>
                                 {/* Always show SGD price first */}
                                 <div className={isSgdCurrency ? "text-16 fw-500" : "text-14 text-light-1"}>
-                                  SGD {sgdGrandTotal.toFixed(2)} <span className="text-12">(incl. {sgdTax}% tax)</span>
+                                  SGD {sgdPrice.toFixed(2)} 
+                                  {/* <span className="text-12">(incl. {sgdTax}% tax)</span> */}
                                 </div>
 
                                 {/* Show current currency if not SGD */}
                                 {!isSgdCurrency && (
                                   <div className="text-16 fw-500 mt-5">
-                                    {currencyCode} {convertedGrandTotal.toFixed(2)} <span className="text-13 text-light-1">(incl. {currentTax}% tax)</span>
+                                    {currencyCode} {convertedPrice.toFixed(2)}
+                                     {/* <span className="text-13 text-light-1">(incl. {currentTax}% tax)</span> */}
                                   </div>
                                 )}
 
                                 {/* Show USD if not already shown */}
                                 {!isUsdCurrency && currencyCode !== usdCurrencyCode && (
                                   <div className="text-14 text-light-1">
-                                    {usdCurrencyCode} {usdGrandTotal.toFixed(2)} <span className="text-12">(incl. {usdTax}% tax)</span>
+                                    {usdCurrencyCode} {usdPrice.toFixed(2)}
+                                     {/* <span className="text-12">(incl. {usdTax}% tax)</span> */}
                                   </div>
                                 )}
                               </div>

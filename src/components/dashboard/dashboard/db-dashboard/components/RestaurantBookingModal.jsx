@@ -601,7 +601,7 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                           color: 'white',
                           boxShadow: '0 3px 8px rgba(53, 84, 209, 0.2)',
                         }}>
-                          <Box sx={{ 
+                          {/* <Box sx={{ 
                             display: 'flex', 
                             justifyContent: 'space-between', 
                             alignItems: 'center',
@@ -618,7 +618,7 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                             >
                               Tax Rates
                             </Typography>
-                          </Box>
+                          </Box> */}
 
                           {/* Current Currency Section */}
                           <Box sx={{ mb: 1.5 }}>
@@ -664,7 +664,7 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                             )}
                             
                             {/* Base Price (Subtotal) */}
-                            <Box sx={{ 
+                            {/* <Box sx={{ 
                               display: 'flex', 
                               justifyContent: 'space-between', 
                               alignItems: 'center',
@@ -678,10 +678,10 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                               <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                                 {convertedPrice}
                               </Typography>
-                            </Box>
+                            </Box> */}
                             
                             {/* Tax Amount */}
-                            <Box sx={{ 
+                            {/* <Box sx={{ 
                               display: 'flex', 
                               justifyContent: 'space-between', 
                               alignItems: 'center',
@@ -693,10 +693,10 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                               <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                                 {currentTaxAmount}
                               </Typography>
-                            </Box>
+                            </Box> */}
                             
                             {/* Total With Tax */}
-                            <Box sx={{ 
+                            {/* <Box sx={{ 
                               display: 'flex', 
                               justifyContent: 'space-between', 
                               alignItems: 'center',
@@ -711,7 +711,7 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                               <Typography sx={{ fontWeight: 'bold', fontSize: '0.95rem', color: "white" }}>
                                 {convertedGrandTotal}
                               </Typography>
-                            </Box>
+                            </Box> */}
                           </Box>
                           
                           {/* Other currencies with tax included */}
@@ -736,7 +736,7 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                                     <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                                       {usdCurrencyCode}
                                     </Typography>
-                                    <Typography 
+                                    {/* <Typography 
                                       sx={{ 
                                         fontSize: '0.7rem', 
                                         color: 'rgba(255, 255, 255, 0.7)',
@@ -744,10 +744,10 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                                       }}
                                     >
                                       ({usdTax}%)
-                                    </Typography>
+                                    </Typography> */}
                                   </Box>
                                   <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                    {usdGrandTotal}
+                                    {Math.ceil(usdPrice)}
                                   </Typography>
                                 </Box>
                               )}
@@ -763,7 +763,7 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                                   <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                                     SGD
                                   </Typography>
-                                  <Typography 
+                                  {/* <Typography 
                                     sx={{ 
                                       fontSize: '0.7rem', 
                                       color: 'rgba(255, 255, 255, 0.7)',
@@ -771,10 +771,10 @@ const RestaurantBookingModal = ({ open, onClose, booking }) => {
                                     }}
                                   >
                                     ({sgdTax}%)
-                                  </Typography>
+                                  </Typography> */}
                                 </Box>
                                 <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>
-                                  {sgdGrandTotal}
+                                  {Math.ceil(sgdPrice)}
                                 </Typography>
                               </Box>
                             </Box>
