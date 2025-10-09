@@ -19,7 +19,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import GroupIcon from '@mui/icons-material/Group';
-import { useSelector } from 'react-redux';
+import { useSelector, shallowEqual } from 'react-redux';
 
 // Styled components
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -114,18 +114,18 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
   const [anchorEl, setAnchorEl] = useState(null);
   
   // Get the search parameters from Redux store as fallback
-  const searchParams = useSelector((state) => state.restaurants.searchParams);
-  const fallbackAdults = searchParams?.adults || 1;
-  const fallbackChildren = searchParams?.children || 0;
+  const searchParams = useSelector((state) => state.restaurants.searchParams, shallowEqual);
+  const fallbackAdults = searchParams?.adults ?? 1;
+  const fallbackChildren = searchParams?.children ?? 0;
 
   // Use props first, then fallback to Redux state
-  const effectiveAdults = initialAdults || fallbackAdults;
-  const effectiveChildren = initialChildren || fallbackChildren;
+  const effectiveAdults = initialAdults ?? fallbackAdults;
+  const effectiveChildren = initialChildren ?? fallbackChildren;
 
   // Initialize guest counts with selectedPax if available, otherwise use effective values
   const [guestCounts, setGuestCounts] = useState({
-    Adults: selectedPax?.Adults || effectiveAdults,
-    Children: selectedPax?.Children || effectiveChildren
+    Adults: selectedPax?.Adults ?? effectiveAdults,
+    Children: selectedPax?.Children ?? effectiveChildren
   });
 
   // Store initial values as maximum limits
@@ -144,8 +144,8 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
       isUpdatingFromPropsRef.current = true; // Set flag to prevent onPaxChange call
       
       setGuestCounts({
-        Adults: selectedPax.Adults || effectiveAdults,
-        Children: selectedPax.Children || effectiveChildren
+        Adults: selectedPax.Adults ?? effectiveAdults,
+        Children: selectedPax.Children ?? effectiveChildren
       });
     }
   }, [selectedPax, effectiveAdults, effectiveChildren]);
@@ -158,7 +158,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
     }
 
     // Only call onPaxChange if the values are actually different from the current props
-    const currentPax = selectedPax || { Adults: 0, Children: 0 };
+    const currentPax = selectedPax ?? { Adults: 0, Children: 0 };
     if (
       currentPax.Adults !== guestCounts.Adults ||
       currentPax.Children !== guestCounts.Children
