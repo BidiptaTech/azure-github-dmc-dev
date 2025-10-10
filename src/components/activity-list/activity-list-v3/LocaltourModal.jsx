@@ -965,8 +965,10 @@ export default function LocalTourModal({ open, onClose, bookings = [], date }) {
                                   }
                                   label={
                                     Math.ceil(
-                                      Math.ceil(booking.totalPrice) +
-                                        (booking.totalPrice * sgdTax) / 100
+                                      Math.ceil(booking.totalPrice) 
+                                      // Math.ceil(booking.totalPrice) +
+                                      //     (booking.totalPrice * sgdTax) /
+                                      //       100
                                     ) || "N/A"
                                   }
                                   sx={{
@@ -983,7 +985,7 @@ export default function LocalTourModal({ open, onClose, bookings = [], date }) {
                                     },
                                   }}
                                 />
-                                {sgdTax > 0 && (
+                                {/* {sgdTax > 0 && (
                                   <Typography
                                     variant="caption"
                                     display="block"
@@ -999,7 +1001,7 @@ export default function LocalTourModal({ open, onClose, bookings = [], date }) {
                                   >
                                     (incl. {sgdTax}% tax)
                                   </Typography>
-                                )}
+                                )} */}
                               </>
                             ) : (
                               <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">

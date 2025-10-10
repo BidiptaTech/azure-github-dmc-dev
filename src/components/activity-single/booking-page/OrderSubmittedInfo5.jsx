@@ -55,11 +55,17 @@ const OrderSubmittedInfo5 = () => {
   const price = getPrice(type, data);
 
   // Calculate the total price based on available values
+  // const calculatedTotalPrice = Math.ceil(
+  //   (Math.ceil(price) + (Math.ceil(price) * currentTax) / 100) * exchangeRate
+  // );
+  // const calculatedTotalPriceInUSD = Math.ceil(
+  //   (Math.ceil(price) + (Math.ceil(price) * usdTax) / 100) * usdExchangeRate
+  // );
   const calculatedTotalPrice = Math.ceil(
-    (Math.ceil(price) + (Math.ceil(price) * currentTax) / 100) * exchangeRate
+    (Math.ceil(price) * exchangeRate)
   );
   const calculatedTotalPriceInUSD = Math.ceil(
-    (Math.ceil(price) + (Math.ceil(price) * usdTax) / 100) * usdExchangeRate
+    (Math.ceil(price) * usdExchangeRate)
   );
 
   const formatMessage = (message) => {
