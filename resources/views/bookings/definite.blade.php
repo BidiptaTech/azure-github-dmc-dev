@@ -777,7 +777,16 @@
                                     }
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
                                     $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
-                                    $finalAmount = ceil($tourTotalPrice) - $discountAmount;
+                                    
+                                    // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+                                    $baseAmount = round($tourTotalPrice) - $discountAmount;
+                                    
+                                    // Calculate tax amount and final amount with tax
+                                    $taxPercentage = $country_tax ?? 0;
+                                    $taxAmount = ($baseAmount * $taxPercentage) / 100;
+                                    // Apply ceiling to tax amount (round up to next whole number)
+                                    $taxAmount = ceil($taxAmount);
+                                    $finalAmount = $baseAmount + $taxAmount;
                                     
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
                                     $totalPaid = 0;
@@ -3428,7 +3437,16 @@
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
         $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
-        $finalAmount = ceil($tourTotalPrice) - $discountAmount;
+        
+        // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+        $baseAmount = round($tourTotalPrice) - $discountAmount;
+        
+        // Calculate tax amount and final amount with tax
+        $taxPercentage = $country_tax ?? 0;
+        $taxAmount = ($baseAmount * $taxPercentage) / 100;
+        // Apply ceiling to tax amount (round up to next whole number)
+        $taxAmount = ceil($taxAmount);
+        $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
         $totalPaid = 0;
@@ -3561,27 +3579,43 @@
                         
                         <!-- Payment Summary -->
                         <div class="row mt-3 g-2">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <div class="card bg-secondary text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Base Amount</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($baseAmount, 2) }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Tax ({{ number_format($taxPercentage, 2) }}%)</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($taxAmount, 2) }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
                                 <div class="card bg-primary text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Total Amount</h6>
-                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($finalAmount, 2) }}</h4>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Total</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($finalAmount, 2) }}</h5>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-2">
                                 <div class="card bg-success text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Paid Amount</h6>
-                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($totalPaid, 2) }}</h4>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Paid</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($totalPaid, 2) }}</h5>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-2">
                                 <div class="card bg-warning text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Remaining Amount</h6>
-                                        <h4 class="mb-0" style="font-size: 1.5rem; font-weight: bold;">{{ number_format($remainingAmount, 2) }}</h4>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Remaining</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($remainingAmount, 2) }}</h5>
                                     </div>
                                 </div>
                             </div>
@@ -3625,16 +3659,41 @@
                                 <i class="fas fa-info-circle text-info me-2"></i>Payment Information
                             </label>
                             <div class="alert alert-info">
-                                <div class="row text-center">
+                                <!-- Pricing Breakdown -->
+                                @if($discountAmount > 0)
+                                <div class="row text-center mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Actual Price</small>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Discount</small>
+                                        <div class="fw-bold text-success">- {{ number_format($discountAmount, 2) }} SGD</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                @endif
+                                <div class="row text-center mb-2">
+                                    <div class="col-4">
+                                        <small class="text-muted">Base Amount</small>
+                                        <div class="fw-bold text-dark">{{ number_format($baseAmount, 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Tax ({{ number_format($taxPercentage, 2) }}%)</small>
+                                        <div class="fw-bold text-warning">{{ number_format($taxAmount, 2) }} SGD</div>
+                                    </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
                                         <div class="fw-bold text-primary">{{ number_format($finalAmount, 2) }} SGD</div>
                                     </div>
-                                    <div class="col-4">
+                                </div>
+                                <hr class="my-2">
+                                <div class="row text-center">
+                                    <div class="col-6">
                                         <small class="text-muted">Paid Amount</small>
                                         <div class="fw-bold text-success">{{ number_format($totalPaid, 2) }} SGD</div>
                                     </div>
-                                    <div class="col-4">
+                                    <div class="col-6">
                                         <small class="text-muted">Remaining</small>
                                         <div class="fw-bold text-danger">{{ number_format($remainingAmount, 2) }} SGD</div>
                                     </div>
