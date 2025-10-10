@@ -264,7 +264,6 @@ var dataTableInitialized = false; // Track if DataTable is initialized
 
 $(document).ready(function() {
     let datePicker = null;
-    let tourOrdersData = []; // Store the current tour orders data for export
     
     // Custom alert function
     function showAlert(type, message) {
@@ -292,7 +291,6 @@ $(document).ready(function() {
         // Check if we have initial data from controller
         if (typeof initialOrders !== 'undefined' && initialOrders.length > 0) {
             let tableHTML = '';
-            tourOrdersData = []; // Reset the export data
             
             initialOrders.forEach(function(item, index) {
                 // Handle data as array or object (flexibility for different data structures)
@@ -307,20 +305,6 @@ $(document).ready(function() {
                 } else {
                     dataItem = {};
                 }
-                
-                // Store for export
-                tourOrdersData.push({
-                    tour_id: item.tour_id || 'N/A',
-                    order_type: item.type || 'N/A',
-                    pickup_time: dataItem.entrytime || 'N/A',
-                    pickup_location: dataItem.entrypickup || 'N/A',
-                    pickup_zone: item.pickup_zone || 'N/A',
-                    dropoff_location: dataItem.entrydropoff || 'N/A',
-                    dropoff_zone: item.dropoff_zone || 'N/A',
-                    tour_type: dataItem.type || 'N/A',
-                    assigned_driver: initialDrivers.find(d => item.assigned_driver_id && d.driver_id == item.assigned_driver_id)?.name || 'Not Assigned',
-                    assigned_vehicle: initialVehicles.find(v => item.assigned_vehicle_id && v.vehicle_id == item.assigned_vehicle_id)?.vehicle_name || 'Not Assigned'
-                });
                 
                 tableHTML += `
                     <tr>
@@ -358,7 +342,7 @@ $(document).ready(function() {
                         <td>
                             <select class="form-control vehicle-select" 
                                 name="vehicle_id[${index}]" 
-                                data-order-id="${item.id || ''}" 
+                                data-order-id="${item.booking_id || ''}" 
                                 data-tour-id="${item.tour_id || ''}"
                                 data-order-type="${item.type || ''}"
                                 data-entry-time="${dataItem.entrytime || ''}"
@@ -424,7 +408,6 @@ $(document).ready(function() {
         if (!date) {
             $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
-            tourOrdersData = [];
             return;
         }
 
@@ -451,7 +434,6 @@ $(document).ready(function() {
             if (response.success) {
                 const orders = response.data;
                 let tableHTML = '';
-                tourOrdersData = []; // Reset the export data
                 
                 if (orders && orders.length > 0) {
                     orders.forEach(function(item, index) {
@@ -467,20 +449,6 @@ $(document).ready(function() {
                         } else {
                             dataItem = {};
                         }
-                        
-                        // Store data for export
-                        tourOrdersData.push({
-                            tour_id: item.tour_id || 'N/A',
-                            order_type: item.type || 'N/A',
-                            pickup_time: dataItem.entrytime || 'N/A',
-                            pickup_location: dataItem.entrypickup || 'N/A',
-                            pickup_zone: item.pickup_zone || 'N/A',
-                            dropoff_location: dataItem.entrydropoff || 'N/A',
-                            dropoff_zone: item.dropoff_zone || 'N/A',
-                            tour_type: dataItem.type || 'N/A',
-                            assigned_driver: response.drivers.find(d => item.assigned_driver_id && d.driver_id == item.assigned_driver_id)?.name || 'Not Assigned',
-                            assigned_vehicle: response.vehicles.find(v => item.assigned_vehicle_id && v.vehicle_id == item.assigned_vehicle_id)?.vehicle_name || 'Not Assigned'
-                        });
                         
                         tableHTML += `
                             <tr>
@@ -675,25 +643,55 @@ $(document).ready(function() {
     $('#exportOrdersBtn').click(function(e) {
         e.preventDefault();
         
-        if (tourOrdersData && tourOrdersData.length > 0) {
-            // Format data for Excel export
-            const excelData = tourOrdersData.map(item => ({
-                'Order Type': item.order_type,
-                'Pickup Time': item.pickup_time,
-                'Pickup Location': item.pickup_location,
-                'Pickup Zone': item.pickup_zone,
-                'Dropoff Location': item.dropoff_location,
-                'Dropoff Zone': item.dropoff_zone,
-                'Tour Type': item.tour_type,
-                'Assigned Driver': item.assigned_driver,
-                'Assigned Vehicle': item.assigned_vehicle,
-                'Customer Name': item.customer_name,
-                'Customer Phone': item.customer_phone,
-                'Customer Email': item.customer_email,
-                'Total Price': item.total_price,
-                'Passengers': item.pax
-            }));
+        // Build fresh export data directly from the table DOM to ensure accuracy
+        const excelData = [];
+        
+        $('#tourOrdersTable tbody tr').each(function() {
+            const $row = $(this);
             
+            // Skip rows that are DataTables placeholders or have no data
+            if ($row.find('td[colspan]').length > 0) {
+                return; // Skip this row
+            }
+            
+            const cells = $row.find('td');
+            if (cells.length < 10) {
+                return; // Skip incomplete rows
+            }
+            
+            // Extract data directly from the table cells
+            const tourId = $(cells[0]).text().trim();
+            const pickupTime = $(cells[1]).text().trim();
+            const pickupLocation = $(cells[2]).text().trim();
+            const pickupZone = $(cells[3]).text().trim();
+            const dropoffLocation = $(cells[4]).text().trim();
+            const dropoffZone = $(cells[5]).text().trim();
+            const orderType = $(cells[8]).text().trim();
+            const tourType = $(cells[9]).text().trim();
+            
+            // Get selected driver and vehicle from the dropdowns
+            const driverSelect = $(cells[6]).find('.driver-select');
+            const vehicleSelect = $(cells[7]).find('.vehicle-select');
+            
+            const assignedDriver = driverSelect.find('option:selected').text().trim() || 'Not Assigned';
+            const assignedVehicle = vehicleSelect.find('option:selected').text().trim() || 'Not Assigned';
+            
+            // Add to excel data
+            excelData.push({
+                'Tour ID': tourId,
+                'Pickup Time': pickupTime,
+                'Pickup Location': pickupLocation,
+                'Pickup Zone': pickupZone,
+                'Dropoff Location': dropoffLocation,
+                'Dropoff Zone': dropoffZone,
+                'Assigned Driver': assignedDriver,
+                'Assigned Vehicle': assignedVehicle,
+                'Order Type': orderType,
+                'Tour Type': tourType
+            });
+        });
+        
+        if (excelData.length > 0) {
             // Create a workbook and worksheet
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(excelData);
@@ -815,9 +813,6 @@ $(document).ready(function() {
         const date = $('#hiddenDate').val();
         const dmcId = $('#dmc_id').val();
         
-        // Update the export data when driver assignment changes
-        updateExportData();
-        
         // Prepare form data
         const formData = new FormData();
         formData.append('order_type', orderType);
@@ -842,10 +837,14 @@ $(document).ready(function() {
             }
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
+            // First parse the response to JSON
+            return response.json().then(data => {
+                // If response is not ok, throw error with the actual message from server
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
         })
         .then(data => {
             if (data.success) {
@@ -873,7 +872,7 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error updating driver assignment:', error);
-            showAlert('error', 'Error updating driver assignment: ' + error.message);
+            showAlert('error', error.message || 'Error updating driver assignment');
         });
     });
 
@@ -891,9 +890,6 @@ $(document).ready(function() {
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
         const date = $('#hiddenDate').val();
         const dmcId = $('#dmc_id').val();
-        
-        // Update the export data when vehicle assignment changes
-        updateExportData();
         
         // Prepare form data
         const formData = new FormData();
@@ -919,10 +915,14 @@ $(document).ready(function() {
             }
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
+            // First parse the response to JSON
+            return response.json().then(data => {
+                // If response is not ok, throw error with the actual message from server
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
         })
         .then(data => {
             if (data.success) {
@@ -933,23 +933,10 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error updating vehicle assignment:', error);
-            showAlert('error', 'Error updating vehicle assignment: ' + error.message);
+            showAlert('error', error.message || 'Error updating vehicle assignment');
         });
     });
 
-    // Function to update export data when assignments change
-    function updateExportData() {
-        $('#tourOrdersTable tbody tr').each(function(index) {
-            const $row = $(this);
-            if (tourOrdersData[index]) {
-                const driverSelect = $row.find('.driver-select');
-                const vehicleSelect = $row.find('.vehicle-select');
-                
-                tourOrdersData[index].assigned_driver = driverSelect.find('option:selected').text() || 'Not Assigned';
-                tourOrdersData[index].assigned_vehicle = vehicleSelect.find('option:selected').text() || 'Not Assigned';
-            }
-        });
-    }
 });
 </script>
 @endsection

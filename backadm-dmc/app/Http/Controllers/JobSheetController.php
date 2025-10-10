@@ -825,7 +825,7 @@ class JobSheetController extends Controller
                 $guides = Guide::where('dmc_id', $dmcId)->get();
 
                 // Get orders with tour information
-                $orders = Order::select('orders.*', 'tours.tour_id', 'tours.display_id')
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
@@ -833,18 +833,33 @@ class JobSheetController extends Controller
                     ->get();
                 
                     
-                // Process guide data for orders
-                $orders->map(function($order) {
-                    $orderData = is_array($order->data) ? $order->data:json_decode($order->data, true);
-                    if (is_array($orderData) && isset($orderData[0]) && isset($orderData[0]['guide_id'])) {
-                        $order->guide_id = $orderData[0]['guide_id'];
+                // Process guide data for orders - check jobsheets table for assignments
+                $orders->map(function($order) use ($tomorrow) {
+                    $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
+                    $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
+                    
+                    // Check if there's an assignment in the jobsheets table
+                    $jobsheet = Jobsheet::where('date', $tomorrow)
+                        ->where('type', $order->type)
+                        ->where('service_type', $order->type) // For guides, service_type is same as type
+                        ->where('journey_time', $dataItem['entrytime'] ?? null)
+                        ->first();
+                    
+                    // Attach guide info from jobsheet
+                    if ($jobsheet) {
+                        $order->assigned_guide_id = $jobsheet->guide_id;
+                        $order->guide = $jobsheet->guide_id ? Guide::find($jobsheet->guide_id) : null;
+                    } else {
+                        $order->assigned_guide_id = null;
+                        $order->guide = null;
                     }
+                    
                     return $order;
                 });
             }
             else {
                 // For other roles, just get all orders for tomorrow
-                $orders = Order::select('orders.*', 'tours.tour_id', 'tours.display_id')
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
@@ -1128,7 +1143,7 @@ class JobSheetController extends Controller
             }
 
             // Get the actual numeric tour_id from the order
-            $order = Order::find($request->order_id);
+            $order = Order::where('booking_id', $request->order_id)->first();
             if (!$order) {
                 return response()->json([
                     'success' => false,
@@ -1137,8 +1152,7 @@ class JobSheetController extends Controller
             }
 
             // Get the actual numeric tour_id (not the display_id)
-            $actualTourId = $order->getOriginal('tour_id');
-
+            $actualTourId = $order->tour_id;
             $jobsheet = null;
             $vehicle = null;
             
@@ -1147,6 +1161,8 @@ class JobSheetController extends Controller
                 ->where('type', $request->order_type)
                 ->where('service_type', $request->type)
                 ->where('journey_time', $request->entry_time)
+                ->where('tour_id', $actualTourId)
+                ->where('order_id', $request->order_id)
                 ->first(); 
                 
             $lastJobsheet = Jobsheet::withTrashed()->orderBy('created_at', 'desc')->first();
@@ -1204,6 +1220,8 @@ class JobSheetController extends Controller
                 if ($request->has('guide_id') && !empty($request->guide_id)) {
                     $jobsheet->guide_id = $request->guide_id;
                 }
+
+                $jobsheet->order_id = $request->order_id;
                 
                 $jobsheet->save();
             }
@@ -1279,6 +1297,7 @@ class JobSheetController extends Controller
                 ]);
                 $jobsheet->type = 'guide';
                 $jobsheet->service_type = $request->type;
+                $jobsheet->order_id = $order_id;
                 $jobsheet->save();
         }
         return response()->json([
@@ -1769,7 +1788,9 @@ class JobSheetController extends Controller
             if (!is_null($dmcId)) {
                 // If DMC ID is available, filter by both DMC and date
                 if($type === 'guide'){
-                $orders = Order::whereIn('orders.type', $orderTypes)
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                     ->get();
@@ -1782,7 +1803,7 @@ class JobSheetController extends Controller
                 }
             } else {
                 // Otherwise just filter by date
-                $orders = Order::select('orders.*', 'tours.tour_id', 'tours.display_id')
+                $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
@@ -1791,16 +1812,29 @@ class JobSheetController extends Controller
             
             // Fetch assigned drivers/guides for each order and add zone information
             if ($type === 'guide') {
-                $orders->map(function($order) use ($dmcId) {
-                    // Logic for guide data
+                $orders->map(function($order) use ($dmcId, $date) {
+                    // Get order data
                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
-                    if (is_array($orderData) && isset($orderData[0]) && isset($orderData[0]['guide_id'])) {
-                        $order->guide_id = $orderData[0]['guide_id'];
+                    $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
+                    
+                    // Check if there's an assignment in the jobsheets table
+                    $jobsheet = Jobsheet::where('date', $date)
+                        ->where('type', $order->type)
+                        ->where('service_type', $order->type) // For guides, service_type is same as type
+                        ->where('journey_time', $dataItem['entrytime'] ?? null)
+                        ->first();
+                    
+                    // Attach guide info from jobsheet
+                    if ($jobsheet) {
+                        $order->assigned_guide_id = $jobsheet->guide_id;
+                        $order->guide = $jobsheet->guide_id ? Guide::find($jobsheet->guide_id) : null;
+                    } else {
+                        $order->assigned_guide_id = null;
+                        $order->guide = null;
                     }
                     
                     // Add zone information for pickup and dropoff
                     if (is_array($orderData) && isset($orderData[0])) {
-                        $dataItem = $orderData[0];
                         $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
                         $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
                     }
