@@ -538,14 +538,14 @@ class PackageController extends Controller
         $customer_info = [];
         
         if($order){
-            $customer_info['fullName'] = $order->data[0]['fullName'];
-            $customer_info['email'] = $order->data[0]['email'];
-            $customer_info['phone'] = $order->data[0]['phone'];
-            $customer_info['countryCode'] = $order->data[0]['countryCode'];
-            $customer_info['address1'] = $order->data[0]['address1'];
-            $customer_info['address2'] = $order->data[0]['address2'];
-            $customer_info['state'] = $order->data[0]['state'];
-            $customer_info['zip'] = $order->data[0]['zip'];
+            $customer_info['fullName'] = $order->data[0]['fullName'] ?? '';
+            $customer_info['email'] = $order->data[0]['email'] ??'';
+            $customer_info['phone'] = $order->data[0]['phone'] ?? '';
+            $customer_info['countryCode'] = $order->data[0]['countryCode'] ?? '';
+            $customer_info['address1'] = $order->data[0]['address1'] ?? '';
+            $customer_info['address2'] = $order->data[0]['address2'] ?? '';
+            $customer_info['state'] = $order->data[0]['state'] ?? '';
+            $customer_info['zip'] = $order->data[0]['zip'] ?? '';
         }
         
         $agent_id = $tour->agent_id;
