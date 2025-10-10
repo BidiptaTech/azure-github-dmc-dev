@@ -7571,23 +7571,6 @@ document.addEventListener('DOMContentLoaded', function() {
              
                          servicesHTML += `
                 <div class="daily-service-section border-bottom" id="day${day}">
-                    <div class="day-header p-3 bg-gradient-primary text-white">
-                         <div class="d-flex justify-content-between align-items-center">
-                             <div>
-                                 <h5 class="mb-1 fw-bold">
-                                     <i class="ri-calendar-line me-2"></i>Day ${day}
-                                 </h5>
-                                 <p class="mb-0 opacity-75">
-                                     ${currentDate.format('dddd, Do MMMM YYYY')}
-                                 </p>
-                             </div>
-                             <div class="text-end">
-                                 <span class="badge bg-light text-dark px-3 py-2">
-                                     <i class="ri-time-line me-1"></i>Full Day Activities
-                                 </span>
-                             </div>
-                         </div>
-                     </div>
                      <div class="day-content p-4 bg-light">
              `;
             // Entry Port Services (Only on Day 1)
