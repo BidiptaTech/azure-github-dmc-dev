@@ -3423,7 +3423,6 @@
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
         $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
-        
         // Calculate base amount before tax
         $baseAmount = ceil($tourTotalPrice) - $discountAmount;
         
@@ -3642,6 +3641,20 @@
                                 <i class="fas fa-info-circle text-info me-2"></i>Payment Information
                             </label>
                             <div class="alert alert-info">
+                                <!-- Pricing Breakdown -->
+                                @if($discountAmount > 0)
+                                <div class="row text-center mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Actual Price</small>
+                                        <div class="fw-bold text-secondary">{{ number_format(ceil($tourTotalPrice), 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Discount</small>
+                                        <div class="fw-bold text-success">- {{ number_format($discountAmount, 2) }} SGD</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                @endif
                                 <div class="row text-center mb-2">
                                     <div class="col-4">
                                         <small class="text-muted">Base Amount</small>
