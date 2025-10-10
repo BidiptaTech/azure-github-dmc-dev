@@ -565,6 +565,13 @@ class TourController extends Controller
             // Calculate final amounts
             $settlementAmount = $enquiry->amount ?? $tourTotalPrice;
             $discount = ceil($tourTotalPrice) - $settlementAmount;
+            
+            // Calculate tax amounts
+            $baseAmount = ceil($tourTotalPrice) - $discount;
+            $taxPercentage = 7.0; // Default tax percentage - you can make this configurable
+            $taxAmount = ($baseAmount * $taxPercentage) / 100;
+            $taxAmount = ceil($taxAmount); // Apply ceiling to tax amount
+            $finalAmountWithTax = $baseAmount + $taxAmount;
 
             $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
             $totalPaid = 0;
@@ -576,14 +583,14 @@ class TourController extends Controller
                 }
             }
 
-            $remainingAmount = $settlementAmount - $totalPaid;
+            $remainingAmount = $finalAmountWithTax - $totalPaid;
 
             // Determine payment status
-            if (!$settlementAmount) {
+            if (!$finalAmountWithTax) {
                 $payment_status = "Not Started Yet";
             } elseif ($remainingAmount <= 0) {
                 $payment_status = "Completely Paid";
-            } elseif ($remainingAmount < $settlementAmount) {
+            } elseif ($remainingAmount < $finalAmountWithTax) {
                 $payment_status = "Partially Paid";
             } else {
                 $payment_status = "Not Paid";
@@ -619,6 +626,9 @@ class TourController extends Controller
                 'dueAmount' => $remainingAmount,
                 'discountAmount' => $discount,
                 'finalAmount' => $settlementAmount,
+                'taxPercentage' => $taxPercentage,
+                'taxAmount' => $taxAmount,
+                'finalAmountWithTax' => $finalAmountWithTax,
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
                 'dmc_id' => $tour->dmc_id, 
