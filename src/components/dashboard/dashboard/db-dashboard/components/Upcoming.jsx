@@ -558,6 +558,8 @@ export default function Pending({ filters = {} }) {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {

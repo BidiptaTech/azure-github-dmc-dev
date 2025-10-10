@@ -1548,6 +1548,8 @@ export default function Pending({ filters = {} }) {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -1991,7 +1993,7 @@ export default function Pending({ filters = {} }) {
       });
       
       // Add local transport prices
-      const localTransports = modifiedData.local_transport || modifiedData.data?.local_transport || [];
+      const localTransports = bookings.local_transport || bookings.data?.local_transport || [];
       localTransports.forEach((transport) => {
         if (transport.totalPrice) {
           actualPrice += parseFloat(transport.totalPrice);
