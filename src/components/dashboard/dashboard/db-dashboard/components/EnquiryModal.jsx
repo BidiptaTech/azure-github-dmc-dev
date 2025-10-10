@@ -403,7 +403,6 @@ const EnquiryModal = ({
         )}
 
         {/* Comment Section */}
-        {(assigned === null || assigned === "Agent") && (
           <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', mt: 1.5 }}>
             <CardContent sx={{ p: 2 }}>
               <Box display="flex" alignItems="center" gap={1} mb={1.5}>
@@ -430,6 +429,7 @@ const EnquiryModal = ({
                 helperText={commentError ? "Comment is required" : ""}
                 sx={{ mb: 1.5 }}
               />
+   
 
               <Stack direction="row" spacing={1.5} justifyContent="flex-end">
                 <Button
@@ -447,7 +447,7 @@ const EnquiryModal = ({
                   variant="contained"
                   color="success"
                   startIcon={<CheckCircleOutlinedIcon />}
-                  disabled={isAmountExceeded}
+                  disabled={isAmountExceeded || (enquiryAmount && enquiryAmount > 0)}
                   size="medium"
                 >
                   Accept & Booking
@@ -469,9 +469,10 @@ const EnquiryModal = ({
                   Submit Enquiry
                 </Button>
               </Stack>
+    
+
             </CardContent>
           </Card>
-        )}
       </Box>
     </Modal>
   );

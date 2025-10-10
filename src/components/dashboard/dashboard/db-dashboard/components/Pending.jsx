@@ -347,6 +347,7 @@ export default function Pending({ filters = {} }) {
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
         ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -1145,6 +1146,13 @@ export default function Pending({ filters = {} }) {
       }
     });
 
+    const localTransports = modifiedData.local_transport || modifiedData.data?.local_transport || [];
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        totalOriginalPrice += parseFloat(transport.totalPrice);
+      }
+    });
+
     // If total price is 0, we can't calculate distribution ratios
     if (totalOriginalPrice === 0) {
       setModifiedPriceData(modifiedData);
@@ -1165,6 +1173,7 @@ export default function Pending({ filters = {} }) {
       ...attractions,
       ...guides,
       ...restaurants,
+      ...localTransports,
     ].filter((item) => item.totalPrice);
 
     // Sort items by price to distribute remaining amounts to higher priced items first
@@ -1400,6 +1409,40 @@ export default function Pending({ filters = {} }) {
         delete attraction.calculatedDiscount;
       }
     });
+    
+    // Process local transports
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        // Store original price
+        transport.basePrice = transport.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const transportMarkupAmount = transport.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(transport.totalPrice) + transportMarkupAmount;
+        transport.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const transportDiscountAmount = transport.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        transport.totalPrice = (
+          markedUpPrice - transportDiscountAmount
+        ).toString();
+
+        // Store markup and discount amounts
+        transport.markupAmount = transportMarkupAmount.toString();
+        if (discount > 0) {
+          transport.discountAmount = transportDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete transport.calculatedMarkup;
+        delete transport.calculatedDiscount;
+      }
+    });
 
     // Process guides
     guides.forEach((guide) => {
@@ -1505,6 +1548,8 @@ export default function Pending({ filters = {} }) {
         ...(bookings.guide || bookings.data?.guide || []),
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
+        ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -1946,6 +1991,14 @@ export default function Pending({ filters = {} }) {
           actualPrice += parseFloat(travelPoint.totalPrice);
         }
       });
+      
+      // Add local transport prices
+      const localTransports = bookings.local_transport || bookings.data?.local_transport || [];
+      localTransports.forEach((transport) => {
+        if (transport.totalPrice) {
+          actualPrice += parseFloat(transport.totalPrice);
+        }
+      });
 
       // Use Math.ceil for the prices
       actualPrice = Math.ceil(actualPrice);
@@ -2098,6 +2151,14 @@ export default function Pending({ filters = {} }) {
           calculatedTotalPrice += parseFloat(restaurant.totalPrice);
         }
       });
+      
+      // Add local transport prices
+      const localTransports = bookings.local_transport || bookings.data?.local_transport || [];
+      localTransports.forEach((transport) => {
+        if (transport.totalPrice) {
+          calculatedTotalPrice += parseFloat(transport.totalPrice);
+        }
+      });
 
       setTotalPrice(Math.ceil(calculatedTotalPrice));
     }
@@ -2129,6 +2190,7 @@ export default function Pending({ filters = {} }) {
         ...(bookings.restaurant || bookings.data?.restaurant || []),
         ...(bookings.travel_point || bookings.data?.travel_point || []),
         ...(bookings.travel_hourly || bookings.data?.travel_hourly || []),
+        ...(bookings.local_transport || bookings.data?.local_transport || []),
       ];
 
       services.forEach((item) => {
@@ -3382,8 +3444,8 @@ export default function Pending({ filters = {} }) {
                                     </div>
                                     <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
                                       {(() => {
-                                        const baseFinal = Number(list.finalAmount || 0);
-                                        const withTax = Math.ceil(baseFinal + (baseFinal * (sgdTax || 0)) / 100);
+                                        const baseFinal = Number(list.finalAmountWithTax || 0);
+                                        const withTax = Math.ceil(baseFinal );
                                         return `SGD ${withTax}`;
                                       })()}
                                     </span>
@@ -3483,7 +3545,7 @@ export default function Pending({ filters = {} }) {
                                   <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
                                     {(() => {
                                       const baseDue = Number(list.dueAmount || 0);
-                                      const withTax = Math.ceil(baseDue + (baseDue * (sgdTax || 0)) / 100);
+                                      const withTax = Math.ceil(baseDue );
                                       return `Due: SGD ${withTax}`;
                                     })()}
                                   </span>
