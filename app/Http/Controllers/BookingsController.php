@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Tour;
 use App\Models\User;
 use App\Models\Agent;
+use App\Models\Country;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -181,7 +182,8 @@ class BookingsController extends Controller
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
 
-        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax'));
     }
 
     /**
@@ -393,7 +395,8 @@ class BookingsController extends Controller
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
         }
-        return view('bookings.follow-ups', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.follow-ups', compact('tours', 'country_tax'));
     }
 
     /**
@@ -429,7 +432,8 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
 
-        return view('bookings.tentative', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.tentative', compact('tours', 'country_tax'));
     }
 
     /**
@@ -530,8 +534,8 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
         }
-
-        return view('bookings.confirmed', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.confirmed', compact('tours', 'country_tax'));
     }
 
     /**
@@ -642,7 +646,8 @@ class BookingsController extends Controller
             ->get();
         }
 
-        return view('bookings.definite', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.definite', compact('tours', 'country_tax'));
     }
 
     /**
@@ -746,7 +751,8 @@ class BookingsController extends Controller
             return $tour;
         });
 
-        return view('bookings.actual', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.actual', compact('tours', 'country_tax'));
     }
 
     /**
@@ -836,7 +842,8 @@ class BookingsController extends Controller
             ->get();
         }
 
-        return view('bookings.cancelled', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.cancelled', compact('tours', 'country_tax'));
     }
 
     /**
@@ -940,7 +947,8 @@ class BookingsController extends Controller
             ->get();
         }
         
-        return view('bookings.refunds', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.refunds', compact('tours', 'country_tax'));
     }
 
     /**
@@ -1023,7 +1031,8 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
 
-        return view('bookings.cancellations-refunds', compact('tours'));
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        return view('bookings.cancellations-refunds', compact('tours', 'country_tax'));
     }
 
     /**
