@@ -8,6 +8,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/summernote/0.8.18/summernote.min.js"></script>
 @endsection
+
 @section('content')
 	<div class="d-flex justify-content-between align-items-center mb-3"
 		style="background-color: #C0C0C0; color: #333; padding: 20px; border-radius: 5px;">

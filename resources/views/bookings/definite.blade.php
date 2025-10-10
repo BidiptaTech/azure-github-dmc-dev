@@ -8636,7 +8636,7 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                 <label for="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required min="${new Date().toISOString().split('T')[0]}"
                        onchange="window.calculateAttractionDisplayDueDate ? window.calculateAttractionDisplayDueDate('${tourId}', '${attractionOrderIndex}', '${bookingIndex}') : calculateAttractionDisplayDueDate('${tourId}', '${attractionOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the actual due date for this booking</div>
@@ -23284,7 +23284,7 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
                 <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required min="${new Date().toISOString().split('T')[0]}"
                        onchange="calculateRestaurantDisplayDueDate('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the actual due date for this booking</div>
