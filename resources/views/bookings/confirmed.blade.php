@@ -741,12 +741,14 @@
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
                                     $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
                                     
-                                    // Calculate base amount before tax
-                                    $baseAmount = ceil($tourTotalPrice) - $discountAmount;
+                                    // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+                                    $baseAmount = round($tourTotalPrice) - $discountAmount;
                                     
                                     // Calculate tax amount and final amount with tax
                                     $taxPercentage = $country_tax ?? 0;
                                     $taxAmount = ($baseAmount * $taxPercentage) / 100;
+                                    // Apply ceiling to tax amount (round up to next whole number)
+                                    $taxAmount = ceil($taxAmount);
                                     $finalAmount = $baseAmount + $taxAmount;
                                     
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -3423,12 +3425,14 @@
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
         $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
-        // Calculate base amount before tax
-        $baseAmount = ceil($tourTotalPrice) - $discountAmount;
+        // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+        $baseAmount = round($tourTotalPrice) - $discountAmount;
         
         // Calculate tax amount and final amount with tax
         $taxPercentage = $country_tax ?? 0;
         $taxAmount = ($baseAmount * $taxPercentage) / 100;
+        // Apply ceiling to tax amount (round up to next whole number)
+        $taxAmount = ceil($taxAmount);
         $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -3646,7 +3650,7 @@
                                 <div class="row text-center mb-2">
                                     <div class="col-6">
                                         <small class="text-muted">Actual Price</small>
-                                        <div class="fw-bold text-secondary">{{ number_format(ceil($tourTotalPrice), 2) }} SGD</div>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} SGD</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Discount</small>
