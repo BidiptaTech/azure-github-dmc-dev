@@ -229,6 +229,7 @@ export default function Pending({ filters = {} }) {
   const [modifiedPriceData, setModifiedPriceData] = useState(null);
   //const { currentStep } = useSelector((state) => state.steps);
   const { DmcName, DmcLogo } = useSelector((state) => state.auth);
+  const sgdTax = useSelector((state) => state.auth.sgdTax);
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current location (route)
   const [order, setOrder] = useState("asc"); // State to track sort order
@@ -638,6 +639,10 @@ export default function Pending({ filters = {} }) {
       modifiedData.exit_port || modifiedData.data?.exit_port || [];
     const travelPoints =
       modifiedData.travel_point || modifiedData.data?.travel_point || [];
+    const travelHourly =
+      modifiedData.travel_hourly || modifiedData.data?.travel_hourly || [];
+    const localTransports =
+      modifiedData.local_transport || modifiedData.data?.local_transport || [];
 
     const attractions =
       modifiedData.attraction || modifiedData.data?.attraction || [];
@@ -687,6 +692,20 @@ export default function Pending({ filters = {} }) {
         totalOriginalPrice += parseFloat(restaurant.totalPrice);
       }
     });
+    
+    // Add travel_hourly to total price
+    travelHourly.forEach((travel) => {
+      if (travel.totalPrice) {
+        totalOriginalPrice += parseFloat(travel.totalPrice);
+      }
+    });
+    
+    // Add local_transport to total price
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        totalOriginalPrice += parseFloat(transport.totalPrice);
+      }
+    });
 
     // If total price is 0, we can't calculate distribution ratios
     if (totalOriginalPrice === 0) {
@@ -704,9 +723,11 @@ export default function Pending({ filters = {} }) {
       ...entryPorts,
       ...exitPorts,
       ...travelPoints,
+      ...travelHourly,
       ...attractions,
       ...guides,
       ...restaurants,
+      ...localTransports,
     ].filter((item) => item.totalPrice);
 
     // Sort items by price to distribute remaining amounts to higher priced items first
@@ -908,6 +929,72 @@ export default function Pending({ filters = {} }) {
         // Remove the temporary calculation properties
         delete attraction.calculatedMarkup;
         delete attraction.calculatedDiscount;
+      }
+    });
+    
+    // Process travel hourly
+    travelHourly.forEach((travel) => {
+      if (travel.totalPrice) {
+        // Store original price
+        travel.basePrice = travel.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const travelMarkupAmount = travel.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(travel.totalPrice) + travelMarkupAmount;
+        travel.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const travelDiscountAmount = travel.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        travel.totalPrice = (markedUpPrice - travelDiscountAmount).toString();
+
+        // Store markup and discount amounts
+        travel.markupAmount = travelMarkupAmount.toString();
+        if (discount > 0) {
+          travel.discountAmount = travelDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete travel.calculatedMarkup;
+        delete travel.calculatedDiscount;
+      }
+    });
+    
+    // Process local transport
+    localTransports.forEach((transport) => {
+      if (transport.totalPrice) {
+        // Store original price
+        transport.basePrice = transport.totalPrice;
+
+        // Use the pre-calculated markup amount that ensures total matches exactly
+        const transportMarkupAmount = transport.calculatedMarkup || 0;
+
+        // Apply markup to get the new base price
+        const markedUpPrice =
+          parseFloat(transport.totalPrice) + transportMarkupAmount;
+        transport.markedUpPrice = markedUpPrice.toString();
+
+        // Use the pre-calculated discount amount that ensures total matches exactly
+        const transportDiscountAmount = transport.calculatedDiscount || 0;
+
+        // Apply discount on the marked-up price
+        transport.totalPrice = (
+          markedUpPrice - transportDiscountAmount
+        ).toString();
+
+        // Store markup and discount amounts
+        transport.markupAmount = transportMarkupAmount.toString();
+        if (discount > 0) {
+          transport.discountAmount = transportDiscountAmount.toString();
+        }
+
+        // Remove the temporary calculation properties
+        delete transport.calculatedMarkup;
+        delete transport.calculatedDiscount;
       }
     });
 
@@ -1203,11 +1290,15 @@ export default function Pending({ filters = {} }) {
       const exitPorts = bookings.exit_port || bookings.data?.exit_port || [];
       const travelPoints =
         bookings.travel_point || bookings.data?.travel_point || [];
+      const travelHourly =
+        bookings.travel_hourly || bookings.data?.travel_hourly || [];
       const attractions =
         bookings.attraction || bookings.data?.attraction || [];
       const guides = bookings.guide || bookings.data?.guide || [];
       const restaurants =
         bookings.restaurant || bookings.data?.restaurant || [];
+      const localTransports =
+        bookings.local_transport || bookings.data?.local_transport || [];
 
       // Calculate total original price
       hotels.forEach((hotel) => {
@@ -1249,6 +1340,20 @@ export default function Pending({ filters = {} }) {
       restaurants.forEach((restaurant) => {
         if (restaurant.totalPrice) {
           calculatedTotalPrice += parseFloat(restaurant.totalPrice);
+        }
+      });
+      
+      // Add travel hourly prices
+      travelHourly.forEach((travel) => {
+        if (travel.totalPrice) {
+          calculatedTotalPrice += parseFloat(travel.totalPrice);
+        }
+      });
+      
+      // Add local transport prices
+      localTransports.forEach((transport) => {
+        if (transport.totalPrice) {
+          calculatedTotalPrice += parseFloat(transport.totalPrice);
         }
       });
 
@@ -2259,9 +2364,21 @@ export default function Pending({ filters = {} }) {
                                   </span>
                                 </div>
                                 <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
-                                  SGD {Math.ceil(list.finalAmount)}
+                                  {(() => {
+                                    const baseFinal = Number(list.finalAmount || 0);
+                                    const withTax = Math.ceil(baseFinal + (baseFinal * (sgdTax || 0)) / 100);
+                                    return `SGD ${withTax}`;
+                                  })()}
                                 </span>
                               </div>
+                              
+                              {sgdTax > 0 && (
+                                <div style={{ textAlign: "center", marginTop: "2px" }}>
+                                  <span style={{ fontSize: "8px", color: "#5E35B1", fontWeight: "600" }}>
+                                    (incl. {sgdTax}% tax)
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Payment Status */}
                               <div
@@ -2348,7 +2465,11 @@ export default function Pending({ filters = {} }) {
                                 >
                                   <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
                                   <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
-                                    Due: SGD {Math.ceil(list.dueAmount)}
+                                    {(() => {
+                                      const baseDue = Number(list.dueAmount || 0);
+                                      const withTax = Math.ceil(baseDue + (baseDue * (sgdTax || 0)) / 100);
+                                      return `Due: SGD ${withTax}`;
+                                    })()}
                                   </span>
                                 </div>
                               )}
