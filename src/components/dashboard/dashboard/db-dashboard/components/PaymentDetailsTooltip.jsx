@@ -148,8 +148,8 @@ const PaymentDetailsTooltip = ({ list }) => {
             </Box>
             <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
               {(() => {
-                const baseFinal = Number(list.finalAmount || 0);
-                const withTax = Math.ceil(baseFinal + (baseFinal * (sgdTax || 0)) / 100);
+                const baseFinal = Number(list.finalAmountWithTax || 0);
+                const withTax = Math.ceil(baseFinal);
                 return `SGD ${withTax}`;
               })()}
             </Typography>
@@ -213,7 +213,7 @@ const PaymentDetailsTooltip = ({ list }) => {
           <Typography variant="caption" fontWeight={700} color="#ff9800" sx={{ fontSize: '0.7rem' }}>
             {(() => {
               const baseDue = Number(list.dueAmount || 0);
-              const withTax = Math.ceil(baseDue + (baseDue * (sgdTax || 0)) / 100);
+              const withTax = Math.ceil(baseDue);
               return `SGD ${withTax}`;
             })()}
           </Typography>
