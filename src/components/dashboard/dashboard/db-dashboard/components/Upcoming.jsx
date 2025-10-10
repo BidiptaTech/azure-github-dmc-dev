@@ -3089,8 +3089,8 @@ export default function Pending({ filters = {} }) {
                                   </div>
                                   <span style={{ fontSize: "9px", color: "#4CAF50", fontWeight: "700" }}>
                                     {(() => {
-                                      const baseFinal = Number(list.finalAmount || 0);
-                                      const withTax = Math.ceil(baseFinal + (baseFinal * (sgdTax || 0)) / 100);
+                                      const baseFinal = Number(list.finalAmountWithTax || 0);
+                                      const withTax = Math.ceil(baseFinal);
                                       return `SGD ${withTax}`;
                                     })()}
                                   </span>
@@ -3190,7 +3190,7 @@ export default function Pending({ filters = {} }) {
                                     <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
                                       {(() => {
                                         const baseDue = Number(list.dueAmount || 0);
-                                        const withTax = Math.ceil(baseDue + (baseDue * (sgdTax || 0)) / 100);
+                                          const withTax = Math.ceil(baseDue);
                                         return `Due: SGD ${withTax}`;
                                       })()}
                                     </span>
