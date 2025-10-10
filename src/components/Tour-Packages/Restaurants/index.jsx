@@ -129,6 +129,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
   const currentServicesRef = useRef([]);
   const isInitializingRef = useRef(false);
   const hasDataConflictsRef = useRef(false);
+  console.log("hasDataConflictsRefre", hasDataConflictsRef);
   
   // Initialize form sections with stable default values
   const defaultSection = useMemo(() => ({
@@ -180,8 +181,8 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       if (!restaurantData) return false;
       
       // Check if adult/child counts from restaurantspack don't match search form data
-      const searchAdults = tour?.adult || 0;
-      const searchChildren = tour?.child || 0;
+      const searchAdults = searchParams?.adults || 0;
+      const searchChildren = searchParams?.children || 0;
       const restaurantAdults = Number(restaurantData.adultCount) || 0;
       const restaurantChildren = Number(restaurantData.childCount) || 0;
       
@@ -279,7 +280,7 @@ export default function RestaurantComponent({ date, dayIndex, restaurantspack, t
       isInitializingRef.current = false;
       console.log('Restaurant initialization completed, handleInputChange is now enabled');
     }, 100);
-  }, [ dayIndex, bookingDate, tour]); // Added tourDates to dependencies
+  }, [ dayIndex, bookingDate, searchParams]); // Added tourDates to dependencies
 
   // Function to dispatch ALL restaurants from restaurantspack to Redux state (following attraction pattern)
   const dispatchAllRestaurantsToRedux = useCallback(() => {

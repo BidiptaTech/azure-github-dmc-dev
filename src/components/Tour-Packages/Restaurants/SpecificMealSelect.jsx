@@ -485,7 +485,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                 <Typography sx={{ ml: 1, fontSize: '0.8rem', flex: 1 }}>{selected}</Typography>
                 {value && value.totalPrice && (
                   <Typography sx={{ fontSize: '0.7rem', color: '#4caf50', fontWeight: 500 }}>
-                    ${value.totalPrice}
+                    ${Math.round(value.totalPrice)}
                   </Typography>
                 )}
                 {value && value.items && value.items.length > 0 && (
@@ -720,7 +720,7 @@ const SpecificMealSelect = ({ value, onChange, selectedMealType, restaurantDetai
                  </Box>
                  <Box sx={{ textAlign: 'right' }}>
                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#4caf50', fontSize: '1.1rem' }}>
-                     {PriceHide !== "1" ? formatCurrency(totalPrice) : "Price hidden"}
+                     {PriceHide !== "1" ? formatCurrency(Math.round(totalPrice)) : "Price hidden"}
                    </Typography>
                    {specificMealType.toLowerCase() === 'buffet' && (
                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>

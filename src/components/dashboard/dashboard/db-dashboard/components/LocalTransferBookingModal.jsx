@@ -234,7 +234,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                         sx={{ color: "#3554D1", mr: 1, fontSize: 28 }}
                       />
                       <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                        {booking.service_details?.vehicle_name || tourType.name}
+                        {booking.service_details?.vehicle_name || booking?.vehicles_name || tourType.name}
                       </Typography>
                     </Box>
 
@@ -815,7 +815,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                   </Box>
 
                                   {/* Tax Amount */}
-                                  <Box
+                                  {/* <Box
                                     sx={{
                                       display: "flex",
                                       justifyContent: "space-between",
@@ -839,7 +839,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                     >
                                       {currentTaxAmount}
                                     </Typography>
-                                  </Box>
+                                  </Box> */}
 
                                   {/* Total With Tax */}
                                   <Box
@@ -862,7 +862,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                         color: "white",
                                       }}
                                     >
-                                      Total (With Tax)
+                                      Total (Without Tax)
                                     </Typography>
                                     <Typography
                                       sx={{
@@ -871,7 +871,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                         color: "white",
                                       }}
                                     >
-                                      {convertedGrandTotal}
+                                      {convertedPrice}
                                     </Typography>
                                   </Box>
                                 </Box>
@@ -910,7 +910,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                         >
                                           {usdCurrencyCode}
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -918,7 +918,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                           }}
                                         >
                                           ({usdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -926,7 +926,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                           color: "rgba(255, 255, 255, 0.9)",
                                         }}
                                       >
-                                        {usdGrandTotal}
+                                        {usdPrice}
                                       </Typography>
                                     </Box>
                                   )}
@@ -953,7 +953,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                         >
                                           SGD
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -961,7 +961,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                           }}
                                         >
                                           ({sgdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -969,7 +969,7 @@ const LocalTransferBookingModal = ({ open, onClose, booking }) => {
                                           color: "rgba(255, 255, 255, 0.9)",
                                         }}
                                       >
-                                        {sgdGrandTotal}
+                                        {sgdPrice}
                                       </Typography>
                                     </Box>
                                   )}

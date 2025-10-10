@@ -900,7 +900,7 @@ export default function PickupDropModal({
                                     },
                                   }}
                                 />
-                                {sgdTax > 0 && (
+                                {/* {sgdTax > 0 && (
                                   <Typography
                                     variant="caption"
                                     display="block"
@@ -916,7 +916,7 @@ export default function PickupDropModal({
                                   >
                                     (incl. {sgdTax}% tax)
                                   </Typography>
-                                )}
+                                )} */}
                               </>
                             ) : (
                               <div className="text-15 lh-12 fw-500 text-blue-1 mt-10">

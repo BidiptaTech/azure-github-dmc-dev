@@ -117,12 +117,12 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   const attractionDetails = useSelector((state) => state.attractions.attractionDetails, shallowEqual) || {};
 
   // Get age limits from attractionDetails or use defaults
-  const childMaxAge = attractionDetails.child_max_age ?? 17;
-  const seniorMinAge = attractionDetails.senior_min_age ?? 60;
+  const childMaxAge = attractionDetails.child_max_age || 17;
+  const seniorMinAge = attractionDetails.senior_min_age || 60;
 
   // Store the original default values as maximum limits
-  const defaultAdults = initialAdults ?? 1;
-  const defaultChildren = initialChildren ?? 0;
+  const defaultAdults = initialAdults || 1;
+  const defaultChildren = initialChildren || 0;
 
   // Initialize guest counts
   const [guestCounts, setGuestCounts] = useState({
@@ -151,16 +151,16 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
       isUpdatingFromPropsRef.current = true; // Set flag to prevent onPaxChange call
       
       setGuestCounts({
-        Adults: selectedPax.Adults ?? 0,
-        Children: selectedPax.Children ?? 0,
-        Seniors: selectedPax.Seniors ?? 0
+        Adults: selectedPax.Adults || 0,
+        Children: selectedPax.Children || 0,
+        Seniors: selectedPax.Seniors || 0
       });
       
       // Set max values based on the total from selectedPax
-      const totalFromSelected = (selectedPax.Adults ?? 0) + (selectedPax.Seniors ?? 0);
+      const totalFromSelected = (selectedPax.Adults || 0) + (selectedPax.Seniors || 0);
       setMaxValues({
         Adults: Math.max(totalFromSelected, defaultAdults),
-        Children: selectedPax.Children ?? defaultChildren,
+        Children: selectedPax.Children || defaultChildren,
         Seniors: Math.max(totalFromSelected, defaultAdults)
       });
       
@@ -181,7 +181,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
 
       setOriginalAdultCount(defaultAdults);
     }
-  }, [defaultAdults, defaultChildren, selectedPax, attractionDetails]);
+  }, [defaultAdults, defaultChildren, selectedPax]);
 
   useEffect(() => {
     // Skip calling onPaxChange if we're updating from selectedPax props
