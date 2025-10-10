@@ -4309,22 +4309,31 @@
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                     console.log('Success: Found vehicles for hourly service, showing results section');
                     
-                    // Show the vehicle results section
-                    if (vehicleResultsSection) {
-                        vehicleResultsSection.style.display = 'block';
-                        vehicleResultsSection.style.visibility = 'visible';
-                        console.log('Vehicle results section shown for hourly service');
-                        vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    } else {
-                        console.error('Vehicle results section not found for hourly service!');
-                    }
+                    // Filter vehicles for hourly service - only show sharable = 1 or 3
+                    const hourlyVehicles = data.vehicles.filter(vehicle => {
+                        const sharable = parseInt(vehicle.sharable) || 0;
+                        return sharable === 1 || sharable === 3;
+                    });
                     
-                    // Populate vehicle dropdown
-                    if (vehicleSelect) {
-                        vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                        console.log('Starting to populate vehicle dropdown for hourly service with', data.vehicles.length, 'vehicles');
+                    console.log('Filtered vehicles for hourly service:', hourlyVehicles.length, 'out of', data.vehicles.length);
+                    
+                    if (hourlyVehicles.length > 0) {
+                        // Show the vehicle results section
+                        if (vehicleResultsSection) {
+                            vehicleResultsSection.style.display = 'block';
+                            vehicleResultsSection.style.visibility = 'visible';
+                            console.log('Vehicle results section shown for hourly service');
+                            vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        } else {
+                            console.error('Vehicle results section not found for hourly service!');
+                        }
                         
-                        data.vehicles.forEach((vehicle, index) => {
+                        // Populate vehicle dropdown
+                        if (vehicleSelect) {
+                            vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                            console.log('Starting to populate vehicle dropdown for hourly service with', hourlyVehicles.length, 'vehicles');
+                            
+                            hourlyVehicles.forEach((vehicle, index) => {
                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                             
                             // Debug logging for vehicle data
@@ -4353,19 +4362,25 @@
                                     ${vehicleInfo}
                                 </option>`;
                             }
-                        });
+                            });
+                            
+                            // Enable the vehicle select
+                            vehicleSelect.disabled = false;
+                            console.log('Vehicle dropdown populated successfully for hourly service');
+                            
+                            // Update vehicle details and pricing
+                            updateLocalTransferVehicleDetails();
+                        } else {
+                            console.error('Vehicle select dropdown not found for hourly service!');
+                        }
                         
-                        // Enable the vehicle select
-                        vehicleSelect.disabled = false;
-                        console.log('Vehicle dropdown populated successfully for hourly service');
-                        
-                        // Update vehicle details and pricing
-                        updateLocalTransferVehicleDetails();
+                        console.log(`Populated ${hourlyVehicles.length} vehicles in dropdown for hourly service`);
                     } else {
-                        console.error('Vehicle select dropdown not found for hourly service!');
+                        showNotification('No vehicles available for hourly service. Only vehicles with sharable option enabled are available.', 'warning');
+                        if (vehicleResultsSection) {
+                            vehicleResultsSection.style.display = 'none';
+                        }
                     }
-                    
-                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown for hourly service`);
                 } else {
                     showNotification('No vehicles available. Please contact support.', 'warning');
                     if (vehicleResultsSection) {
@@ -4950,7 +4965,9 @@
                         base_price: selectedOption.dataset.privatePrice || '',
                         sharable_base_price: selectedOption.dataset.sharedPrice || '',
                         service_type: selectedOption.dataset.serviceType || '',
-                        sharable: selectedOption.dataset.sharable || ''
+                        sharable: selectedOption.dataset.sharable || '',
+                        cost_per_hour: selectedOption.dataset.costPerHour || '',
+                        sharable_cost_per_hour: selectedOption.dataset.sharableCostPerHour || ''
                     };
                 }
             } catch (error) {
@@ -5677,16 +5694,16 @@
                 <div class="row">
                     <div class="col-md-4">
                         <i class="${priceSourceIcon} me-1"></i>
-                        ${priceSource}: $${basePrice.toFixed(2)}
+                        <span style="color: #26c6f9;">${priceSource}: $${basePrice.toFixed(2)}</span>
                         ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
                     </div>
-                    <div class="col-md-4">Service: ${serviceType}</div>
-                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                    <div class="col-md-4"><span style="color: #26c6f9;">Service: ${serviceType}</span></div>
+                    <div class="col-md-4"><strong style="color: #26c6f9;">Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${validatedPassengers} passengers
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom manual price override' : ''}
+                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${validatedPassengers} passengers</span>
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
                 </div>
             `;
             
@@ -5733,7 +5750,9 @@
                 seatingCapacity: selectedOption.dataset.seatingCapacity,
                 privatePrice: selectedOption.dataset.privatePrice,
                 sharedPrice: selectedOption.dataset.sharedPrice,
-                serviceType: selectedOption.dataset.serviceType
+                serviceType: selectedOption.dataset.serviceType,
+                costPerHour: selectedOption.dataset.costPerHour,
+                sharableCostPerHour: selectedOption.dataset.sharableCostPerHour,
             };
             console.log('vehicle data:', vehicleData);
             const serviceType = serviceTypeSelect.value;
@@ -5763,23 +5782,26 @@
                 if (serviceType == 'Private') {
                     basePrice = parseFloat(vehicleData.privatePrice) || 0;
                     
-                    // Apply hourly multiplier if this is hourly service
+                    // Apply hourly calculation if this is hourly service
                     if (isHourlyService && selectedHours > 0) {
+                        const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
                         priceMultiplier = selectedHours;
-                        totalPrice = basePrice * selectedHours;
-                        priceMultiplierText = ` × ${selectedHours} hours`;
+                        totalPrice = basePrice + (selectedHours * costPerHour);
+                        priceMultiplierText = ` + (${selectedHours} hrs × $${costPerHour.toFixed(2)})`;
                     } else {
                         totalPrice = basePrice;
                     }
                 } else if (serviceType == 'Shared') {
                     basePrice = parseFloat(vehicleData.sharedPrice) || 0;
-                    totalPrice = basePrice * validatedPassengers;
                     
-                    // Apply hourly multiplier if this is hourly service
+                    // Apply hourly calculation if this is hourly service
                     if (isHourlyService && selectedHours > 0) {
+                        const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
                         priceMultiplier = selectedHours;
-                        totalPrice = (basePrice * validatedPassengers) * selectedHours;
-                        priceMultiplierText = ` × ${selectedHours} hours`;
+                        totalPrice = basePrice + (selectedHours * sharableCostPerHour * validatedPassengers);
+                        priceMultiplierText = ` + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax)`;
+                    } else {
+                        totalPrice = basePrice * validatedPassengers;
                     }
                 }
             }
@@ -5788,22 +5810,38 @@
             const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
             const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
             
+            // Format price calculation for better readability
+            let priceCalculationText = '';
+            if (isHourlyService && selectedHours > 0 && !isManualPriceUsed) {
+                if (serviceType == 'Private') {
+                    const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+                    priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${costPerHour.toFixed(2)}) = $${totalPrice.toFixed(2)}`;
+                } else if (serviceType == 'Shared') {
+                    const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
+                    priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax) = $${totalPrice.toFixed(2)}`;
+                }
+            } else {
+                priceCalculationText = `$${basePrice.toFixed(2)}${priceMultiplierText}`;
+            }
+            const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <i class="${priceSourceIcon} me-1"></i>
-                        ${priceSource}: $${basePrice.toFixed(2)}${priceMultiplierText}
+                        ${isHourlyService && selectedHours > 0 ? `<span class="badge bg-warning ms-1">Hourly Rate: $${costPerHour.toFixed(2)}</span>` : ''}
+                        <span style="white-space: nowrap; color: #26c6f9;">${priceSource}: ${priceCalculationText}</span>
                         ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
                         ${isHourlyService && selectedHours > 0 ? '<span class="badge bg-warning ms-1">Hourly</span>' : ''}
                     </div>
-                    <div class="col-md-4">Service: ${serviceType}</div>
-                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                    <div class="col-md-3"><span style="color: #26c6f9;">Service: ${serviceType}</span></div>
+                    <div class="col-md-3"><strong style="color: #26c6f9;">Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers
-                    ${isHourlyService && selectedHours > 0 ? `<br><i class="ri-time-line me-1"></i>Duration: ${selectedHours} hour${selectedHours > 1 ? 's' : ''}` : ''}
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom manual price override' : ''}
+                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers</span>
+                    ${isHourlyService && selectedHours > 0 ? `<br><i class="ri-time-line me-1"></i><span style="color: #26c6f9;">Duration: ${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>` : ''}
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
                 </div>
             `;
             

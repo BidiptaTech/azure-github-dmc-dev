@@ -162,7 +162,7 @@
 <script>
 // Define route URLs using Blade
 const getGuidesUrl = "{{ route('get.guides', ['dmcId' => ':dmcId']) }}";
-const updateDriverVehicleAssignmentUrl = "{{ route('update.guide.jobsheet') }}";
+const updateDriverVehicleAssignmentUrl = "{{ route('update.driver.vehicle.assignment') }}";
 const getOrdersByDateUrl = "{{ route('get.orders.by.date', ['date' => ':date']) }}";
 
 // Initialize data from controller
@@ -174,8 +174,6 @@ var dataTableInitialized = false; // Track if DataTable is initialized
 
 $(document).ready(function() {
     let datePicker = null;
-    // Store the current tour guide orders data for export
-    let tourGuideOrdersData = [];
     
     // Calculate tomorrow's date
     const tomorrow = new Date();
@@ -209,10 +207,12 @@ $(document).ready(function() {
         console.log("initialOrders = ", initialOrders);
         if (typeof initialOrders !== 'undefined' && initialOrders.length > 0) {
             let tableHTML = '';
-            tourGuideOrdersData = []; // Reset the export data
             
             initialOrders.forEach(function(item, index) {
-                console.log("item = ", item.tour.tour_id);
+                console.log("Full item structure:", item);
+                console.log("item.tour:", item.tour);
+                console.log("item.tour?.id:", item.tour?.id);
+                console.log("item.tour?.tour_id:", item.tour?.tour_id);
                 // Handle data as array or object (flexibility for different data structures)
                 const orderData = item.data || {};
                 let dataItem;
@@ -225,20 +225,6 @@ $(document).ready(function() {
                 } else {
                     dataItem = {};
                 }
-                // Store for export
-                tourGuideOrdersData.push({
-                    tour_id: item.tour_id || 'N/A',
-                    order_type: item.type || 'N/A',
-                    pickup_time: dataItem.entrytime || 'N/A',
-                    pickup_location: dataItem.entrypickup || 'N/A',
-                    tour_type: dataItem.type || 'N/A',
-                    assigned_guide: initialGuides.find(g => dataItem.guide_id == g.guide_id)?.name || 'Not Assigned',
-                    customer_name: dataItem.fullName || 'N/A',
-                    customer_phone: dataItem.customer_phone || dataItem.phone || 'N/A',
-                    customer_email: dataItem.customer_email || dataItem.email || 'N/A',
-                    total_price: dataItem.totalPrice || 'N/A',
-                    pax: dataItem.pax || 'N/A'
-                });
                 
                 tableHTML += `
                     <tr>
@@ -248,13 +234,20 @@ $(document).ready(function() {
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
                         <td>
-                            <select class="form-control guide-select" name="guide_id[${index}]" data-order-id="${item.booking_id || ''}" data-tour-id="${item.tour.tour_id || ''}">
+                            <select class="form-control guide-select" 
+                                name="guide_id[${index}]" 
+                                data-order-id="${item.booking_id || item.id || ''}" 
+                                data-tour-id="${item.tour_id_numeric || ''}"
+                                data-order-type="${item.type || ''}"
+                                data-entry-time="${dataItem.entrytime || ''}"
+                                data-entrypickup="${dataItem.entrypickup || ''}"
+                                data-type="${item.type || ''}">
                                 <option value="">Select Guide</option>
                                 ${(function() {
                                     let options = '';
                                     if (initialGuides.length) {
                                         initialGuides.forEach(guide => {
-                                            const isSelected = dataItem.guide_id == guide.guide_id;
+                                            const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
                                             options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}</option>`;
                                         });
                                     }
@@ -289,7 +282,6 @@ $(document).ready(function() {
         if (!date) {
             $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
-            tourGuideOrdersData = [];
             return;
         }
 
@@ -313,7 +305,6 @@ $(document).ready(function() {
                 if (response.success) {
                     const orders = response.data;
                     let tableHTML = '';
-                    tourGuideOrdersData = []; // Reset the export data
                     console.log("orders = ", orders);
                     
                     if (orders && orders.length > 0) {
@@ -330,22 +321,6 @@ $(document).ready(function() {
                             } else {
                                 dataItem = {};
                             }
-
-                            // Store data for export
-                            const $select = $(`select[data-order-id="${item.booking_id}"]`);
-                            const selectedGuideName = $select.find('option:selected').text() || 'Not Assigned';
-                            tourGuideOrdersData.push({
-                                order_id: item.booking_id || item.id || 'N/A',
-                                tour_id: item.tour_id || 'N/A',
-                                order_type: item.type || 'N/A',
-                                pickup_time: dataItem.entrytime || 'N/A',
-                                pickup_location: dataItem.entrypickup || 'N/A',
-                                tour_type: dataItem.type || 'N/A',
-                                assigned_guide: selectedGuideName,
-                                customer_name: dataItem.fullName || 'N/A',
-                                customer_phone: dataItem.customer_phone || dataItem.phone || 'N/A',
-                                customer_email: dataItem.customer_email || dataItem.email || 'N/A'
-                            });
                             
                             tableHTML += `
                                 <tr>
@@ -355,13 +330,20 @@ $(document).ready(function() {
                                     <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
                                     <td>
-                                        <select class="form-control guide-select" name="guide_id[${index}]" data-order-id="${item.booking_id || ''}" data-tour-id="${item.tour_id || ''}">
+                                        <select class="form-control guide-select" 
+                                            name="guide_id[${index}]" 
+                                            data-order-id="${item.booking_id || item.id || ''}" 
+                                            data-tour-id="${item.tour_id_numeric || ''}"
+                                            data-order-type="${item.type || ''}"
+                                            data-entry-time="${dataItem.entrytime || ''}"
+                                            data-entrypickup="${dataItem.entrypickup || ''}"
+                                            data-type="${item.type || ''}">
                                             <option value="">Select Guide</option>
                                             ${(function() {
                                                 let options = '';
                                                 if (response.guides && response.guides.length) {
                                                     response.guides.forEach(guide => {
-                                                        const isSelected = dataItem.guide_id == guide.guide_id;
+                                                        const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
                                                         options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}</option>`;
                                                     });
                                                 }
@@ -517,28 +499,52 @@ $(document).ready(function() {
         const $select = $(this);
         const guideId = $select.val();
         const orderId = $select.data('order-id');
+        const orderType = $select.data('order-type');
+        const entryTime = $select.data('entry-time');
+        const entryPickup = $select.data('entrypickup');
+        const type = $select.data('type');
+        const tourId = $select.data('tour-id');
         const date = $('#dateSelect').val();
         const dmcId = $('#dmc_id').val();
-        const tourId = $select.data('tour-id');
-        console.log(tourId);
-
-        const selectedGuideName = $select.find('option:selected').text().trim();
-        const item = tourGuideOrdersData.find(obj => obj.order_id == orderId);
-        if (item) {
-            item.assigned_guide = selectedGuideName;
+        
+        console.log('=== Guide Selection Debug ===');
+        console.log('Guide change data:', { guideId, orderId, orderType, entryTime, entryPickup, type, tourId, date, dmcId });
+        console.log('Select element:', $select[0]);
+        console.log('All data attributes:', $select.data());
+        console.log('Parent row HTML:', $select.closest('tr').html());
+        
+        // Validate required fields
+        if (!orderType || !type || !entryTime) {
+            console.error('Missing required data:', { orderType, type, entryTime });
+            showAlert('error', 'Missing required data. Please refresh the page and try again.');
+            return;
         }
         
-        // Prepare form data
+        if (!tourId || tourId === 'undefined' || tourId === '') {
+            console.error('Invalid tour ID:', tourId);
+            showAlert('error', 'Invalid tour ID. Please refresh the page and try again.');
+            return;
+        }
+
+        // Prepare form data - matching the driver/vehicle assignment pattern
         const formData = new FormData();
-        formData.append('tour_id', tourId);
-        formData.append('order_id', orderId);
-        formData.append('guide_id', guideId);
-        formData.append('date', date);
-        formData.append('dmc_id', dmcId);
+        formData.append('order_type', orderType || '');
+        formData.append('entry_time', entryTime || '');
+        formData.append('entrypickup', entryPickup || '');
+        formData.append('type', type || '');
+        formData.append('guide_id', guideId || '');
+        formData.append('tour_id', tourId || '');
+        formData.append('date', date || '');
+        formData.append('dmc_id', dmcId || '');
+        formData.append('order_id', orderId || '');
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+        console.log('FormData being sent:');
+        for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
         
         // Make fetch API call to update the guide assignment
-        fetch(updateDriverVehicleAssignmentUrl, {
+        fetch('{{ route("update.driver.vehicle.assignment") }}', {
             method: 'POST',
             body: formData,
             headers: {
@@ -546,10 +552,14 @@ $(document).ready(function() {
             }
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
+            // First parse the response to JSON
+            return response.json().then(data => {
+                // If response is not ok, throw error with the actual message from server
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
         })
         .then(data => {
             if (data.success) {
@@ -560,7 +570,7 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error updating guide assignment:', error);
-            showAlert('error', 'Error updating guide assignment: ' + error.message);
+            showAlert('error', error.message || 'Error updating guide assignment');
         });
     });
 
@@ -568,20 +578,45 @@ $(document).ready(function() {
     $('#exportOrdersBtn').click(function(e) {
         e.preventDefault();
         
-        if (tourGuideOrdersData && tourGuideOrdersData.length > 0) {
-            // Format data for Excel export
-            const excelData = tourGuideOrdersData.map(item => ({
-                'Tour ID': item.tour_id,
-                'Order Type': item.order_type,
-                'Pickup Time': item.pickup_time,
-                'Pickup Location': item.pickup_location,
-                'Tour Type': item.tour_type,
-                'Assigned Guide': item.assigned_guide,
-                'Customer Name': item.customer_name,
-                'Customer Phone': item.customer_phone,
-                'Customer Email': item.customer_email
-            }));
+        // Build fresh export data directly from the table DOM to ensure accuracy
+        const excelData = [];
+        
+        $('#tourOrdersTable tbody tr').each(function() {
+            const $row = $(this);
             
+            // Skip rows that are DataTables placeholders or have no data
+            if ($row.find('td[colspan]').length > 0) {
+                return; // Skip this row
+            }
+            
+            const cells = $row.find('td');
+            if (cells.length < 6) {
+                return; // Skip incomplete rows
+            }
+            
+            // Extract data directly from the table cells
+            const tourId = $(cells[0]).text().trim();
+            const orderType = $(cells[1]).text().trim();
+            const pickupTime = $(cells[2]).text().trim();
+            const pickupLocation = $(cells[3]).text().trim();
+            const tourType = $(cells[4]).text().trim();
+            
+            // Get selected guide from the dropdown
+            const guideSelect = $(cells[5]).find('.guide-select');
+            const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
+            
+            // Add to excel data
+            excelData.push({
+                'Tour ID': tourId,
+                'Order Type': orderType,
+                'Pickup Time': pickupTime,
+                'Pickup Location': pickupLocation,
+                'Tour Type': tourType,
+                'Assigned Guide': assignedGuide
+            });
+        });
+        
+        if (excelData.length > 0) {
             // Create a workbook and worksheet
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(excelData);
