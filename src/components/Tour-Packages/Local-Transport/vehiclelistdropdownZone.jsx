@@ -289,7 +289,7 @@ const VehicleListDropdownZone = ({
   const portZoneType = useSelector((state) => state.localtour.zonetype);
   const dispatch = useDispatch();
   const tourDetails = useSelector((state) => state.hotels?.tourdetails);
-  
+  const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
   // Use cached vehicles if provided, otherwise use Redux vehicles
   const vehiclesToUse = cachedVehicles && cachedVehicles.length > 0 ? cachedVehicles : vehicles;
   
@@ -297,8 +297,8 @@ const VehicleListDropdownZone = ({
   const selectedVehicleObj = vehiclesToUse.find(v => v.id === selectedVehicle) || null;
 
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
-  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
+  const adultsMax = searchParams?.guests?.adults || 1;
+  const childrenMax = searchParams?.guests?.children || 0;
 
   const [adults, setAdults] = useState(preloadedBooking?.adults || adultsMax);
   const [children, setChildren] = useState(preloadedBooking?.children || childrenMax);

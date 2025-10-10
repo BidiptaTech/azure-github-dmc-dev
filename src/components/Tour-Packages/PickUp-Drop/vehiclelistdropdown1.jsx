@@ -287,11 +287,11 @@ const VehicleListDropdown1 = ({ selectedVehicle, onVehicleChange, exitVehicles =
   const deletedBookingIdsRef = useRef(new Set());
   // Get existing services from Redux state
   const existingServices = useSelector((state) => state.tourPackages.AllServices || []);
-  
+  const searchParams = useSelector((state) => state.tourPackages.searchCriteria);
   
   // Use optional chaining for safe access to nested properties
-  const adultsMax = tourDetails?.data?.adult || tourDetails?.adult || 1;
-  const childrenMax = tourDetails?.data?.child || tourDetails?.child || 0;
+  const adultsMax = searchParams?.guests?.adults || 1;
+  const childrenMax = searchParams?.guests?.children || 0;
 
   // Component state
   const [seatingCapacity, setSeatingCapacity] = useState(0);

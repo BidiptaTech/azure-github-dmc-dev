@@ -768,7 +768,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                   </Box>
 
                                   {/* Tax Amount */}
-                                  <Box
+                                  {/* <Box
                                     sx={{
                                       display: "flex",
                                       justifyContent: "space-between",
@@ -792,7 +792,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                     >
                                       {currentTaxAmount}
                                     </Typography>
-                                  </Box>
+                                  </Box> */}
 
                                   {/* Total With Tax */}
                                   <Box
@@ -815,7 +815,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                         color: "white",
                                       }}
                                     >
-                                      Total (With Tax)
+                                      Total (Without Tax)
                                     </Typography>
                                     <Typography
                                       sx={{
@@ -824,7 +824,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                         color: "white",
                                       }}
                                     >
-                                      {convertedGrandTotal}
+                                        {convertedPrice}
                                     </Typography>
                                   </Box>
                                 </Box>
@@ -863,7 +863,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                         >
                                           {usdCurrencyCode}
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -871,7 +871,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                           }}
                                         >
                                           ({usdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -879,7 +879,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                           color: "rgba(255, 255, 255, 0.9)",
                                         }}
                                       >
-                                        {usdGrandTotal}
+                                        {usdPrice}
                                       </Typography>
                                     </Box>
                                   )}
@@ -906,7 +906,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                         >
                                           SGD
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -914,7 +914,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                           }}
                                         >
                                           ({sgdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -922,7 +922,7 @@ const TourGuideBookingModal = ({ open, onClose, booking }) => {
                                           color: "rgba(255, 255, 255, 0.9)",
                                         }}
                                       >
-                                        {sgdGrandTotal}
+                                        {sgdPrice}
                                       </Typography>
                                     </Box>
                                   )}
