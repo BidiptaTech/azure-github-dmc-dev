@@ -21741,10 +21741,13 @@ window.filterTable = function() {
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
-    table.rows('.dt-hasChild').every(function() {
-        if (this.child.isShown()) this.child.hide();
-        $(this.node()).removeClass('dt-hasChild');
-    });
+    // Check if table is initialized before using it
+    if (typeof table !== 'undefined' && table && table.rows) {
+        table.rows('.dt-hasChild').every(function() {
+            if (this.child.isShown()) this.child.hide();
+            $(this.node()).removeClass('dt-hasChild');
+        });
+    }
 
     let visibleCount = 0;
     

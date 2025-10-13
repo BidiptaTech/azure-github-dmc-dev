@@ -21665,10 +21665,13 @@ window.filterTable = function() {
 
     
     // Collapse any open child rows before filtering
-    table.rows('.dt-hasChild').every(function() {
-        if (this.child.isShown()) this.child.hide();
-        $(this.node()).removeClass('dt-hasChild');
-    });
+    // Check if table is initialized before using it
+    if (typeof table !== 'undefined' && table && table.rows) {
+        table.rows('.dt-hasChild').every(function() {
+            if (this.child.isShown()) this.child.hide();
+            $(this.node()).removeClass('dt-hasChild');
+        });
+    }
 
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
