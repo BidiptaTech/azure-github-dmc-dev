@@ -485,8 +485,12 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($restaurantData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
                                                                 <span class="badge @if($restaurantOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Restaurant {{ $globalRestaurantCounter }}
                                                                     @if($restaurantOrder->is_approve == 1)
@@ -541,8 +545,13 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($hotelData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php 
+                                                        $actualCancelDateStr = $tour->auto_cancel_date 
+                                                            ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                            : '';
+                                                        @endphp
                                                                 <span class="badge @if($hotelOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Hotel {{ $globalHotelCounter }}
                                                                     @if($hotelOrder->is_approve == 1)
@@ -566,8 +575,12 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                                     Attraction {{ $globalAttractionCounter }}
                                                                     @if($order->is_approve == 1)
@@ -1938,9 +1951,13 @@
                                                             style="border-radius: 25px;">
                                                         <i class="ri-edit-line me-1"></i>Edit
                                                     </button>
+                                                    @php $actualCancelDateStr = $tour->auto_cancel_date 
+                                                                    ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                                    : '';
+                                                                @endphp
                                                     <button type="button" 
                                                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                                                            onclick="console.log('🎯 BUTTON CLICKED - Attraction Approve'); window.approveIndividualAttraction ? window.approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            onclick="console.log('🎯 BUTTON CLICKED - Attraction Approve'); window.approveIndividualAttraction ? window.approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}') : approveIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                             style="border-radius: 25px;">
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
@@ -7964,7 +7981,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 }
 
 // Individual Hotel Modal Functions
-window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex) {
+window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('🏨 Opening individual hotel modal for:', { tourId, hotelOrderIndex, bookingIndex });
         
@@ -7977,7 +7994,7 @@ window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex
         }
         
         // Create and show the individual hotel modal
-        createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex);
+        createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         
     } catch (error) {
         console.error('Error opening individual hotel modal:', error);
@@ -7985,7 +8002,7 @@ window.openIndividualHotelModal = function(tourId, hotelOrderIndex, bookingIndex
     }
 }
 
-function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
+function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     const modalId = `individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`;
     
     const modalHTML = `
@@ -8070,7 +8087,7 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex) {
     modal.show();
     
     // Load the individual hotel content
-    loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId);
+    loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId, autoCancelDate);
 };
 
 function closeIndividualHotelViewModal(modalId) {
@@ -8087,7 +8104,7 @@ function closeIndividualHotelViewModal(modalId) {
     }
 }
 
-function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId) {
+function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modalId, autoCancelDate=null) {
     // Fetch hotel data from backend and populate the modal content
     console.log('🔄 Fetching hotel data from backend', { tourId, hotelOrderIndex, bookingIndex, modalId });
     
@@ -8155,7 +8172,7 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
             };
             
             console.log('✅ Hotel booking data prepared for display', hotelBooking);
-            generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex);
+            generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate);
         } else {
             console.error('❌ Hotel data fetch failed', data);
             // Show error message
@@ -8181,7 +8198,7 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
     });
 }
 
-function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex) {
+function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     const contentHTML = `
         <!-- Hotel Information Card with Image -->
         <div class="row mb-4">
@@ -8340,10 +8357,10 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
     document.getElementById(`individualHotelContent_${modalId}`).innerHTML = contentHTML;
     
     // Update modal footer based on approval status
-    updateHotelModalFooter(modalId, hotelBooking.isApprove, tourId, hotelOrderIndex, bookingIndex, hotelBooking);
+    updateHotelModalFooter(modalId, hotelBooking.isApprove, tourId, hotelOrderIndex, bookingIndex, hotelBooking, autoCancelDate);
 }
 
-function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bookingIndex, hotelBooking) {
+function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bookingIndex, hotelBooking, autoCancelDate=null) {
     const modalElement = document.getElementById(modalId);
     if (!modalElement) return;
     
@@ -8391,9 +8408,10 @@ function updateHotelModalFooter(modalId, isApproved, tourId, hotelOrderIndex, bo
                             style="border-radius: 25px;">
                         <i class="ri-edit-line me-1"></i>Edit
                     </button>
+
                     <button type="button" 
                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex})"
+                            onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate}')"
                             style="border-radius: 25px;">
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
@@ -8428,10 +8446,10 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex);
 }
 
-function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     console.log('Approving individual hotel:', { tourId, hotelOrderIndex, bookingIndex });
     // Create and show the hotel approve modal (reuse existing approve functionality)
-    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve');
+    createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve', autoCancelDate);
 }
 
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
@@ -8441,22 +8459,23 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
 }
 
 // Override any previous definitions - this is the correct attraction approve function
-window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex) {
-    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
+window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+    console.log('🎢 ATTRACTION APPROVE - CORRECT FUNCTION: Approving individual attraction:', { tourId, attractionOrderIndex, bookingIndex, 'actualCancelDateStr': actualCancelDateStr });
     console.log('🎢 This is the CORRECT approve function with full modal support');
     // Create and show the attraction approve modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve');
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
 }
 
 // Override any previous definitions - this is the correct attraction reject function
-window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex) {
+window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     console.log('🎢 ATTRACTION REJECT - CORRECT FUNCTION: Rejecting individual attraction:', { tourId, attractionOrderIndex, bookingIndex });
     console.log('🎢 This is the CORRECT reject function with full modal support');
     // Create and show the attraction reject modal
-    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject');
+    createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
+    console.log('actualCancelDateStr in createAndShowIndividualAttractionModal', actualCancelDateStr);
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -8481,7 +8500,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `window.confirmIndividualAttractionApproval ? window.confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateApproveAttractionForm for correct form');
-                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = window.generateApproveAttractionForm ? window.generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) : generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'reject':
@@ -8571,8 +8590,8 @@ function closeIndividualAttractionModal(modalId) {
 }
 
 // Override any previous definitions - this is the correct attraction approve form function
-window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex) {
-    console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields');
+window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
+    console.log('🎢 ATTRACTION FORM - CORRECT FUNCTION: Generating FULL approve form with all fields', 'actualCancelDateStr', actualCancelDateStr);
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -8636,8 +8655,8 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                 <label for="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required min="${new Date().toISOString().split('T')[0]}"
-                       onchange="window.calculateAttractionDisplayDueDate ? window.calculateAttractionDisplayDueDate('${tourId}', '${attractionOrderIndex}', '${bookingIndex}') : calculateAttractionDisplayDueDate('${tourId}', '${attractionOrderIndex}', '${bookingIndex}')"
+                <input type="text" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${actualCancelDateStr}" 
+                       
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the actual due date for this booking</div>
             </div>
@@ -9067,7 +9086,7 @@ window.confirmIndividualAttractionRejection = function(tourId, attractionOrderIn
 }
 
 // Individual Attraction Modal Functions
-function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex) {
+function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr) {
     try {
         console.log('🎢 Opening individual attraction modal for:', { tourId, attractionOrderIndex, bookingIndex });
         
@@ -9081,7 +9100,7 @@ function openIndividualAttractionModal(tourId, attractionOrderIndex, bookingInde
         
         // Create and show the modal
         createIndividualAttractionViewModal(modalId, tourId, attractionOrderIndex, bookingIndex);
-        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex);
+        loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
         
     } catch (error) {
         console.error('Error opening individual attraction modal:', error);
@@ -9145,7 +9164,7 @@ function closeIndividualAttractionViewModal(modalId) {
     }
 }
 
-function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex) {
+function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     console.log('🔍 Loading individual attraction content for:', { tourId, attractionOrderIndex, bookingIndex });
     
     fetch('{{ url("/booking/get-attraction-data") }}', {
@@ -9201,7 +9220,7 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
-            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex);
+            generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
         } else {
             console.error('❌ Attraction data fetch failed', data);
             displayErrorContent(modalId, 'Failed to load attraction details');
@@ -9213,7 +9232,7 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
     });
 }
 
-function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex) {
+function generateIndividualAttractionContent(attractionBooking, modalId, tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     const bookingDate = attractionBooking.bookingDate;
     const formattedDate = bookingDate ? new Date(bookingDate).toLocaleDateString('en-US', { 
         weekday: 'short', 
@@ -9507,7 +9526,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     </button>
                     <button type="button" 
                             class="btn btn-outline-success btn-sm px-3 py-2" 
-                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                            onclick="window.approveIndividualAttraction ? window.approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : approveIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
                             style="border-radius: 25px;">
                         <i class="ri-check-line me-1"></i>Approve
                     </button>
@@ -9519,7 +9538,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                 buttonsHTML += `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex})"
+                            onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
                             style="border-radius: 25px;">
                         <i class="ri-close-line me-1"></i>Reject
                     </button>
@@ -9851,7 +9870,7 @@ function validateAttractionDate(tourId, attractionOrderIndex, bookingIndex) {
 
 
 // Individual Restaurant Modal Function
-function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex) {
+function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('🍽️ Opening individual restaurant modal for:', { tourId, restaurantOrderIndex, bookingIndex });
         
@@ -9864,7 +9883,7 @@ function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingInde
         }
         
         // Create and show the individual restaurant modal
-        createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex);
+        createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
         
     } catch (error) {
         console.error('Error opening individual restaurant modal:', error);
@@ -9872,7 +9891,7 @@ function openIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingInde
     }
 }
 
-function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex) {
+function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     const modalId = `individualRestaurantViewModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}`;
     
     // Get restaurant data from the server first
@@ -9934,7 +9953,7 @@ function createIndividualRestaurantViewModal(tourId, restaurantOrderIndex, booki
         });
         
         // Load the restaurant content
-        loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId);
+        loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, actualCancelDateStr);
         
     })
     .catch(error => {
@@ -9957,14 +9976,14 @@ function closeIndividualRestaurantViewModal(modalId) {
     }
 }
 
-function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId) {
+function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIndex, modalId, actualCancelDateStr=null) {
     // Get restaurant data and populate the modal content
     getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex)
     .then(restaurantData => {
         console.log('📊 Restaurant data received for content generation:', restaurantData);
         
         // Pass the full restaurant data object which contains both restaurantDetails and restaurant_details
-        const contentHTML = generateIndividualRestaurantContent(restaurantData, tourId, restaurantOrderIndex, bookingIndex);
+        const contentHTML = generateIndividualRestaurantContent(restaurantData, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
         
         // Update the modal content
         const contentContainer = document.getElementById(`restaurantContent_${modalId}`);
@@ -9989,7 +10008,7 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
     });
 }
 
-function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex) {
+function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     // Get the full booking data from the restaurantDetails
     const fullBooking = booking.restaurant_details || booking;
     
@@ -10219,7 +10238,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                             </div>
                             <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
                         </div>
-                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex)}
+                        ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr)}
                     </div>
                 </div>
             </div>
@@ -10228,7 +10247,7 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
 }
 
 // Generate restaurant action buttons based on approval status
-function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex) {
+function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     const isApproved = booking.restaurant_details?.is_approve || booking.is_approve || false;
     
     // Get user role from meta tag or global variable (assuming it's available)
@@ -10277,7 +10296,7 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
                 </button>
                 <button type="button" 
                         class="btn btn-outline-success btn-sm px-3 py-2" 
-                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                        onclick="approveIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr}')"
                         style="border-radius: 25px;">
                     <i class="ri-check-line me-1"></i>Approve
                 </button>
@@ -19638,7 +19657,7 @@ function editIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     try {
         console.log('Opening individual hotel approve modal for tour:', tourId, 'hotel order:', hotelOrderIndex, 'booking:', bookingIndex);
         
@@ -19653,7 +19672,7 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
         
         // Wait a moment for the modal to close, then show approve modal
         setTimeout(() => {
-            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve');
+            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve', autoCancelDate);
         }, 300);
         
     } catch (error) {
@@ -19686,7 +19705,7 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     }
 }
 
-function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action) {
+function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action, autoCancelDate=null) {
     try {
         const modalId = `individualHotelModal_${tourId}_${hotelOrderIndex}_${bookingIndex}_${action}`;
         
@@ -19719,7 +19738,7 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualHotelApproval(${tourId}, ${hotelOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex);
+                modalContent = generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex,autoCancelDate);
                 break;
                 
             case 'reject':
@@ -19918,7 +19937,7 @@ function generateEditHotelForm(tourId, hotelOrderIndex, bookingIndex) {
     `;
 }
 
-function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex) {
+function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     return `
         <form id="approveIndividualHotelForm_${tourId}_${hotelOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -19982,8 +20001,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex) {
                 <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
-                       onchange="calculateDisplayDueDate('${tourId}', '${hotelOrderIndex}', '${bookingIndex}')"
+                <input type="text" value="${autoCancelDate}" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the actual due date for this booking</div>
             </div>
@@ -21723,10 +21741,13 @@ window.filterTable = function() {
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
     
-    table.rows('.dt-hasChild').every(function() {
-        if (this.child.isShown()) this.child.hide();
-        $(this.node()).removeClass('dt-hasChild');
-    });
+    // Check if table is initialized before using it
+    if (typeof table !== 'undefined' && table && table.rows) {
+        table.rows('.dt-hasChild').every(function() {
+            if (this.child.isShown()) this.child.hide();
+            $(this.node()).removeClass('dt-hasChild');
+        });
+    }
 
     let visibleCount = 0;
     
@@ -21929,7 +21950,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Individual Attraction Functions (for handling multiple attraction bookings separately)
-function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('Opening individual attraction edit modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
@@ -21957,9 +21978,9 @@ function editIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
-        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
+        console.log('Opening individual attraction approve modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex, 'actual cancel date:', actualCancelDateStr);
         
         // Close the attraction details modal first
         const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
@@ -21972,7 +21993,7 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex)
         
         // Wait a moment for the modal to close, then show individual approve modal
         setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve');
+            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
         }, 300);
         
     } catch (error) {
@@ -21981,7 +22002,7 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex)
     }
 }
 
-function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) {
+function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
         
@@ -21996,7 +22017,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) 
         
         // Wait a moment for the modal to close, then show individual reject modal
         setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject');
+            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
         }, 300);
         
     } catch (error) {
@@ -22005,7 +22026,7 @@ function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex) 
     }
 }
 
-function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action) {
+function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
     try {
         const modalId = `individualAttractionModal_${tourId}_${attractionOrderIndex}_${bookingIndex}_${action}`;
         
@@ -22024,7 +22045,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonClass = 'btn-primary';
                 buttonText = '<i class="ri-save-line me-2"></i>Save Changes';
                 onSubmit = `saveIndividualAttractionChanges(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'approve':
@@ -22033,7 +22054,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualAttractionApproval(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'reject':
@@ -22043,7 +22064,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 buttonText = '<i class="ri-close-line me-2"></i>Confirm Rejection';
                 onSubmit = `window.confirmIndividualAttractionRejection ? window.confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex}) : confirmIndividualAttractionRejection(${tourId}, ${attractionOrderIndex}, ${bookingIndex})`;
                 console.log('🎢 Using window.generateRejectAttractionForm for correct reject form');
-                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex);
+                modalContent = window.generateRejectAttractionForm ? window.generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) : generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
         }
         
@@ -22103,7 +22124,7 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
     }
 }
 
-function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="editIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22236,7 +22257,7 @@ function generateEditAttractionForm(tourId, attractionOrderIndex, bookingIndex) 
     `;
 }
 
-function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="approveIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22259,7 +22280,7 @@ function generateApproveAttractionForm(tourId, attractionOrderIndex, bookingInde
     `;
 }
 
-function generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex) {
+function generateRejectAttractionForm(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="rejectIndividualAttractionForm_${tourId}_${attractionOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -22930,7 +22951,7 @@ function editIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
     }
 }
 
-function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) {
+function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     try {
         console.log('Opening individual restaurant approve modal for tour:', tourId, 'restaurant order:', restaurantOrderIndex, 'booking:', bookingIndex);
         
@@ -22945,7 +22966,7 @@ function approveIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex)
         
         // Wait a moment for the modal to close, then show individual approve modal
         setTimeout(() => {
-            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'approve');
+            createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, 'approve', actualCancelDateStr);
         }, 300);
         
     } catch (error) {
@@ -22978,7 +22999,7 @@ function rejectIndividualRestaurant(tourId, restaurantOrderIndex, bookingIndex) 
     }
 }
 
-function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action) {
+function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bookingIndex, action, actualCancelDateStr=null) {
     try {
         const modalId = `individualRestaurantModal_${tourId}_${restaurantOrderIndex}_${bookingIndex}_${action}`;
         
@@ -23006,7 +23027,7 @@ function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bo
                 buttonClass = 'btn-success';
                 buttonText = '<i class="ri-check-line me-2"></i>Confirm Approval';
                 onSubmit = `confirmIndividualRestaurantApproval(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})`;
-                modalContent = generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex);
+                modalContent = generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr);
                 break;
                 
             case 'reject':
@@ -23220,7 +23241,7 @@ function generateEditRestaurantForm(tourId, restaurantOrderIndex, bookingIndex) 
     `;
 }
 
-function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex) {
+function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingIndex, actualCancelDateStr=null) {
     return `
         <form id="approveIndividualRestaurantForm_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
             <input type="hidden" name="tour_id" value="${tourId}">
@@ -23284,8 +23305,8 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
                 <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
                 </label>
-                <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required min="${new Date().toISOString().split('T')[0]}"
-                       onchange="calculateRestaurantDisplayDueDate('${tourId}', '${restaurantOrderIndex}', '${bookingIndex}')"
+                <input type="text" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${actualCancelDateStr}" 
+                       
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the actual due date for this booking</div>
             </div>
