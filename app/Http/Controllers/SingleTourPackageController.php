@@ -82,7 +82,8 @@ class SingleTourPackageController extends Controller
         $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
         $agency = Agency::whereJsonContains('dmc_id', (int) $dmc_id)->orderBy('created_at', 'desc')->get();
-        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
+        
+        $agents = Agent::whereIn('agency_id', $agency->pluck('agency_id'))
             ->orderBy('name')
             ->get();
         $selectedCountry = $request->country;
