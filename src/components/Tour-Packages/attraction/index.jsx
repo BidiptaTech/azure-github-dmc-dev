@@ -117,6 +117,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
   const currentServicesRef = useRef([]);
   const isInitializingRef = useRef(false);
   const hasDataConflictsRef = useRef(false);
+  console.log("hasDataConflictsRef", hasDataConflictsRef);
 
   console.log("formsection", formSections);
   
@@ -159,8 +160,8 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       if (!attractionData) return false;
       
       // Check if adult/child counts from attractionspack don't match search form data
-      const searchAdults = tour?.adult || 0;
-      const searchChildren = tour?.child || 0;
+      const searchAdults = searchParams?.adults || 0;
+      const searchChildren = searchParams?.children || 0;
       const attractionAdults = Number(attractionData.adultCount) || 0;
       const attractionChildren = Number(attractionData.childCount) || 0;
       
@@ -269,7 +270,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       isInitializingRef.current = false;
       console.log('Initialization complete, allowing component updates');
     }, 100);
-  }, [ dayIndex, bookingDate, tour]); // Added tourDates to dependencies
+  }, [ dayIndex, bookingDate, searchParams]); // Added tourDates to dependencies
 
   // Function to dispatch ALL attractions from attractionspack to Redux state
   const dispatchAllAttractionsToRedux = useCallback(() => {

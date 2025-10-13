@@ -215,12 +215,12 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                 </Grid>
                 <Grid item xs={12} md={8}>
                   <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                       <DriveEtaIcon
                         sx={{ color: "#3554D1", mr: 1, fontSize: 28 }}
                       />
                       <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                        {bookingType} Transfer
+                        {booking?.vehicles_name || "N/A"}
                       </Typography>
                     </Box>
 
@@ -284,6 +284,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
               }}
             >
               <CardContent sx={{ p: 3 }}>
+              
                 <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                   <LocationOnIcon
                     sx={{ color: "#3554D1", mr: 1, fontSize: 28 }}
@@ -782,7 +783,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                   </Box>
 
                                   {/* Tax Amount */}
-                                  <Box
+                                  {/* <Box
                                     sx={{
                                       display: "flex",
                                       justifyContent: "space-between",
@@ -806,7 +807,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                     >
                                       {currentTaxAmount}
                                     </Typography>
-                                  </Box>
+                                  </Box> */}
 
                                   {/* Total With Tax */}
                                   <Box
@@ -829,7 +830,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                         color: "white",
                                       }}
                                     >
-                                      Total (With Tax)
+                                      Total (Without Tax)
                                     </Typography>
                                     <Typography
                                       sx={{
@@ -838,7 +839,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                         color: "white",
                                       }}
                                     >
-                                      {convertedGrandTotal}
+                                      {convertedPrice}
                                     </Typography>
                                   </Box>
                                 </Box>
@@ -878,7 +879,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                         >
                                           {usdCurrencyCode}
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -886,7 +887,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                           }}
                                         >
                                           ({usdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -894,7 +895,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                           color: "rgba(255, 255, 255, 0.9)",
                                         }}
                                       >
-                                        {usdGrandTotal}
+                                        {usdPrice}
                                       </Typography>
                                     </Box>
                                   )}
@@ -922,7 +923,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                         >
                                           SGD
                                         </Typography>
-                                        <Typography
+                                        {/* <Typography
                                           sx={{
                                             fontSize: "0.7rem",
                                             color: "rgba(255, 255, 255, 0.7)",
@@ -930,7 +931,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                           }}
                                         >
                                           ({sgdTax}%)
-                                        </Typography>
+                                        </Typography> */}
                                       </Box>
                                       <Typography
                                         sx={{
@@ -938,7 +939,7 @@ const PickUpDropBookingModal = ({ open, onClose, booking }) => {
                                           color: "rgba(255, 255, 255, 0.9)",
                                         }}
                                       >
-                                        {sgdGrandTotal}
+                                        {sgdPrice}
                                       </Typography>
                                     </Box>
                                   )}
