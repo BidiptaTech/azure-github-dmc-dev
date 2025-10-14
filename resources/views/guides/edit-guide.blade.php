@@ -278,6 +278,21 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+
+                            <!-- App Password -->
+                            <div class="col-md-3 mb-3">
+                                <label for="app_password" class="form-label"><strong>App Password</strong></label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="app_password" name="app_password" 
+                                        value="{{$guide->app_password}}" placeholder="Enter app password" autocomplete="new-password">
+                                    <button class="btn btn-outline-secondary" type="button" id="toggleAppPassword">
+                                        <i class="ri-eye-off-line" id="appPasswordIcon"></i>
+                                    </button>
+                                </div>
+                                @error('app_password')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                             
                             <!-- Country -->
                             <div class="mb-3 col-md-3">
@@ -1711,6 +1726,22 @@
     }
 
     // Removed the auto-validation on page load so validation only happens when user interacts with fields
+
+    // Toggle App Password visibility
+    document.getElementById('toggleAppPassword').addEventListener('click', function() {
+        const passwordField = document.getElementById('app_password');
+        const icon = document.getElementById('appPasswordIcon');
+        
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            icon.classList.remove('ri-eye-off-line');
+            icon.classList.add('ri-eye-line');
+        } else {
+            passwordField.type = 'password';
+            icon.classList.remove('ri-eye-line');
+            icon.classList.add('ri-eye-off-line');
+        }
+    });
     </script>
     
 
