@@ -1378,8 +1378,8 @@
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     @php 
                                                     $actualCancelDateStr = $tour->auto_cancel_date 
-        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-        : '';
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
                                                     @endphp
                                                     <button type="button" class="btn btn-sm btn-outline-primary px-3" onclick="editIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')" title="Edit this hotel booking">
                                                         <i class="ri-edit-line me-1"></i>Edit
@@ -1389,8 +1389,8 @@
                                                     </button>
                                                     @php 
                                                     $actualCancelDateStr = $tour->auto_cancel_date 
-        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-        : '';
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
 
                                                     @endphp
                                                     <button type="button" class="btn btn-sm btn-outline-success px-3" onclick="approveIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{addslashes($actualCancelDateStr)}}')" title="Approve this hotel booking">
@@ -1400,8 +1400,8 @@
                                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                     @php 
                                                     $actualCancelDateStr = $tour->auto_cancel_date 
-        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
-        : '';
+                                                        ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                                        : '';
                                                     @endphp
                                                     <button type="button" class="btn btn-sm btn-outline-danger px-3" onclick="rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')" title="Reject this hotel booking">
                                                         <i class="ri-close-line me-1"></i>Reject
@@ -19945,7 +19945,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
                 <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
                     <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
                 </label>
-                <input type="text" value="${autoCancelDate}" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
+                <input type="text" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
                 <div class="form-text">Select the actual due date for this booking</div>
             </div>
@@ -20212,6 +20212,7 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
         .then(data => {
             if (data.success && data.data && data.data.hotel_booking) {
                 const hotelData = data.data.hotel_booking;
+                const tourData = data.data.tour;
                 console.log('Hotel data loaded for approve modal:', hotelData);
                 
                 // Update hotel image
@@ -20240,12 +20241,11 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                     hotelNameElement.textContent = hotelData.hotel_name || 'Hotel Booking';
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set actual due date from tour's auto_cancel_date
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
-                    const defaultDate = new Date();
-                    defaultDate.setDate(defaultDate.getDate() + 7);
-                    actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
+                    const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
+                    actualDueDateInput.value = autoCancelDate;
                 }
                 
             } else {

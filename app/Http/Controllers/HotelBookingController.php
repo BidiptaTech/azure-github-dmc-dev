@@ -1153,7 +1153,8 @@ class HotelBookingController extends Controller
                     'tour' => [
                         'tour_id' => $tour->tour_id ?? $tourId,
                         'check_in_time' => $tour->check_in_time ?? null,
-                        'check_out_time' => $tour->check_out_time ?? null
+                        'check_out_time' => $tour->check_out_time ?? null,
+                        'auto_cancel_date' => $tour->auto_cancel_date ?? null
                     ],
                     'hotel_booking' => [
                         'booking_id' => $hotelOrder->id,

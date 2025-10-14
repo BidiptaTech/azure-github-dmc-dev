@@ -20268,6 +20268,7 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
         .then(data => {
             if (data.success && data.data && data.data.hotel_booking) {
                 const hotelData = data.data.hotel_booking;
+                const tourData = data.data.tour;
                 console.log('Hotel data loaded for approve modal:', hotelData);
                 
                 // Update hotel image
@@ -20299,9 +20300,8 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                 // Set default actual due date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
-                    const defaultDate = new Date();
-                    defaultDate.setDate(defaultDate.getDate() + 7);
-                    actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
+                    const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
+                    actualDueDateInput.value = autoCancelDate;
                 }
                 
             } else {
