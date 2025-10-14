@@ -66,6 +66,40 @@
         background: white;
     }
 
+    .form-section .input-group .form-select {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-right: none;
+    }
+
+    .form-section .input-group .form-control {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .form-section .input-group .form-select:focus {
+        border-right: none;
+    }
+
+    .form-section .input-group .btn-outline-light {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: none;
+        color: #667eea;
+        transition: all 0.3s ease;
+    }
+
+    .form-section .input-group .btn-outline-light:hover {
+        background: white !important;
+        color: #764ba2;
+        transform: scale(1.05);
+    }
+
+    .form-section .input-group input[type="password"],
+    .form-section .input-group input[type="text"]#app_password {
+        border-right: none;
+    }
+
     .btn-gradient {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         border: none;
@@ -319,9 +353,74 @@
                         <label for="contact" class="form-label">
                             <i class="ri-phone-line me-1"></i>Contact Number
                         </label>
-                        <input type="text" class="form-control" id="contact" name="contact" 
-                               placeholder="+1 234 567 8900">
+                        <div class="input-group">
+                            <select class="form-select" id="country_code" name="country_code" style="max-width: 130px;">
+                                <option value="+61">+61 Australia</option>
+                                <option value="+880">+880 Bangladesh</option>
+                                <option value="+32">+32 Belgium</option>
+                                <option value="+55">+55 Brazil</option>
+                                <option value="+86">+86 China</option>
+                                <option value="+420">+420 Czech Republic</option>
+                                <option value="+45">+45 Denmark</option>
+                                <option value="+20">+20 Egypt</option>
+                                <option value="+358">+358 Finland</option>
+                                <option value="+33">+33 France</option>
+                                <option value="+49">+49 Germany</option>
+                                <option value="+30">+30 Greece</option>
+                                <option value="+62">+62 Indonesia</option>
+                                <option value="+91" selected>+91 India</option>
+                                <option value="+353">+353 Ireland</option>
+                                <option value="+39">+39 Italy</option>
+                                <option value="+81">+81 Japan</option>
+                                <option value="+254">+254 Kenya</option>
+                                <option value="+82">+82 South Korea</option>
+                                <option value="+94">+94 Sri Lanka</option>
+                                <option value="+60">+60 Malaysia</option>
+                                <option value="+52">+52 Mexico</option>
+                                <option value="+977">+977 Nepal</option>
+                                <option value="+31">+31 Netherlands</option>
+                                <option value="+64">+64 New Zealand</option>
+                                <option value="+234">+234 Nigeria</option>
+                                <option value="+47">+47 Norway</option>
+                                <option value="+92">+92 Pakistan</option>
+                                <option value="+63">+63 Philippines</option>
+                                <option value="+48">+48 Poland</option>
+                                <option value="+351">+351 Portugal</option>
+                                <option value="+974">+974 Qatar</option>
+                                <option value="+7">+7 Russia</option>
+                                <option value="+966">+966 Saudi Arabia</option>
+                                <option value="+65">+65 Singapore</option>
+                                <option value="+27">+27 South Africa</option>
+                                <option value="+34">+34 Spain</option>
+                                <option value="+46">+46 Sweden</option>
+                                <option value="+41">+41 Switzerland</option>
+                                <option value="+66">+66 Thailand</option>
+                                <option value="+90">+90 Turkey</option>
+                                <option value="+971">UAE +971</option>
+                                <option value="+44">+44 United Kingdom</option>
+                                <option value="+1">+1 United States</option>
+                                <option value="+84">+84 Vietnam</option>
+                            </select>
+                            <input type="text" class="form-control" id="contact" name="contact" 
+                                   placeholder="123 456 7890" pattern="[0-9\s\-]+" 
+                                   title="Please enter a valid phone number">
+                        </div>
                         <div class="invalid-feedback" id="contact_error"></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="app_password" class="form-label">
+                            <i class="ri-lock-password-line me-1"></i>App Password
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="app_password" name="app_password" 
+                                   placeholder="Enter app password" autocomplete="new-password">
+                            <button class="btn btn-outline-light" type="button" id="toggleAppPassword" 
+                                    style="border: 2px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.95);">
+                                <i class="ri-eye-off-line" id="appPasswordIcon"></i>
+                            </button>
+                        </div>
+                        <div class="invalid-feedback" id="app_password_error"></div>
                     </div>
                 </div>
 
@@ -476,7 +575,11 @@ $(document).ready(function() {
         $('#submitBtnText').text('Save Guest');
         isEditMode = false;
         $('.form-control').removeClass('is-invalid');
+        $('.form-select').removeClass('is-invalid');
         $('.invalid-feedback').text('');
+        
+        // Reset country code to default
+        $('#country_code').val('+91');
         
         // Preserve tour_id if it was passed via URL
         if (tourId) {
@@ -490,8 +593,13 @@ $(document).ready(function() {
         
         const formData = new FormData(this);
         const guestId = $('#guestId').val();
-        const url = guestId ? "{{ route('guests.update', ['id' => '__ID__']) }}".replace('__ID__', guestId) : "{{ route('guests.store') }}";
+        const url = guestId ? "{{ route('guests.update', ['guestId' => '__ID__']) }}".replace('__ID__', guestId) : "{{ route('guests.store') }}";
         const method = guestId ? 'PUT' : 'POST';
+        
+        // For PUT request with FormData, we need to add _method
+        if (guestId) {
+            formData.append('_method', 'PUT');
+        }
         
         // Clear previous errors
         $('.form-control').removeClass('is-invalid');
@@ -504,7 +612,7 @@ $(document).ready(function() {
         
         $.ajax({
             url: url,
-            method: method,
+            method: 'POST', // Always use POST for FormData, _method will handle PUT
             data: formData,
             processData: false,
             contentType: false,
@@ -544,7 +652,9 @@ $(document).ready(function() {
         $('#guest_name').val(data.guestName);
         $('#tour_id').val(data.tourId);
         $('#email').val(data.email);
+        $('#country_code').val(data.countryCode || '+91');
         $('#contact').val(data.contact);
+        $('#app_password').val(data.appPassword || '');
         $('#formMethod').val('PUT');
         $('#formTitle').text('Update Guest Information');
         $('#submitBtnText').text('Update Guest');
@@ -568,7 +678,7 @@ $(document).ready(function() {
         
         if (confirm('Are you sure you want to delete this guest? This action cannot be undone.')) {
             $.ajax({
-                url: "{{ route('guests.destroy', ['id' => '__ID__']) }}".replace('__ID__', guestId),
+                url: "{{ route('guests.destroy', ['guestId' => '__ID__']) }}".replace('__ID__', guestId),
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -589,6 +699,20 @@ $(document).ready(function() {
     // Reset button
     $('#resetBtn').on('click', function() {
         resetForm();
+    });
+
+    // Toggle App Password visibility
+    $('#toggleAppPassword').on('click', function() {
+        const passwordField = $('#app_password');
+        const icon = $('#appPasswordIcon');
+        
+        if (passwordField.attr('type') === 'password') {
+            passwordField.attr('type', 'text');
+            icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
+        } else {
+            passwordField.attr('type', 'password');
+            icon.removeClass('ri-eye-line').addClass('ri-eye-off-line');
+        }
     });
 
     // Initialize DataTable on page load
