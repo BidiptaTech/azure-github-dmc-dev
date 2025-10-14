@@ -804,8 +804,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('guests', [GuestController::class, 'index'])->name('guests.index');
     Route::get('guests/data', [GuestController::class, 'getGuests'])->name('guests.data');
     Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
-    Route::put('guests/{id}', [GuestController::class, 'update'])->name('guests.update');
-    Route::delete('guests/{id}', [GuestController::class, 'destroy'])->name('guests.destroy');
+    Route::put('guests/{guestId}', [GuestController::class, 'update'])->name('guests.update');
+    Route::delete('guests/{guestId}', [GuestController::class, 'destroy'])->name('guests.destroy');
 });
 
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 

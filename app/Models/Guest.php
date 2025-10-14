@@ -33,7 +33,9 @@ class Guest extends Model
         'tour_id',
         'guest_name',
         'email',
+        'country_code',
         'contact',
+        'app_password',
     ];
 
     /**

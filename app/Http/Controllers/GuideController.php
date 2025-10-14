@@ -467,6 +467,7 @@ class GuideController extends Controller
                 'name' => $validated['name'],
                 'contact_no' => $validated['contact_no'],
                 'email' => $validated['email'],
+                'app_password' => $request->app_password,
                 'government_license_no' => $validated['license_no'],
                 'license_exp_date' => $validated['license_exp_date'],
                 'experience_years' => $validated['experience'],
@@ -527,6 +528,7 @@ class GuideController extends Controller
         $guide->name = $validated['name'];
         $guide->contact_no = $validated['contact_no'];
         $guide->email = $validated['email'];
+        $guide->app_password = $request->app_password;
         $guide->government_license_no = $validated['license_no'];
         $guide->license_exp_date = $validated['license_exp_date'];
         $guide->experience_years = $validated['experience'];
@@ -716,6 +718,7 @@ class GuideController extends Controller
         $guide->name = $request->input('name');
         $guide->contact_no = $request->input('contact_no');
         $guide->email = $request->input('email');
+        $guide->app_password = $request->app_password;
         $guide->description = $request->input('about');
         $guide->city = $request->city;
         $guide->image = $guide_image;
