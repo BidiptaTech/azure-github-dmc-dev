@@ -48,7 +48,9 @@ class GuestController extends Controller
                         data-tour-id="' . ($row->tour_id ?? '') . '" 
                         data-guest-name="' . htmlspecialchars($row->guest_name) . '" 
                         data-email="' . ($row->email ?? '') . '" 
+                        data-country-code="' . ($row->country_code ?? '+91') . '" 
                         data-contact="' . ($row->contact ?? '') . '" 
+                        data-app-password="' . ($row->app_password ?? '') . '" 
                         title="Edit">
                         <i class="ri-edit-line"></i>
                     </button>';
@@ -89,7 +91,9 @@ class GuestController extends Controller
                 'guest_name' => 'required|string|max:255',
                 'tour_id' => 'nullable|string|max:255',
                 'email' => 'nullable|email|max:255',
+                'country_code' => 'nullable|string|max:10',
                 'contact' => 'nullable|string|max:255',
+                'app_password' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -115,7 +119,9 @@ class GuestController extends Controller
                 'tour_id' => $request->tour_id,
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
+                'country_code' => $request->country_code ?? '+91',
                 'contact' => $request->contact,
+                'app_password' => $request->app_password,
             ]);
 
             return response()->json([
@@ -142,7 +148,9 @@ class GuestController extends Controller
                 'guest_name' => 'required|string|max:255',
                 'tour_id' => 'nullable|string|max:255',
                 'email' => 'nullable|email|max:255',
+                'country_code' => 'nullable|string|max:10',
                 'contact' => 'nullable|string|max:255',
+                'app_password' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -153,13 +161,22 @@ class GuestController extends Controller
                 ], 422);
             }
 
-            $guest = Guest::where('guest_id', $guestId)->firstOrFail();
+            // Try to find by guest_id first, if not found, try by id (auto-increment)
+            $guest = Guest::where('guest_id', $guestId)->first();
+            if (!$guest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Guest not found'
+                ], 404);
+            }
             
             $guest->update([
                 'tour_id' => $request->tour_id,
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
+                'country_code' => $request->country_code ?? '+91',
                 'contact' => $request->contact,
+                'app_password' => $request->app_password,
             ]);
 
             return response()->json([
@@ -182,7 +199,15 @@ class GuestController extends Controller
     public function destroy($guestId)
     {
         try {
-            $guest = Guest::where('guest_id', $guestId)->firstOrFail();
+            // Try to find by guest_id first, if not found, try by id (auto-increment)
+            $guest = Guest::where('guest_id', $guestId)->first();
+            if (!$guest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Guest not found'
+                ], 404);
+                // $guest = Guest::findOrFail($guestId);
+            }
             $guest->delete();
 
             return response()->json([
