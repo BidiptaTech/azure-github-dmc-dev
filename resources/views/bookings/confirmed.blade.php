@@ -14,6 +14,21 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <style>
+    /* Guest Management Button */
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-gradient-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+    
     /* Payment Processing Overlay */
     .payment-processing-overlay {
         position: fixed;
@@ -873,6 +888,13 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     @endif
+                                    
+                                    <a href="{{ route('guests.index', ['tour_id' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-warning btn-sm rounded-pill" 
+                                       title="Add guests for this tour">
+                                        <i class="ri-user-add-line me-1"></i> Add Guests
+                                    </a>
+                                    
                                     @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="btn btn-outline-warning btn-sm rounded-pill">
@@ -24847,7 +24869,7 @@ window.showNotification = function(message, type = 'info') {
                     orderable: false
                 },
                 {
-                    targets: [4], // Services column (index 4)
+                    targets: [4], // Manage Services column (index 4)
                     orderable: false
                 }
             ],
