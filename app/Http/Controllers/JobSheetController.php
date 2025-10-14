@@ -838,12 +838,55 @@ class JobSheetController extends Controller
                     $orderData = is_array($order->data) ? $order->data : json_decode($order->data, true);
                     $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
                     
+                    // Convert entrytime to proper time format (HH:MM:SS)
+                    $entryTime = $dataItem['entrytime'] ?? null;
+                    if ($entryTime !== null) {
+                        $entryTime = trim($entryTime);
+                        
+                        // Handle numeric values like 4 or "4"
+                        if (is_numeric($entryTime)) {
+                            $entryTime = str_pad($entryTime, 2, '0', STR_PAD_LEFT) . ':00:00';
+                        }
+                        // Handle "4:00 AM" or "4:00 PM" format
+                        elseif (preg_match('/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i', $entryTime, $matches)) {
+                            $hour = (int)$matches[1];
+                            $minute = $matches[2];
+                            $meridiem = strtoupper($matches[3]);
+                            
+                            // Convert to 24-hour format
+                            if ($meridiem === 'PM' && $hour !== 12) {
+                                $hour += 12;
+                            } elseif ($meridiem === 'AM' && $hour === 12) {
+                                $hour = 0;
+                            }
+                            
+                            $entryTime = str_pad($hour, 2, '0', STR_PAD_LEFT) . ':' . $minute . ':00';
+                        }
+                        // Handle "4:00" or "04:00" format (HH:MM)
+                        elseif (preg_match('/^(\d{1,2}):(\d{2})$/', $entryTime, $matches)) {
+                            $hour = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+                            $minute = $matches[2];
+                            $entryTime = $hour . ':' . $minute . ':00';
+                        }
+                        // Handle "04:00:00" format (HH:MM:SS) - already in correct format
+                        elseif (preg_match('/^\d{2}:\d{2}:\d{2}$/', $entryTime)) {
+                            // Already in correct format, do nothing
+                        }
+                        // Invalid format
+                        else {
+                            $entryTime = null;
+                        }
+                    }
+                    
                     // Check if there's an assignment in the jobsheets table
-                    $jobsheet = Jobsheet::where('date', $tomorrow)
-                        ->where('type', $order->type)
-                        ->where('service_type', $order->type) // For guides, service_type is same as type
-                        ->where('journey_time', $dataItem['entrytime'] ?? null)
-                        ->first();
+                    $jobsheet = null;
+                    if ($entryTime !== null) {
+                        $jobsheet = Jobsheet::where('date', $tomorrow)
+                            ->where('type', $order->type)
+                            ->where('service_type', $order->type) // For guides, service_type is same as type
+                            ->where('journey_time', $entryTime)
+                            ->first();
+                    }
                     
                     // Attach guide info from jobsheet
                     if ($jobsheet) {
@@ -995,6 +1038,7 @@ class JobSheetController extends Controller
                 'date' => 'required|date',
                 'assignments' => 'required|array',
             ]);
+            dd($request->assignments);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -1037,7 +1081,7 @@ class JobSheetController extends Controller
                 }
 
                 // Find the order
-                $order = Order::where('id', $orderId)->first();
+                $order = Order::where('booking_id', $orderId)->first();
                 if (!$order) continue;
 
                 // Update order data with driver and vehicle assignments
@@ -1142,6 +1186,46 @@ class JobSheetController extends Controller
                 ], 422);
             }
 
+            // Convert entry_time to proper time format (HH:MM:SS)
+            $entryTime = $request->entry_time;
+            if ($entryTime !== null) {
+                $entryTime = trim($entryTime);
+                
+                // Handle numeric values like 4 or "4"
+                if (is_numeric($entryTime)) {
+                    $entryTime = str_pad($entryTime, 2, '0', STR_PAD_LEFT) . ':00:00';
+                }
+                // Handle "4:00 AM" or "4:00 PM" format
+                elseif (preg_match('/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i', $entryTime, $matches)) {
+                    $hour = (int)$matches[1];
+                    $minute = $matches[2];
+                    $meridiem = strtoupper($matches[3]);
+                    
+                    // Convert to 24-hour format
+                    if ($meridiem === 'PM' && $hour !== 12) {
+                        $hour += 12;
+                    } elseif ($meridiem === 'AM' && $hour === 12) {
+                        $hour = 0;
+                    }
+                    
+                    $entryTime = str_pad($hour, 2, '0', STR_PAD_LEFT) . ':' . $minute . ':00';
+                }
+                // Handle "4:00" or "04:00" format (HH:MM)
+                elseif (preg_match('/^(\d{1,2}):(\d{2})$/', $entryTime, $matches)) {
+                    $hour = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+                    $minute = $matches[2];
+                    $entryTime = $hour . ':' . $minute . ':00';
+                }
+                // Handle "04:00:00" format (HH:MM:SS) - already in correct format
+                elseif (!preg_match('/^\d{2}:\d{2}:\d{2}$/', $entryTime)) {
+                    // Invalid format
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid time format for entry_time'
+                    ], 422);
+                }
+            }
+
             // Get the actual numeric tour_id from the order
             $order = Order::where('booking_id', $request->order_id)->first();
             if (!$order) {
@@ -1160,7 +1244,7 @@ class JobSheetController extends Controller
             $existingJobsheet = Jobsheet::where('date', $request->date)
                 ->where('type', $request->order_type)
                 ->where('service_type', $request->type)
-                ->where('journey_time', $request->entry_time)
+                ->where('journey_time', $entryTime)
                 ->where('tour_id', $actualTourId)
                 ->where('order_id', $request->order_id)
                 ->first(); 
@@ -1200,7 +1284,7 @@ class JobSheetController extends Controller
                 $jobsheet->tour_id = $actualTourId; // Use the actual numeric tour_id
                 $jobsheet->date = $request->date;
                 $jobsheet->type = $request->order_type;
-                $jobsheet->journey_time = $request->entry_time;
+                $jobsheet->journey_time = $entryTime; // Use the formatted time
                 $jobsheet->data = json_encode([
                     'pickup' => $request->entrypickup,
                     'dropoff' => $request->entrydropoff ?? null,
@@ -1281,7 +1365,7 @@ class JobSheetController extends Controller
                 $jobsheetId = CommonHelper::createId($jobsheet_max_id);
                 while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
                     $jobsheetId = CommonHelper::createId($jobsheetId);
-                }  
+                }
 
                 $jobsheet = new Jobsheet();
                 $jobsheet->jobsheet_id = $jobsheetId;
