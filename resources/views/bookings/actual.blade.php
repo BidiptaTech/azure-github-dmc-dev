@@ -4654,6 +4654,10 @@ function submitPaymentForm(tourId) {
     }
 }
 
+// Define base URL using Laravel's URL helper
+const BASE_URL = "{{ url('/') }}";
+console.log('Base URL:', BASE_URL);
+
 function closePaymentModal(tourId) {
     console.log('Attempting to close payment modal for tour:', tourId);
     
@@ -4731,7 +4735,7 @@ function verifyPayment(tourId, paymentIndex) {
         
         // Use jQuery AJAX with proper CSRF token handling
         $.ajax({
-            url: `/tour/${tourId}/verify-payment`,
+            url: `${BASE_URL}/tour/${tourId}/verify-payment`,
             method: 'POST',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content'),
@@ -4784,7 +4788,7 @@ function declinePayment(tourId, paymentIndex) {
         
         // Use jQuery AJAX with proper CSRF token handling
         $.ajax({
-            url: `/tour/${tourId}/decline-payment`,
+            url: `${BASE_URL}/tour/${tourId}/decline-payment`,
             method: 'POST',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content'),
