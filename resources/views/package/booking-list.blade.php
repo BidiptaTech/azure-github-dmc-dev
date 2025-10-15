@@ -369,8 +369,11 @@
                                     
                                     <td>
                                         <div style="margin-top: 5px;">
-                                            @if(in_array($booking->status, ['7', '5', '6']))
-                                                {{-- For cancelled/refunded bookings, only show payment history --}}
+                                            @if($booking->status == '7')
+                                                {{-- For Cancel - Confirmed bookings, hide payment options --}}
+                                                <span class="text-muted">-</span>
+                                            @elseif(in_array($booking->status, ['5', '6']))
+                                                {{-- For refunded bookings, only show payment history --}}
                                                 @if($booking->payment_details)
                                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
                                                         <i class="fas fa-history"></i> Payment History
@@ -403,10 +406,15 @@
                                     </td>
                                 @elseif(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 129 || auth()->user()->role_id == 131 || auth()->user()->role_id == 133 || auth()->user()->role_id == 134 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                     <td>
-                                        {{-- Finance users always need access to history for verification --}}
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
-                                            <i class="fas fa-history"></i> History
-                                        </button>
+                                        @if($booking->status == '7')
+                                            {{-- For Cancel - Confirmed bookings, hide payment history --}}
+                                            <span class="text-muted">-</span>
+                                        @else
+                                            {{-- Finance users always need access to history for verification --}}
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal{{ $booking->id }}">
+                                                <i class="fas fa-history"></i> History
+                                            </button>
+                                        @endif
                                     </td>
                                 @endif
                                 <td>
