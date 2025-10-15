@@ -5618,8 +5618,34 @@ function createGuideRejectionModal(tourId, guideOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual guide view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualGuideViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load guide data for the modal
     loadGuideDataForReject(tourId, guideOrderIndex, bookingIndex);
@@ -5884,8 +5910,34 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual guide view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualGuideViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load guide data for the modal
     loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex);
@@ -6184,8 +6236,34 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual hourly view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelHourlyViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load hourly data for the modal
     loadHourlyDataForApprove(tourId, hourlyOrderIndex, bookingIndex);
@@ -6289,8 +6367,34 @@ function createHourlyRejectionModal(tourId, hourlyOrderIndex, bookingIndex) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual hourly view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelHourlyViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load hourly data for the modal
     loadHourlyDataForReject(tourId, hourlyOrderIndex, bookingIndex);
@@ -8540,6 +8644,31 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual attraction view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualAttractionViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
+            document.getElementById(modalId).remove();
+        }, { once: true });
+        
         // Load data for approve modal
         if (action === 'approve') {
             setTimeout(() => {
@@ -8551,11 +8680,6 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
                 }
             }, 100);
         }
-        
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            document.getElementById(modalId).remove();
-        });
         
     } catch (error) {
         console.error('Error creating individual attraction modal:', error);
@@ -10439,8 +10563,34 @@ function createArrivalApprovalModal(tourId, arrivalOrderIndex, arrivalBookingInd
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual arrival view modal
+        const openIndividualModals = document.querySelectorAll('[id*="Modal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load arrival data for the modal
     loadArrivalDataForApprove(tourId, arrivalOrderIndex, arrivalBookingIndex);
@@ -10890,8 +11040,34 @@ function createDepartureApprovalModal(tourId, departureOrderIndex, departureBook
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual departure view modal
+        const openIndividualModals = document.querySelectorAll('[id*="Modal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load departure data for the modal
     loadDepartureDataForApprove(tourId, departureOrderIndex, departureBookingIndex);
@@ -14790,8 +14966,34 @@ function createTravelPointApprovalModal(tourId, travelPointOrderIndex, bookingIn
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual travel point view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelPointViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load travel point data for the modal
     loadTravelPointDataForApprove(tourId, travelPointOrderIndex, bookingIndex);
@@ -14838,8 +15040,34 @@ function createTravelPointRejectionModal(tourId, travelPointOrderIndex, bookingI
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    const modal = new bootstrap.Modal(document.getElementById(modalId));
+    const modalElement = document.getElementById(modalId);
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual travel point view modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualTravelPointViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load travel point data for the modal
     loadTravelPointDataForReject(tourId, travelPointOrderIndex, bookingIndex);
@@ -19782,17 +20010,37 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual hotel view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualHotelViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
+            modalElement.remove();
+        }, { once: true });
+        
         // Load data for approve modal
         if (action === 'approve') {
             setTimeout(() => {
                 loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex);
             }, 100);
         }
-        
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            modalElement.remove();
-        });
         
     } catch (error) {
         console.error('Error creating individual hotel modal:', error);
@@ -22092,10 +22340,30 @@ function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bo
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual attraction view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualAttractionViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
             modalElement.remove();
-        });
+        }, { once: true });
         
     } catch (error) {
         console.error('Error creating individual attraction modal:', error);
@@ -23064,10 +23332,30 @@ function createAndShowIndividualRestaurantModal(tourId, restaurantOrderIndex, bo
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
         
-        // Remove modal from DOM when hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
+        // Add event listener to restore modal-open state when this modal closes
+        modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+            // Check if there's still an open individual restaurant view modal
+            const openIndividualModals = document.querySelectorAll('[id*="individualRestaurantViewModal_"]');
+            if (openIndividualModals.length > 0) {
+                // Restore modal-open class and padding to body
+                document.body.classList.add('modal-open');
+                
+                // Calculate scrollbar width and restore padding
+                const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+                if (scrollbarWidth > 0) {
+                    document.body.style.paddingRight = scrollbarWidth + 'px';
+                }
+                
+                // Ensure backdrop is visible for the underlying modal
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    backdrops[backdrops.length - 1].style.display = 'block';
+                }
+            }
+            
+            // Remove modal from DOM
             modalElement.remove();
-        });
+        }, { once: true });
         
         // Load data for approve modal
         if (action === 'approve') {
@@ -26335,6 +26623,31 @@ function openAttractionFilesModal(tourId, attractionOrderIndex, bookingIndex) {
     });
     modal.show();
     
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual attraction modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualAttractionViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
+    
     // Load files data
     loadAttractionFiles(tourId, attractionOrderIndex, bookingIndex);
 }
@@ -26855,6 +27168,31 @@ function openRestaurantFilesModal(tourId, restaurantOrderIndex, bookingIndex) {
         keyboard: true
     });
     modal.show();
+    
+    // Add event listener to restore modal-open state when this modal closes
+    modalElement.addEventListener('hidden.bs.modal', function restoreModalState() {
+        // Check if there's still an open individual restaurant modal
+        const openIndividualModals = document.querySelectorAll('[id*="individualRestaurantViewModal_"]');
+        if (openIndividualModals.length > 0) {
+            // Restore modal-open class and padding to body
+            document.body.classList.add('modal-open');
+            
+            // Calculate scrollbar width and restore padding
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+            
+            // Ensure backdrop is visible for the underlying modal
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) {
+                backdrops[backdrops.length - 1].style.display = 'block';
+            }
+        }
+        
+        // Remove this event listener after it's executed once
+        modalElement.removeEventListener('hidden.bs.modal', restoreModalState);
+    }, { once: true });
     
     // Load files data
     loadRestaurantFiles(tourId, restaurantOrderIndex, bookingIndex);
