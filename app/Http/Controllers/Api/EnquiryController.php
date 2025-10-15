@@ -145,11 +145,10 @@ class EnquiryController extends Controller
         }
 
         if (empty($request_dmc_ids)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'DMC IDs are required.',
-            ]);
+            $dmc = User::where('country', $country)->first();
+            $request_dmc_ids = [$dmc->userId];
         }
+
         $country_id = Country::where('name', $country)->first();
         // Fetch all services for the given city and DMCs
         // For tables with JSON dmc_id field, we'll use a more complex query
