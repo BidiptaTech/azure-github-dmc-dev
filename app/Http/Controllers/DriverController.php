@@ -464,6 +464,7 @@ class DriverController extends Controller
                     'status' => $status,
                     'created_by' => $auth_user->userId,
                     'dmc_id' => $dmc_id ?? 0,
+                    'app_password' => $request->app_password,
                 ]);
         
                 LogActivityService::log('restore_driver', 'App\Models\Driver', $deletedDriver->id, $deletedDriver);
@@ -502,9 +503,10 @@ class DriverController extends Controller
             $driver->status = $status;
             $driver->created_by = $auth_user->userId;
             $driver->dmc_id = $dmc_id ?? 0;
+            $driver->app_password = $request->app_password;
         
             if ($driver->save()) {
-                LogActivityService::log('create_driver', 'App\Models\Driver', $driver->id, $driver);
+                LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
         
                 // if (in_array($auth_user->role_id, [11, 4, 3, 35, 76, 111])) {
                 //     return view('drivers.thankyou');

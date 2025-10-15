@@ -50,6 +50,7 @@ use App\Http\Controllers\JobSheetController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
+use App\Http\Controllers\GuestController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -796,6 +797,15 @@ Route::get('/test-booking-email', function() {
             'line' => $e->getLine()
         ];
     }
+});
+
+// Guest Management Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('guests', [GuestController::class, 'index'])->name('guests.index');
+    Route::get('guests/data', [GuestController::class, 'getGuests'])->name('guests.data');
+    Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
+    Route::put('guests/{guestId}', [GuestController::class, 'update'])->name('guests.update');
+    Route::delete('guests/{guestId}', [GuestController::class, 'destroy'])->name('guests.destroy');
 });
 
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 

@@ -18959,6 +18959,26 @@ function handleTransportServiceTypeChange(day, serviceType, index = 0) {
     // Clear location fields when switching service types
     clearGoogleMapsFields();
     
+    // When switching away from Local Transfer, clear its selected values (do not disable controls)
+    if (serviceType !== 'local_transfer') {
+        const pickupZoneSelect = transportContainer.querySelector('.pickup-zone-select');
+        const dropoffZoneSelect = transportContainer.querySelector('.dropoff-zone-select');
+        const pickupTimeSelect = transportContainer.querySelector('select[name$="_transport_pickup_time"]');
+        const searchButton = transportContainer.querySelector('button[id$="_transport_search_btn"]');
+        if (pickupZoneSelect) {
+            pickupZoneSelect.value = '';
+        }
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.value = '';
+        }
+        if (pickupTimeSelect) {
+            pickupTimeSelect.value = '';
+        }
+        if (searchButton) {
+            searchButton.innerHTML = '<i class="ri-search-line me-2"></i>Search Vehicles';
+        }
+    }
+    
     // Show/hide fields based on selected service type
     if (serviceType === 'local_transfer') {
         localTransferFields.forEach(field => field.style.display = 'block');
