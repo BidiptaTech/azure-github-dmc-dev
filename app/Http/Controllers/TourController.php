@@ -753,10 +753,13 @@ class TourController extends Controller
             // Save updated payment details
             $tour->payment_details = json_encode($paymentDetails);
             $tour->save();
-            if($tour->tour_status = "Confirmed"){
-                $tour_status = Tour::where('tour_id', $tourId)->update([
-                            'tour_status' => "Definite",
-                        ]);
+            
+            // Only change status from Confirmed to Definite, NOT from Actual
+            // Do NOT change status if tour is already in Actual or Definite status
+            if($tour->tour_status == "Confirmed"){
+                Tour::where('tour_id', $tourId)->update([
+                    'tour_status' => "Definite",
+                ]);
             }
 
             return response()->json([
