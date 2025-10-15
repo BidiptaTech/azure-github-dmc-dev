@@ -156,7 +156,7 @@ class BedsController extends Controller
         if (!$bedmaster) {
             return redirect()->route('beds.create', $bedmaster->hotel_id)->with('error', 'Bed Type not found!');
         }
-        $bedCount = Bed::where('bed_id', $id)->where('is_active', 1)->count();
+        $bedCount = Bed::where('bed_master_id', $id)->where('is_active', 1)->count();
         if ($bedCount > 0) {
             return redirect()->route('beds.create', $bedmaster->hotel_id)
                             ->with('denied', 'Either cannot delete or bed type not found!');

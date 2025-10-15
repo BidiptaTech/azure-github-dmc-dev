@@ -1869,6 +1869,13 @@
                                 <div data-i18n="Email Settings">Email Settings</div>
                             </a>
                         </li>
+
+                        <!-- App Settings -->
+                        <li class="menu-item @if(Request::is('app-management/settings')) active @endif">
+                            <a href="{{ route('app-management.settings') }}" class="menu-link">
+                                <div data-i18n="App Management Settings">App Management Settings</div>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 @endif
