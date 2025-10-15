@@ -59,7 +59,7 @@ use Illuminate\Support\Facades\Auth;
                                         $totalAmount *= $exchangeRate;
                                         $currencySymbol = '₹';
                                     } else {
-                                        $currencySymbol = 'S$';
+                                        $currencySymbol = '$';
                                     }
                                 @endphp
                                 {{ $currencySymbol }}{{ number_format($totalAmount, 2) }}
