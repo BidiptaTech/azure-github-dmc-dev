@@ -19,19 +19,19 @@
     </li>
 
     <li class="nav-item" role="presentation">
-        <a class="nav-link {{ empty($hotel->hotel_owner_company_name) ? 'disabled' : (Request::routeIs('hotelp') ? 'active' : '') }}" 
+        <a class="nav-link {{ Request::routeIs('hotelp') ? 'active' : '' }}" 
         id="pills-ports-tab" 
-        href="{{ empty($hotel->hotel_owner_company_name) ? '#' : route('hotelp', $hotel->hotel_unique_id) }}" 
+        href="{{ route('hotelp', $hotel->hotel_unique_id) }}" 
         role="tab" 
-        aria-selected="{{ empty($hotel->hotel_owner_company_name) ? 'false' : 'true' }}" 
-        tabindex="{{ empty($hotel->hotel_owner_company_name) ? '-1' : '0' }}">
+        aria-selected="true" 
+        tabindex="0">
             Ports & Nearby
         </a>
     </li>
 
     <li class="nav-item" role="presentation">
         <a class="nav-link 
-            {{ (!$hotel->port_of_entry && !$hotel->port_of_exit && !$hotel->others) ? 'disabled' : (Request::routeIs('hotels.facility') ? 'active' : '') }}" 
+            {{ (Request::routeIs('hotels.facility') ? 'active' : '') }}" 
             id="pills-facility-tab" 
             href="{{ route('hotels.facility', $hotel->hotel_unique_id) }}" 
             role="tab" 
@@ -41,10 +41,9 @@
     </li>
 
      <li class="nav-item" role="presentation">
-        <a class="nav-link {{ empty($hotel->facilities) ? 'disabled' : (Request::routeIs('hotels.createroom') ? 'active' : '') }}" 
+        <a class="nav-link {{ Request::routeIs('hotels.createroom') ? 'active' : '' }}" 
         id="rooms-type-tab" 
-        href="{{ empty($hotel->facilities) ? 'javascript:void(0);' : route('hotels.createroom', ['id' => $hotel->hotel_unique_id]) }}"
-        style="cursor: {{ empty($hotel->facilities) ? 'not-allowed' : 'pointer' }}">
+        href="{{ route('hotels.createroom', ['id' => $hotel->hotel_unique_id]) }}">
             Room Pricing
         </a>
     </li> 
@@ -76,114 +75,55 @@
             Bed Configuration
         </a>
     </li>
-    @php
-    $hote_id = $hotel->hotel_unique_id;
-        $roomCount = App\Models\Bed::whereHas('room', function ($query) use ($hote_id) {
-            $query->where('hotel_id', $hote_id);
-        })->count();
-    @endphp
-
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $roomCount > 0 ? (Request::routeIs('hotels.season') ? 'active' : '') : 'disabled' }}" 
+        <li class="nav-item" role="presentation">
+        <a class="nav-link {{ Request::routeIs('hotels.season') ? 'active' : '' }}" 
         id="pills-season-tab" 
-        href="{{ $roomCount > 0 ? route('hotels.season', $hotel->hotel_unique_id) : '#' }}" 
+        href="{{ route('hotels.season', $hotel->hotel_unique_id) }}" 
         role="tab" 
-        aria-selected="{{ $roomCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $roomCount > 0 ? '0' : '-1' }}">
+        aria-selected="true" 
+        tabindex="0">
             Seasons
         </a>
     </li>
-    @php 
-        $rateCount = App\Models\Rate::where('hotel_id', $hotel->hotel_unique_id)->where('event_type','Season')->count();
-    @endphp
-
     <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $rateCount > 0 ? (Request::routeIs('hotels.rates') ? 'active' : '') : 'disabled' }}" 
+        <a class="nav-link {{ Request::routeIs('hotels.rates') ? 'active' : '' }}" 
         id="pills-event-tab" 
-        href="{{ $rateCount > 0 ? route('hotels.rates', $hotel->hotel_unique_id) : '#' }}" 
+        href="{{ route('hotels.rates', $hotel->hotel_unique_id) }}" 
         role="tab" 
-        aria-selected="{{ $rateCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $rateCount > 0 ? '0' : '-1' }}">
+        aria-selected="true" 
+        tabindex="0">
             Blackout/Fair Dates
         </a>
     </li>
-    @php 
-    $eventCount = App\Models\Rate::where('hotel_id', $hotel->hotel_unique_id)
-                    ->whereIn('event_type', ['Blackout Date', 'Fair Date'])
-                    ->count();
-    @endphp
-
-    {{-- <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $eventCount > 0 ? (Request::routeIs('policy') ? 'active' : '') : 'disabled' }}" 
-        id="pills-policy-tab" 
-        href="{{ $eventCount > 0 ? route('policy', $hotel->hotel_unique_id) : '#' }}" 
-        role="tab" 
-        aria-selected="{{ $eventCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $eventCount > 0 ? '0' : '-1' }}">
-            Property Policy
-        </a>
-    </li>
-    @php
-        $policyCount = App\Models\HotelPolicy::where('hotel_id', $hotel->hotel_unique_id)->count();
-    @endphp --}}
-
-    {{-- <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $policyCount > 0 ? (Request::routeIs('cancellation.policy') ? 'active' : '') : 'disabled' }}" 
-        id="pills-cancellation-tab" 
-        href="{{ $policyCount > 0 ? route('cancellation.policy', $hotel->hotel_unique_id) : '#' }}" 
-        role="tab" 
-        aria-selected="{{ $policyCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $policyCount > 0 ? '0' : '-1' }}">
-            Cancellation Policy
-        </a>
-    </li>
-    @php
-        $refundPolicyCount = App\Models\HotelPolicy::where('hotel_id', $hotel->hotel_unique_id)->count();
-    @endphp --}}
-
-    {{-- <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $refundPolicyCount > 0 ? (Request::routeIs('refund.policy') ? 'active' : '') : 'disabled' }}" 
-            id="pills-refund-tab" 
-            href="{{ $refundPolicyCount > 0 ? route('refund.policy', $hotel->hotel_unique_id) : '#' }}" 
-            role="tab" 
-            aria-selected="{{ $refundPolicyCount > 0 ? 'true' : 'false' }}" 
-            tabindex="{{ $refundPolicyCount > 0 ? '0' : '-1' }}">
-            Refund Policy
-        </a>
-    </li> --}}
-
     <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $eventCount > 0 ? (Request::routeIs('policy') || Request::routeIs('cancellation.policy') || Request::routeIs('refund.policy') ? 'active' : '') : 'disabled' }}" 
+        <a class="nav-link {{ Request::routeIs('policy') || Request::routeIs('cancellation.policy') || Request::routeIs('refund.policy') ? 'active' : '' }}" 
         id="pills-policy-tab" 
-        href="{{ $eventCount > 0 ? route('policy', $hotel->hotel_unique_id) : '#' }}" 
+        href="{{ route('policy', $hotel->hotel_unique_id) }}" 
         role="tab" 
-        aria-selected="{{ $eventCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $eventCount > 0 ? '0' : '-1' }}">
+        aria-selected="true" 
+        tabindex="0">
             Policy
         </a>
     </li>
 
-    @php
-        $hotelPolicyCount = App\Models\HotelPolicy::where('hotel_id', $hotel->hotel_unique_id)->count();
-    @endphp
     <li class="nav-item" role="presentation">
-        <a class="nav-link {{ !empty($hotelPolicyCount) ? (Request::routeIs('hotel.conference') ? 'active' : '') : 'disabled' }}" 
+        <a class="nav-link {{ Request::routeIs('hotel.conference') ? 'active' : '' }}" 
         id="pills-calendar-tab" 
-        href="{{ !empty($hotelPolicyCount) ? route('hotel.conference', $hotel->hotel_unique_id) : '#' }}" 
+        href="{{ route('hotel.conference', $hotel->hotel_unique_id) }}" 
         role="tab"
-        aria-selected="{{ !empty($hotelPolicyCount) ? 'true' : 'false' }}" 
-        tabindex="{{ !empty($hotelPolicyCount) ? '0' : '-1' }}">
+        aria-selected="true" 
+        tabindex="0">
             Meeting & Conference
         </a>
     </li>
 
     <li class="nav-item" role="presentation">
-        <a class="nav-link {{ $roomCount > 0 ? (Request::routeIs('hotel-restaurant-create')|| Request::routeIs('hotel-meals-create') ? 'active' : '') : 'disabled' }}" 
+        <a class="nav-link {{ Request::routeIs('hotel-restaurant-create') || Request::routeIs('hotel-meals-create') ? 'active' : '' }}" 
         id="pills-restaurant-tab" 
-        href="{{ $roomCount > 0 ? route('hotel-restaurant-create', $hotel->hotel_unique_id) : '#' }}"
+        href="{{ route('hotel-restaurant-create', $hotel->hotel_unique_id) }}"
         role="tab" 
-        aria-selected="{{ $roomCount > 0 ? 'true' : 'false' }}" 
-        tabindex="{{ $roomCount > 0 ? '0' : '-1' }}">
+        aria-selected="true" 
+        tabindex="0">
             Hotel Restaurants
         </a>
     </li>
