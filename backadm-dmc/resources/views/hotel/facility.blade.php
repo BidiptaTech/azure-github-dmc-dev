@@ -23,6 +23,10 @@
     .facility-card .card-body {
         padding: 1rem;
         position: relative;
+        padding-right: 75px; /* Space for both icons */
+        min-height: 60px; /* Ensure consistent card height */
+        display: flex;
+        align-items: center;
     }
     
     .category-pill {
@@ -46,34 +50,38 @@
     
     .facility-counter {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 50%;
+        right: 10px;
+        transform: translateY(-50%);
         background: #0d6efd;
         color: white;
         border-radius: 50%;
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .dollar-badge {
         position: absolute;
-        top: 8px;
-        right: 40px;
+        top: 50%;
+        right: 45px;
+        transform: translateY(-50%);
         background: #198754;
         color: white;
         border-radius: 50%;
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 12px;
         font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .category-section {
@@ -88,6 +96,11 @@
     .facility-name {
         font-weight: 500;
         margin-bottom: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.4;
+        flex: 1;
+        padding-right: 10px;
     }
     
     .action-button {
@@ -96,6 +109,54 @@
     
     .action-button:hover {
         transform: translateY(-2px);
+    }
+    
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 768px) {
+        .facility-card .card-body {
+            padding-right: 70px;
+            min-height: 55px;
+        }
+        
+        .facility-counter {
+            width: 26px;
+            height: 26px;
+            right: 8px;
+            font-size: 12px;
+        }
+        
+        .dollar-badge {
+            width: 26px;
+            height: 26px;
+            right: 40px;
+            font-size: 11px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .facility-card .card-body {
+            padding: 0.75rem;
+            padding-right: 65px;
+            min-height: 50px;
+        }
+        
+        .facility-counter {
+            width: 24px;
+            height: 24px;
+            right: 6px;
+            font-size: 11px;
+        }
+        
+        .dollar-badge {
+            width: 24px;
+            height: 24px;
+            right: 36px;
+            font-size: 10px;
+        }
+        
+        .facility-name {
+            font-size: 14px;
+        }
     }
     
     .search-container {
