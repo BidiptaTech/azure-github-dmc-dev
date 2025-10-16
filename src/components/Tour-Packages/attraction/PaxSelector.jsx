@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Grid, 
   Box,
@@ -124,83 +124,57 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   const defaultAdults = initialAdults || 1;
   const defaultChildren = initialChildren || 0;
 
-  // Initialize guest counts
+  // Initialize guest counts - prioritize selectedPax if available
   const [guestCounts, setGuestCounts] = useState({
-    Adults: defaultAdults,
-    Children: defaultChildren,
-    Seniors: 0
+    Adults: selectedPax?.Adults !== undefined ? selectedPax.Adults : defaultAdults,
+    Children: selectedPax?.Children !== undefined ? selectedPax.Children : defaultChildren,
+    Seniors: selectedPax?.Seniors !== undefined ? selectedPax.Seniors : 0
   });
 
-  // Track the maximum allowed values
-  const [maxValues, setMaxValues] = useState({
-    Adults: defaultAdults,
-    Children: defaultChildren,
-    Seniors: defaultAdults
+  // Store max limits as immutable state (initialized once, never updated)
+  const [maxLimits] = useState(() => {
+    const totalFromSelected = selectedPax 
+      ? (selectedPax.Adults || 0) + (selectedPax.Seniors || 0)
+      : defaultAdults;
+    
+    return {
+      Adults: Math.max(totalFromSelected, defaultAdults),
+      Children: selectedPax?.Children || defaultChildren,
+      Seniors: Math.max(totalFromSelected, defaultAdults),
+      originalAdultCount: Math.max(totalFromSelected, defaultAdults)
+    };
   });
 
-  // Track the original total adult count
-  const [originalAdultCount, setOriginalAdultCount] = useState(defaultAdults);
-
-  // Use a ref to track if we're updating from selectedPax to prevent loops
-  const isUpdatingFromPropsRef = useRef(false);
-
+  // Sync with selectedPax when it changes - WITH GUARDS to prevent loops
   useEffect(() => {
-    // If selectedPax is provided, use it instead of defaults
-    if (selectedPax && (selectedPax.Adults || selectedPax.Children || selectedPax.Seniors)) {
-      console.log('PaxSelector updating from selectedPax:', selectedPax);
-      isUpdatingFromPropsRef.current = true; // Set flag to prevent onPaxChange call
-      
-      setGuestCounts({
-        Adults: selectedPax.Adults || 0,
-        Children: selectedPax.Children || 0,
-        Seniors: selectedPax.Seniors || 0
-      });
-      
-      // Set max values based on the total from selectedPax
-      const totalFromSelected = (selectedPax.Adults || 0) + (selectedPax.Seniors || 0);
-      setMaxValues({
-        Adults: Math.max(totalFromSelected, defaultAdults),
-        Children: selectedPax.Children || defaultChildren,
-        Seniors: Math.max(totalFromSelected, defaultAdults)
-      });
-      
-      setOriginalAdultCount(Math.max(totalFromSelected, defaultAdults));
-    } else {
-      // Use defaults when no selectedPax
-      setGuestCounts({
-        Adults: defaultAdults,
-        Children: defaultChildren,
-        Seniors: 0
-      });
-
-      setMaxValues({
-        Adults: defaultAdults,
-        Children: defaultChildren,
-        Seniors: defaultAdults
-      });
-
-      setOriginalAdultCount(defaultAdults);
+    if (selectedPax && (selectedPax.Adults !== undefined || selectedPax.Children !== undefined || selectedPax.Seniors !== undefined)) {
+      // Only update if values actually differ
+      if (
+        selectedPax.Adults !== guestCounts.Adults ||
+        selectedPax.Children !== guestCounts.Children ||
+        selectedPax.Seniors !== guestCounts.Seniors
+      ) {
+        console.log('PaxSelector syncing from selectedPax:', selectedPax);
+        setGuestCounts({
+          Adults: selectedPax.Adults || 0,
+          Children: selectedPax.Children || 0,
+          Seniors: selectedPax.Seniors || 0
+        });
+      }
     }
-  }, [defaultAdults, defaultChildren, selectedPax]);
+  }, [selectedPax]); // REMOVED guestCounts from dependencies to break feedback loop
 
-  useEffect(() => {
-    // Skip calling onPaxChange if we're updating from selectedPax props
-    if (isUpdatingFromPropsRef.current) {
-      isUpdatingFromPropsRef.current = false;
-      return;
+  // Memoized callback to notify parent - WITH GUARDS
+  const notifyParent = useCallback((counts) => {
+    if (onPaxChange && 
+        (!selectedPax || 
+          selectedPax.Adults !== counts.Adults ||
+          selectedPax.Children !== counts.Children ||
+          selectedPax.Seniors !== counts.Seniors)) {
+      console.log('PaxSelector calling onPaxChange:', { from: selectedPax, to: counts });
+      onPaxChange(counts);
     }
-
-    // Only call onPaxChange if the values are actually different from the current props
-    const currentPax = selectedPax || { Adults: 0, Children: 0, Seniors: 0 };
-    if (
-      currentPax.Adults !== guestCounts.Adults ||
-      currentPax.Children !== guestCounts.Children ||
-      currentPax.Seniors !== guestCounts.Seniors
-    ) {
-      console.log('PaxSelector calling onPaxChange:', { from: currentPax, to: guestCounts });
-      onPaxChange(guestCounts);
-    }
-  }, [guestCounts, onPaxChange, selectedPax]);
+  }, [onPaxChange, selectedPax]); // REMOVED guestCounts from dependencies
 
   const handleClick = (event) => {
     if (!disabled) {
@@ -213,6 +187,8 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
   };
 
   const handleCounterChange = (name, value) => {
+    let newCounts = { ...guestCounts };
+    
     // Special logic for Seniors to decrease Adults when Seniors increase
     if (name === "Seniors") {
       const currentSeniors = guestCounts.Seniors;
@@ -232,24 +208,21 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
       }
       
       // Ensure we don't exceed original adult count
-      if (newAdultValue + value > originalAdultCount) {
-        value = originalAdultCount - newAdultValue;
+      if (newAdultValue + value > maxLimits.originalAdultCount) {
+        value = maxLimits.originalAdultCount - newAdultValue;
       }
       
       // Update both seniors and adults
-      setGuestCounts(prev => ({
-        ...prev,
+      newCounts = {
+        ...newCounts,
         Seniors: value,
         Adults: newAdultValue
-      }));
-      
-      return;
+      };
     }
-    
     // For Adults, ensure we respect the senior count
-    if (name === "Adults") {
+    else if (name === "Adults") {
       // Calculate maximum adults based on seniors and original total
-      const maxAdults = originalAdultCount - guestCounts.Seniors;
+      const maxAdults = maxLimits.originalAdultCount - guestCounts.Seniors;
       if (value > maxAdults) {
         value = maxAdults;
       }
@@ -258,25 +231,34 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
       if (value < 1) {
         value = 1;
       }
+      
+      newCounts[name] = value;
     }
-    
     // For Children
-    if (name === "Children") {
+    else if (name === "Children") {
       // Ensure values never exceed the original maximum
-      if (value > maxValues[name]) {
-        value = maxValues[name];
+      if (value > maxLimits[name]) {
+        value = maxLimits[name];
       }
       
       // Ensure children never goes below 0
       if (value < 0) {
         value = 0;
       }
+      
+      newCounts[name] = value;
     }
     
-    setGuestCounts(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Only update state if values changed
+    if (
+      newCounts.Adults !== guestCounts.Adults ||
+      newCounts.Children !== guestCounts.Children ||
+      newCounts.Seniors !== guestCounts.Seniors
+    ) {
+      setGuestCounts(newCounts);
+      // Immediately notify parent with new values
+      notifyParent(newCounts);
+    }
   };
 
   const open = Boolean(anchorEl);
@@ -376,7 +358,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
             name="Adults"
             value={guestCounts.Adults}
             minValue={1}
-            maxValue={originalAdultCount - guestCounts.Seniors}
+            maxValue={maxLimits.originalAdultCount - guestCounts.Seniors}
             onCounterChange={handleCounterChange}
             ageDescription={adultsAgeDescription}
             icon={<PersonIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
@@ -386,7 +368,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
             name="Seniors"
             value={guestCounts.Seniors}
             minValue={0}
-            maxValue={originalAdultCount}
+            maxValue={maxLimits.originalAdultCount}
             onCounterChange={handleCounterChange}
             ageDescription={seniorsAgeDescription}
             icon={<ElderlyIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
@@ -396,7 +378,7 @@ const PaxSelector = ({ selectedPax, onPaxChange, initialAdults, initialChildren,
             name="Children"
             value={guestCounts.Children}
             minValue={0}
-            maxValue={maxValues.Children}
+            maxValue={maxLimits.Children}
             onCounterChange={handleCounterChange}
             ageDescription={childrenAgeDescription}
             icon={<ChildCareIcon sx={{ color: 'primary.main', fontSize: 18 }} />}
