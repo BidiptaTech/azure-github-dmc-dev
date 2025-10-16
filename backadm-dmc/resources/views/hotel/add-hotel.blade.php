@@ -203,7 +203,7 @@
 
                         <div class="col-md-4 mb-3">
                             <label for="hotelCategory" class="form-label"><strong>Accomodations  Type</strong><span class="text-danger">*</span></label>
-                            <select name="hotel_category" id="hotelCategory" class="form-control">
+                            <select name="hotel_category" id="hotelCategory" class="form-control" required>
                                 <option value="">Select a Category</option>
                                 <!-- <option value="0">Third Party</option> -->
                                 <option value="1" {{ old('hotel_category') == '1' ? 'selected' : '' }}>Hotel</option>
@@ -229,7 +229,7 @@
                         <!-- ownership and affiliation -->
                         <div class="col-md-4 mb-3">
                             <label for="ownership" class="form-label"><strong>Ownership / Affiliation</strong><span class="text-danger">*</span></label>
-                            <select name="hotel_ownership" id="ownership" class="form-control" onchange="toggleChainField()">
+                            <select name="hotel_ownership" id="ownership" class="form-control" onchange="toggleChainField()" required>
                                 <option value="">Select Ownership</option>
                                 <!-- <option value="0">Third Party</option> -->
                                 <option value="1" {{ old('hotel_ownership') == '1' ? 'selected' : '' }}>Chain Hotels</option>
@@ -245,7 +245,7 @@
                         <div class="col-md-4 mb-3" id="chain_name_container" style="display: none;">
                             <label for="chain_name" class="form-label"><strong>Chain Hotel Name</strong><span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="chain_name" name="chain_name" 
-                                   placeholder="Enter Chain Name" value="{{ old('chain_name') }}">
+                                   placeholder="Enter Chain Name" value="{{ old('chain_name') }}" required>
                             @error('chain_name')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -254,7 +254,7 @@
                         <div class="col-md-4 mb-3">
                             <label for="segment" class="form-label"><strong>Type or Segment
                             </strong><span class="text-danger">*</span></label>
-                            <select name="hotel_segment" id="segment" class="form-control">
+                            <select name="hotel_segment" id="segment" class="form-control" required>
                                 <option value="">Select Ownership</option>
                                 <!-- <option value="0">Third Party</option> -->
                                 <option value="1">Budget/Economy Hotels</option>
@@ -284,7 +284,7 @@
                         <!-- Star Rating  -->
                         <div class="col-md-4 mb-3">
                             <label for="star_rating" class="form-label"><strong>Star Rating</strong><span class="text-danger">*</span></label>
-                            <select name="hotel_star_rating" id="star_rating" class="form-control">
+                            <select name="hotel_star_rating" id="star_rating" class="form-control" required>
                                 <option value="">Star Rating </option>
                                 <!-- <option value="0">Third Party</option> -->
                                 <option value="1" {{ old('hotel_star_rating') == '1' ? 'selected' : '' }}>1-Star</option>
