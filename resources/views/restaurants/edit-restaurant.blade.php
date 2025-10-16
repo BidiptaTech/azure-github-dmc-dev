@@ -224,7 +224,7 @@
 
                             <div class="col-md-3 mb-3">
                                 <label for="property" class="form-label"><strong>Property</strong><span class="text-danger">*</span></label>
-                                <select name="property" class="form-select" 
+                                <select name="property" class="form-select" required
                                         @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
                                     <option value="">Select</option>
                                     <option value="third_party" {{ old('property', $restaurant->property) == 'third_party' ? 'selected' : '' }}>Third Party</option>
@@ -553,7 +553,7 @@
                 <div class="mt-2 form-check form-switch">
                     <label for="restaurant_status" class="form-label"><strong>Status</strong></label>
                     <span style="color: red; font-weight: bold;">*</span>
-                    <input {{$restaurant->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="restaurant_status" type="checkbox" id="restaurant_status"
+                    <input {{$restaurant->is_active == 1 ? 'checked' : ''}} class="form-check-input" name="restaurant_status" type="checkbox" id="restaurant_status" required
                         value="1" @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
                     @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140]))
                         <input type="hidden" name="restaurant_status" value="{{ $restaurant->is_active }}">
