@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Grid, 
   Box,
@@ -122,51 +122,45 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
   const effectiveAdults = initialAdults ?? fallbackAdults;
   const effectiveChildren = initialChildren ?? fallbackChildren;
 
-  // Initialize guest counts with selectedPax if available, otherwise use effective values
+  // Initialize guest counts - prioritize selectedPax if available
   const [guestCounts, setGuestCounts] = useState({
-    Adults: selectedPax?.Adults ?? effectiveAdults,
-    Children: selectedPax?.Children ?? effectiveChildren
+    Adults: selectedPax?.Adults !== undefined ? selectedPax.Adults : effectiveAdults,
+    Children: selectedPax?.Children !== undefined ? selectedPax.Children : effectiveChildren
   });
 
-  // Store initial values as maximum limits
-  const [maxLimits] = useState({
+  // Store max limits as immutable state (initialized once, never updated)
+  const [maxLimits] = useState(() => ({
     Adults: effectiveAdults,
     Children: effectiveChildren
-  });
+  }));
 
-  // Use a ref to track if we're updating from selectedPax to prevent loops
-  const isUpdatingFromPropsRef = useRef(false);
-
-  // Update guest counts when selectedPax changes
+  // Sync with selectedPax when it changes - WITH GUARDS to prevent loops
   useEffect(() => {
-    if (selectedPax) {
-      console.log('Restaurant PaxSelector updating from selectedPax:', selectedPax);
-      isUpdatingFromPropsRef.current = true; // Set flag to prevent onPaxChange call
-      
-      setGuestCounts({
-        Adults: selectedPax.Adults ?? effectiveAdults,
-        Children: selectedPax.Children ?? effectiveChildren
-      });
+    if (selectedPax && (selectedPax.Adults !== undefined || selectedPax.Children !== undefined)) {
+      // Only update if values actually differ
+      if (
+        selectedPax.Adults !== guestCounts.Adults ||
+        selectedPax.Children !== guestCounts.Children
+      ) {
+        console.log('Restaurant PaxSelector syncing from selectedPax:', selectedPax);
+        setGuestCounts({
+          Adults: selectedPax.Adults ?? effectiveAdults,
+          Children: selectedPax.Children ?? effectiveChildren
+        });
+      }
     }
-  }, [selectedPax, effectiveAdults, effectiveChildren]);
+  }, [selectedPax, effectiveAdults, effectiveChildren]); // REMOVED guestCounts from dependencies to break feedback loop
 
-  useEffect(() => {
-    // Skip calling onPaxChange if we're updating from selectedPax props
-    if (isUpdatingFromPropsRef.current) {
-      isUpdatingFromPropsRef.current = false;
-      return;
+  // Memoized callback to notify parent - WITH GUARDS
+  const notifyParent = useCallback((counts) => {
+    if (onPaxChange && 
+        (!selectedPax || 
+          selectedPax.Adults !== counts.Adults ||
+          selectedPax.Children !== counts.Children)) {
+      console.log('Restaurant PaxSelector calling onPaxChange:', { from: selectedPax, to: counts });
+      onPaxChange(counts);
     }
-
-    // Only call onPaxChange if the values are actually different from the current props
-    const currentPax = selectedPax ?? { Adults: 0, Children: 0 };
-    if (
-      currentPax.Adults !== guestCounts.Adults ||
-      currentPax.Children !== guestCounts.Children
-    ) {
-      console.log('Restaurant PaxSelector calling onPaxChange:', { from: currentPax, to: guestCounts });
-      onPaxChange(guestCounts);
-    }
-  }, [guestCounts, onPaxChange, selectedPax]);
+  }, [onPaxChange, selectedPax]); // REMOVED guestCounts from dependencies
 
   const handleClick = (event) => {
     if (!disabled) {
@@ -179,6 +173,8 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
   };
 
   const handleCounterChange = (name, value) => {
+    let newCounts = { ...guestCounts };
+    
     // For Adults
     if (name === "Adults") {
       // Adults can't go below 1
@@ -189,10 +185,11 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
       if (value > maxLimits.Adults) {
         value = maxLimits.Adults;
       }
+      
+      newCounts[name] = value;
     }
-    
     // For Children
-    if (name === "Children") {
+    else if (name === "Children") {
       // Ensure values never exceed the initial maximum
       if (value > maxLimits.Children) {
         value = maxLimits.Children;
@@ -201,12 +198,19 @@ const PaxSelector = ({ selectedPax, onPaxChange, disabled, initialAdults, initia
       if (value < 0) {
         value = 0;
       }
+      
+      newCounts[name] = value;
     }
     
-    setGuestCounts(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Only update state if values changed
+    if (
+      newCounts.Adults !== guestCounts.Adults ||
+      newCounts.Children !== guestCounts.Children
+    ) {
+      setGuestCounts(newCounts);
+      // Immediately notify parent with new values
+      notifyParent(newCounts);
+    }
   };
 
   const open = Boolean(anchorEl);
