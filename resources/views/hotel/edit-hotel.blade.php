@@ -203,7 +203,7 @@
                                 <!-- Accommodation Type -->
                                 <div class="col-md-4 mb-3">
                                     <label for="hotelCategory" class="form-label"><strong>Accomodations Type</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_category" id="hotelCategory" class="form-control"
+                                    <select name="hotel_category" id="hotelCategory" class="form-control" required
                                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select a Category</option>
                                         <option value="1" {{ $hotel->accomodation_type == 1 ? 'selected' : '' }}>Hotel</option>
@@ -229,7 +229,7 @@
                                 <!-- Ownership / Affiliation -->
                                 <div class="col-md-4 mb-3">
                                     <label for="hotel_ownership" class="form-label"><strong>Ownership</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_ownership" id="hotel_ownership" class="form-control" onchange="toggleChainNameField()"
+                                    <select name="hotel_ownership" id="hotel_ownership" class="form-control" onchange="toggleChainNameField()" required
                                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select Ownership</option>
                                         <option value="1" {{ $hotel->ownership_type == 1 ? 'selected' : '' }}>Chain Hotels</option>
@@ -245,30 +245,19 @@
                                 <div class="col-md-4 mb-3" id="chain_name_container" style="{{ $hotel->ownership_type == 1 ? 'display:block' : 'display:none' }}">
                                     <label for="chain_name" class="form-label"><strong>Chain Hotel Name</strong><span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="chain_name" name="chain_name" 
-                                           placeholder="Enter Chain Hotel Name" value="{{ old('chain_name', $hotel->chain_hotel_name) }}"
+                                           placeholder="Enter Chain Hotel Name" value="{{ old('chain_name', $hotel->chain_hotel_name) }}" required
                                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('chain_name')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
 
-                                <div class="mb-3 col-md-4">
-                                    <label for="phone" class="form-label"><strong>General Phone No</strong>
-                                        <span style="color: red; font-weight: bold;">*</span>
-                                    </label>
-                                    <input type="text" class="form-control" id="phone" name="phone" 
-                                           value="{{ old('phone', $hotel->phone) }}" 
-                                           @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                                    <small class="validation-message text-danger" id="phone-validation-message"></small>
-                                    @error('phone')
-                                        <div class="text-danger mt-1">{{ $message }}</div>
-                                    @enderror
-                                </div>
+                                
                                 
                                 <!-- Segment -->
                                 <div class="col-md-4 mb-3">
                                     <label for="segment" class="form-label"><strong>Type or Segment</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_segment" id="segment" class="form-control"
+                                    <select name="hotel_segment" id="segment" class="form-control" required
                                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select Ownership</option>
                                         <option value="1" {{ $hotel->hotel_segment == 1 ? 'selected' : '' }}>Budget/Economy Hotels</option>
@@ -299,7 +288,7 @@
                                 <!-- Star Rating -->
                                 <div class="col-md-4 mb-3">
                                     <label for="star_rating" class="form-label"><strong>Star Rating</strong><span class="text-danger">*</span></label>
-                                    <select name="hotel_star_rating" id="star_rating" class="form-control"
+                                    <select name="hotel_star_rating" id="star_rating" class="form-control" required
                                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Star Rating</option>
                                         <option value="1" {{ $hotel->hotel_star_rating == 1 ? 'selected' : '' }}>1-Star</option>
@@ -335,7 +324,7 @@
                                     <label for="address" class="form-label"><strong>Address</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="address" name="address"
+                                    <input type="text" class="form-control" id="address" name="address" required
                                         value="{{ old('address', $hotel->address) }}" placeholder="Enter Address"
                                         @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif required>
                                     @error('address')
@@ -446,7 +435,7 @@
                                     <label for="country_code" class="form-label"><strong>Country Code</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    <select class="form-control" id="country_code" name="country_code"
+                                    <select class="form-control" id="country_code" name="country_code" required
                                             @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                         <option value="">Select Country</option>
                                         @foreach ($country_code as $code => $name)
@@ -532,11 +521,12 @@
 
                                 <div class="mb-3 col-md-3">
                                     <label for="infant_age_limit" class="form-label"><strong>Infant Upper Age
-                                            Limit</strong></label>
+                                            Limit</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <input type="number" class="form-control" id="infant_age_limit"
                                         name="infant_age_limit"
                                         value="{{ old('infant_age_limit', $hotel->infant_age_limit) }}"
-                                        placeholder="Enter Infant Age Limit" required
+                                        required
+                                        placeholder="Enter Infant Age Limit"
                                         @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('infant_age_limit')
                                     <div class="text-danger mt-1">{{ $message }}</div>
@@ -545,10 +535,11 @@
 
                                 <div class="mb-3 col-md-2">
                                     <label for="child_age_limit" class="form-label"><strong>Child Upper Age
-                                            Limit</strong></label>
+                                            Limit</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <input type="number" class="form-control" id="child_age_limit"
                                         name="child_age_limit"
                                         value="{{ old('child_age_limit', $hotel->child_age_limit) }}"
+                                        required
                                         placeholder="Enter Child Age Limit"
                                         @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('child_age_limit')
@@ -562,7 +553,8 @@
                                     <input type="number" class="form-control" id="extra_bed_age_limit"
                                         name="extra_bed_age_limit"
                                         value="{{ old('extra_bed_age_limit', $hotel->extra_bed_age_limit) }}"
-                                        placeholder="Enter Hotel Owner Company Name" required
+                                        required
+                                        placeholder="Enter Hotel Owner Company Name"
                                         @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                     @error('extra_bed_age_limit')
                                     <div class="text-danger mt-1">{{ $message }}</div>
