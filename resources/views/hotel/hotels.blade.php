@@ -4,46 +4,46 @@
 
 @section('css')
 <style>
-/* Ensure user profile dropdown is visible on hotels page */
-.topbar-item {
-    display: block !important;
-    visibility: visible !important;
-}
+    /* Ensure user profile dropdown is visible on hotels page */
+    .topbar-item {
+        display: block !important;
+        visibility: visible !important;
+    }
 
-.topbar-link {
-    display: flex !important;
-    visibility: visible !important;
-}
+    .topbar-link {
+        display: flex !important;
+        visibility: visible !important;
+    }
 
-.navbar-nav {
-    display: flex !important;
-}
+    .navbar-nav {
+        display: flex !important;
+    }
 
-/* Force show the dropdown arrow */
-.topbar-link .ri-arrow-down-s-line {
-    display: flex !important;
-    visibility: visible !important;
-}
+    /* Force show the dropdown arrow */
+    .topbar-link .ri-arrow-down-s-line {
+        display: flex !important;
+        visibility: visible !important;
+    }
 
-/* Ensure ONLY the user profile dropdown menu is properly positioned */
-.topbar-item .dropdown-menu {
-    z-index: 9999 !important;
-    display: none;
-}
+    /* Ensure ONLY the user profile dropdown menu is properly positioned */
+    .topbar-item .dropdown-menu {
+        z-index: 9999 !important;
+        display: none;
+    }
 
-.topbar-item .dropdown-menu.show {
-    display: block !important;
-}
+    .topbar-item .dropdown-menu.show {
+        display: block !important;
+    }
 
-/* Ensure Export dropdown works normally */
-#exportDropdown + .dropdown-menu {
-    z-index: 1000 !important;
-    display: none;
-}
+    /* Ensure Export dropdown works normally */
+    #exportDropdown + .dropdown-menu {
+        z-index: 1000 !important;
+        display: none;
+    }
 
-#exportDropdown + .dropdown-menu.show {
-    display: block !important;
-}
+    #exportDropdown + .dropdown-menu.show {
+        display: block !important;
+    }
 </style>
 @endsection
 
