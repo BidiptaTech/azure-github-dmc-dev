@@ -418,24 +418,25 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       console.log('Dispatching ALL guides from guidespack to Redux on mount');
       dispatchAllGuidesToRedux();
       hasDispatchedAllGuidesRef.current = true;
+      hasInitializedRef.current = true;
     }
   }, [guidespack, dispatchAllGuidesToRedux]);
 
   // Log guidespack data when it changes
-  useEffect(() => {
-    if (guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
-      console.log('Received guidespack data:', guidespack);
-      console.log('Guides by type:', {
-        guideCount: guidespack.length,
-        bookingTypes: guidespack.map(g => g.bookingType).filter((v, i, a) => a.indexOf(v) === i),
-        hasBookingIds: guidespack.filter(g => g.booking_id).length
-      });
+  // useEffect(() => {
+  //   if (guidespack && Array.isArray(guidespack) && guidespack.length > 0) {
+  //     console.log('Received guidespack data:', guidespack);
+  //     console.log('Guides by type:', {
+  //       guideCount: guidespack.length,
+  //       bookingTypes: guidespack.map(g => g.bookingType).filter((v, i, a) => a.indexOf(v) === i),
+  //       hasBookingIds: guidespack.filter(g => g.booking_id).length
+  //     });
       
-      // Reset the dispatch flag when guidespack changes
-      hasDispatchedAllGuidesRef.current = false;
-      hasInitializedRef.current = false;
-    }
-  }, [guidespack]);
+  //     // Reset the dispatch flag when guidespack changes
+  //     hasDispatchedAllGuidesRef.current = false;
+  //     hasInitializedRef.current = false;
+  //   }
+  // }, [guidespack]);
 
   // Define helper functions at the beginning
   // Helper to check if a booking is out of current tour dates for the specific dayIndex
