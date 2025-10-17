@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Crypt;
+use App\Models\Order;
 
 class GuestController extends Controller
 {
@@ -21,8 +23,15 @@ class GuestController extends Controller
     public function index(Request $request)
     {
         try {
-            $tourId = $request->query('tour_id');
-            return view('single-tour-package.guests', compact('tourId'));
+            $tourId = Crypt::decrypt($request->query('tour_id'));
+            $order = Order::where('tour_id', $tourId)->orderBy('booking_id', 'asc')->first();
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            $fullName = $data[0]['fullName'] ?? '';
+            $email = $data[0]['email'] ?? '';
+            $phone = $data[0]['phone'] ?? '';
+            $countryCode = $data[0]['countryCode'] ?? '';
+            $guests = Guest::where('tour_id', $tourId)->get();
+            return view('single-tour-package.guests', compact('tourId', 'fullName', 'email', 'phone', 'guests', 'countryCode'));
         } catch (\Exception $e) {
             Log::error('Error loading guests page: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error loading guests page.');

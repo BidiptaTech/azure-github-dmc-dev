@@ -638,6 +638,8 @@ class DriverController extends Controller
             }
         }
 
+        $plainPassword = $request->app_password;
+
         $driver->salutation = $validated['salutation'];
         $driver->driver_gender = $validated['driver_gender'];
         $driver->name = $request->input('name');
@@ -659,9 +661,20 @@ class DriverController extends Controller
         $driver->bank_code = $request->input('bank_code');
         $driver->swift_code = $request->input('swift_code');
         $driver->image = $master_image;
+        $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
 
         if ($driver->save()) {
             LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+
+            // Send credentials email if email is provided
+            if ($driver->email && $plainPassword) {
+                try {
+                    $this->sendDriverCredentialsEmail($driver, $plainPassword);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to send driver credentials email: ' . $e->getMessage());
+                    // Don't fail the request if email sending fails
+                }
+            }
             return redirect()->route('driver.index')->with('success', 'Driver updated successfully!');
         } else {
             LogActivityService::log('edit_driver_failed', 'App\Models\driver', $driver_max_id,'An error occurred while saving the driver details.');
