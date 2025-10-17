@@ -1,0 +1,124 @@
+/* Custom scrollbar styles for responsive tables */
+.responsive-table-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #3554D1 #f5f7fc;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.responsive-table-container::-webkit-scrollbar-track {
+  background: #f5f7fc;
+  border-radius: 4px;
+}
+
+.responsive-table-container::-webkit-scrollbar-thumb {
+  background: #3554D1;
+  border-radius: 4px;
+}
+
+.responsive-table-container::-webkit-scrollbar-thumb:hover {
+  background: #2847C7;
+}
+
+/* Ensure table doesn't break on mobile */
+.responsive-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+  border-spacing: 0;
+  border-collapse: separate;
+}
+
+/* Prevent text wrapping in table cells and ensure consistent spacing */
+.responsive-table th,
+.responsive-table td {
+  white-space: nowrap;
+  position: relative;
+  box-sizing: border-box;
+  padding: 8px 12px !important;
+  margin: 0;
+}
+
+/* Add consistent gaps between columns */
+.responsive-table th:not(:last-child),
+.responsive-table td:not(:last-child) {
+  border-right: 4px solid transparent;
+}
+
+/* Ensure proper spacing for specific columns */
+.responsive-table th:nth-child(1),
+.responsive-table td:nth-child(1) {
+  border-right: 8px solid transparent;
+}
+
+/* Prevent content overflow and ensure proper spacing */
+.responsive-table th {
+  min-width: fit-content;
+  width: auto;
+}
+
+.responsive-table td {
+  min-width: fit-content;
+  width: auto;
+}
+
+/* Specific column width adjustments for better spacing */
+.responsive-table .booking-id-column {
+  min-width: 140px;
+  width: 140px !important;
+  max-width: 140px;
+  text-align: center;
+}
+
+.responsive-table .date-column {
+  min-width: 100px;
+  width: auto;
+}
+
+.responsive-table .customer-column {
+  min-width: 140px;
+  width: auto;
+}
+
+.responsive-table .destination-column {
+  min-width: 120px;
+  width: auto;
+}
+
+.responsive-table .status-column {
+  min-width: 110px;
+  width: auto;
+}
+
+.responsive-table .payment-column {
+  min-width: 150px;
+  width: auto;
+}
+
+.responsive-table .actions-column {
+  min-width: 130px;
+  width: 130px !important;
+  max-width: 130px;
+}
+
+.responsive-table .pax-column {
+  min-width: 80px;
+  width: auto;
+  text-align: center;
+}
+
+/* Add some padding on mobile for better touch experience */
+@media (max-width: 768px) {
+  .responsive-table-container {
+    padding-bottom: 4px;
+  }
+  
+  .responsive-table-container::-webkit-scrollbar {
+    height: 10px;
+  }
+}
