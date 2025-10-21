@@ -710,6 +710,12 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         // Agency routes
         Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
         Route::get('/agencies/get-card-types-by-country', [AgencyController::class, 'getCardTypesByCountry'])->name('agencies.getCardTypesByCountry');
+        
+        // Agency Import Routes
+        Route::get('/agencies/import', [AgencyController::class, 'importView'])->name('agencies.import');
+        Route::post('/agencies/import', [AgencyController::class, 'import'])->name('agencies.import.upload');
+        Route::get('/agencies/import/template', [AgencyController::class, 'downloadTemplate'])->name('agencies.import.template');
+        
         Route::resource('agencies', AgencyController::class);
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
