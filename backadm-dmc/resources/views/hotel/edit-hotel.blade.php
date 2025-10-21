@@ -814,13 +814,16 @@
 
                             <!-- Status -->
                             <div class="form-check form-switch">
-                                <label for="hotel_status" class="form-label"><strong>Status</strong></label>
-                                <input type="hidden" name="hotel_status" value="0" required>
+                                <label for="hotel_status" class="form-label"><strong>Status</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                <input type="hidden" name="hotel_status" value="0">
                                 <input class="form-check-input" name="hotel_status" 
                                     @if($hotel->is_active == 1) checked @endif 
-                                    type="checkbox" id="hotel_status" value="1"
+                                    type="checkbox" id="hotel_status" value="1" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                 <label class="form-check-label"></label>
+                                @error('hotel_status')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <!-- Submit and Reset Buttons -->
