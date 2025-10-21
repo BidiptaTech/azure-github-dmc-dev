@@ -2,10 +2,12 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\CountryHelper;
+use App\Helpers\CommonHelper;
 use App\Models\City;
 use App\Models\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 class CityController extends Controller
 {
     /**
@@ -39,6 +41,7 @@ class CityController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'country' => 'required|string|exists:countries,id',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
         // Get country name from country ID
@@ -79,6 +82,19 @@ class CityController extends Controller
             // Restore the soft-deleted city
             $deletedCity->restore();
             
+            // Handle image upload for restored city
+            if ($request->hasFile('image')) {
+                // Delete old image if exists using CommonHelper
+                if ($deletedCity->image) {
+                    CommonHelper::deleteAzureImage($deletedCity->image);
+                }
+                
+                // Store new image using CommonHelper
+                $uploadResult = CommonHelper::image_path('file_storage', $request->file('image'), 'uploads');
+                $imagePath = $uploadResult['master_value'] ?? null;
+                $deletedCity->update(['image' => $imagePath]);
+            }
+            
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -106,12 +122,20 @@ class CityController extends Controller
         $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
         $newId = $lastDbId + 1;
 
+        // Handle image upload using CommonHelper
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $uploadResult = CommonHelper::image_path('file_storage', $request->file('image'), 'uploads');
+            $imagePath = $uploadResult['master_value'] ?? null;
+        }
+
         // Create city
         $city = City::create([
             'id' => $newId,
             'name' => $cityName,
             'country' => $countryName,
             'city_id' => $newCityId,
+            'image' => $imagePath,
         ]);
 
         if ($request->ajax()) {
@@ -159,6 +183,7 @@ class CityController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'country' => 'required|string|exists:countries,id',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
         // Find the city by city_id
@@ -190,10 +215,31 @@ class CityController extends Controller
                 ->withInput();
         }
 
+        // Handle image upload using CommonHelper
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($city->image) {
+                CommonHelper::deleteAzureImage($city->image);
+            }
+            
+            // Store new image using CommonHelper
+            $uploadResult = CommonHelper::image_path('file_storage', $request->file('image'), 'uploads');
+            $city->image = $uploadResult['master_value'] ?? null;
+        }
+        
+        // Handle image removal
+        if ($request->has('remove_existing_image') && $request->remove_existing_image == '1') {
+            if ($city->image) {
+                CommonHelper::deleteAzureImage($city->image);
+            }
+            $city->image = null;
+        }
+
         // Update city
         $city->update([
             'name' => $cityName,
             'country' => $countryName,
+            'image' => $city->image,
         ]);
 
         return redirect()->route('cities.index')
@@ -213,6 +259,13 @@ class CityController extends Controller
             
             $cityName = $city->name;
             $countryName = $city->country;
+            
+            // Delete image if exists (only when permanently deleting)
+            // Note: With soft delete, we keep the image for potential restoration
+            // Uncomment below if you want to delete image on soft delete
+            // if ($city->image) {
+            //     CommonHelper::deleteAzureImage($city->image);
+            // }
             
             $city->delete();
             

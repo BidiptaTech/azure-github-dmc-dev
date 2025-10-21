@@ -16,6 +16,27 @@
     .select2-container .select2-results__option {
         padding: 12px 10px;
     }
+    .image-preview-container {
+        margin-top: 10px;
+    }
+    .image-preview {
+        max-width: 300px;
+        max-height: 300px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        padding: 5px;
+        background: #f8f9fa;
+    }
+    .remove-image-btn {
+        margin-top: 10px;
+    }
+    .current-image {
+        margin-top: 10px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+    }
 </style>
 
 <div class="content-wrapper">
@@ -39,7 +60,7 @@
                     </div>
                 @endif
 
-                <form action="{{ route('cities.update', $city->city_id) }}" method="POST">
+                <form action="{{ route('cities.update', $city->city_id) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
                     <div class="row">
@@ -66,6 +87,44 @@
                             @error('name')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="image" class="form-label">City Image</label>
+                            
+                            @if(isset($city->image) && $city->image)
+                                <div class="current-image">
+                                    <p class="mb-2"><strong>Current Image:</strong></p>
+                                    @if(filter_var($city->image, FILTER_VALIDATE_URL))
+                                        <img src="{{ $city->image }}" alt="{{ $city->name }}" class="image-preview mb-2">
+                                    @else
+                                        <img src="{{ asset('storage/' . $city->image) }}" alt="{{ $city->name }}" class="image-preview mb-2">
+                                    @endif
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="remove_existing_image" name="remove_existing_image" value="1">
+                                        <label class="form-check-label" for="remove_existing_image">
+                                            Remove current image
+                                        </label>
+                                    </div>
+                                </div>
+                            @endif
+                            
+                            <input type="file" class="form-control mt-2" id="image" name="image" 
+                                accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
+                            <small class="text-muted">Accepted formats: JPG, JPEG, PNG, GIF, WEBP (Max: 2MB)</small>
+                            @error('image')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                            
+                            <div class="image-preview-container" id="imagePreviewContainer" style="display: none;">
+                                <p class="mb-2"><strong>New Image Preview:</strong></p>
+                                <img src="" alt="Image Preview" class="image-preview" id="imagePreview">
+                                <button type="button" class="btn btn-sm btn-danger remove-image-btn" id="removeImageBtn">
+                                    <i class="mdi mdi-delete me-1"></i>Remove New Image
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -110,6 +169,44 @@
             } else {
                 $(this).removeClass('is-valid').addClass('is-invalid');
             }
+        });
+
+        // Image preview functionality
+        $('#image').on('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file size (2MB max)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('File size must not exceed 2MB');
+                    $(this).val('');
+                    $('#imagePreviewContainer').hide();
+                    return;
+                }
+                
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                if (!validTypes.includes(file.type)) {
+                    alert('Please select a valid image file (JPG, JPEG, PNG, GIF, WEBP)');
+                    $(this).val('');
+                    $('#imagePreviewContainer').hide();
+                    return;
+                }
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#imagePreview').attr('src', e.target.result);
+                    $('#imagePreviewContainer').show();
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Remove new image
+        $('#removeImageBtn').on('click', function() {
+            $('#image').val('');
+            $('#imagePreviewContainer').hide();
+            $('#imagePreview').attr('src', '');
         });
 
         // Form validation
