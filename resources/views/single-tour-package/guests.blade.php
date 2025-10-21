@@ -324,7 +324,7 @@
                         <label for="guest_name" class="form-label">
                             <i class="ri-user-line me-1"></i>Guest Name <span class="required">*</span>
                         </label>
-                        <input type="text" class="form-control" id="guest_name" name="guest_name" 
+                        <input value="{{ (!empty($fullName) && $guests->isEmpty()) ? $fullName : '' }}" type="text" class="form-control" id="guest_name" name="guest_name" 
                                placeholder="Enter guest's full name" required>
                         <div class="invalid-feedback" id="guest_name_error"></div>
                     </div>
@@ -345,7 +345,7 @@
                             <i class="ri-mail-line me-1"></i>Email Address
                         </label>
                         <input type="email" class="form-control" id="email" name="email" 
-                               placeholder="guest@example.com">
+                               placeholder="guest@example.com" value="{{ (!empty($email) && $guests->isEmpty()) ? $email : '' }}">
                         <div class="invalid-feedback" id="email_error"></div>
                     </div>
 
@@ -355,53 +355,53 @@
                         </label>
                         <div class="input-group">
                             <select class="form-select" id="country_code" name="country_code" style="max-width: 130px;">
-                                <option value="+61">+61 Australia</option>
-                                <option value="+880">+880 Bangladesh</option>
-                                <option value="+32">+32 Belgium</option>
-                                <option value="+55">+55 Brazil</option>
-                                <option value="+86">+86 China</option>
-                                <option value="+420">+420 Czech Republic</option>
-                                <option value="+45">+45 Denmark</option>
-                                <option value="+20">+20 Egypt</option>
-                                <option value="+358">+358 Finland</option>
-                                <option value="+33">+33 France</option>
-                                <option value="+49">+49 Germany</option>
-                                <option value="+30">+30 Greece</option>
-                                <option value="+62">+62 Indonesia</option>
-                                <option value="+91" selected>+91 India</option>
-                                <option value="+353">+353 Ireland</option>
-                                <option value="+39">+39 Italy</option>
-                                <option value="+81">+81 Japan</option>
-                                <option value="+254">+254 Kenya</option>
-                                <option value="+82">+82 South Korea</option>
-                                <option value="+94">+94 Sri Lanka</option>
-                                <option value="+60">+60 Malaysia</option>
-                                <option value="+52">+52 Mexico</option>
-                                <option value="+977">+977 Nepal</option>
-                                <option value="+31">+31 Netherlands</option>
-                                <option value="+64">+64 New Zealand</option>
-                                <option value="+234">+234 Nigeria</option>
-                                <option value="+47">+47 Norway</option>
-                                <option value="+92">+92 Pakistan</option>
-                                <option value="+63">+63 Philippines</option>
-                                <option value="+48">+48 Poland</option>
-                                <option value="+351">+351 Portugal</option>
-                                <option value="+974">+974 Qatar</option>
-                                <option value="+7">+7 Russia</option>
-                                <option value="+966">+966 Saudi Arabia</option>
-                                <option value="+65">+65 Singapore</option>
-                                <option value="+27">+27 South Africa</option>
-                                <option value="+34">+34 Spain</option>
-                                <option value="+46">+46 Sweden</option>
-                                <option value="+41">+41 Switzerland</option>
-                                <option value="+66">+66 Thailand</option>
-                                <option value="+90">+90 Turkey</option>
-                                <option value="+971">UAE +971</option>
-                                <option value="+44">+44 United Kingdom</option>
-                                <option value="+1">+1 United States</option>
-                                <option value="+84">+84 Vietnam</option>
+                                <option value="+61" {{ $countryCode == '61' ? 'selected' : '' }}>+61 Australia</option>
+                                <option value="+880" {{ $countryCode == '880' ? 'selected' : '' }}>+880 Bangladesh</option>
+                                <option value="+32" {{ $countryCode == '32' ? 'selected' : '' }}>+32 Belgium</option>
+                                <option value="+55" {{ $countryCode == '55' ? 'selected' : '' }}>+55 Brazil</option>
+                                <option value="+86" {{ $countryCode == '86' ? 'selected' : '' }}>+86 China</option>
+                                <option value="+420" {{ $countryCode == '420' ? 'selected' : '' }}>+420 Czech Republic</option>
+                                <option value="+45" {{ $countryCode == '45' ? 'selected' : '' }}>+45 Denmark</option>
+                                <option value="+20" {{ $countryCode == '20' ? 'selected' : '' }}>+20 Egypt</option>
+                                <option value="+358" {{ $countryCode == '358' ? 'selected' : '' }}>+358 Finland</option>
+                                <option value="+33" {{ $countryCode == '33' ? 'selected' : '' }}>+33 France</option>
+                                <option value="+49" {{ $countryCode == '49' ? 'selected' : '' }}>+49 Germany</option>
+                                <option value="+30" {{ $countryCode == '30' ? 'selected' : '' }}>+30 Greece</option>
+                                <option value="+62" {{ $countryCode == '62' ? 'selected' : '' }}>+62 Indonesia</option>
+                                <option value="+91" {{ $countryCode == '91' ? 'selected' : '' }}>+91 India</option>
+                                <option value="+353" {{ $countryCode == '353' ? 'selected' : '' }}>+353 Ireland</option>
+                                <option value="+39" {{ $countryCode == '39' ? 'selected' : '' }}>+39 Italy</option>
+                                <option value="+81" {{ $countryCode == '81' ? 'selected' : '' }}>+81 Japan</option>
+                                <option value="+254" {{ $countryCode == '254' ? 'selected' : '' }}>+254 Kenya</option>
+                                <option value="+82" {{ $countryCode == '82' ? 'selected' : '' }}>+82 South Korea</option>
+                                <option value="+94" {{ $countryCode == '94' ? 'selected' : '' }}>+94 Sri Lanka</option>
+                                <option value="+60" {{ $countryCode == '60' ? 'selected' : '' }}>+60 Malaysia</option>
+                                <option value="+52" {{ $countryCode == '52' ? 'selected' : '' }}>+52 Mexico</option>
+                                <option value="+977" {{ $countryCode == '977' ? 'selected' : '' }}>+977 Nepal</option>
+                                <option value="+31" {{ $countryCode == '31' ? 'selected' : '' }}>+31 Netherlands</option>
+                                <option value="+64" {{ $countryCode == '64' ? 'selected' : '' }}>+64 New Zealand</option>
+                                <option value="+234" {{ $countryCode == '234' ? 'selected' : '' }}>+234 Nigeria</option>
+                                <option value="+47" {{ $countryCode == '47' ? 'selected' : '' }}>+47 Norway</option>
+                                <option value="+92" {{ $countryCode == '92' ? 'selected' : '' }}>+92 Pakistan</option>
+                                <option value="+63" {{ $countryCode == '63' ? 'selected' : '' }}>+63 Philippines</option>
+                                <option value="+48" {{ $countryCode == '48' ? 'selected' : '' }}>+48 Poland</option>
+                                <option value="+351" {{ $countryCode == '351' ? 'selected' : '' }}>+351 Portugal</option>
+                                <option value="+974" {{ $countryCode == '974' ? 'selected' : '' }}>+974 Qatar</option>
+                                <option value="+7" {{ $countryCode == '7' ? 'selected' : '' }}>+7 Russia</option>
+                                <option value="+966" {{ $countryCode == '966' ? 'selected' : '' }}>+966 Saudi Arabia</option>
+                                <option value="+65" {{ $countryCode == '65' ? 'selected' : '' }}>+65 Singapore</option>
+                                <option value="+27" {{ $countryCode == '27' ? 'selected' : '' }}>+27 South Africa</option>
+                                <option value="+34" {{ $countryCode == '34' ? 'selected' : '' }}>+34 Spain</option>
+                                <option value="+46" {{ $countryCode == '46' ? 'selected' : '' }}>+46 Sweden</option>
+                                <option value="+41" {{ $countryCode == '41' ? 'selected' : '' }}>+41 Switzerland</option>
+                                <option value="+66" {{ $countryCode == '66' ? 'selected' : '' }}>+66 Thailand</option>
+                                <option value="+90" {{ $countryCode == '90' ? 'selected' : '' }}>+90 Turkey</option>
+                                <option value="+971" {{ $countryCode == '971' ? 'selected' : '' }}>UAE +971</option>
+                                <option value="+44" {{ $countryCode == '44' ? 'selected' : '' }}>+44 United Kingdom</option>
+                                <option value="+1" {{ $countryCode == '1' ? 'selected' : '' }}>+1 United States</option>
+                                <option value="+84" {{ $countryCode == '84' ? 'selected' : '' }}>+84 Vietnam</option>
                             </select>
-                            <input type="text" class="form-control" id="contact" name="contact" 
+                            <input value="{{ (!empty($phone) && $guests->isEmpty()) ? $phone : '' }}" type="text" class="form-control" id="contact" name="contact" 
                                    placeholder="123 456 7890" pattern="[0-9\s\-]+" 
                                    title="Please enter a valid phone number">
                         </div>

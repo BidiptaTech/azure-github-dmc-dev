@@ -254,6 +254,19 @@
                                 <label for="driver_age" class="form-label"><strong>Driver Age</strong><span class="text-danger">*</span></label>
                                 <input value="{{$driver->driver_age}}" id="driver_age" type="number" class="form-control" name="driver_age" placeholder="Enter Driver Age">
                             </div>
+                             <!-- App Password -->
+                             <div class="col-md-3 mb-3">
+                                    <label for="app_password" class="form-label"><strong>App Password</strong><span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input id="app_password" type="password" class="form-control" name="app_password" placeholder="Enter App Password" autocomplete="new-password">
+                                        <button class="btn btn-outline-secondary" type="button" id="toggleAppPassword">
+                                            <i class="ri-eye-off-line" id="appPasswordIcon"></i>
+                                        </button>
+                                    </div>
+                                    @error('app_password')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
                             <!-- Bank Details -->
                             <fieldset class="border p-3 rounded mb-3">
@@ -940,6 +953,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             $('#dmc-container').hide(); // Hide the DMC select box
             $('#dmc').prop('required', false); // Remove required attribute
+        }
+    });
+</script>
+
+<script>
+    // Toggle App Password visibility
+    document.getElementById('toggleAppPassword').addEventListener('click', function() {
+        const passwordInput = document.getElementById('app_password');
+        const icon = document.getElementById('appPasswordIcon');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.remove('ri-eye-off-line');
+            icon.classList.add('ri-eye-line');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.remove('ri-eye-line');
+            icon.classList.add('ri-eye-off-line');
         }
     });
 </script>

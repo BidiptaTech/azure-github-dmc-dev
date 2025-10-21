@@ -21,6 +21,11 @@ use App\Models\City;
 use App\Services\LogActivityService;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\DmcMail;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 class DriverController extends Controller
 {
@@ -439,7 +444,9 @@ class DriverController extends Controller
         
             if ($deletedDriver && $deletedDriver->trashed()) {
                 $deletedDriver->restore();
-                $deletedDriver->update([
+                
+                // Prepare update data
+                $updateData = [
                     'salutation' => $request->salutation,
                     'driver_gender' => $request->driver_gender,
                     'name' => $request->name,
@@ -464,8 +471,14 @@ class DriverController extends Controller
                     'status' => $status,
                     'created_by' => $auth_user->userId,
                     'dmc_id' => $dmc_id ?? 0,
-                    'app_password' => $request->app_password,
-                ]);
+                ];
+                
+                // Hash password if provided
+                if ($request->app_password) {
+                    $updateData['app_password'] = Hash::make($request->app_password);
+                }
+                
+                $deletedDriver->update($updateData);
         
                 LogActivityService::log('restore_driver', 'App\Models\Driver', $deletedDriver->id, $deletedDriver);
         
@@ -477,6 +490,9 @@ class DriverController extends Controller
             }
         
             // Create new driver
+            // Store plain password for email before hashing
+            $plainPassword = $request->app_password;
+            
             $driver = new Driver();
             $driver->driver_id = $driverId;
             $driver->salutation = $request->salutation;
@@ -503,10 +519,20 @@ class DriverController extends Controller
             $driver->status = $status;
             $driver->created_by = $auth_user->userId;
             $driver->dmc_id = $dmc_id ?? 0;
-            $driver->app_password = $request->app_password;
+            $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
         
             if ($driver->save()) {
                 LogActivityService::log('create_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+        
+                // Send credentials email if email is provided
+                if ($driver->email && $plainPassword) {
+                    try {
+                        $this->sendDriverCredentialsEmail($driver, $plainPassword);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to send driver credentials email: ' . $e->getMessage());
+                        // Don't fail the request if email sending fails
+                    }
+                }
         
                 // if (in_array($auth_user->role_id, [11, 4, 3, 35, 76, 111])) {
                 //     return view('drivers.thankyou');
@@ -612,6 +638,8 @@ class DriverController extends Controller
             }
         }
 
+        $plainPassword = $request->app_password;
+
         $driver->salutation = $validated['salutation'];
         $driver->driver_gender = $validated['driver_gender'];
         $driver->name = $request->input('name');
@@ -633,9 +661,20 @@ class DriverController extends Controller
         $driver->bank_code = $request->input('bank_code');
         $driver->swift_code = $request->input('swift_code');
         $driver->image = $master_image;
+        $driver->app_password = $plainPassword ? Hash::make($plainPassword) : null;
 
         if ($driver->save()) {
             LogActivityService::log('edit_driver', 'App\Models\Driver', $driver->driver_id, $driver);
+
+            // Send credentials email if email is provided
+            if ($driver->email && $plainPassword) {
+                try {
+                    $this->sendDriverCredentialsEmail($driver, $plainPassword);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to send driver credentials email: ' . $e->getMessage());
+                    // Don't fail the request if email sending fails
+                }
+            }
             return redirect()->route('driver.index')->with('success', 'Driver updated successfully!');
         } else {
             LogActivityService::log('edit_driver_failed', 'App\Models\driver', $driver_max_id,'An error occurred while saving the driver details.');
@@ -707,5 +746,83 @@ class DriverController extends Controller
         $driver->save();
         return redirect()->back()
         ->with('success', 'Close dates and holidays saved successfully');
+    }
+
+    /**
+     * Send driver credentials email
+     * This method sends a welcome email with login credentials to the newly created driver
+     * 
+     * @param Driver $driver
+     * @param string $plainPassword
+     * @return bool
+     */
+    private function sendDriverCredentialsEmail(Driver $driver, string $plainPassword)
+    {
+        try {
+            // Get company settings for branding
+            $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+            $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+            $supportEmailSetting = Setting::where('name', 'support_email')->first();
+            $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+            
+            $companyLogo = $logoSetting ? $logoSetting->value : null;
+            $companyName = $nameSetting ? $nameSetting->value : config('app.name');
+            $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
+            $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
+            
+            // Prepare email data (use plain password for email, not the hashed one)
+            $emailData = [
+                'driver_name' => $driver->name,
+                'driver_id' => $driver->driver_id,
+                'email' => $driver->email,
+                'app_password' => $plainPassword,
+                'phone' => $driver->phone,
+                'license_no' => $driver->license_no,
+                'operational_city' => $driver->operational_city,
+                'company_name' => $companyName,
+                'company_logo' => $companyLogo,
+                'support_email' => $supportEmail,
+                'support_phone' => $supportPhone,
+            ];
+            
+            // Render the email template
+            $html = view('mails.driver_credentials', $emailData)->render();
+            
+            // Extract styles and email container
+            preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+            $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+            
+            // Extract the email-container div
+            preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+            
+            if (!empty($matches[0])) {
+                $extractedHtml = $matches[0];
+                
+                // Build complete email HTML
+                $subject = 'Welcome! Your Driver App Credentials';
+                $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+                
+                // Send the email
+                Mail::to($driver->email)->send(new DmcMail($emailHtml, $subject));
+                
+                Log::info("Driver credentials email sent successfully to: {$driver->email}", [
+                    'driver_id' => $driver->driver_id,
+                    'driver_name' => $driver->name,
+                ]);
+                
+                return true;
+            } else {
+                Log::error("Email container div not found in driver credentials template");
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send driver credentials email', [
+                'error' => $e->getMessage(),
+                'driver_id' => $driver->driver_id ?? null,
+                'email' => $driver->email ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 }
