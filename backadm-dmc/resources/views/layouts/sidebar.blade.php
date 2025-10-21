@@ -1871,8 +1871,8 @@
                         </li>
 
                         <!-- App Settings -->
-                        <li class="menu-item @if(Request::is('app-management/settings')) active @endif">
-                            <a href="{{ route('app-management.settings') }}" class="menu-link">
+                        <li class="menu-item @if(Request::is('app-management')) active @endif">
+                            <a href="{{ route('app-management.index') }}" class="menu-link">
                                 <div data-i18n="App Management Settings">App Management Settings</div>
                             </a>
                         </li>

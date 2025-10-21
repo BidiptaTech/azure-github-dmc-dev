@@ -742,6 +742,10 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/registered-agents', [App\Http\Controllers\AgentViewController::class, 'index'])->name('registered-agents.index');
         Route::get('/registered-agents/{agent_id}', [App\Http\Controllers\AgentViewController::class, 'show'])->name('registered-agents.show');
         Route::post('/registered-agents/verify', [App\Http\Controllers\AgentViewController::class, 'verifyAgent'])->name('registered-agents.verify');
+        
+        // App Management routes
+        Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');
+        Route::put('/app-management/update', [App\Http\Controllers\AppManagementController::class, 'update'])->name('app-management.update');
         Route::get('/app-management/settings', [App\Http\Controllers\AppManagementController::class, 'appManagementSettings'])->name('app-management.settings');
     
     });
