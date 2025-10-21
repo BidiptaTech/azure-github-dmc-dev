@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
+use App\Imports\AgenciesImport;
+use Illuminate\Support\Facades\DB;
+
 class AgencyController extends Controller
 {
     /**
@@ -585,5 +588,132 @@ class AgencyController extends Controller
             throw new \Exception('You do not have permission to access this page.');
         }
         return $dmc_id;
+    }
+
+    /**
+     * Show the agencies import page
+     */
+    public function importView()
+    {
+        return view('agencies.import');
+    }
+
+    /**
+     * Handle the agencies CSV import
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+            ]);
+
+            $file = $request->file('file');
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $auth_user = Auth::user();
+            $cacheKey = "agency_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 30 seconds)
+            if (cache()->has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            }
+
+            // Create the import instance
+            $import = new AgenciesImport();
+            
+            // Import the file
+            $result = $import->import($file->getPathname());
+            
+            // Cache the upload to prevent duplicates
+            cache()->put($cacheKey, true, 30);
+            
+            $successCount = $result['success'];
+            $errorCount = $result['errors'];
+            $errorMessages = $result['error_messages'];
+            
+            if ($errorCount > 0) {
+                $errorSummary = implode('<br>', array_slice($errorMessages, 0, 10));
+                if (count($errorMessages) > 10) {
+                    $errorSummary .= '<br><em>... and ' . (count($errorMessages) - 10) . ' more errors</em>';
+                }
+                
+                if ($successCount > 0) {
+                    return redirect()->back()->with('warning', "Import completed with warnings. Successfully imported {$successCount} agencies. {$errorCount} rows failed:<br>{$errorSummary}");
+                } else {
+                    return redirect()->back()->with('error', "Import failed. {$errorCount} rows had errors:<br>{$errorSummary}");
+                }
+            }
+            
+            if ($successCount > 0) {
+                return redirect()->route('agencies.index')->with('success', "Successfully imported {$successCount} agencies!");
+            } else {
+                return redirect()->back()->with('error', 'No agencies were imported. Please check your CSV file.');
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Agency import error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to import agencies. Please ensure the file is properly formatted. Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download the agencies import template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="agencies_import_template.csv"',
+        ];
+
+        $columns = [
+            'agency_name',
+            'email',
+            'phone',
+            'country',
+            'city',
+            'address',
+            'postal_code',
+            'contact_person'
+        ];
+
+        $callback = function() use ($columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Write header row
+            fputcsv($file, $columns);
+            
+            // Write sample data row
+            fputcsv($file, [
+                'ABC Travel Agency',
+                'info@abctravel.com',
+                '12345678',
+                'Singapore',
+                'Singapore',
+                '123 Main Street, Suite 100',
+                '10001',
+                'John Doe'
+            ]);
+            
+            // Write another sample row
+            fputcsv($file, [
+                'XYZ Tours & Travels',
+                'contact@xyztours.com',
+                '9876543210',
+                'India',
+                'Delhi',
+                '456 High Street, Floor 2',
+                '7654212',
+                'Kunal Malviya'
+            ]);
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 } 
