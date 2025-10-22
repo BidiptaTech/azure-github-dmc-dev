@@ -40,11 +40,16 @@ class EnquiryController extends Controller
             $dmc_ids = [];
         }
 
+        $random_dmc_id = null;
+        
         if (empty($dmc_ids)) {
-            return response()->json([
-                'message' => 'DMC IDs are required',
-                'success' => false
-            ], 400);
+            $dmc_idd = User::where('country', $country)->where('role_id', 11)->first();
+            if ($dmc_idd) {
+                $dmc_ids = [$dmc_idd->userId];
+                $random_dmc_id = $dmc_idd->userId;
+            } else {
+                $dmc_ids = [];
+            }
         }
 
         $user = auth()->user();
@@ -113,7 +118,8 @@ class EnquiryController extends Controller
             return response()->json([
                 'message' => 'Multiple enquiries created successfully',
                 'multi_enq_id' => $multi_enq_id,
-                'data' => $created_enquiries
+                'data' => $created_enquiries,
+                'random_dmc' => $random_dmc_id,
             ], 201);
 
         } catch (\Exception $e) {
