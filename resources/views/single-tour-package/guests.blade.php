@@ -419,6 +419,10 @@
                                     style="border: 2px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.95);">
                                 <i class="ri-eye-off-line" id="appPasswordIcon"></i>
                             </button>
+                            <button class="btn btn-outline-primary" type="button" id="generatePassword"
+                                    style="border: 2px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.95);">
+                                <i class="ri-key-line me-1"></i> Generate
+                            </button>
                         </div>
                         <div class="invalid-feedback" id="app_password_error"></div>
                     </div>
@@ -702,22 +706,54 @@ $(document).ready(function() {
     });
 
     // Toggle App Password visibility
-    $('#toggleAppPassword').on('click', function() {
-        const passwordField = $('#app_password');
-        const icon = $('#appPasswordIcon');
-        
-        if (passwordField.attr('type') === 'password') {
-            passwordField.attr('type', 'text');
-            icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
-        } else {
-            passwordField.attr('type', 'password');
-            icon.removeClass('ri-eye-line').addClass('ri-eye-off-line');
-        }
-    });
+  
 
     // Initialize DataTable on page load
     initializeDataTable();
 });
+
+
+document.getElementById('generatePassword').addEventListener('click', function() {
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$!";
+    let password = "";
+    for (let i = 0; i < 8; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+
+    const passwordInput = document.getElementById('app_password');
+    const icon = document.getElementById('appPasswordIcon');
+
+    // Set the generated password
+    passwordInput.value = password;
+
+    // Respect current visibility state
+    if (passwordInput.type === 'password') {
+        // keep hidden
+        icon.classList.remove('ri-eye-line');
+        icon.classList.add('ri-eye-off-line');
+    } else {
+        // visible
+        icon.classList.remove('ri-eye-off-line');
+        icon.classList.add('ri-eye-line');
+    }
+});
+
+
+// Toggle password visibility
+document.getElementById('toggleAppPassword').addEventListener('click', function() {
+    const passwordInput = document.getElementById('app_password');
+    const icon = document.getElementById('appPasswordIcon');
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('ri-eye-off-line');
+        icon.classList.add('ri-eye-line');
+    } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('ri-eye-line');
+        icon.classList.add('ri-eye-off-line');
+    }
+});
+
 </script>
 @endsection
 
