@@ -767,6 +767,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       return;
     }
     
+    
     const newFormSections = [...formSections];
     
     // Generate old signature before changes

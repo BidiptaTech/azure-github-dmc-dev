@@ -223,25 +223,48 @@ const tourPackageSlice = createSlice({
       tour_id: s.tour_id
     })));
 
+    const currentServicesByType = state.AllServices.reduce((acc, service) => {
+      // Skip search form data in type counting
+      if ('tour_id' in service && 'country' in service && 'city' in service && 
+          'check_in_time' in service && 'check_out_time' in service && !service.type) {
+        return acc;
+      }
+      const type = service.type || 'unknown';
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {});
+
     // Check if this is a removal operation (fewer services than before)
-    const isRemovalOperation = action.payload.length < state.AllServices.length;
+    const isRemovalOperation = action.payload.length < Object.values(currentServicesByType).reduce((sum, count) => sum + count, 0);
     console.log("%c Is removal operation:", isRemovalOperation, "background: #e67e22; color: #ffffff; padding: 2px;");
 
     if (isRemovalOperation) {
       console.log("%c Removal operation detected - analyzing removal context", "background: #e74c3c; color: #ffffff; padding: 2px;");
-      
+
       // Get service types and counts
       const currentServicesByType = state.AllServices.reduce((acc, service) => {
+        // Skip search form data in type counting
+        if ('tour_id' in service && 'country' in service && 'city' in service && 
+            'check_in_time' in service && 'check_out_time' in service && !service.type) {
+          return acc;
+        }
         const type = service.type || 'unknown';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {});
+
       
       const newServicesByType = action.payload.reduce((acc, service) => {
+        // Skip search form data in type counting
+        if ('tour_id' in service && 'country' in service && 'city' in service && 
+            'check_in_time' in service && 'check_out_time' in service && !service.type) {
+          return acc;
+        }
         const type = service.type || 'unknown';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
       }, {});
+
       
       console.log("Current services by type:", currentServicesByType);
       console.log("New services by type:", newServicesByType);
@@ -254,9 +277,10 @@ const tourPackageSlice = createSlice({
       console.log("Missing service types:", missingTypes);
       
       // Calculate removal context metrics
-      const totalCurrentServices = state.AllServices.length;
-      const totalNewServices = action.payload.length;
-      const removalPercentage = ((totalCurrentServices - totalNewServices) / totalCurrentServices) * 100;
+      const totalCurrentServices = Object.values(currentServicesByType).reduce((sum, count) => sum + count, 0);
+      const totalNewServices = Object.values(newServicesByType).reduce((sum, count) => sum + count, 0);
+      const removalPercentage = totalCurrentServices > 0 ? ((totalCurrentServices - totalNewServices) / totalCurrentServices) * 100 : 0;
+
       
       console.log(`Removing ${totalCurrentServices - totalNewServices} services (${removalPercentage.toFixed(1)}% of total)`);
       
@@ -481,8 +505,7 @@ const tourPackageSlice = createSlice({
       console.log("%c Service already exists, not added.", "background: #e74c3c; color: #ffffff; padding: 2px; font-weight: bold;");
     }
   }
-}
-,
+},
 
     setPackageData: (state, action) => {
       state.packageData = action.payload;

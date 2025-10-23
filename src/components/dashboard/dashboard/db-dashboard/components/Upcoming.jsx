@@ -2674,7 +2674,7 @@ export default function Pending({ filters = {} }) {
                               </Tooltip>
 
                               {/* Show other buttons only if status doesn't start with "Cancel" */}
-                              {(!list.tour_status?.toLowerCase().startsWith("cancel") && !list.tour_status?.toLowerCase().startsWith("refund") && !list.tour_status?.toLowerCase().startsWith("refunded")) && (
+                              {(!list.tour_status?.toLowerCase().startsWith("cancel") && !list.tour_status?.toLowerCase().startsWith("refund") && !list.tour_status?.toLowerCase().startsWith("refunded"))&& !list.tour_status?.toLowerCase().startsWith("auto cancel") && (
                                 <>
                                   {/* Only render Edit button if editOff is not 1 */}
                                 
