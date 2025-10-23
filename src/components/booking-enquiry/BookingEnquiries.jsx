@@ -19,7 +19,12 @@ import {
   Chip,
   Tooltip,
   Zoom,
+  useMediaQuery,
+  useTheme,
+  Avatar,
+  Badge,
 } from "@mui/material";
+import { useLocation } from "react-router-dom";
 import { styled } from "@mui/material/styles";
 import {
   Hotel as HotelIcon,
@@ -35,6 +40,9 @@ import {
   Help as HelpIcon,
   CheckCircle as CheckCircleIcon,
   ConfirmationNumber as ConfirmationNumberIcon,
+  Business as BusinessIcon,
+  TravelExplore as TravelIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -44,6 +52,19 @@ import {
   clearSpecificService,
 } from "@/slice/common/EnquirySlice";
 import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
+import {
+  fetchDMCsByCountry,
+  fetchDMCCount,
+  setSelectedDmcIds,
+  addDmcToSelection,
+  removeDmcFromSelection,
+  clearSelectedDmcs,
+  selectDMCs,
+  selectDMCLoading,
+  selectDMCError,
+  selectSelectedDmcIds,
+  selectSelectedDmcsData,
+} from "../../slice/dmc/dmcSlice";
 import StarCategorySelect from "./StarCategorySelect";
 import PreferredHotelsDropdown from "./PreferredHotelsDropdown";
 import PortAddressSearch from "./PortAddressSearch";
@@ -292,6 +313,48 @@ const HelpIconButton = styled(HelpIcon)(({ theme, serviceType }) => {
   };
 });
 
+// DMC Selection Panel Components
+const DMCSelectionPanel = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  height: 'fit-content',
+  maxHeight: '80vh',
+  overflowY: 'auto',
+  position: 'sticky',
+  top: theme.spacing(2),
+  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+  border: '1px solid rgba(102, 126, 234, 0.1)',
+  borderRadius: theme.spacing(2),
+  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+  '&::-webkit-scrollbar': {
+    width: '6px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'rgba(0,0,0,0.05)',
+    borderRadius: '3px',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: 'rgba(102, 126, 234, 0.3)',
+    borderRadius: '3px',
+    '&:hover': {
+      background: 'rgba(102, 126, 234, 0.5)',
+    },
+  },
+}));
+
+const DMCCard = styled(Card)(({ theme, selected }) => ({
+  marginBottom: theme.spacing(1.5),
+  border: selected ? '2px solid #667eea' : '1px solid #e0e3e8',
+  backgroundColor: selected ? 'rgba(102, 126, 234, 0.05)' : 'white',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  borderRadius: theme.spacing(1.5),
+  '&:hover': {
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+    transform: 'translateY(-2px)',
+    border: '2px solid #667eea',
+  },
+}));
+
 // Get service descriptions for tooltips
 const getServiceDescription = (option) => {
   switch (option) {
@@ -326,9 +389,87 @@ const BookingEnquiries = ({
     window.scrollTo(0, 0);
   }, []);
   const dispatch = useDispatch();
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
   // Get the selected city from Redux store
   const selectedCity = useSelector((state) => state.common.selectedCity);
   const enquiryData = useSelector((state) => state.enquiry);
+  
+  // Get enquiry list loading state for showing feedback when data is being refreshed
+  const enquiryListLoading = useSelector((state) => state.enquiryList.loading);
+  
+  // DMC-related state and selectors
+  const apiDMCs = useSelector(selectDMCs);
+  const dmcLoading = useSelector(selectDMCLoading);
+  const dmcError = useSelector(selectDMCError);
+  const selectedDmcIds = useSelector(selectSelectedDmcIds);
+  const selectedDmcsData = useSelector(selectSelectedDmcsData);
+  
+  // Get location data from Redux (from LocationSearch component)
+  const locationFromRedux = enquiryData?.searchLocation || selectedCity;
+  
+  // Get location data from navigation state (passed from MainMenu) - for backward compatibility
+  const navigationState = location.state;
+  const selectedLocationFromNavigation = navigationState?.selectedLocation;
+  const selectedCountryFromNavigation = navigationState?.selectedCountry;
+  
+  // Determine the active location (priority: Redux > Navigation)
+  const activeLocation = locationFromRedux || selectedLocationFromNavigation || 
+    (selectedCountryFromNavigation ? { country: selectedCountryFromNavigation.name } : null);
+  
+  // Component state
+  const [dmcOptions, setDmcOptions] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [hasDMCsAvailable, setHasDMCsAvailable] = useState(false);
+
+  // Auto-fetch DMCs when location is selected in LocationSearch component
+  useEffect(() => {
+    // Priority: Use location from Redux (LocationSearch) > Navigation state
+    let countryName = null;
+    
+    if (locationFromRedux) {
+      // From LocationSearch component via Redux
+      countryName = locationFromRedux.countryName || locationFromRedux.country;
+      console.log('🌍 Using location from LocationSearch (Redux):', locationFromRedux);
+    } else if (selectedLocationFromNavigation) {
+      // From navigation state (backward compatibility)
+      countryName = selectedLocationFromNavigation.country;
+      console.log('🌍 Using location from navigation:', selectedLocationFromNavigation);
+    } else if (selectedCountryFromNavigation) {
+      // Legacy support
+      countryName = selectedCountryFromNavigation.name;
+      console.log('🌍 Using country from navigation:', selectedCountryFromNavigation);
+    }
+    
+    if (countryName) {
+      console.log('🏢 Auto-fetching DMCs for country:', countryName);
+      dispatch(fetchDMCsByCountry([countryName]));
+    }
+  }, [locationFromRedux, selectedLocationFromNavigation, selectedCountryFromNavigation, dispatch]);
+
+  // Process DMC data for sidebar options
+  useEffect(() => {
+    if (apiDMCs && apiDMCs.data && Array.isArray(apiDMCs.data)) {
+      const processedDMCs = apiDMCs.data.map((dmc, index) => ({
+        id: `dmc-${index}`,
+        dmcId: dmc.userId || null,
+        name: dmc.company_name || `DMC ${index + 1}`,
+        location: dmc.country || 'Unknown Location',
+        logo: dmc.logo || '',
+        description: 'Professional destination management services',
+        originalData: dmc,
+      }));
+      
+      setDmcOptions(processedDMCs);
+      setHasDMCsAvailable(processedDMCs.length > 0);
+    } else {
+      setDmcOptions([]);
+      setHasDMCsAvailable(false);
+    }
+  }, [apiDMCs]);
+
 
   // Fetch enquiry list when component mounts or when city data changes
   useEffect(() => {
@@ -363,6 +504,53 @@ const BookingEnquiries = ({
       }
     }
   }, [selectedCity, enquiryData, dispatch]);
+
+  // Refetch enquiry list when DMCs are selected/deselected
+  useEffect(() => {
+    // Only refetch if we have location data and at least one DMC is selected
+    if (selectedDmcsData.length > 0 && activeLocation) {
+      let country = null;
+      let city = null;
+
+      // Get country and city from activeLocation
+      if (activeLocation.city && activeLocation.country) {
+        country = activeLocation.country;
+        city = activeLocation.city;
+      } else if (activeLocation.cityName && activeLocation.countryName) {
+        country = activeLocation.countryName;
+        city = activeLocation.cityName;
+      } else if (activeLocation.country || activeLocation.countryName) {
+        country = activeLocation.country || activeLocation.countryName;
+        // Try to get city from Redux
+        if (selectedCity && selectedCity.cityName) {
+          city = selectedCity.cityName;
+        }
+      }
+
+      // Only make API call if we have both country and city
+      if (country && city) {
+        console.log("🔄 Refetching enquiry list with selected DMCs:", {
+          country,
+          city,
+          selectedDmcIds: selectedDmcIds,
+          dmcCount: selectedDmcsData.length
+        });
+
+        dispatch(
+          fetchEnquiryList({
+            country,
+            city,
+          })
+        );
+      } else {
+        console.warn("⚠️ Cannot refetch enquiry list - missing country or city data");
+        console.log("Available data:", {
+          activeLocation,
+          selectedCity
+        });
+      }
+    }
+  }, [selectedDmcIds, selectedDmcsData, activeLocation, selectedCity, dispatch]);
 
   // Initialize expandedSections separately from bookingOptions
   const [expandedSections, setExpandedSections] = useState({
@@ -1419,55 +1607,355 @@ const BookingEnquiries = ({
     );
   };
 
+  // === DMC Selection Handlers ===
+  const handleDMCCardClick = (dmc) => {
+    console.log('🏢 DMC card clicked:', dmc);
+    
+    // Check if DMC is already selected
+    const isSelected = selectedDmcIds.includes(dmc.dmcId);
+    
+    if (isSelected) {
+      // Remove from selection
+      dispatch(removeDmcFromSelection({ dmcId: dmc.dmcId }));
+    } else {
+      // Add to selection
+      dispatch(addDmcToSelection({ dmcId: dmc.dmcId, dmcData: dmc }));
+    }
+  };
+
+  const handleFilterChange = (event) => {
+    setFilterText(event.target.value);
+  };
+
+  // Filter DMCs based on search text
+  const filteredDMCs = dmcOptions.filter(dmc => 
+    dmc.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    dmc.location.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  // Check if a DMC is selected
+  const isDMCSelected = (dmc) => {
+    return selectedDmcIds.includes(dmc.dmcId);
+  };
+
+  // Render DMC Selection Component
+  const renderDMCSelectionPanel = () => (
+    <DMCSelectionPanel elevation={3}>
+      {/* Header */}
+
+
+      {/* Location Section - Auto-populated from LocationSearch */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+          📍 Destination
+        </Typography>
+        
+        {activeLocation ? (
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: 'rgba(102, 126, 234, 0.08)', 
+            borderRadius: 2, 
+            border: '1px solid rgba(102, 126, 234, 0.2)',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <LocationIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500, color: '#333' }}>
+                {activeLocation.country || activeLocation.countryName || 'Location Selected'}
+              </Typography>
+         
+            </Box>
+          </Box>
+        ) : (
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: 'rgba(255, 152, 0, 0.08)', 
+            borderRadius: 2, 
+            border: '1px solid rgba(255, 152, 0, 0.2)',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <InfoIcon sx={{ fontSize: 18, color: '#ff9800', mr: 1 }} />
+            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>
+              Please select a location from the search form first
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* DMC Filter & Selection */}
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+            🏢 DMC Partners
+          </Typography>
+          {selectedDmcsData.length > 0 && (
+            <Badge badgeContent={selectedDmcsData.length} color="primary" />
+          )}
+        </Box>
+        
+        {activeLocation && (
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search DMCs..."
+            value={filterText}
+            onChange={handleFilterChange}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: '#999', mr: 0.5, fontSize: '1.2rem' }} />
+            }}
+            sx={{ 
+              mb: 2,
+              '& .MuiOutlinedInput-input': {
+                fontSize: '0.875rem'
+              }
+            }}
+          />
+        )}
+      </Box>
+
+      {/* DMC List */}
+      <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
+        {dmcLoading && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              Loading DMCs...
+            </Typography>
+          </Box>
+        )}
+
+        {dmcError && (
+          <Box sx={{ p: 2, bgcolor: '#fff3e0', borderRadius: 1, mb: 2, border: '1px solid #ffb74d' }}>
+            <Typography variant="body2" color="error" sx={{ fontSize: '0.875rem' }}>
+              Error: {dmcError}
+            </Typography>
+          </Box>
+        )}
+
+        {!activeLocation && !dmcLoading && (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <TravelIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              Select a destination first
+            </Typography>
+          </Box>
+        )}
+
+        {activeLocation && !dmcLoading && filteredDMCs.length === 0 && dmcOptions.length === 0 && (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <InfoIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              No DMCs available
+            </Typography>
+          </Box>
+        )}
+
+        {filteredDMCs.length === 0 && dmcOptions.length > 0 && (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <SearchIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              No matches found
+            </Typography>
+          </Box>
+        )}
+
+        {filteredDMCs.map((dmc) => (
+          <DMCCard
+            key={dmc.id}
+            selected={isDMCSelected(dmc)}
+            onClick={() => handleDMCCardClick(dmc)}
+          >
+            <CardContent sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                {dmc.logo ? (
+                  <Avatar
+                    src={dmc.logo}
+                    alt={dmc.name}
+                    sx={{ width: 32, height: 32, mr: 1.5 }}
+                  >
+                    <BusinessIcon fontSize="small" />
+                  </Avatar>
+                ) : (
+                  <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#667eea' }}>
+                    <BusinessIcon fontSize="small" />
+                  </Avatar>
+                )}
+                
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: isDMCSelected(dmc) ? '#667eea' : '#333',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.875rem',
+                    lineHeight: 1.2
+                  }}>
+                    {dmc.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    fontSize: '0.75rem',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    lineHeight: 1.2
+                  }}>
+                    📍 {dmc.location}
+                  </Typography>
+                </Box>
+                
+                {isDMCSelected(dmc) && (
+                  <CheckCircleIcon sx={{ color: '#4caf50', fontSize: 18 }} />
+                )}
+              </Box>
+            </CardContent>
+          </DMCCard>
+        ))}
+      </Box>
+
+      {/* Selected Summary */}
+      {selectedDmcsData.length > 0 && (
+        <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #e0e3e8' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+              ✅ Selected ({selectedDmcsData.length})
+            </Typography>
+            {enquiryListLoading && (
+              <CircularProgress size={12} sx={{ color: '#667eea' }} />
+            )}
+          </Box>
+          {enquiryListLoading && (
+            <Typography variant="caption" sx={{ color: '#667eea', fontSize: '0.7rem', mb: 1, display: 'block' }}>
+              Updating data...
+            </Typography>
+          )}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {selectedDmcsData.slice(0, 3).map((dmc) => (
+              <Chip
+                key={dmc.id}
+                label={dmc.name}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ fontSize: '0.75rem' }}
+              />
+            ))}
+            {selectedDmcsData.length > 3 && (
+              <Chip
+                label={`+${selectedDmcsData.length - 3} more`}
+                size="small"
+                color="primary"
+                sx={{ fontSize: '0.75rem' }}
+              />
+            )}
+          </Box>
+        </Box>
+      )}
+    </DMCSelectionPanel>
+  );
+
   return (
     <Box sx={{ 
-      maxWidth: "1200px", 
+      maxWidth: "1400px", 
       margin: "0 auto", 
-      mt: { xs: 0, sm: 1, md: 2 },
-      px: { xs: 0.5, sm: 1, md: 2 }
+      px: { xs: 1, sm: 2, md: 3 },
+      py: { xs: 1, sm: 2, md: 3 }
     }}>
+      {/* Page Header */}
       <Box sx={{ 
-        py: { xs: 0.5, sm: 1, md: 1.5 }
+        textAlign: "center", 
+        mb: { xs: 2, sm: 3, md: 4 }
       }}>
-        <Box sx={{ 
-          textAlign: "center", 
-          mb: { xs: 1, sm: 2, md: 3 },
-          px: { xs: 0.5, sm: 1, md: 0 }
-        }}>
-          <Typography 
-            variant="h4" 
-            component="h3" 
-            sx={{ 
-              fontWeight: 600,
-              fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
-              color: { xs: '#ff6b6b', sm: '#ff6b6b', md: 'text.primary' },
-              background: { xs: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', sm: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', md: 'none' },
-              WebkitBackgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
-              WebkitTextFillColor: { xs: 'transparent', sm: 'transparent', md: 'unset' },
-              backgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
-              textShadow: { xs: '0 2px 4px rgba(255, 107, 107, 0.3)', sm: '0 2px 4px rgba(255, 107, 107, 0.3)', md: 'none' }
-            }}
-          >
-            Booking Enquiries
-          </Typography>
-          <Typography 
-            variant="body1" 
-            color="text.secondary" 
-            sx={{ 
-              mt: 0.25,
-              fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
-              color: { xs: '#666', sm: '#666', md: 'text.secondary' },
-              fontWeight: { xs: 500, sm: 500, md: 400 }
-            }}
-          >
-            Select your preferred services and customize your travel experience
-          </Typography>
-          <HeadingLine />
-        </Box>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          sx={{ 
+            fontWeight: 600,
+            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+            color: 'text.primary',
+            mb: 1
+          }}
+        >
+          Booking Enquiries
+        </Typography>
+        <Typography 
+          variant="body1" 
+          color="text.secondary" 
+          sx={{ 
+            fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' },
+            mb: 2
+          }}
+        >
+          Select your preferred services and customize your travel experience
+        </Typography>
+        <HeadingLine />
+      </Box>
 
-        <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="flex-start">
-          {Object.keys(bookingOptions).map((option) => (
-            <Grid item xs={12} sm={12} md={6} lg={6} key={option}>
+      {/* Main Grid Layout */}
+      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
+        {/* Left Column - DMC Selection */}
+        <Grid item xs={12} md={4} lg={3}>
+          {renderDMCSelectionPanel()}
+        </Grid>
+
+        {/* Right Column - Booking Form */}
+        <Grid item xs={12} md={8} lg={9}>
+          {/* Selected DMCs Summary */}
+          {selectedDmcsData.length > 0 && (
+            <Paper
+              elevation={2}
+              sx={{
+                mb: 3,
+                p: 3,
+                background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                borderRadius: 2,
+                border: "1px solid rgba(14, 165, 233, 0.2)",
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <CheckCircleIcon sx={{ fontSize: 24, color: '#0ea5e9', mr: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#0c4a6e' }}>
+                    Selected DMC Partners ({selectedDmcsData.length})
+                  </Typography>
+                </Box>
+                {enquiryListLoading && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={16} sx={{ color: '#0ea5e9' }} />
+                    <Typography variant="caption" sx={{ color: '#0ea5e9', fontSize: '0.75rem' }}>
+                      Refreshing data...
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {selectedDmcsData.map((dmc) => (
+                  <Chip
+                    key={dmc.id}
+                    avatar={
+                      dmc.logo ? (
+                        <Avatar src={dmc.logo} alt={dmc.name} />
+                      ) : (
+                        <Avatar sx={{ bgcolor: '#0ea5e9' }}>
+                          <BusinessIcon fontSize="small" />
+                        </Avatar>
+                      )
+                    }
+                    label={`${dmc.name} (${dmc.location})`}
+                    color="info"
+                    variant="outlined"
+                    sx={{ fontWeight: 500 }}
+                  />
+                ))}
+              </Box>
+            </Paper>
+          )}
+
+          <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="flex-start">
+            {Object.keys(bookingOptions).map((option) => (
+              <Grid item xs={12} sm={12} md={6} lg={6} key={option}>
               <StyledCard
                 selected={bookingOptions[option]}
                 serviceType={option}
@@ -2435,87 +2923,86 @@ const BookingEnquiries = ({
                   </Box>
                 )}
               </StyledCard>
-            </Grid>
-          ))}
-        </Grid>
+              </Grid>
+            ))}
+          </Grid>
 
-        <Paper
-          elevation={2}
-          sx={{
-            mt: 5,
-            p: 3,
-            background: "linear-gradient(135deg, #f5f8fe, #edf2ff)",
-            borderRadius: 2,
-            transition: "all 0.3s ease",
-            "&:hover": {
-              boxShadow: "0 12px 24px rgba(0, 0, 0, 0.1)",
-            },
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Your Selections
-          </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-            {Object.entries(bookingOptions).some(([key, value]) => value) ? (
-              Object.entries(bookingOptions).map(
-                ([key, value]) =>
-                  value && (
-                    <Tooltip
-                      key={key}
-                      title={getServiceDescription(key)}
-                      arrow
-                      placement="top"
-                      TransitionComponent={Zoom}
-                    >
-                      <SummaryCard serviceType={key}>
-                        <SummaryIcon serviceType={key}>
-                          {getIconForOption(key)}
-                        </SummaryIcon>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                          {getCardTitle(key)}
-                        </Typography>
-                      </SummaryCard>
-                    </Tooltip>
-                  )
-              )
-            ) : (
-              <NoSelections>
-                <InfoIcon sx={{ mr: 1 }} />
-                <Typography>
-                  No services selected yet. Toggle the switches above to include
-                  services.
-                </Typography>
-              </NoSelections>
-            )}
+          <Paper
+            elevation={2}
+            sx={{
+              mt: 5,
+              p: 3,
+              background: "linear-gradient(135deg, #f5f8fe, #edf2ff)",
+              borderRadius: 2,
+              transition: "all 0.3s ease",
+              "&:hover": {
+                boxShadow: "0 12px 24px rgba(0, 0, 0, 0.1)",
+              },
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Your Selections
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {Object.entries(bookingOptions).some(([key, value]) => value) ? (
+                Object.entries(bookingOptions).map(
+                  ([key, value]) =>
+                    value && (
+                      <Tooltip
+                        key={key}
+                        title={getServiceDescription(key)}
+                        arrow
+                        placement="top"
+                        TransitionComponent={Zoom}
+                      >
+                        <SummaryCard serviceType={key}>
+                          <SummaryIcon serviceType={key}>
+                            {getIconForOption(key)}
+                          </SummaryIcon>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {getCardTitle(key)}
+                          </Typography>
+                        </SummaryCard>
+                      </Tooltip>
+                    )
+                )
+              ) : (
+                <NoSelections>
+                  <InfoIcon sx={{ mr: 1 }} />
+                  <Typography>
+                    No services selected yet. Toggle the switches above to include
+                    services.
+                  </Typography>
+                </NoSelections>
+              )}
+            </Box>
+          </Paper>
+
+          {/* Add submit button at the bottom of the form */}
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 5, mb: 5 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<CheckCircleIcon />}
+              onClick={handleSubmitForm}
+              sx={{
+                minWidth: "200px",
+                py: 1.5,
+                borderRadius: 2,
+                boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-3px)",
+                  boxShadow: "0 12px 20px rgba(0, 0, 0, 0.15)",
+                },
+              }}
+            >
+              Continue to Review
+            </Button>
           </Box>
-        </Paper>
-      </Box>
-
-      {/* Add submit button at the bottom of the form */}
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 5, mb: 5 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          size="large"
-          startIcon={<CheckCircleIcon />}
-          onClick={handleSubmitForm}
-          sx={{
-            minWidth: "200px",
-            py: 1.5,
-            borderRadius: 2,
-            boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              transform: "translateY(-3px)",
-              boxShadow: "0 12px 20px rgba(0, 0, 0, 0.15)",
-            },
-          }}
-        >
-          Continue to Review
-        </Button>
-      </Box>
-
-   
+        </Grid>
+      </Grid>
     </Box>
   );
 };

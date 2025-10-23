@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSelector, useDispatch } from 'react-redux';
-import axios from "axios";
-import Cookies from "js-cookie";
-import { BASE_URL, endpoints } from "@/services/api";
+import { fetchCitiesByCountry, clearCities } from "../../../slice/common/citiesSlice";
 
 const SearchBar = ({ onLocationSelect }) => {
   const [searchValueCountry, setSearchValueCountry] = useState("");
@@ -14,8 +12,6 @@ const SearchBar = ({ onLocationSelect }) => {
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const [cityList, setCityList] = useState([]);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [hasFetchedCities, setHasFetchedCities] = useState(false);
   const [citiesFetchedForCountry, setCitiesFetchedForCountry] = useState(null);
   const countryListRef = useRef(null);
@@ -23,28 +19,44 @@ const SearchBar = ({ onLocationSelect }) => {
   const countryInputRef = useRef(null);
   const cityInputRef = useRef(null);
   
+  // Initialize dispatch
+  const dispatch = useDispatch();
+  
+  // Get global countries from auth state (same as SearchLocationModal)
+  const global_countries = useSelector((state) => state.auth.global_countries);
+  
+  // Get cities from Redux store
+  const { cities: cityList, loading: isLoadingCities } = useSelector((state) => state.cities);
+  
   // Get selected DMC data from Redux store (same pattern as hero-1/LocationSearch)
   const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
   const selectedDmcData = selectedCountries && selectedCountries.length > 0 ? selectedCountries[0] : null;
   console.log('selectedDmcData', selectedDmcData);
 
   const defaultCountries = [
-    { name: "United States", code: "US" },
+    { name: "India", code: "in" },
     { name: "Singapore", code: "SG" },
-    // More countries can be added here
+    { name: "UAE", code: "AE" },
+    { name: "Thailand", code: "TH" },
+    { name: "Switzerland", code: "CH" },
+    { name: "Maldives", code: "MV" },
+    { name: "Japan", code: "JP" },
+    { name: "France", code: "FR" },
+    { name: "Italy", code: "IT" },
+    { name: "Spain", code: "ES" },
   ];
 
-  // Get country from selected DMC data (same pattern as hero-1/LocationSearch)
+  // Get countries from auth state (same pattern as SearchLocationModal)
   const availableCountries = useMemo(() => {
-    if (selectedDmcData && selectedDmcData.name) {
-      return [{ 
-        name: selectedDmcData.name, // Full country name
-        code: selectedDmcData.code, // Use full name as code too for database
-        key: 'selected-dmc-country' 
-      }];
-    }
-    return defaultCountries;
-  }, [selectedDmcData]);
+    return global_countries && Array.isArray(global_countries)
+      ? global_countries.map((country, index) => ({
+          name: country.name,
+          country_code: country.country_code,
+          code: country.code,    
+          key: `country-${index}`
+        }))
+      : defaultCountries;
+  }, [global_countries]);
 
   // Stable callback for parent notification
   const notifyParent = useCallback((locationData) => {
@@ -53,53 +65,14 @@ const SearchBar = ({ onLocationSelect }) => {
     }
   }, [onLocationSelect]);
 
-  // Update location content when selected DMC changes (same pattern as hero-1/LocationSearch)
+  // Clear cities when country changes
   useEffect(() => {
-    // Auto-select the DMC's country if available
-    if (selectedDmcData && selectedDmcData.name) {
-      const dmcCountry = {
-        name: selectedDmcData.name, // Full country name
-        code: selectedDmcData.code, // Use full name as code for database
-        key: 'selected-dmc-country'
-      };
-      
-      // Only update if the country is different from current selection
-      if (!selectedCountry || selectedCountry.name !== dmcCountry.name) {
-        // Clear previous city selection when country changes
-        setSelectedCity(null);
-        setSearchValueCity("");
-        
-        // Auto-select the country
-        setSelectedCountry(dmcCountry);
-        setSearchValueCountry(dmcCountry.name);
-        
-        // Auto-fetch cities for the selected DMC country
-        fetchCities(dmcCountry);
-        
-        // Notify parent component about the auto-selected country
-        notifyParent({
-          country: dmcCountry.name,
-          countryCode: dmcCountry.code,
-          city: null,
-          cityCode: null
-        });
-      }
-    } else {
-      // Clear selection if no DMC data and we have a selection
-      if (selectedCountry) {
-        setSelectedCountry(null);
-        setSearchValueCountry("");
-        setSelectedCity(null);
-        setSearchValueCity("");
-        setCityList([]);
-        setHasFetchedCities(false);
-        setCitiesFetchedForCountry(null);
-        
-        // Notify parent component about cleared selection
-        notifyParent(null);
-      }
+    if (!selectedCountry) {
+      dispatch(clearCities());
+      setHasFetchedCities(false);
+      setCitiesFetchedForCountry(null);
     }
-  }, [selectedDmcData, selectedCountry, notifyParent]);
+  }, [selectedCountry, dispatch]);
 
   // Filter and suggest countries based on search input
   useEffect(() => {
@@ -115,8 +88,8 @@ const SearchBar = ({ onLocationSelect }) => {
     }
   }, [searchValueCountry, selectedCountry, availableCountries]);
 
-  // Fetch cities when a country is selected
-  const fetchCities = async (country) => {
+  // Fetch cities when a country is selected using Redux thunk
+  const fetchCities = useCallback(async (country) => {
     // Handle both string and object parameters
     const countryName = typeof country === 'string' ? country : country.name;
     
@@ -125,91 +98,70 @@ const SearchBar = ({ onLocationSelect }) => {
       return;
     }
     
-    setIsLoadingCities(true);
     setHasFetchedCities(false);
     
     try {
-      // Make API call to fetch cities for the selected country
-      // Use country name for the API call (same as other components)
-      console.log('Fetching cities for country:', countryName);
-      const response = await endpoints.getCities(countryName);
+      console.log('Fetching cities for country using Redux:', countryName);
       
-      // Log the raw API response for debugging
-      console.log('Raw API response:', response.data);
+      // Dispatch the fetchCitiesByCountry thunk from citiesSlice
+      const result = await dispatch(fetchCitiesByCountry(countryName));
       
-      let formattedCities = [];
-      
-      // Get country code for city code generation
-      const countryCode = typeof country === 'string' ? country : (country.code || country.name);
-      
-      // Check for the exact format shown in the user's example
-      if (response.data && Array.isArray(response.data.cities)) {
-        // Handle the array of city strings format
-        formattedCities = response.data.cities.map((cityName, index) => ({
-          name: cityName,
-          code: `${countryCode}-${cityName.replace(/\s+/g, '')}`,
-          key: `city-${index}`
-        }));
-      } else if (response.data && Array.isArray(response.data)) {
-        // Handle direct array format (as shown in the message)
-        formattedCities = response.data.map((cityName, index) => ({
-          name: cityName,
-          code: `${countryCode}-${cityName.replace(/\s+/g, '')}`,
-          key: `city-${index}`
-        }));
-      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        // Handle nested data array format
-        formattedCities = response.data.data.map((city, index) => {
-          const cityName = typeof city === 'string' ? city : city.name;
-          return {
-            name: cityName,
-            code: city.id || `${countryCode}-${cityName.replace(/\s+/g, '')}`,
-            key: `city-${index}`
-          };
-        });
+      if (fetchCitiesByCountry.fulfilled.match(result)) {
+        console.log('Cities fetched successfully:', result.payload);
+        setHasFetchedCities(true);
+        setCitiesFetchedForCountry(countryName);
       } else {
-        // console.error("Unexpected cities data format:", response.data);
+        console.error('Failed to fetch cities:', result.payload);
+        setHasFetchedCities(true);
+        setCitiesFetchedForCountry(countryName);
       }
-      
-      console.log('Formatted cities:', formattedCities);
-      setCityList(formattedCities);
-      setCitySuggestions(formattedCities);
-      setHasFetchedCities(true);
-      setCitiesFetchedForCountry(countryName);
     } catch (error) {
       console.error("Error fetching cities:", error);
-      setCityList([]);
-      setCitySuggestions([]);
       setHasFetchedCities(true);
       setCitiesFetchedForCountry(countryName);
-    } finally {
-      setIsLoadingCities(false);
     }
-  };
+  }, [dispatch, citiesFetchedForCountry]);
 
-  // Filter and suggest cities based on selected country and search input
+  // Format cities from Redux store for UI consumption
+  const formattedCities = useMemo(() => {
+    if (!cityList || !Array.isArray(cityList)) {
+      return [];
+    }
+    
+    const countryCode = selectedCountry?.code || selectedCountry?.country_code || 'XX';
+    
+    return cityList.map((cityName, index) => ({
+      name: typeof cityName === 'string' ? cityName : cityName.name || cityName,
+      code: `${countryCode}-${(typeof cityName === 'string' ? cityName : cityName.name || cityName).replace(/\s+/g, '')}`,
+      key: `city-${index}`
+    }));
+  }, [cityList, selectedCountry]);
+
+  // Fetch cities when country is selected
+  useEffect(() => {
+    if (selectedCountry && !hasFetchedCities && !isLoadingCities && citiesFetchedForCountry !== selectedCountry.name) {
+      fetchCities(selectedCountry);
+    }
+  }, [selectedCountry, hasFetchedCities, isLoadingCities, citiesFetchedForCountry, fetchCities]);
+
+  // Filter and suggest cities based on search input and available cities
   useEffect(() => {
     if (selectedCountry) {
-      // Only fetch cities if we haven't fetched them for this country yet
-      if (!hasFetchedCities && !isLoadingCities && citiesFetchedForCountry !== selectedCountry.name) {
-        fetchCities(selectedCountry);
-      } else if (searchValueCity) {
-        const filtered = cityList.filter((city) =>
+      if (searchValueCity) {
+        const filtered = formattedCities.filter((city) =>
           city.name.toLowerCase().includes(searchValueCity.toLowerCase())
         );
         setCitySuggestions(filtered);
-        // Always show dropdown when searching, even if no results
         setIsCityDropdownOpen(true);
       } else {
-        setCitySuggestions(cityList);
-        // Only show dropdown if we have cities, don't show for empty cities
-        setIsCityDropdownOpen(cityList.length > 0);
+        setCitySuggestions(formattedCities);
+        setIsCityDropdownOpen(formattedCities.length > 0);
       }
     } else {
       setCitySuggestions([]);
       setIsCityDropdownOpen(false);
     }
-  }, [searchValueCity, selectedCountry, cityList, isLoadingCities, hasFetchedCities, citiesFetchedForCountry]);
+  }, [searchValueCity, selectedCountry, formattedCities]);
 
   // Ensure highlighted item is visible in scroll
   useEffect(() => {
@@ -258,10 +210,12 @@ const SearchBar = ({ onLocationSelect }) => {
     // Clear any previously selected city and reset city states
     setSearchValueCity("");
     setSelectedCity(null);
-    setCityList([]);
     setCitySuggestions([]);
     setHasFetchedCities(false);
     setCitiesFetchedForCountry(null);
+    
+    // Clear cities from Redux store
+    dispatch(clearCities());
     
     // Put focus on city input
     if (cityInputRef.current) {
@@ -318,7 +272,7 @@ const SearchBar = ({ onLocationSelect }) => {
   };
 
   const handleCityInputFocus = () => {
-    if (selectedCountry && !selectedCity && cityList.length > 0) {
+    if (selectedCountry && !selectedCity && formattedCities.length > 0) {
       setIsCityDropdownOpen(true);
     }
   };
@@ -333,7 +287,9 @@ const SearchBar = ({ onLocationSelect }) => {
     setSelectedCity(null);
     setSearchValueCity("");
     setIsCityDropdownOpen(false);
-    setCityList([]);
+    
+    // Clear cities from Redux store
+    dispatch(clearCities());
     
     // Inform parent of cleared selection
     if (onLocationSelect) {
@@ -493,7 +449,7 @@ const SearchBar = ({ onLocationSelect }) => {
               placeholder={
                 !selectedCountry 
                   ? "First select a country" 
-                  : hasFetchedCities && cityList.length === 0 
+                  : hasFetchedCities && formattedCities.length === 0 
                     ? "No cities available " 
                     : "Select a city available"
               }

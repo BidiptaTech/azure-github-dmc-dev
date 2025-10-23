@@ -18,7 +18,7 @@ export const convertEnquiresToTourId = createAsyncThunk(
        const params = {};
       if (agentId) params.agent_id = agentId;
       if (enquiryID) params.enquiry_id = enquiryID;
-      if (dmcId) params.dmc_id = dmcId;
+      //if (dmcId) params.dmc_id = dmcId;
       const response = await axios.get(`${BASE_URL}/create-enquiry-tour`,{
         headers: {
           Authorization: `Bearer ${token}`,

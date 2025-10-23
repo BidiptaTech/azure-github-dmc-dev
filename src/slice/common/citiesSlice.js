@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
+import Cookies from "js-cookie";
 import { BASE_URL } from "@/services/api";
 
 // Define the initial state
@@ -14,12 +15,20 @@ export const fetchCitiesByCountry = createAsyncThunk(
   "cities/fetchCitiesByCountry",
   async (country, { rejectWithValue }) => {
     try {
+      // Get the auth token from cookies
+      const token = Cookies.get("authToken");
+      
+      if (!token) {
+        return rejectWithValue("No authentication token found");
+      }
+
       // API endpoint URL for getting cities
       const response = await axios.get(
         `${BASE_URL}/get-cities`,
         {
           headers: {
-            "Country": country
+            "Country": country,
+            "Authorization": `Bearer ${token}`
           }
         }
       );
