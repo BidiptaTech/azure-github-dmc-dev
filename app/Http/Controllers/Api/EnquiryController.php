@@ -187,6 +187,7 @@ class EnquiryController extends Controller
                 'random_dmc' => $random_dmc_id,
                 'total_enquiries' => count($created_enquiries),
                 'updated' => $enquiries->isNotEmpty(),
+                'updated_count' => $enquiries->count()
             ], 201);
 
         } catch (\Exception $e) {
