@@ -108,7 +108,7 @@ const MainMenu = ({ style = "" }) => {
       if (userRole === "Agent") {
         if (pathname.includes("/dashboard/db-dashboard/home_1")) {
           console.log('🌍 Auto-opening Book Tour location modal - no location selected');
-          setIsBookTourLocationModalOpen(true);
+          //setIsBookTourLocationModalOpen(true);
         } else if (pathname.includes("/dashboard/pre-define-packages")) {
           console.log('🌍 Auto-opening Packages location modal - no location selected');
           setIsPackagesLocationModalOpen(true);
@@ -140,12 +140,13 @@ const MainMenu = ({ style = "" }) => {
     e.preventDefault();
     
     // Wait for DMC count to load
-    if (dmcCountLoading) {
-      return;
-    }
+    // if (dmcCountLoading) {
+    //   return;
+    // }
+    navigate("/dashboard/db-dashboard/home_1");
     
     // Always show location modal
-    setIsBookTourLocationModalOpen(true);
+    //setIsBookTourLocationModalOpen(true);
   };
 
   const handleBookTourLocationSelect = (locationData) => {

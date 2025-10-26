@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from 'react-redux';
 
 const SearchBar = ({ onLocationSelect }) => {
@@ -12,42 +12,46 @@ const SearchBar = ({ onLocationSelect }) => {
   // Get selected DMC data from Redux store
   const selectedCountries = useSelector((state) => state.dmc.selectedCountries);
   const selectedDmcData = selectedCountries && selectedCountries.length > 0 ? selectedCountries[0] : null;
-  console.log('selectedDmcData',selectedDmcData);
   
   const defaultCountries = [
     { name: "India", code: "in" },
     { name: "Singapore", code: "SG" },
     // You can add more locations here
   ];
+  const global_countries = useSelector((state) => state.auth.global_countries);
 
-  // Get country from selected DMC data
-  const locationSearchContent = selectedDmcData && selectedDmcData.name
-    ? [{ 
-        name: selectedDmcData.name, // Full country name
-        code: selectedDmcData.code, // Use full name as code too for database
-        key: 'selected-dmc-country' 
-      }]
-    : defaultCountries;
+  // Get country from selected DMC data - memoized to prevent infinite loops
+  const locationSearchContent = useMemo(() => {
+    const content = global_countries && Array.isArray(global_countries)
+      ? global_countries.map((country, index) => ({
+          name: country.name,
+          country_code: country.country_code,
+          code: country.code,    
+          key: `country-${index}`
+        }))
+      : defaultCountries;
+    return content;
+  }, [global_countries]);
   
   // Update location content when selected DMC changes
-  useEffect(() => {
-    // Auto-select the DMC's country if available
-    if (selectedDmcData && selectedDmcData.name) {
-      const dmcCountry = {
-        name: selectedDmcData.name, // Full country name
-        code: selectedDmcData.code, // Use full name as code for database
-        key: 'selected-dmc-country'
-      };
-      setSearchValue(dmcCountry.name);
-      setSelectedItem(dmcCountry);
-      setIsDropdownOpen(false);
+  // useEffect(() => {
+  //   // Auto-select the DMC's country if available
+  //   if (selectedDmcData && selectedDmcData.name) {
+  //     const dmcCountry = {
+  //       name: selectedDmcData.name, // Full country name
+  //       code: selectedDmcData.code, // Use full name as code for database
+  //       key: 'selected-dmc-country'
+  //     };
+  //     setSearchValue(dmcCountry.name);
+  //     setSelectedItem(dmcCountry);
+  //     setIsDropdownOpen(false);
       
-      // Call the onLocationSelect callback
-      if (onLocationSelect) {
-        onLocationSelect(dmcCountry);
-      }
-    }
-  }, [selectedDmcData, onLocationSelect]);
+  //     // Call the onLocationSelect callback
+  //     if (onLocationSelect) {
+  //       onLocationSelect(dmcCountry);
+  //     }
+  //   }
+  // }, [selectedDmcData, onLocationSelect]);
 
   // Filter and suggest results based on search input
   useEffect(() => {
@@ -57,11 +61,12 @@ const SearchBar = ({ onLocationSelect }) => {
       );
       setSuggestions(filtered);
       setIsDropdownOpen(true);
-    } else {
-      setSuggestions(locationSearchContent.slice(0, 5));
+    } else if (!selectedItem) {
+      // Show all countries when no search value and no item selected
+      setSuggestions(locationSearchContent);
       setIsDropdownOpen(false);
     }
-  }, [searchValue, selectedItem]);  // Add selectedItem to dependencies
+  }, [searchValue, selectedItem, locationSearchContent]);
 
   const handleOptionClick = (item, event) => {
     if (event) {
@@ -99,8 +104,8 @@ const SearchBar = ({ onLocationSelect }) => {
   
   // Handle input focus
   const handleInputFocus = () => {
-    // If no item is selected yet, open dropdown
-    if (!selectedItem) {
+    // Always open dropdown on focus if there are suggestions
+    if (suggestions.length > 0) {
       setIsDropdownOpen(true);
     }
   };
@@ -136,16 +141,23 @@ const SearchBar = ({ onLocationSelect }) => {
     if (!suggestions.length) return;
 
     if (e.key === "ArrowDown") {
+      e.preventDefault();
       setHighlightedIndex((prev) =>
         prev < suggestions.length - 1 ? prev + 1 : 0
       );
+      setIsDropdownOpen(true);
     } else if (e.key === "ArrowUp") {
+      e.preventDefault();
       setHighlightedIndex((prev) =>
         prev > 0 ? prev - 1 : suggestions.length - 1
       );
+      setIsDropdownOpen(true);
     } else if (e.key === "Enter" && highlightedIndex !== -1) {
       e.preventDefault(); // Prevent form submission
       handleOptionClick(suggestions[highlightedIndex]);
+    } else if (e.key === "Escape") {
+      setIsDropdownOpen(false);
+      setHighlightedIndex(-1);
     }
   };
 
@@ -190,7 +202,6 @@ const SearchBar = ({ onLocationSelect }) => {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={handleInputFocus}
-            readOnly={selectedItem !== null}
           />
           {/* {selectedItem && (
             <button 
@@ -207,31 +218,36 @@ const SearchBar = ({ onLocationSelect }) => {
       {isDropdownOpen && suggestions.length > 0 && (
         <div className="shadow-2 dropdown-menu min-width-400 show">
           <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
-            <ul className="y-gap-5 js-results" ref={listRef}>
-              {suggestions.map((item, index) => (
-                <li
-                  className={`-link d-block col-12 text-left rounded-4 px-20 py-15 js-search-option mb-1 ${
-                    selectedItem && selectedItem.code === item.code
-                      ? "active"
-                      : highlightedIndex === index
-                      ? "highlighted" // Highlight active selection
-                      : ""
-                  }`}
-                  key={item.key || item.code || `country-${index}`}
-                  role="button"
-                  onClick={(e) => handleOptionClick(item, e)}
-                >
-                  <div className="d-flex">
-                    <div className="icon-location-2 text-light-1 text-20 pt-4" />
-                    <div className="ml-10">
-                      <div className="text-15 lh-12 fw-500 js-search-option-target">
-                        {item.name}
+            <div 
+              className="max-height-300 overflow-y-auto"
+              style={{ maxHeight: '300px' }}
+            >
+              <ul className="y-gap-5 js-results" ref={listRef}>
+                {suggestions.map((item, index) => (
+                  <li
+                    className={`-link d-block col-12 text-left rounded-4 px-20 py-15 js-search-option mb-1 ${
+                      selectedItem && selectedItem.code === item.code
+                        ? "active"
+                        : highlightedIndex === index
+                        ? "highlighted" // Highlight active selection
+                        : ""
+                    }`}
+                    key={item.key || item.code || `country-${index}`}
+                    role="button"
+                    onClick={(e) => handleOptionClick(item, e)}
+                  >
+                    <div className="d-flex">
+                      <div className="icon-location-2 text-light-1 text-20 pt-4" />
+                      <div className="ml-10">
+                        <div className="text-15 lh-12 fw-500 js-search-option-target">
+                          {item.name}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       )}
