@@ -161,14 +161,14 @@
                             <i class="ri-add-line me-1"></i>Add Single Bed
                         </button>
                     </li>
-                    @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
+                    {{-- @if($auth_user->role_id == 11) <!-- Only DMC users can see bulk upload -->
                         <li class="nav-item" role="presentation">
                         <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" 
                                 type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">
                             <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload
                         </button>
                     </li>
-                    @endif
+                    @endif --}}
                 </ul>
                 
                 <div class="tab-content" id="bedsTabContent">
