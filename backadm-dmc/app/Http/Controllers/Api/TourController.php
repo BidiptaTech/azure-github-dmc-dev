@@ -263,6 +263,7 @@ class TourController extends Controller
                     'total_pax' => $tour->adult + $tour->child,
                     'service' => $service,
                     'city' => $cities,
+                    'random_dmc_id' => $random_dmc_id,
                     'EnquiryDetails' => [
                         'hotel' => $hotels,
                         'attraction' => $attraction,
