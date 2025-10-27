@@ -701,6 +701,12 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::post('restaurantCloseDate', [RestaurantController::class, 'restaurantCloseDate'])->name('restaurant_close_dates');
         Route::post('hotelCloseDate', [HotelController::class, 'hotelCloseDate'])->name('hotel_close_dates');
 
+        // Agent Import Routes (must come BEFORE resource route to avoid route conflicts)
+        Route::get('/agents/import', [AgentController::class, 'importView'])->name('agents.import');
+        Route::post('/agents/import', [AgentController::class, 'import'])->name('agents.import.upload');
+        Route::get('/agents/import/template', [AgentController::class, 'downloadTemplate'])->name('agents.import.template');
+        
+        // Agent Resource and other routes
         Route::resource('agents', AgentController::class);
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails'])->name('get-sales-manager-details');
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');

@@ -33,8 +33,16 @@ class PackageController extends Controller
         $children = $request->query('children');
 
 
-        if(!$dmcId){
-            return response()->json(['message' => 'Dmc ID is required'], 400);
+        $random_dmc_id = null;
+        
+        if (empty($dmcId)) {
+            $dmc_idd = User::where('country', $country)->where('role_id', 11)->first();
+            if ($dmc_idd) {
+                $dmcId = $dmc_idd->userId;
+                $random_dmc_id = $dmc_idd->userId;
+            } else {
+                $dmcId = null;
+            }
         }
         $dmc = User::select('userId', 'name', 'company_name', 'logo')->where('userId', $dmcId)->first();
         if(!$dmc){
