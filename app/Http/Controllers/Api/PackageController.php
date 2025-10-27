@@ -538,14 +538,14 @@ class PackageController extends Controller
         $customer_info = [];
         
         if($order){
-            $customer_info['fullName'] = $order->data[0]['fullName'];
-            $customer_info['email'] = $order->data[0]['email'];
-            $customer_info['phone'] = $order->data[0]['phone'];
-            $customer_info['countryCode'] = $order->data[0]['countryCode'];
-            $customer_info['address1'] = $order->data[0]['address1'];
-            $customer_info['address2'] = $order->data[0]['address2'];
-            $customer_info['state'] = $order->data[0]['state'];
-            $customer_info['zip'] = $order->data[0]['zip'];
+            $customer_info['fullName'] = $order->data[0]['fullName'] ?? '';
+            $customer_info['email'] = $order->data[0]['email'] ??'';
+            $customer_info['phone'] = $order->data[0]['phone'] ?? '';
+            $customer_info['countryCode'] = $order->data[0]['countryCode'] ?? '';
+            $customer_info['address1'] = $order->data[0]['address1'] ?? '';
+            $customer_info['address2'] = $order->data[0]['address2'] ?? '';
+            $customer_info['state'] = $order->data[0]['state'] ?? '';
+            $customer_info['zip'] = $order->data[0]['zip'] ?? '';
         }
         
         $agent_id = $tour->agent_id;
@@ -746,29 +746,65 @@ class PackageController extends Controller
      * @return string Date in YYYY-MM-DD format
      */
 
-private function formatDateForDatabase($date)
-{
-    if (empty($date)) {
-        return null;
-    }
+    private function formatDateForDatabase($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
 
-    // If already YYYY-MM-DD
-    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-        return $date;
-    }
+        // If already YYYY-MM-DD
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
 
-    // Handle DD/MM/YYYY explicitly
-    if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date)) {
-        return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
-    }
+        // Handle DD/MM/YYYY explicitly
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date)) {
+            try {
+                return Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                \Log::error('Failed to parse DD/MM/YYYY date: ' . $date . ' - ' . $e->getMessage());
+                return null;
+            }
+        }
 
-    // If none of the above, try parsing normally
-    try {
-        return Carbon::parse($date)->format('Y-m-d');
-    } catch (\Exception $e) {
-        return $date; // or null depending on your preference
+        // Handle MM/DD/YYYY format
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date)) {
+            try {
+                return Carbon::createFromFormat('m/d/Y', $date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                \Log::error('Failed to parse MM/DD/YYYY date: ' . $date . ' - ' . $e->getMessage());
+                return null;
+            }
+        }
+
+        // Handle YYYY/MM/DD format
+        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $date)) {
+            try {
+                return Carbon::createFromFormat('Y/m/d', $date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                \Log::error('Failed to parse YYYY/MM/DD date: ' . $date . ' - ' . $e->getMessage());
+                return null;
+            }
+        }
+
+        // Handle DD-MM-YYYY format
+        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $date)) {
+            try {
+                return Carbon::createFromFormat('d-m-Y', $date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                \Log::error('Failed to parse DD-MM-YYYY date: ' . $date . ' - ' . $e->getMessage());
+                return null;
+            }
+        }
+
+        // If none of the above, try parsing normally with better error handling
+        try {
+            return Carbon::parse($date)->format('Y-m-d');
+        } catch (\Exception $e) {
+            \Log::error('Failed to parse date: ' . $date . ' - ' . $e->getMessage());
+            return null;
+        }
     }
-}
 
     
     public function updateCustomPackage(Request $request){
@@ -804,12 +840,28 @@ private function formatDateForDatabase($date)
         }
         $userDMC = User::where('userId', $dmc_id)->first();
         $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
-        $auto_cancel_date = Carbon::parse($payload[0]['check_in_time'])->subDays($auto_cancel_day)->toDateString();
         
         // Convert date format from DD/MM/YYYY to YYYY-MM-DD for PostgreSQL
         $checkInDate = $this->formatDateForDatabase($payload[0]['check_in_time']);
         $checkOutDate = $this->formatDateForDatabase($payload[0]['check_out_time']);
 
+        // Validate that dates were parsed successfully
+        if (!$checkInDate) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid check-in date format: ' . $payload[0]['check_in_time']
+            ], 400);
+        }
+
+        if (!$checkOutDate) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid check-out date format: ' . $payload[0]['check_out_time']
+            ], 400);
+        }
+        
+        // Calculate auto_cancel_date using the parsed check-in date
+        $auto_cancel_date = Carbon::parse($checkInDate)->subDays($auto_cancel_day)->toDateString();
         
         $tour->check_in_time = $checkInDate;
         $tour->check_out_time = $checkOutDate;

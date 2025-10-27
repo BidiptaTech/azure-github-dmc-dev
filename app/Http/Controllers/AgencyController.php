@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
+use App\Imports\AgenciesImport;
+use Illuminate\Support\Facades\DB;
+
 class AgencyController extends Controller
 {
     /**
@@ -585,5 +588,186 @@ class AgencyController extends Controller
             throw new \Exception('You do not have permission to access this page.');
         }
         return $dmc_id;
+    }
+
+    /**
+     * Show the agencies import page
+     */
+    public function importView()
+    {
+        $auth_user = Auth::user();
+        
+        // Get recent upload history for agencies (last 10 uploads)
+        $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'agencies')
+            ->where('uploaded_by', $auth_user->userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        return view('agencies.import', compact('uploadHistory'));
+    }
+
+    /**
+     * Handle the agencies CSV import
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+            ]);
+
+            $file = $request->file('file');
+            $originalFileName = $file->getClientOriginalName();
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $auth_user = Auth::user();
+            $cacheKey = "agency_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 30 seconds)
+            if (cache()->has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            }
+
+            // Create the import instance
+            $import = new AgenciesImport();
+            
+            // Import the file
+            $result = $import->import($file->getPathname());
+            
+            // Cache the upload to prevent duplicates
+            cache()->put($cacheKey, true, 30);
+            
+            $successCount = $result['success'];
+            $errorCount = $result['errors'];
+            $errorMessages = $result['error_messages'];
+            $totalRecords = $successCount + $errorCount;
+            
+            // Create upload history record
+            \App\Models\UploadHistory::createRecord(
+                'agencies',
+                $originalFileName,
+                $originalFileName,
+                $totalRecords,
+                $successCount,
+                $errorCount,
+                $errorMessages,
+                $auth_user->userId
+            );
+            
+            if ($errorCount > 0) {
+                // Format error summary with better structure
+                $errorSummary = '<div class="error-summary-list mt-2">';
+                $displayErrors = array_slice($errorMessages, 0, 10);
+                
+                foreach ($displayErrors as $index => $error) {
+                    $errorSummary .= '<div class="error-summary-item mb-1">';
+                    $errorSummary .= '<i class="ri-close-circle-line text-danger me-1"></i>';
+                    $errorSummary .= '<strong>' . ($index + 1) . '.</strong> ' . $error;
+                    $errorSummary .= '</div>';
+                }
+                
+                if (count($errorMessages) > 10) {
+                    $errorSummary .= '<div class="error-summary-item mt-2 text-muted">';
+                    $errorSummary .= '<i class="ri-more-line me-1"></i>';
+                    $errorSummary .= '<em>... and ' . (count($errorMessages) - 10) . ' more errors. View upload history for complete details.</em>';
+                    $errorSummary .= '</div>';
+                }
+                
+                $errorSummary .= '</div>';
+                
+                if ($successCount > 0) {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-information-line me-1"></i>';
+                    $message .= '<strong>Import Summary:</strong><br>';
+                    $message .= '<span class="text-success"><i class="ri-check-line me-1"></i>' . $successCount . ' agencies imported successfully</span><br>';
+                    $message .= '<span class="text-danger"><i class="ri-close-line me-1"></i>' . $errorCount . ' rows failed</span>';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Failed Rows:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('warning', $message);
+                } else {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-error-warning-line me-1"></i>';
+                    $message .= '<strong>No agencies were imported.</strong> All ' . $errorCount . ' rows had errors.';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Error Details:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('error', $message);
+                }
+            }
+            
+            if ($successCount > 0) {
+                return redirect()->back()->with('success', "Successfully imported {$successCount} agencies!");
+            } else {
+                return redirect()->back()->with('error', 'No agencies were imported. Please check your CSV file.');
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Agency import error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to import agencies. Please ensure the file is properly formatted. Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download the agencies import template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="agencies_import_template.csv"',
+        ];
+
+        $columns = [
+            'agency_name',
+            'email',
+            'phone',
+            'country',
+            'city',
+            'address',
+            'postal_code',
+            'contact_person'
+        ];
+
+        $callback = function() use ($columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Write header row
+            fputcsv($file, $columns);
+            
+            // Write sample data row
+            fputcsv($file, [
+                'ABC Travel Agency',
+                'info@abctravel.com',
+                '12345678',
+                'Singapore',
+                'Singapore',
+                '123 Main Street, Suite 100',
+                '10001',
+                'John Doe'
+            ]);
+            
+            // Write another sample row
+            fputcsv($file, [
+                'XYZ Tours & Travels',
+                'contact@xyztours.com',
+                '9876543210',
+                'India',
+                'Delhi',
+                '456 High Street, Floor 2',
+                '7654212',
+                'Kunal Malviya'
+            ]);
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 } 

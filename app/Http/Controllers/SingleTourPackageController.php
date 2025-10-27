@@ -82,7 +82,8 @@ class SingleTourPackageController extends Controller
         $ports = $portsQuery->orderBy('port_name')->get();        
         // Get agents for the current DMC
         $agency = Agency::whereJsonContains('dmc_id', (int) $dmc_id)->orderBy('created_at', 'desc')->get();
-        $agents = Agent::whereJsonContains('dmc_id', (int) $dmc_id)
+        
+        $agents = Agent::whereIn('agency_id', $agency->pluck('agency_id'))
             ->orderBy('name')
             ->get();
         $selectedCountry = $request->country;
@@ -139,7 +140,6 @@ class SingleTourPackageController extends Controller
 
         $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
-        
         return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc'));
     }
     
@@ -305,7 +305,12 @@ class SingleTourPackageController extends Controller
             $hotels = Hotel::with(['rooms.bed'])
                 ->where('country', $tour->destination)
                 ->whereJsonContains('dmc_id', (int)$userDmcId)
-                ->get();
+                ->get()
+                ->filter(function ($hotel) use ($userDmcId) {
+                    // Check if this hotel has zone assignments for the current DMC
+                    // return $hotel->isAssignedToZoneByDmc($userDmcId);
+                    return true;
+                });
             
          } else {
             $hotels = collect(); // Empty collection if no DMC ID
@@ -316,13 +321,23 @@ class SingleTourPackageController extends Controller
             $query->where('dmc_id', $userDmcId);
         }])
         ->whereJsonContains('dmc_id', $userDmcId)
-        ->get();
+        ->get()
+        ->filter(function ($restaurant) use ($userDmcId) {
+            // Check if this restaurant has zone assignments for the current DMC
+            // return $restaurant->isAssignedToZoneByDmc($userDmcId);
+            return true;
+        });
 
         $attractions = Attraction::with(['tickets' => function($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
         ->whereJsonContains('dmc_id', $userDmcId)
-        ->get();
+        ->get()
+        ->filter(function ($attraction) use ($userDmcId) {
+            // Check if this attraction has zone assignments for the current DMC
+            // return $attraction->isAssignedToZoneByDmc($userDmcId);
+            return true;
+        });
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
         $dmc_id = CommonHelper::getDmcId(Auth::user());
@@ -350,17 +365,16 @@ class SingleTourPackageController extends Controller
             ->get();
         $firstOrder = $orders->first();
         $customer_info = [];
-        if($firstOrder){
-            
-            $customer_info['fullName'] = $firstOrder->data[0]['fullName'];
-            $customer_info['email'] = $firstOrder->data[0]['email'];
-            $customer_info['phone'] = $firstOrder->data[0]['phone'];
-            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'];
-            $customer_info['address1'] = $firstOrder->data[0]['address1'];
-            $customer_info['address2'] = $firstOrder->data[0]['address2'];
-            $customer_info['state'] = $firstOrder->data[0]['state'];
-            $customer_info['zip'] = $firstOrder->data[0]['zip'];
-            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'];
+        if($firstOrder && $firstOrder->data){
+            $customer_info['fullName'] = $firstOrder->data[0]['fullName'] ?? '';
+            $customer_info['email'] = $firstOrder->data[0]['email'] ?? '';
+            $customer_info['phone'] = $firstOrder->data[0]['phone'] ?? '';
+            $customer_info['countryCode'] = $firstOrder->data[0]['countryCode'] ?? '';
+            $customer_info['address1'] = $firstOrder->data[0]['address1'] ?? '';
+            $customer_info['address2'] = $firstOrder->data[0]['address2'] ?? '';
+            $customer_info['state'] = $firstOrder->data[0]['state'] ?? '';
+            $customer_info['zip'] = $firstOrder->data[0]['zip'] ?? '';
+            $customer_info['specialRequests'] = $firstOrder->data[0]['specialRequests'] ?? '';
         }
         // Group orders by type and process the data
         $ordersByType = [];
@@ -2010,32 +2024,167 @@ class SingleTourPackageController extends Controller
         try {
             $user = User::where('userId', Auth::user()->userId)->first();
             $dmcId = $user->created_by;
-            $city = $request->input('city');
-            $city_id = City::where('name', $city)->first()->city_id;
+            
             if (!$dmcId) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unable to determine DMC ID'
                 ], 403);
             }
-            // Fetch zones for the current DMC and city
-            $zones = Zone::where('dmc_id', $dmcId)  
-                ->where('status', 1)
-                ->where('city', $city_id)
-                ->select('zone_id', 'zone_name', 'zone_type', 'city', 'description')
-                ->orderBy('zone_name')
-                ->get();
+
+            $locations = [];
+            $attractions = Attraction::where('status', 1)
+                ->where('is_active', 1)
+                ->get()
+                ->filter(function ($attraction) use ($dmcId) {
+                    // Check if this attraction has zone assignments for the current DMC
+                    return $attraction->isAssignedToZoneByDmc($dmcId);
+                })
+                ->map(function ($attraction) {
+                    return [
+                        'zone_id' => $attraction->attraction_id,
+                        'zone_name' => $attraction->name,
+                        'location' => $attraction->location,
+                        'zone_type' => 'attraction',
+                        'latitude' => $attraction->latitude,
+                        'longitude' => $attraction->longitude
+                    ];
+                });
+
+            // Fetch hotels that have zone assignments for this DMC
+            $hotels = \App\Models\Hotel::where('status', 1)
+                ->where('is_active', 1)
+                ->get()
+                ->filter(function ($hotel) use ($dmcId) {
+                    // Check if this hotel has zone assignments for the current DMC
+                    return $hotel->isAssignedToZoneByDmc($dmcId);
+                })
+                ->map(function ($hotel) {
+                    return [
+                        'zone_id' => $hotel->hotel_unique_id,
+                        'zone_name' => $hotel->name,
+                        'location' => $hotel->city,
+                        'zone_type' => 'hotel',
+                        'latitude' => $hotel->latitude,
+                        'longitude' => $hotel->longitude
+                    ];
+                });
+                // Fetch restaurants that have zone assignments for this DMC
+            $restaurants = Restaurant::where('status', 1)
+                ->where('is_active', 1)
+                ->get()
+                ->filter(function ($restaurant) use ($dmcId) {
+                    // Check if this restaurant has zone assignments for the current DMC
+                    return $restaurant->isAssignedToZoneByDmc($dmcId);
+                })
+                ->map(function ($restaurant) {
+                    return [
+                        'zone_id' => $restaurant->restaurant_id,
+                        'zone_name' => $restaurant->name,
+                        'location' => $restaurant->location,
+                        'zone_type' => 'restaurant',
+                        'latitude' => $restaurant->latitude,
+                        'longitude' => $restaurant->longitude
+                    ];
+                });
+
+            // If no zone-assigned locations found, fallback to DMC-selected locations
+            if ($attractions->count() == 0 && $hotels->count() == 0 && $restaurants->count() == 0) {
+                \Log::info('No zone-assigned locations found, falling back to DMC-selected locations');
+                
+                // Fallback: Get attractions selected by this DMC
+                $attractions = Attraction::where('status', 1)
+                    ->where('is_active', 1)
+                    ->get()
+                    ->filter(function ($attraction) use ($dmcId) {
+                        return $attraction->hasSelectedByDmc($dmcId);
+                    })
+                    ->map(function ($attraction) {
+                        return [
+                            'id' => $attraction->attraction_id,
+                            'name' => $attraction->name,
+                            'location' => $attraction->location,
+                            'type' => 'attraction',
+                            'latitude' => $attraction->latitude,
+                            'longitude' => $attraction->longitude
+                        ];
+                    });
+
+                // Fallback: Get hotels selected by this DMC
+                $hotels = \App\Models\Hotel::where('status', 1)
+                    ->where('is_active', 1)
+                    ->get()
+                    ->filter(function ($hotel) use ($dmcId) {
+                        return $hotel->hasSelectedByDmc($dmcId);
+                    })
+                    ->map(function ($hotel) {
+                        return [
+                            'id' => $hotel->hotel_unique_id,
+                            'name' => $hotel->name,
+                            'location' => $hotel->city,
+                            'type' => 'hotel',
+                            'latitude' => $hotel->latitude,
+                            'longitude' => $hotel->longitude
+                        ];
+                    });
+
+                // Fallback: Get restaurants selected by this DMC
+                $restaurants = Restaurant::where('status', 1)
+                    ->where('is_active', 1)
+                    ->get()
+                    ->filter(function ($restaurant) use ($dmcId) {
+                        return $restaurant->hasSelectedByDmc($dmcId);
+                    })
+                    ->map(function ($restaurant) {
+                        return [
+                            'id' => $restaurant->restaurant_id,
+                            'name' => $restaurant->name,
+                            'location' => $restaurant->location,
+                            'type' => 'restaurant',
+                            'latitude' => $restaurant->latitude,
+                            'longitude' => $restaurant->longitude
+                        ];
+                    });
+            }
+
+            // Combine all locations
+            $locations = $attractions->concat($hotels)->concat($restaurants)->sortBy('name');
+
+            \Log::info('Final locations result', [
+                'total_locations' => count($locations),
+                'attractions_count' => $attractions->count(),
+                'hotels_count' => $hotels->count(),
+                'restaurants_count' => $restaurants->count(),
+                'dmc_id' => $dmcId
+            ]);
 
             return response()->json([
                 'success' => true,
-                'zones' => $zones,
-                'total_zones' => count($zones)
+                'zones' => $locations->values()->toArray(), // Convert collection to array
+                'total_zones' => count($locations),
+                'dmc_id' => $dmcId,
+                'breakdown' => [
+                    'attractions' => $attractions->count(),
+                    'hotels' => $hotels->count(),
+                    'restaurants' => $restaurants->count()
+                ]
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Error in fetchZoneAssignedLocations', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching zones: ' . $e->getMessage()
+                'message' => 'Error fetching zone-assigned locations: ' . $e->getMessage(),
+                'debug' => [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile()
+                ]
             ], 500);
         }
     }
@@ -2955,6 +3104,20 @@ class SingleTourPackageController extends Controller
                 }
             }
 
+            // After all services are stored, check if any orders have type 'local_transfer' and update to 'local_transport'
+            $localTransferOrders = Order::where('tour_id', $tourId)
+                ->where('type', 'local_transfer')
+                ->get();
+            
+            if ($localTransferOrders->count() > 0) {
+                \Log::info("Found {$localTransferOrders->count()} orders with type 'local_transfer', updating to 'local_transport'");
+                
+                foreach ($localTransferOrders as $order) {
+                    $order->update(['type' => 'local_transport']);
+                    \Log::info("Updated order {$order->booking_id} from 'local_transfer' to 'local_transport'");
+                }
+            }
+
             DB::commit();
 
             // Get tour details for thank you page
@@ -3024,6 +3187,7 @@ class SingleTourPackageController extends Controller
                 'services_by_date' => $servicesByDate
             ];
 
+            
             return response()->json([
                 'success' => true,
                 'message' => 'All service orders saved successfully!',

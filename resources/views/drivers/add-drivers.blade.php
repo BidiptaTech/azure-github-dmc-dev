@@ -217,6 +217,20 @@
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
                                 </div>
+
+                                <!-- App Password -->
+                                <div class="col-md-3 mb-3">
+                                    <label for="app_password" class="form-label"><strong>App Password</strong><span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input id="app_password" type="password" class="form-control" name="app_password" placeholder="Enter App Password" autocomplete="new-password">
+                                        <button class="btn btn-outline-secondary" type="button" id="toggleAppPassword">
+                                            <i class="ri-eye-off-line" id="appPasswordIcon"></i>
+                                        </button>
+                                    </div>
+                                    @error('app_password')
+                                        <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
                             </div>
                                 
                             <!-- Bank Details -->
@@ -1145,6 +1159,20 @@ $(document).ready(function() {
             }
         });
     }
+    
+    // Toggle App Password Visibility
+    $('#toggleAppPassword').on('click', function() {
+        const passwordInput = $('#app_password');
+        const passwordIcon = $('#appPasswordIcon');
+        
+        if (passwordInput.attr('type') === 'password') {
+            passwordInput.attr('type', 'text');
+            passwordIcon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
+        } else {
+            passwordInput.attr('type', 'password');
+            passwordIcon.removeClass('ri-eye-line').addClass('ri-eye-off-line');
+        }
+    });
 });
 </script>
 

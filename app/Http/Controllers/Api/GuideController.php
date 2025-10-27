@@ -186,6 +186,10 @@ class GuideController extends Controller
             return response()->json(['message' => 'DMC Not Found!'], 400);
         }
     
+        // Determine which DMC ID to use for price calculation
+        // Priority: Request DMC ID first, then logged-in user's DMC ID
+        $price_dmc_id = $dmcId ?? $dmc_id;
+    
         // Group guides by name
         $groupedGuides = $availableGuides->groupBy('name');
         $guideList = [];
@@ -195,8 +199,8 @@ class GuideController extends Controller
             if (!$firstGuide) continue;
     
             // Handle pricing for different DMCs
-            if($firstGuide->dmc_id == $dmc_id){
-                list($dmc_day_rate, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($firstGuide->day_rate, $dmc_id, $name, 'guide', $city);
+            if($firstGuide->dmc_id == $price_dmc_id){
+                list($dmc_day_rate, $dmc_dmc_id) = CommonHelper::calculateDmcModePricehotel($firstGuide->day_rate, $price_dmc_id, $name, 'guide', $city);
             }else{
                 $dmc_day_rate = 0;
                 $dmc_dmc_id = 0;
@@ -204,7 +208,7 @@ class GuideController extends Controller
             $travClicks_day_rate = 0;
             $trav_dmc_id = 0;
             if($agent){
-                list($total_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($firstGuide->day_rate, $dmc_id, $name, 'guide', $city);
+                list($total_price, $trav_dmc_id) = CommonHelper::calculateMinPricehotel($firstGuide->day_rate, $price_dmc_id, $name, 'guide', $city);
                 $travClicks_day_rate = $total_price;
             }
             // Availability logic
@@ -227,8 +231,8 @@ class GuideController extends Controller
                 'id' => $firstGuide->guide_id,
                 'guide_name' => $name,
                 'dmc_day_rate' => round((float)$dmc_day_rate, 2),
-                'dmc_id' => $dmc_id ?? 0,
-                'dmc_user_name' => User::where('userId', $dmc_id)->value('name') ?? '',
+                'dmc_id' => $price_dmc_id ?? 0,
+                'dmc_user_name' => User::where('userId', $price_dmc_id)->value('name') ?? '',
                 'travClicks_day_rate' => round((float)$travClicks_day_rate, 2),
                 'travclicks_dmc_id' => $trav_dmc_id,
                 'city' => $firstGuide->city,

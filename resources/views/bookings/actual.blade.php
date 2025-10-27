@@ -4,6 +4,12 @@
 
 <!-- Date Range Picker CSS -->
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+<!-- Add SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+<!-- Add SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+<!-- CSRF Token -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -215,6 +221,7 @@
                             <th>Services</th>
                             <th>Travel Dates</th>
                             <th>Payment Details</th>
+                            <th>Payment Status</th>
                             <th>Status</th>
                             <th>Actions</th>
                             <th>Created At</th>
@@ -239,6 +246,52 @@
                                     }
                                 }
                             }
+                            
+                            // Calculate payment status - following confirmed/definite pattern
+                            $tourTotalPrice = 0;
+                            $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
+                            foreach($orders as $order) {
+                                if($order->data) {
+                                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                                    if(is_array($orderData)) {
+                                        foreach($orderData as $item) {
+                                            if(isset($item['totalPrice'])) {
+                                                $tourTotalPrice += (float)$item['totalPrice'];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
+                            $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
+                            
+                            // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+                            $baseAmount = round($tourTotalPrice) - $discountAmount;
+                            
+                            // Calculate tax amount and final amount with tax
+                            $country_tax = optional($tour->operationalCountry)->tax ?? 0;
+                            $taxPercentage = $country_tax;
+                            $taxAmount = ($baseAmount * $taxPercentage) / 100;
+                            // Apply ceiling to tax amount (round up to next whole number)
+                            $taxAmount = ceil($taxAmount);
+                            $finalAmount = $baseAmount + $taxAmount;
+                            
+                            $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
+                            $totalPaid = 0;
+                            $hasPendingPayments = false;
+                            
+                            if (is_array($paymentData) && !empty($paymentData)) {
+                                foreach ($paymentData as $payment) {
+                                    if (isset($payment['status']) && $payment['status'] == 1) {
+                                        $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
+                                    }
+                                    if (isset($payment['status']) && $payment['status'] == 0) {
+                                        $hasPendingPayments = true;
+                                    }
+                                }
+                            }
+                            $remainingAmount = $finalAmount - $totalPaid;
                         @endphp
                         <tr 
                             class="{{ $isActive ? 'table-warning' : ($isCompleted ? 'table-success' : '') }}"
@@ -420,7 +473,7 @@
                                             @endforeach
                                         </div>
                                         @if(!empty($tour->parsed_payment_details))
-                                            <button class="btn btn-sm btn-outline-info mt-1" onclick="showPaymentDetails('{{ $tour->tour_id }}')">
+                                            <button class="btn btn-sm btn-outline-info mt-1" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                                 <i class="ri-eye-line"></i> View
                                             </button>
                                         @endif
@@ -428,6 +481,30 @@
                                         <span class="text-muted">No payment details</span>
                                     @endif
                                 </div>
+                            </td>
+                            <td>
+                                @if(empty($paymentData))
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-exclamation-circle me-1"></i> Payment Not Started
+                                    </span>
+                                @elseif($hasPendingPayments && $totalPaid == 0)
+                                    <span class="badge bg-secondary text-white">
+                                        <i class="fas fa-clock me-1"></i> Pending Approval
+                                    </span>
+                                @elseif($remainingAmount > 0)
+                                    <span class="badge bg-info text-white">
+                                        <i class="fas fa-money-bill-wave me-1"></i> Partial Payment 
+                                        @if($hasPendingPayments)
+                                            ({{ number_format($totalPaid, 2) }} Paid + Pending)
+                                        @else
+                                            ({{ number_format($totalPaid, 2) }} Paid)
+                                        @endif
+                                    </span>
+                                @else
+                                    <span class="badge bg-success text-white">
+                                        <i class="fas fa-check-circle me-1"></i> Fully Paid ({{ number_format($totalPaid, 2) }})
+                                    </span>
+                                @endif
                             </td>
                             <td>
                                 @if($isActive)
@@ -498,16 +575,50 @@
                                 </div>
                             </td> --}}
                             <td>
-                                <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
-                                   class="btn btn-outline-primary btn-sm rounded-pill">
-                                    <i class="ri-eye-line"></i> View
-                                </a>
-                                @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
-                                <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
-                                    class="btn btn-outline-warning btn-sm rounded-pill">
-                                    <i class="ri-settings-3-line"></i> Edit
-                                </a>
-                                @endif
+                                <div class="d-flex flex-column gap-2">
+                                    <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="btn btn-outline-primary btn-sm rounded-pill">
+                                        <i class="ri-eye-line"></i> View
+                                    </a>
+                                    
+                                    @php
+                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                    @endphp
+                                    @if(in_array(auth()->user()->role_id, $all_ids))
+                                    <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
+                                       class="btn btn-outline-success btn-sm rounded-pill"
+                                       onclick="event.stopPropagation(); window.open(this.href, '_blank'); return false;"
+                                       style="text-decoration:none; cursor:pointer; transition: all 0.2s ease;">
+                                        <i class="fas fa-calendar-alt"></i> View Itinerary
+                                    </a>
+                                    @endif
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                    <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
+                                       class="btn btn-outline-warning btn-sm rounded-pill">
+                                        <i class="ri-settings-3-line"></i> Add/Remove Services
+                                    </a>
+                                    @endif
+
+                                    @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
+                                            <i class="fas fa-history me-1"></i> Payment Details
+                                        </button>
+                                    @else  
+                                        @if(!empty($paymentData))
+                                            <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
+                                                <i class="fas fa-history me-1"></i> Payment Details
+                                            </button>
+                                        @endif
+
+                                        @if(in_array(auth()->user()->role_id, [11, 12, 24, 28, 33, 37, 38, 128, 129, 130, 135, 136, 138]))
+                                            @if($remainingAmount > 0 && !$hasPendingPayments)
+                                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addPaymentModal{{ $tour->tour_id }}" onclick="checkPendingPayments({{ $tour->tour_id }})">
+                                                    <i class="fas fa-plus-circle me-1"></i> Add Payment
+                                                </button>
+                                            @endif
+                                        @endif
+                                    @endif
+                                </div>
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
@@ -640,6 +751,7 @@
                         </h5>
                         <button type="button" class="btn-close btn-close-white" onclick="closeServiceModal('hotel', {{ $tour->tour_id }})" aria-label="Close"></button>
                     </div>
+                    
                 @endif
                 <div class="modal-body p-4">
                     @if(isset($serviceData['hotel']) && count($serviceData['hotel']) > 0)
@@ -3403,26 +3515,357 @@
     @endif
 @endforeach
 
-<!-- Payment Details Modal -->
-<div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Payment Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="paymentDetailsContent">
-                <!-- Payment details will be loaded here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="printPaymentDetails()">
-                    <i class="ri-printer-line me-1"></i> Print
-                </button>
+<!-- Payment Modals for each tour -->
+@foreach($tours as $tour)
+    @php
+        // Calculate payment details - following confirmed/definite pattern
+        $tourTotalPrice = 0;
+        $orders = \App\Models\Order::where('tour_id', $tour->tour_id)->whereNull('deleted_at')->get();
+        foreach($orders as $order) {
+            if($order->data) {
+                $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if(is_array($orderData)) {
+                    foreach($orderData as $item) {
+                        if(isset($item['totalPrice'])) {
+                            $tourTotalPrice += (float)$item['totalPrice'];
+                        }
+                    }
+                }
+            }
+        }
+        
+        $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
+        $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
+        
+        // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
+        $baseAmount = round($tourTotalPrice) - $discountAmount;
+        
+        // Calculate tax amount and final amount with tax
+        $country_tax = optional($tour->operationalCountry)->tax ?? 0;
+        $taxPercentage = $country_tax;
+        $taxAmount = ($baseAmount * $taxPercentage) / 100;
+        // Apply ceiling to tax amount (round up to next whole number)
+        $taxAmount = ceil($taxAmount);
+        $finalAmount = $baseAmount + $taxAmount;
+        
+        $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
+        $totalPaid = 0;
+        if (is_array($paymentData) && !empty($paymentData)) {
+            foreach ($paymentData as $payment) {
+                if (isset($payment['status']) && $payment['status'] == 1) {
+                    $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
+                }
+            }
+        }
+        $remainingAmount = $finalAmount - $totalPaid;
+    @endphp
+
+    <!-- Show Payment Modal -->
+    <div class="modal fade" id="showPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="showPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg rounded">
+                <div class="modal-header bg-gradient text-white d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px 8px 0 0;">
+                    <h5 class="modal-title d-flex align-items-center fw-bold" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0;">
+                        <i class="fas fa-file-invoice-dollar me-2" style="font-size: 1.5rem; color: #ffd700;"></i> 
+                        <span style="font-size: 1.2rem;">Payment Details - Tour #{{ $tour->tour_id }}</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                </div>
+                <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                    @if(is_array($paymentData) && !empty($paymentData))
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-bordered table-hover table-sm">
+                                <thead class="table-light sticky-top">
+                                    <tr style="font-size: 0.85rem;">
+                                        <th class="text-center" style="width: 10%; min-width: 90px;">Payment Date</th>
+                                        <th class="text-center" style="width: 10%; min-width: 90px;">Record Date</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Amount (SGD)</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Original Amount</th>
+                                        <th class="text-center" style="width: 7%; min-width: 60px;">Currency</th>
+                                        <th class="text-center" style="width: 9%; min-width: 75px;">Exchange Rate</th>
+                                        <th class="text-center" style="width: 10%; min-width: 80px;">Payment Mode</th>
+                                        <th class="text-center" style="width: 12%; min-width: 100px;">Transaction ID</th>
+                                        <th class="text-center" style="width: 10%; min-width: 80px;">Remarks</th>
+                                        <th class="text-center" style="width: 8%; min-width: 70px;">Status</th>
+                                        @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
+                                            <th class="text-center" style="width: 8%; min-width: 80px;">Actions</th>
+                                        @endif
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($paymentData as $index => $payment)
+                                        <tr style="font-size: 0.8rem;">
+                                            <td class="text-center py-2">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
+                                            <td class="text-center py-2 fw-bold text-success">{{ isset($payment['amount']) ? number_format($payment['amount'], 2) : '0.00' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['original_amount']) ? number_format($payment['original_amount'], 2) : number_format($payment['amount'] ?? 0, 2) }}</td>
+                                            <td class="text-center py-2">{{ $payment['currency'] ?? 'SGD' }}</td>
+                                            <td class="text-center py-2">{{ isset($payment['exchange_rate']) ? number_format($payment['exchange_rate'], 4) : '1.0000' }}</td>
+                                            <td class="text-center py-2">
+                                                <span class="badge bg-light text-dark" style="font-size: 0.7rem;">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span>
+                                            </td>
+                                            <td class="text-center py-2" style="font-size: 0.75rem;" title="{{ $payment['transaction_id'] ?? 'N/A' }}">
+                                                {{ Str::limit($payment['transaction_id'] ?? 'N/A', 15, '...') }}
+                                            </td>
+                                            <td class="text-center py-2" style="font-size: 0.75rem;" title="{{ $payment['remarks'] ?? 'N/A' }}">
+                                                {{ Str::limit($payment['remarks'] ?? 'N/A', 12, '...') }}
+                                            </td>
+                                            <td class="text-center py-2">
+                                                @if(isset($payment['status']))
+                                                    @if($payment['status'] == 1)
+                                                        <span class="badge bg-success text-white" style="font-size: 0.7rem;">
+                                                            <i class="fas fa-check-circle me-1"></i>Verified
+                                                        </span>
+                                                    @elseif($payment['status'] == 2)
+                                                        <span class="badge bg-danger text-white" style="font-size: 0.7rem;">
+                                                            <i class="fas fa-times-circle me-1"></i>Declined
+                                                        </span>
+                                                    @else
+                                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
+                                                            <i class="fas fa-hourglass-half me-1"></i>Pending
+                                                        </span>
+                                                    @endif
+                                                @else
+                                                    <span class="badge bg-secondary text-white" style="font-size: 0.7rem;">Unknown</span>
+                                                @endif
+                                            </td>
+                                            @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127)
+                                                <td class="text-center py-2">
+                                                    @if(!isset($payment['status']) || $payment['status'] == 0)
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            <button type="button" class="btn btn-xs btn-success" style="font-size: 0.7rem; padding: 2px 6px;" onclick="verifyPayment({{ $tour->tour_id }}, {{ $index }})">
+                                                                <i class="fas fa-check"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-xs btn-danger" style="font-size: 0.7rem; padding: 2px 6px;" onclick="declinePayment({{ $tour->tour_id }}, {{ $index }})">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        </div>
+                                                    @else
+                                                        <span class="text-muted" style="font-size: 0.7rem;">-</span>
+                                                    @endif
+                                                </td>
+                                            @endif
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No payment records found for this tour.
+                        </div>
+                    @endif
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-end" style="padding: 10px 20px; border-radius: 0 0 8px 8px; flex-shrink: 0;">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.85rem;">
+                        <i class="fas fa-times me-1"></i>Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+    <!-- Add Payment Modal -->
+    <div class="modal fade" id="addPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg rounded">
+                <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
+                    <h5 class="modal-title d-flex align-items-center" id="addPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white;">
+                        <i class="fas fa-money-bill-wave me-2" style="color: #38ef7d; font-size: 1.4rem;"></i> 
+                        <span style="color: white;">Add Payment for Tour #{{ $tour->tour_id }}</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="paymentForm{{ $tour->tour_id }}" action="{{ route('tour.add-payment', $tour->tour_id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="tour_id" value="{{ $tour->tour_id }}">
+                        
+                        <!-- Display Due Amount Info (Read-only) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-info-circle text-info me-2"></i>Payment Information
+                            </label>
+                            <div class="alert alert-info">
+                                <!-- Pricing Breakdown -->
+                                @if($discountAmount > 0)
+                                <div class="row text-center mb-2">
+                                    <div class="col-6">
+                                        <small class="text-muted">Actual Price</small>
+                                        <div class="fw-bold text-secondary">{{ number_format(round($tourTotalPrice), 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Discount</small>
+                                        <div class="fw-bold text-success">- {{ number_format($discountAmount, 2) }} SGD</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                @endif
+                                <div class="row text-center mb-2">
+                                    <div class="col-4">
+                                        <small class="text-muted">Base Amount</small>
+                                        <div class="fw-bold text-dark">{{ number_format($baseAmount, 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Tax ({{ number_format($taxPercentage, 2) }}%)</small>
+                                        <div class="fw-bold text-warning">{{ number_format($taxAmount, 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Total Amount</small>
+                                        <div class="fw-bold text-primary">{{ number_format($finalAmount, 2) }} SGD</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <small class="text-muted">Paid Amount</small>
+                                        <div class="fw-bold text-success">{{ number_format($totalPaid, 2) }} SGD</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Remaining</small>
+                                        <div class="fw-bold text-danger">{{ number_format($remainingAmount, 2) }} SGD</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Hidden input for validation -->
+                            <input type="hidden" id="amount{{ $tour->tour_id }}" name="amount" value="{{ $remainingAmount }}">
+                        </div>
+                        
+                        <!-- Currency Selection -->
+                        <div class="mb-4">
+                            <label for="currency{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-coins text-warning me-2"></i>Select Currency
+                            </label>
+                            <select class="form-select form-control-lg" 
+                                id="currency{{ $tour->tour_id }}" 
+                                name="currency" 
+                                onchange="updatePaymentAmountEnhanced({{ $tour->tour_id }}, this.value)"
+                                required>
+                                <option value="">Select Currency</option>
+                                @foreach(\App\Models\Setting::getCurrencyCodes() as $currency)
+                                    <option value="{{ $currency }}" {{ $currency == 'SGD' ? 'selected' : '' }}>
+                                        {{ $currency }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <!-- Exchange Rate (Editable) -->
+                        <div class="mb-4" id="exchangeRateSection{{ $tour->tour_id }}" style="display: none;">
+                            <label for="exchange_rate{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-calculator text-primary me-2"></i>Exchange Rate
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">1 SGD =</span>
+                                <input type="number" 
+                                    class="form-control form-control-lg" 
+                                    id="exchange_rate{{ $tour->tour_id }}" 
+                                    name="exchange_rate" 
+                                    value="1.00" 
+                                    min="0" 
+                                    step="0.0001"
+                                    oninput="recalculateFromExchangeRate({{ $tour->tour_id }})">
+                                <span class="input-group-text bg-light" id="exchangeRateCurrency{{ $tour->tour_id }}">SGD</span>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-success" id="exchangeRateSource{{ $tour->tour_id }}">
+                                    <i class="fas fa-globe me-1"></i>
+                                    Rate Source: <span id="rateSourceText{{ $tour->tour_id }}">API</span>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <!-- Payment Amount in Selected Currency -->
+                        <div class="mb-4">
+                            <label for="payment_amount{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light" id="currencySymbol{{ $tour->tour_id }}">SGD</span>
+                                <input type="number" 
+                                    class="form-control form-control-lg" 
+                                    id="payment_amount{{ $tour->tour_id }}" 
+                                    name="payment_amount" 
+                                    placeholder="Enter payment amount" 
+                                    required
+                                    min="0" 
+                                    max="{{ $remainingAmount }}"
+                                    step="0.01"
+                                    oninput="validatePaymentAmountInput({{ $tour->tour_id }})"
+                                    onblur="validatePaymentAmountInput({{ $tour->tour_id }})">
+                            </div>
+                            <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
+                                <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Amount in SGD: {{ number_format($remainingAmount, 2) }}
+                                </small>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-danger" id="paymentValidationError{{ $tour->tour_id }}" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <span id="validationMessage{{ $tour->tour_id }}"></span>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="payment_date{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-calendar-alt text-primary me-2"></i>Payment Date
+                            </label>
+                            <input type="date" 
+                                class="form-control form-control-lg" 
+                                id="payment_date{{ $tour->tour_id }}" 
+                                name="payment_date" 
+                                value="{{ date('Y-m-d') }}"
+                                required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="payment_type{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-credit-card text-primary me-2"></i>Payment Type
+                            </label>
+                            <select class="form-select form-control-lg" 
+                                id="payment_type{{ $tour->tour_id }}" 
+                                name="payment_type" 
+                                required>
+                                <option value="">Select Payment Type</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="online">Bank Transfer</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="transaction_id{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-hashtag text-primary me-2"></i>Transaction ID (Optional)
+                            </label>
+                            <input type="text" class="form-control form-control-lg" id="transaction_id{{ $tour->tour_id }}" name="transaction_id">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="remarks{{ $tour->tour_id }}" class="form-label fw-bold">
+                                <i class="fas fa-comment-alt text-warning me-2"></i>Remarks (Optional)
+                            </label>
+                            <textarea class="form-control" id="remarks{{ $tour->tour_id }}" name="remarks" rows="3" placeholder="Enter payment remarks here..."></textarea>
+                        </div>                                       
+                    </form>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between" style="padding: 15px; border-radius: 8px;">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-success" id="savePaymentBtn{{ $tour->tour_id }}" onclick="submitPaymentForm({{ $tour->tour_id }})">
+                        <i class="fas fa-save me-2"></i>Verify Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endforeach
 
 <script>
 // Service Modal Functions
@@ -3764,7 +4207,10 @@ function filterTable() {
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
-    
+    table.rows('.dt-hasChild').every(function() {
+        if (this.child.isShown()) this.child.hide();
+        $(this.node()).removeClass('dt-hasChild');
+    });
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
         
@@ -3984,6 +4430,455 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Modal element exists:', !!document.getElementById('paymentDetailsModal'));
     console.log('Modal content element exists:', !!document.getElementById('paymentDetailsContent'));
 });
+
+// Payment Functions
+function checkPendingPayments(tourId) {
+    // This function checks for pending payments before opening the modal
+    console.log('Checking pending payments for tour:', tourId);
+}
+
+function validateAmount(input, maxAmount) {
+    const value = parseFloat(input.value);
+    if (value > maxAmount) {
+        input.value = maxAmount;
+    }
+    if (value < 0) {
+        input.value = 0;
+    }
+}
+
+function updatePaymentAmountEnhanced(tourId, selectedCurrency) {
+    const exchangeRateSection = document.getElementById(`exchangeRateSection${tourId}`);
+    const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
+    const exchangeRateCurrency = document.getElementById(`exchangeRateCurrency${tourId}`);
+    const currencySymbol = document.getElementById(`currencySymbol${tourId}`);
+    const conversionInfoContainer = document.getElementById(`conversionInfoContainer${tourId}`);
+    
+    if (selectedCurrency && selectedCurrency !== 'SGD') {
+        exchangeRateSection.style.display = 'block';
+        exchangeRateCurrency.textContent = selectedCurrency;
+        currencySymbol.textContent = selectedCurrency;
+        conversionInfoContainer.style.display = 'block';
+        
+        // Fetch exchange rate (placeholder - replace with actual API call)
+        fetchExchangeRate(selectedCurrency, tourId);
+    } else {
+        exchangeRateSection.style.display = 'none';
+        exchangeRateInput.value = 1.00;
+        currencySymbol.textContent = 'SGD';
+        conversionInfoContainer.style.display = 'none';
+    }
+}
+
+function fetchExchangeRate(currency, tourId) {
+    // This would normally call your exchange rate API
+    fetch(`/api/exchange-rate?from=SGD&to=${currency}`)
+        .then(response => response.json())
+        .then(data => {
+            const exchangeRateInput = document.getElementById(`exchange_rate${tourId}`);
+            const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+            if (data.rate) {
+                exchangeRateInput.value = data.rate.toFixed(4);
+                rateSourceText.textContent = 'API';
+            } else {
+                rateSourceText.textContent = 'Manual';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching exchange rate:', error);
+            const rateSourceText = document.getElementById(`rateSourceText${tourId}`);
+            rateSourceText.textContent = 'Manual';
+        });
+}
+
+function recalculateFromExchangeRate(tourId) {
+    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
+    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
+    const remainingAmount = parseFloat(document.getElementById(`amount${tourId}`).value) || 0;
+    
+    const equivalentSGD = paymentAmount / exchangeRate;
+    const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
+    
+    if (conversionInfo) {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${equivalentSGD.toFixed(2)}`;
+    }
+    
+    validatePaymentAmountInput(tourId);
+}
+
+function validatePaymentAmountInput(tourId) {
+    const paymentAmount = parseFloat(document.getElementById(`payment_amount${tourId}`).value) || 0;
+    const maxSGDAmount = parseFloat(document.getElementById(`amount${tourId}`).value) || 0;
+    const selectedCurrency = document.getElementById(`currency${tourId}`).value;
+    const exchangeRate = parseFloat(document.getElementById(`exchange_rate${tourId}`).value) || 1;
+    const validationError = document.getElementById(`paymentValidationError${tourId}`);
+    const validationMessage = document.getElementById(`validationMessage${tourId}`);
+    const conversionInfo = document.getElementById(`conversionInfo${tourId}`);
+    
+    if (!paymentAmount || paymentAmount <= 0) {
+        validationError.style.display = 'block';
+        validationMessage.textContent = 'Please enter a valid payment amount';
+        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
+        return;
+    }
+    
+    // Calculate equivalent SGD amount
+    const equivalentSGD = selectedCurrency === 'SGD' ? paymentAmount : (paymentAmount / exchangeRate);
+    
+    if (equivalentSGD > maxSGDAmount) {
+        validationError.style.display = 'block';
+        validationMessage.textContent = `Amount exceeds maximum allowed (${maxSGDAmount.toFixed(2)} SGD)`;
+        document.getElementById(`savePaymentBtn${tourId}`).disabled = true;
+    } else {
+        validationError.style.display = 'none';
+        document.getElementById(`savePaymentBtn${tourId}`).disabled = false;
+    }
+    
+    // Update conversion info
+    if (selectedCurrency !== 'SGD') {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount in SGD: ${equivalentSGD.toFixed(2)}`;
+    } else {
+        conversionInfo.innerHTML = `<i class="fas fa-info-circle me-1"></i>Amount: ${paymentAmount.toFixed(2)} SGD`;
+    }
+}
+
+function submitPaymentForm(tourId) {
+    const form = document.getElementById(`paymentForm${tourId}`);
+    const modal = document.getElementById(`addPaymentModal${tourId}`);
+    
+    // More robust button selection - try multiple selectors
+    let submitBtn = document.getElementById(`savePaymentBtn${tourId}`);
+    if (!submitBtn) {
+        submitBtn = form.querySelector('button[onclick*="submitPaymentForm"]');
+    }
+    if (!submitBtn) {
+        submitBtn = form.querySelector('button[type="submit"]');
+    }
+    if (!submitBtn) {
+        submitBtn = form.querySelector('.btn-success');
+    }
+    
+    console.log('Submitting payment form for tour:', tourId);
+    console.log('Form action:', form.action);
+    console.log('Submit button found:', submitBtn);
+    
+    if (form.checkValidity()) {
+        // Disable submit button immediately to prevent multiple submissions
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        }
+        
+        // Close modal immediately to prevent multiple submissions
+        const modalInstance = bootstrap.Modal.getInstance(modal);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        
+        // Use AJAX to submit the form for better user experience
+        const formData = new FormData(form);
+        
+        // Log form data for debugging
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
+        
+        $.ajax({
+            url: form.action,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message || 'Payment has been recorded and is pending verification.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Close the modal and reload the page
+                        $(`#addPaymentModal${tourId}`).modal('hide');
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Failed to submit payment.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                // Re-enable submit button
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
+                }
+                
+                // Reopen modal if error occurs
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+                
+                console.error('Error submitting payment:', error);
+                
+                let errorMessage = 'An error occurred while submitting the payment.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    // Handle validation errors
+                    const errors = Object.values(xhr.responseJSON.errors).flat();
+                    errorMessage = errors.join(', ');
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    } else {
+        // Reset button if validation fails
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
+        }
+        form.reportValidity();
+    }
+}
+
+// Define base URL using Laravel's URL helper
+const BASE_URL = "{{ url('/') }}";
+console.log('Base URL:', BASE_URL);
+
+function closePaymentModal(tourId) {
+    console.log('Attempting to close payment modal for tour:', tourId);
+    
+    // Method 1: Close using showPaymentModal
+    const modal = document.getElementById(`showPaymentModal${tourId}`);
+    console.log('Modal element found:', !!modal);
+    
+    if (modal) {
+        // Method 1a: Bootstrap 5
+        try {
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            console.log('Bootstrap modal instance:', modalInstance);
+            if (modalInstance) {
+                modalInstance.hide();
+                console.log('Bootstrap modal hide called');
+            }
+        } catch (e) {
+            console.log('Bootstrap method failed:', e);
+        }
+        
+        // Method 1b: jQuery modal hide
+        try {
+            if (typeof $ !== 'undefined') {
+                $(`#showPaymentModal${tourId}`).modal('hide');
+                console.log('jQuery modal hide called');
+            }
+        } catch (e) {
+            console.log('jQuery method failed:', e);
+        }
+        
+        // Method 1c: Force hide using CSS
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        console.log('CSS modal hide applied');
+    }
+    
+    // Method 2: Close any open modal as fallback
+    try {
+        const allOpenModals = document.querySelectorAll('.modal.show');
+        console.log('Found open modals:', allOpenModals.length);
+        
+        allOpenModals.forEach(openModal => {
+            try {
+                const instance = bootstrap.Modal.getInstance(openModal);
+                if (instance) {
+                    instance.hide();
+                    console.log('Closed modal:', openModal.id);
+                }
+            } catch (e) {
+                console.log('Error closing modal instance:', e);
+            }
+        });
+    } catch (e) {
+        console.log('Fallback method failed:', e);
+    }
+    
+    // Method 3: Remove backdrop and reset body
+    try {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        console.log('Backdrop and body reset');
+    } catch (e) {
+        console.log('Backdrop reset failed:', e);
+    }
+}
+
+function verifyPayment(tourId, paymentIndex) {
+    if (confirm('Are you sure you want to verify this payment?')) {
+        // Close the modal immediately when user confirms
+        closePaymentModal(tourId);
+        
+        // Use jQuery AJAX with proper CSRF token handling
+        $.ajax({
+            url: `${BASE_URL}/tour/${tourId}/verify-payment`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                payment_index: paymentIndex
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Payment has been verified successfully.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Reload the page after user clicks OK
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Failed to verify payment.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error verifying payment:', error);
+                
+                let errorMessage = 'An error occurred while verifying the payment.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+}
+
+function declinePayment(tourId, paymentIndex) {
+    if (confirm('Are you sure you want to decline this payment?')) {
+        // Close the modal immediately when user confirms
+        closePaymentModal(tourId);
+        
+        // Use jQuery AJAX with proper CSRF token handling
+        $.ajax({
+            url: `${BASE_URL}/tour/${tourId}/decline-payment`,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                payment_index: paymentIndex
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Payment has been declined successfully.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        // Reload the page after user clicks OK
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Failed to decline payment.',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error declining payment:', error);
+                
+                let errorMessage = 'An error occurred while declining the payment.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMessage,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+}
+
+// Add event listeners to reset forms when modals are closed
+document.addEventListener('DOMContentLoaded', function() {
+    // Reset payment forms when modals are hidden
+    const paymentModals = document.querySelectorAll('[id^="addPaymentModal"]');
+    paymentModals.forEach(modal => {
+        modal.addEventListener('hidden.bs.modal', function() {
+            const tourId = this.id.replace('addPaymentModal', '');
+            const form = document.getElementById(`paymentForm${tourId}`);
+            
+            // More robust button selection
+            let submitBtn = document.getElementById(`savePaymentBtn${tourId}`);
+            if (!submitBtn) {
+                submitBtn = form.querySelector('button[onclick*="submitPaymentForm"]');
+            }
+            if (!submitBtn) {
+                submitBtn = form.querySelector('button[type="submit"]');
+            }
+            if (!submitBtn) {
+                submitBtn = form.querySelector('.btn-success');
+            }
+            
+            // Reset form
+            form.reset();
+            
+            // Reset submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Verify Payment';
+            }
+            
+            // Reset currency selection to SGD
+            const currencySelect = document.getElementById(`currency${tourId}`);
+            if (currencySelect) {
+                currencySelect.value = 'SGD';
+                updatePaymentAmountEnhanced(tourId, 'SGD');
+            }
+            
+            // Hide validation errors
+            const validationError = document.getElementById(`paymentValidationError${tourId}`);
+            if (validationError) {
+                validationError.style.display = 'none';
+            }
+        });
+    });
+});
 </script>
 @endsection
 
@@ -4070,7 +4965,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+    var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
         if ($.fn.DataTable.isDataTable('.datatables-basic')) {
@@ -4078,7 +4973,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Initialize DataTable with export buttons
-        var table = $('.datatables-basic').DataTable({
+        table = $('.datatables-basic').DataTable({
             responsive: true,
             dom: 'lrtip', // Removed 'B' to hide the buttons, keeping l=length, r=processing, t=table, i=info, p=pagination
             buttons: [
@@ -4108,7 +5003,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // order: [[7, 'desc']], // Sort by Travel Dates column (index 7) in descending order
             columnDefs: [
                 {
-                    targets: [10], // Actions column (index 10)
+                    targets: [11], // Actions column (index 11)
                     orderable: false,
                     searchable: false
                 },
@@ -4117,7 +5012,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     orderable: false
                 },
                 {
-                    targets: [8, 9], // Payment Details and Status columns (index 8, 9)
+                    targets: [8, 9, 10], // Payment Details, Payment Status and Status columns (index 8, 9, 10)
                     orderable: false
                 }
             ],

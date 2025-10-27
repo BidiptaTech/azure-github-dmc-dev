@@ -21,7 +21,8 @@
         "matthewbdaly/laravel-azure-storage": "^2.0",
         "microsoft/azure-storage-blob": "^1.5",
         "spatie/laravel-permission": "^6.9",
-        "stevebauman/location": "^7.4"
+        "stevebauman/location": "^7.4",
+        "yajra/laravel-datatables-oracle": "^11.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

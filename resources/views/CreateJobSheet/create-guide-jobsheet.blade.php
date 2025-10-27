@@ -7,6 +7,43 @@
 <link href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 
 <style>
+    /* Better Select2 styling */
+    .select2-container--default .select2-selection--single {
+        border-color: #e2e5ec;
+        height: 38px;
+        line-height: 38px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px;
+        padding-left: 12px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+    
+    /* Select2 in table cells */
+    .table td .select2-container {
+        width: 100% !important;
+        min-width: 150px;
+    }
+    
+    /* Select2 dropdown styling */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #6777ef;
+    }
+    
+    .select2-search--dropdown .select2-search__field {
+        border-color: #e2e5ec;
+        padding: 6px 12px;
+    }
+    
+    .select2-dropdown {
+        border-color: #e2e5ec;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
     /* Custom alert styling */
     .alert {
         padding: 15px;
@@ -125,7 +162,7 @@
 <script>
 // Define route URLs using Blade
 const getGuidesUrl = "{{ route('get.guides', ['dmcId' => ':dmcId']) }}";
-const updateDriverVehicleAssignmentUrl = "{{ route('update.guide.jobsheet') }}";
+const updateDriverVehicleAssignmentUrl = "{{ route('update.driver.vehicle.assignment') }}";
 const getOrdersByDateUrl = "{{ route('get.orders.by.date', ['date' => ':date']) }}";
 
 // Initialize data from controller
@@ -137,8 +174,11 @@ var dataTableInitialized = false; // Track if DataTable is initialized
 
 $(document).ready(function() {
     let datePicker = null;
-    // Store the current tour guide orders data for export
-    let tourGuideOrdersData = [];
+    
+    // Calculate tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
     // Custom alert function
     function showAlert(type, message) {
@@ -167,10 +207,12 @@ $(document).ready(function() {
         console.log("initialOrders = ", initialOrders);
         if (typeof initialOrders !== 'undefined' && initialOrders.length > 0) {
             let tableHTML = '';
-            tourGuideOrdersData = []; // Reset the export data
             
             initialOrders.forEach(function(item, index) {
-                console.log("item = ", item.tour.tour_id);
+                console.log("Full item structure:", item);
+                console.log("item.tour:", item.tour);
+                console.log("item.tour?.id:", item.tour?.id);
+                console.log("item.tour?.tour_id:", item.tour?.tour_id);
                 // Handle data as array or object (flexibility for different data structures)
                 const orderData = item.data || {};
                 let dataItem;
@@ -183,20 +225,6 @@ $(document).ready(function() {
                 } else {
                     dataItem = {};
                 }
-                // Store for export
-                tourGuideOrdersData.push({
-                    tour_id: item.tour_id || 'N/A',
-                    order_type: item.type || 'N/A',
-                    pickup_time: dataItem.entrytime || 'N/A',
-                    pickup_location: dataItem.entrypickup || 'N/A',
-                    tour_type: dataItem.type || 'N/A',
-                    assigned_guide: initialGuides.find(g => dataItem.guide_id == g.guide_id)?.name || 'Not Assigned',
-                    customer_name: dataItem.fullName || 'N/A',
-                    customer_phone: dataItem.customer_phone || dataItem.phone || 'N/A',
-                    customer_email: dataItem.customer_email || dataItem.email || 'N/A',
-                    total_price: dataItem.totalPrice || 'N/A',
-                    pax: dataItem.pax || 'N/A'
-                });
                 
                 tableHTML += `
                     <tr>
@@ -206,13 +234,20 @@ $(document).ready(function() {
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
                         <td>
-                            <select class="form-control guide-select" name="guide_id[${index}]" data-order-id="${item.booking_id || ''}" data-tour-id="${item.tour.tour_id || ''}">
+                            <select class="form-control guide-select" 
+                                name="guide_id[${index}]" 
+                                data-order-id="${item.booking_id || item.id || ''}" 
+                                data-tour-id="${item.tour_id_numeric || ''}"
+                                data-order-type="${item.type || ''}"
+                                data-entry-time="${dataItem.entrytime || ''}"
+                                data-entrypickup="${dataItem.entrypickup || ''}"
+                                data-type="${item.type || ''}">
                                 <option value="">Select Guide</option>
                                 ${(function() {
                                     let options = '';
                                     if (initialGuides.length) {
                                         initialGuides.forEach(guide => {
-                                            const isSelected = dataItem.guide_id == guide.guide_id;
+                                            const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
                                             options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}</option>`;
                                         });
                                     }
@@ -227,6 +262,9 @@ $(document).ready(function() {
             
             $('#tourOrdersTableBody').html(tableHTML);
             $('#exportOrdersBtn').show();
+            
+            // Initialize Select2 for guide dropdowns
+            initializeSelect2();
             
             // Initialize DataTable
             initializeDataTable();
@@ -244,24 +282,29 @@ $(document).ready(function() {
         if (!date) {
             $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
-            tourGuideOrdersData = [];
             return;
         }
 
-        // Set hidden date field
-        $('#dateSelect').val(date);
-        
         // Show loading indicator
         $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
-        $.ajax({
-            url: getOrdersByDateUrl.replace(':date', date) + '?type=guide',
+        fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
-            success: function(response) {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(function(response) {
                 if (response.success) {
                     const orders = response.data;
                     let tableHTML = '';
-                    tourGuideOrdersData = []; // Reset the export data
                     console.log("orders = ", orders);
                     
                     if (orders && orders.length > 0) {
@@ -278,22 +321,6 @@ $(document).ready(function() {
                             } else {
                                 dataItem = {};
                             }
-
-                            // Store data for export
-                            const $select = $(`select[data-order-id="${item.booking_id}"]`);
-                            const selectedGuideName = $select.find('option:selected').text() || 'Not Assigned';
-                            tourGuideOrdersData.push({
-                                order_id: item.booking_id || item.id || 'N/A',
-                                tour_id: item.tour_id || 'N/A',
-                                order_type: item.type || 'N/A',
-                                pickup_time: dataItem.entrytime || 'N/A',
-                                pickup_location: dataItem.entrypickup || 'N/A',
-                                tour_type: dataItem.type || 'N/A',
-                                assigned_guide: selectedGuideName,
-                                customer_name: dataItem.fullName || 'N/A',
-                                customer_phone: dataItem.customer_phone || dataItem.phone || 'N/A',
-                                customer_email: dataItem.customer_email || dataItem.email || 'N/A'
-                            });
                             
                             tableHTML += `
                                 <tr>
@@ -303,13 +330,20 @@ $(document).ready(function() {
                                     <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
                                     <td>
-                                        <select class="form-control guide-select" name="guide_id[${index}]" data-order-id="${item.booking_id || ''}" data-tour-id="${item.tour_id || ''}">
+                                        <select class="form-control guide-select" 
+                                            name="guide_id[${index}]" 
+                                            data-order-id="${item.booking_id || item.id || ''}" 
+                                            data-tour-id="${item.tour_id_numeric || ''}"
+                                            data-order-type="${item.type || ''}"
+                                            data-entry-time="${dataItem.entrytime || ''}"
+                                            data-entrypickup="${dataItem.entrypickup || ''}"
+                                            data-type="${item.type || ''}">
                                             <option value="">Select Guide</option>
                                             ${(function() {
                                                 let options = '';
                                                 if (response.guides && response.guides.length) {
                                                     response.guides.forEach(guide => {
-                                                        const isSelected = dataItem.guide_id == guide.guide_id;
+                                                        const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
                                                         options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}</option>`;
                                                     });
                                                 }
@@ -325,6 +359,9 @@ $(document).ready(function() {
                         $('#tourOrdersTableBody').html(tableHTML);
                         $('#exportOrdersBtn').show();
                         
+                        // Initialize Select2 for guide dropdowns
+                        initializeSelect2();
+                        
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
@@ -338,14 +375,13 @@ $(document).ready(function() {
                     $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching orders by date:', {xhr, status, error});
-                const errorMessage = xhr.responseJSON?.message || 'Error fetching orders';
-                showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
-                $('#exportOrdersBtn').hide();
-            }
+        })
+        .catch(error => {
+            console.error('Error fetching orders by date:', error);
+            const errorMessage = error.message || 'Error fetching orders';
+            showAlert('error', errorMessage);
+            $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
+            $('#exportOrdersBtn').hide();
         });
     }
     
@@ -410,69 +446,131 @@ $(document).ready(function() {
             console.error("DataTable initialization error:", e);
         }
     }
-
-    // First load the table with initial data from controller
-    initializeTable();
-
-    // Calculate tomorrow's date
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Initialize Flatpickr for date input
+    // Function to initialize Select2 on guide dropdowns
+    function initializeSelect2() {
+        try {
+            // Destroy existing Select2 instances first
+            $('.guide-select').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2('destroy');
+                }
+            });
+            
+            // Initialize Select2 on guide dropdowns
+            $('.guide-select').select2({
+                placeholder: "Select Guide",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#tourOrdersTable').parent()
+            });
+            
+            console.log("Select2 initialized successfully");
+        } catch (e) {
+            console.error("Select2 initialization error:", e);
+        }
+    }
+
+    // Initialize Flatpickr for date input FIRST
     datePicker = flatpickr("#dateSelect", {
         dateFormat: "Y-m-d",
         disableMobile: "true",
-        defaultDate: tomorrow,
+        defaultDate: tomorrowStr,
         onChange: function(selectedDates, dateStr) {
             // Load orders based on selected date
             loadOrdersByDate(dateStr);
-        },
-        enabled: true
+        }
     });
+    
+    // Set the date value explicitly
+    setTimeout(function() {
+        if (datePicker) {
+            datePicker.setDate(tomorrowStr);
+        }
+        $('#dateSelect').val(tomorrowStr);
+        console.log("Date set to:", tomorrowStr, "Input value:", $('#dateSelect').val());
+    }, 100);
+    
+    // Then load the table with initial data from controller
+    initializeTable();
 
     // Handle guide selection change
     $(document).on('change', '.guide-select', function() {
         const $select = $(this);
         const guideId = $select.val();
         const orderId = $select.data('order-id');
+        const orderType = $select.data('order-type');
+        const entryTime = $select.data('entry-time');
+        const entryPickup = $select.data('entrypickup');
+        const type = $select.data('type');
+        const tourId = $select.data('tour-id');
         const date = $('#dateSelect').val();
         const dmcId = $('#dmc_id').val();
-        const tourId = $select.data('tour-id');
-        console.log(tourId);
-
-        const selectedGuideName = $select.find('option:selected').text().trim();
-        const item = tourGuideOrdersData.find(obj => obj.order_id == orderId);
-        if (item) {
-            item.assigned_guide = selectedGuideName;
+        
+        console.log('=== Guide Selection Debug ===');
+        console.log('Guide change data:', { guideId, orderId, orderType, entryTime, entryPickup, type, tourId, date, dmcId });
+        console.log('Select element:', $select[0]);
+        console.log('All data attributes:', $select.data());
+        console.log('Parent row HTML:', $select.closest('tr').html());
+        
+        // Validate required fields
+        if (!orderType || !type || !entryTime) {
+            console.error('Missing required data:', { orderType, type, entryTime });
+            showAlert('error', 'Missing required data. Please refresh the page and try again.');
+            return;
         }
         
+        if (!tourId || tourId === 'undefined' || tourId === '') {
+            console.error('Invalid tour ID:', tourId);
+            showAlert('error', 'Invalid tour ID. Please refresh the page and try again.');
+            return;
+        }
+
+        // Prepare form data - matching the driver/vehicle assignment pattern
+        const formData = new FormData();
+        formData.append('order_type', orderType || '');
+        formData.append('entry_time', entryTime || '');
+        formData.append('entrypickup', entryPickup || '');
+        formData.append('type', type || '');
+        formData.append('guide_id', guideId || '');
+        formData.append('tour_id', tourId || '');
+        formData.append('date', date || '');
+        formData.append('dmc_id', dmcId || '');
+        formData.append('order_id', orderId || '');
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+        console.log('FormData being sent:');
+        for (let pair of formData.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
         
-        // Make AJAX call to update the guide assignment
-        $.ajax({
-            url: updateDriverVehicleAssignmentUrl,
+        // Make fetch API call to update the guide assignment
+        fetch('{{ route("update.driver.vehicle.assignment") }}', {
             method: 'POST',
-            data: {
-                tour_id: tourId,
-                order_id: orderId,
-                guide_id: guideId,
-                date: date,
-                dmc_id: dmcId,
-                
-            },
+            body: formData,
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    showAlert('success', 'Guide assigned successfully');
-                } else {
-                    showAlert('error', response.message || 'Failed to assign guide');
-                }
-            },
-            error: function(xhr) {
-                showAlert('error', 'Error updating guide assignment');
-                console.error('Error updating guide assignment:', xhr);
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(response => {
+            // First parse the response to JSON
+            return response.json().then(data => {
+                // If response is not ok, throw error with the actual message from server
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }
+                return data;
+            });
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Guide assigned successfully');
+            } else {
+                showAlert('error', data.message || 'Failed to assign guide');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating guide assignment:', error);
+            showAlert('error', error.message || 'Error updating guide assignment');
         });
     });
 
@@ -480,20 +578,45 @@ $(document).ready(function() {
     $('#exportOrdersBtn').click(function(e) {
         e.preventDefault();
         
-        if (tourGuideOrdersData && tourGuideOrdersData.length > 0) {
-            // Format data for Excel export
-            const excelData = tourGuideOrdersData.map(item => ({
-                'Tour ID': item.tour_id,
-                'Order Type': item.order_type,
-                'Pickup Time': item.pickup_time,
-                'Pickup Location': item.pickup_location,
-                'Tour Type': item.tour_type,
-                'Assigned Guide': item.assigned_guide,
-                'Customer Name': item.customer_name,
-                'Customer Phone': item.customer_phone,
-                'Customer Email': item.customer_email
-            }));
+        // Build fresh export data directly from the table DOM to ensure accuracy
+        const excelData = [];
+        
+        $('#tourOrdersTable tbody tr').each(function() {
+            const $row = $(this);
             
+            // Skip rows that are DataTables placeholders or have no data
+            if ($row.find('td[colspan]').length > 0) {
+                return; // Skip this row
+            }
+            
+            const cells = $row.find('td');
+            if (cells.length < 6) {
+                return; // Skip incomplete rows
+            }
+            
+            // Extract data directly from the table cells
+            const tourId = $(cells[0]).text().trim();
+            const orderType = $(cells[1]).text().trim();
+            const pickupTime = $(cells[2]).text().trim();
+            const pickupLocation = $(cells[3]).text().trim();
+            const tourType = $(cells[4]).text().trim();
+            
+            // Get selected guide from the dropdown
+            const guideSelect = $(cells[5]).find('.guide-select');
+            const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
+            
+            // Add to excel data
+            excelData.push({
+                'Tour ID': tourId,
+                'Order Type': orderType,
+                'Pickup Time': pickupTime,
+                'Pickup Location': pickupLocation,
+                'Tour Type': tourType,
+                'Assigned Guide': assignedGuide
+            });
+        });
+        
+        if (excelData.length > 0) {
             // Create a workbook and worksheet
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(excelData);
@@ -530,37 +653,38 @@ $(document).ready(function() {
     $('#guideJobsheetForm').on('submit', function(e) {
         e.preventDefault();
         
-        const formData = {
-            date: $('#dateSelect').val(),
-            dmc_id: $('#dmc_id').val()
-        };
+        const formData = new FormData();
+        formData.append('date', $('#dateSelect').val());
+        formData.append('dmc_id', $('#dmc_id').val());
+        formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
-        $.ajax({
-            url: $(this).attr('action'),
+        const dateValue = $('#dateSelect').val();
+
+        fetch($(this).attr('action'), {
             method: 'POST',
-            data: formData,
+            body: formData,
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    showAlert('success', response.message);
-                    // Reload guide orders to reflect the changes
-                    loadOrdersByDate(formData.date);
-                } else {
-                    showAlert('error', response.message);
-                }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
-                    Object.keys(errors).forEach(key => {
-                        showAlert('error', errors[key][0]);
-                    });
-                } else {
-                    showAlert('error', xhr.responseJSON.message || 'An error occurred while creating the guide jobsheet');
-                }
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                // Reload guide orders to reflect the changes
+                loadOrdersByDate(dateValue);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating guide jobsheet:', error);
+            showAlert('error', 'An error occurred while creating the guide jobsheet: ' + error.message);
         });
     });
 });

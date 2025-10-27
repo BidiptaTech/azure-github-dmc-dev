@@ -20,6 +20,11 @@ use App\Services\LogActivityService;
 use App\Models\City;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\DmcMail;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 class GuideController extends Controller
 {
@@ -461,7 +466,9 @@ class GuideController extends Controller
 
         if ($deletedGuide && $deletedGuide->trashed()) {
             $deletedGuide->restore();
-            $deletedGuide->update([
+            
+            // Prepare update data
+            $updateData = [
                 'salutation' => $validated['salutation'],
                 'guide_gender' => $validated['guide_gender'],
                 'name' => $validated['name'],
@@ -492,7 +499,14 @@ class GuideController extends Controller
                 'dmc_id' => $dmc_id ?? 0,
                 'is_active' => $request->input('guide_status') == 1 ? 1 : 0,
                 'created_by' => $auth_user->userId,
-            ]);
+            ];
+            
+            // Hash password if provided
+            if ($request->app_password) {
+                $updateData['app_password'] = Hash::make($request->app_password);
+            }
+            
+            $deletedGuide->update($updateData);
 
             // Handle guide languages
             GuideLanguage::where('guide_id', $deletedGuide->guide_id)->delete();
@@ -520,6 +534,9 @@ class GuideController extends Controller
         }
 
         // Create and save a new guide record
+        // Store plain password for email before hashing
+        $plainPassword = $request->app_password;
+        
         $guide = new Guide();
         $guide->guide_id = $guideId;
         $guide->salutation = $validated['salutation'];
@@ -527,6 +544,7 @@ class GuideController extends Controller
         $guide->name = $validated['name'];
         $guide->contact_no = $validated['contact_no'];
         $guide->email = $validated['email'];
+        $guide->app_password = $plainPassword ? Hash::make($plainPassword) : null;
         $guide->government_license_no = $validated['license_no'];
         $guide->license_exp_date = $validated['license_exp_date'];
         $guide->experience_years = $validated['experience'];
@@ -568,6 +586,16 @@ class GuideController extends Controller
                     'language' => $language,
                     'proficiency' => $validated['language_proficiency'][$index],
                 ]);
+            }
+            
+            // Send credentials email if email is provided
+            if ($guide->email && $plainPassword) {
+                try {
+                    $this->sendGuideCredentialsEmail($guide, $plainPassword, $validated['languages'] ?? []);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to send guide credentials email: ' . $e->getMessage());
+                    // Don't fail the request if email sending fails
+                }
             }
 
             // if (in_array($auth_user->role_id, [11, 4, 3, 35, 75, 102])) {
@@ -716,6 +744,7 @@ class GuideController extends Controller
         $guide->name = $request->input('name');
         $guide->contact_no = $request->input('contact_no');
         $guide->email = $request->input('email');
+        $guide->app_password = Hash::make($request->app_password);
         $guide->description = $request->input('about');
         $guide->city = $request->city;
         $guide->image = $guide_image;
@@ -852,5 +881,85 @@ class GuideController extends Controller
         $guide->save();
         return redirect()->back()
         ->with('success', 'Close dates and holidays saved successfully');
+    }
+
+    /**
+     * Send guide credentials email
+     * This method sends a welcome email with login credentials to the newly created guide
+     * 
+     * @param Guide $guide
+     * @param string $plainPassword
+     * @param array $languages
+     * @return bool
+     */
+    private function sendGuideCredentialsEmail(Guide $guide, string $plainPassword, array $languages = [])
+    {
+        try {
+            // Get company settings for branding
+            $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+            $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+            $supportEmailSetting = Setting::where('name', 'support_email')->first();
+            $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+            
+            $companyLogo = $logoSetting ? $logoSetting->value : null;
+            $companyName = $nameSetting ? $nameSetting->value : config('app.name');
+            $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
+            $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
+            
+            // Prepare email data (use plain password for email, not the hashed one)
+            $emailData = [
+                'guide_name' => $guide->name,
+                'guide_id' => $guide->guide_id,
+                'email' => $guide->email,
+                'app_password' => $plainPassword,
+                'contact_no' => $guide->contact_no,
+                'license_no' => $guide->government_license_no,
+                'city' => $guide->city,
+                'languages' => $languages,
+                'company_name' => $companyName,
+                'company_logo' => $companyLogo,
+                'support_email' => $supportEmail,
+                'support_phone' => $supportPhone,
+            ];
+            
+            // Render the email template
+            $html = view('mails.guide_credentials', $emailData)->render();
+            
+            // Extract styles and email container
+            preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+            $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+            
+            // Extract the email-container div
+            preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+            
+            if (!empty($matches[0])) {
+                $extractedHtml = $matches[0];
+                
+                // Build complete email HTML
+                $subject = 'Welcome! Your Guide App Credentials';
+                $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+                
+                // Send the email
+                Mail::to($guide->email)->send(new DmcMail($emailHtml, $subject));
+                
+                Log::info("Guide credentials email sent successfully to: {$guide->email}", [
+                    'guide_id' => $guide->guide_id,
+                    'guide_name' => $guide->name,
+                ]);
+                
+                return true;
+            } else {
+                Log::error("Email container div not found in guide credentials template");
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send guide credentials email', [
+                'error' => $e->getMessage(),
+                'guide_id' => $guide->guide_id ?? null,
+                'email' => $guide->email ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 }

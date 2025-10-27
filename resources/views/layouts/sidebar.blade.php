@@ -1401,19 +1401,19 @@
                                 <div data-i18n="Jobsheets">Jobsheets</div>
                                 </a>
                                 <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
+                            {{-- <li class="menu-item @if(Request::is('jobsheet/view')) active @endif">
                                 <a href="{{ route('jobsheet.view') }}" class="menu-link">
                                     <div data-i18n="View Jobsheets">View Jobsheets</div>
                                 </a>
-                            </li>
+                            </li> --}}
                             <li class="menu-item @if(Request::is('jobsheet/create-guide-jobsheet')) active @endif">
                                 <a href="{{ route('jobsheet.create.guide') }}" class="menu-link">
-                                    <div data-i18n="Guide Jobsheet">Guide Jobsheet</div>
+                                    <div data-i18n="Assign Guide">Assign Guide</div>
                                 </a>
                             </li>
                             <li class="menu-item @if(Request::is('jobsheet/create-driver-jobsheet')) active @endif">
                                 <a href="{{ route('jobsheet.create.driver') }}" class="menu-link">
-                                    <div data-i18n="Driver Jobsheet">Driver Jobsheet</div>
+                                    <div data-i18n="Assign Driver">Assign Driver</div>
                                 </a>
                             </li>
                             </ul>
@@ -1867,6 +1867,13 @@
                         <li class="menu-item @if(Request::is('mail/settings')) active @endif">
                             <a href="{{ route('mail.settings') }}" class="menu-link">
                                 <div data-i18n="Email Settings">Email Settings</div>
+                            </a>
+                        </li>
+
+                        <!-- App Settings -->
+                        <li class="menu-item @if(Request::is('app-management')) active @endif">
+                            <a href="{{ route('app-management.index') }}" class="menu-link">
+                                <div data-i18n="App Management Settings">App Management Settings</div>
                             </a>
                         </li>
                     </ul>

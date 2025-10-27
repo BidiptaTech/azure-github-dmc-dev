@@ -11,6 +11,69 @@
         padding: 2rem;
         border-radius: 12px;
         margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .header-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: #333;
+        background: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .action-btn .btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 8px;
+        margin-right: 0.5rem;
+    }
+    
+    .import-btn {
+        background: #e7fdf1;
+        color: #15803d;
+    }
+    
+    .import-btn:hover {
+        background: #dcfce7;
+    }
+    
+    .import-btn .btn-icon {
+        background: rgba(21, 128, 61, 0.1);
+    }
+    
+    .add-btn {
+        background: #f1f5f9;
+    }
+    
+    .add-btn:hover {
+        background: #e2e8f0;
     }
 
     /* Statistics Cards */
@@ -201,6 +264,37 @@
             text-align: center !important;
             margin-bottom: 0.5rem;
         }
+        
+        .action-buttons {
+            justify-content: center;
+        }
+        
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .header-icon {
+            font-size: 1.5rem;
+        }
+        
+        .page-header h2 {
+            font-size: 1.5rem;
+        }
+        
+        .action-btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .action-btn .btn-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 0.875rem;
+        }
     }
 </style>
 
@@ -210,22 +304,47 @@
         <!-- Page Header -->
         <div class="page-header">
             <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h2 class="mb-2">
-                        <i class="ri-building-line me-2"></i>
-                        Agency Management
-                    </h2>
-                    <p class="mb-0 opacity-90">Manage all agencies and their branches from here. Add new agencies or edit existing ones.</p>
+                <div class="col-md-7">
+                    <div class="d-flex align-items-center">
+                        <div class="header-icon me-3">
+                            <i class="ri-building-line"></i>
+                        </div>
+                        <div>
+                            <h2 class="mb-2">Agency Management</h2>
+                            <p class="mb-0 opacity-90">Manage all agencies and their branches from here. Add new agencies or edit existing ones.</p>
+                        </div>
+                    </div>
                 </div>
-                @php
-                    $allowedRoles = [1, 2, 3, 4, 19, 20];
-                @endphp
-                <div class="col-md-4 text-md-end">
-                    @if(in_array(auth()->user()->role_id, $allowedRoles))
-                    <a href="{{ route('agencies.create') }}" class="btn btn-light">
-                        <i class="ri-add-line me-1"></i> Add New Agency
-                    </a>
-                    @endif
+                <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                    <div class="action-buttons">
+                        @php
+                            // Define roles that can access different functions
+                            $allowedRoles = [1, 2, 3, 4, 19, 20];
+                            $userRoleId = auth()->user()->role_id;
+                            $canManageAgencies = in_array($userRoleId, $allowedRoles);
+                        @endphp
+
+                        @if($canManageAgencies)
+                            <div class="d-flex justify-content-end">
+                                <a href="{{ route('agencies.import') }}" class="action-btn import-btn me-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="btn-icon">
+                                            <i class="ri-file-upload-line"></i>
+                                        </div>
+                                        <span>Import Agencies</span>
+                                    </div>
+                                </a>
+                                <a href="{{ route('agencies.create') }}" class="action-btn add-btn">
+                                    <div class="d-flex align-items-center">
+                                        <div class="btn-icon">
+                                            <i class="ri-add-line"></i>
+                                        </div>
+                                        <span>Add New Agency</span>
+                                    </div>
+                                </a>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>

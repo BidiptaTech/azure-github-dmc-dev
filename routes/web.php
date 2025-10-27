@@ -50,6 +50,7 @@ use App\Http\Controllers\JobSheetController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
+use App\Http\Controllers\GuestController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -557,6 +558,16 @@ Route::get('/clear', function () {
         Route::post('/booking/approve-local-transport-booking', [HotelBookingController::class, 'approveLocalTransportBooking'])->name('booking.approve.local.transport.booking');
         Route::post('/booking/reject-local-transport-booking', [HotelBookingController::class, 'rejectLocalTransportBooking'])->name('booking.reject.local.transport.booking'); 
         
+        // Attraction file management routes
+Route::post('/hotel-booking/get-attraction-files', [HotelBookingController::class, 'getAttractionFiles'])->name('hotel.booking.get.attraction.files');
+Route::post('/hotel-booking/remove-attraction-file', [HotelBookingController::class, 'removeAttractionFile'])->name('hotel.booking.remove.attraction.file');
+Route::post('/hotel-booking/upload-attraction-files', [HotelBookingController::class, 'uploadAttractionFiles'])->name('hotel.booking.upload.attraction.files');
+
+// Restaurant file management routes
+Route::post('/hotel-booking/get-restaurant-files', [HotelBookingController::class, 'getRestaurantFiles'])->name('hotel.booking.get.restaurant.files');
+Route::post('/hotel-booking/remove-restaurant-file', [HotelBookingController::class, 'removeRestaurantFile'])->name('hotel.booking.remove.restaurant.file');
+Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::class, 'uploadRestaurantFiles'])->name('hotel.booking.upload.restaurant.files');
+        
         // Route::get('/approve-attraction', [BookingAttractionController::class, 'index'])->name('booking.attraction');
         // Route::post('/booking-attraction/approve', [BookingAttractionController::class, 'approve'])->name('booking.attraction.approve');
         // Route::post('/booking-attraction/decline', [BookingAttractionController::class, 'decline'])->name('booking.attraction.decline');
@@ -690,6 +701,12 @@ Route::get('/clear', function () {
         Route::post('restaurantCloseDate', [RestaurantController::class, 'restaurantCloseDate'])->name('restaurant_close_dates');
         Route::post('hotelCloseDate', [HotelController::class, 'hotelCloseDate'])->name('hotel_close_dates');
 
+        // Agent Import Routes (must come BEFORE resource route to avoid route conflicts)
+        Route::get('/agents/import', [AgentController::class, 'importView'])->name('agents.import');
+        Route::post('/agents/import', [AgentController::class, 'import'])->name('agents.import.upload');
+        Route::get('/agents/import/template', [AgentController::class, 'downloadTemplate'])->name('agents.import.template');
+        
+        // Agent Resource and other routes
         Route::resource('agents', AgentController::class);
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails'])->name('get-sales-manager-details');
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
@@ -699,6 +716,12 @@ Route::get('/clear', function () {
         // Agency routes
         Route::get('/agencies/get-cities-by-country', [AgencyController::class, 'getCitiesByCountry'])->name('agencies.getCitiesByCountry');
         Route::get('/agencies/get-card-types-by-country', [AgencyController::class, 'getCardTypesByCountry'])->name('agencies.getCardTypesByCountry');
+        
+        // Agency Import Routes
+        Route::get('/agencies/import', [AgencyController::class, 'importView'])->name('agencies.import');
+        Route::post('/agencies/import', [AgencyController::class, 'import'])->name('agencies.import.upload');
+        Route::get('/agencies/import/template', [AgencyController::class, 'downloadTemplate'])->name('agencies.import.template');
+        
         Route::resource('agencies', AgencyController::class);
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
@@ -731,6 +754,12 @@ Route::get('/clear', function () {
         Route::get('/registered-agents', [App\Http\Controllers\AgentViewController::class, 'index'])->name('registered-agents.index');
         Route::get('/registered-agents/{agent_id}', [App\Http\Controllers\AgentViewController::class, 'show'])->name('registered-agents.show');
         Route::post('/registered-agents/verify', [App\Http\Controllers\AgentViewController::class, 'verifyAgent'])->name('registered-agents.verify');
+        
+        // App Management routes
+        Route::get('/app-management', [App\Http\Controllers\AppManagementController::class, 'index'])->name('app-management.index');
+        Route::put('/app-management/update', [App\Http\Controllers\AppManagementController::class, 'update'])->name('app-management.update');
+        Route::get('/app-management/settings', [App\Http\Controllers\AppManagementController::class, 'appManagementSettings'])->name('app-management.settings');
+    
     });
 
     //authentication check for manager (route can access admin & manager)
@@ -786,6 +815,15 @@ Route::get('/test-booking-email', function() {
             'line' => $e->getLine()
         ];
     }
+});
+
+// Guest Management Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('guests', [GuestController::class, 'index'])->name('guests.index');
+    Route::get('guests/data', [GuestController::class, 'getGuests'])->name('guests.data');
+    Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
+    Route::put('guests/{guestId}', [GuestController::class, 'update'])->name('guests.update');
+    Route::delete('guests/{guestId}', [GuestController::class, 'destroy'])->name('guests.destroy');
 });
 
 Route::get('{routeName}/{name?}', [HomeController::class, 'pageView']); 

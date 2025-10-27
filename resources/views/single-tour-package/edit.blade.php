@@ -195,23 +195,23 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" required value="{{ $customer_info['fullName'] ?? '' }}">
+                                    <input type="text" class="form-control" id="customerFullName" name="customer_full_name" placeholder="Enter full name" value="{{ $customer_info['fullName'] ?? '' }}">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" required value="{{ $customer_info['email'] ?? '' }}">
+                                    <input type="email" class="form-control" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}">
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Country Code</label>
-                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" required value="{{ $customer_info['countryCode'] ?? '' }}">
+                                    <input type="text" class="form-control" id="customerCountryCode" name="customer_country_code" placeholder="e.g. +91" value="{{ $customer_info['countryCode'] ?? '' }}">
                                 </div>
                                 <div class="col-md-9">
                                     <label class="form-label">Phone Number</label>
-                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" required value="{{ $customer_info['phone'] ?? '' }}">
+                                    <input type="tel" class="form-control" id="customerPhone" name="customer_phone" placeholder="Enter phone number" value="{{ $customer_info['phone'] ?? '' }}">
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 1</label>
-                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" required value="{{ $customer_info['address1'] ?? '' }}">
+                                    <input type="text" class="form-control" id="customerAddress1" name="customer_address1" placeholder="Enter address line 1" value="{{ $customer_info['address1'] ?? '' }}">
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label">Address Line 2</label>
@@ -228,7 +228,7 @@
                                 <div class="col-12">
                                     <label class="form-label">Special Requests</label>
                                     <textarea class="form-control" id="customerSpecialRequests" name="customer_special_requests" rows="3" placeholder="Enter any special requests or notes">{{ $customer_info['specialRequests'] ?? '' }}</textarea>
-                                </div>
+                                </div>  
                             </div>
                         </div>
                     </div>
@@ -526,16 +526,16 @@
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-gradient-primary text-white">
                             <h6 class="mb-0 fw-bold">
-                                <i class="ri-calendar-line me-2"></i>Day-by-Day Tour Itinerary
+                                <i class="ri-calendar-line me-2"></i>Tour Itinerary
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body mb-4">
                             @foreach($tourDays as $dateKey => $dayInfo)
                             <!-- Day {{ $dayInfo['day_number'] }} Services -->
                             <div class="day-services mb-4">
-                                <h6 class="fw-bold text-primary mb-3">
+                                <!-- <h6 class="fw-bold text-primary mb-3">
                                     <i class="ri-calendar-check-line me-2"></i>Day {{ $dayInfo['day_number'] }} ({{ $dayInfo['date']->format('l, jS F Y') }})
-                                </h6>
+                                </h6> -->
                                 
                                 @if(count($dayInfo['orders']) > 0)
                                     @php
@@ -566,118 +566,11 @@
                                             </div>
                                         </div>
                                         <div class="card-body mt-3">
-                                            @if(isset($dayOrdersByType['travel_hourly']))
-                                                @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
-                                                                                                                                                                             <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleType = '';
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
-                                                            } else {
-                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @endif
-
-                                            @if(isset($dayOrdersByType['travel_point']))
-                                                @foreach($dayOrdersByType['travel_point'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
-                                                                                                                                                                 <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleType = '';
-                                                        
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['vehicle_type'] ?? 'N/A';
-                                                            } else {
-                                                                $pickupLocation = $transportData['pickup_location'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoff_location'] ?? 'N/A';
-                                                                $pickupTime = $transportData['pickup_time'] ?? 'N/A';
-                                                                $vehicleType = $transportData['vehicle_type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                            @endif
-
                                             @if(isset($dayOrdersByType['entry_port']))
                                                 @foreach($dayOrdersByType['entry_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Entry Port Transfer #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -694,40 +587,33 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                    <div class="service-details">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
+                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -736,7 +622,7 @@
 
                                             @if(isset($dayOrdersByType['exit_port']))
                                                 @foreach($dayOrdersByType['exit_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
@@ -755,40 +641,33 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                    <div class="service-details">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
+                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -799,8 +678,8 @@
                                 </div>
                                     @endif
                                     
-                                    <!-- Attractions Section -->
-                                    @if(isset($dayOrdersByType['attraction']))
+                                <!-- Attractions Section -->
+                                @if(isset($dayOrdersByType['attraction']))
                                 <div class="service-section mb-3">
                                     <div class="card border-danger shadow-sm">
                                         <div class="card-header bg-danger text-white">
@@ -816,9 +695,9 @@
                                         </div>
                                         <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['attraction'] as $index => $order)
-                                            <div class="attraction-item mb-3 p-3 border rounded">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Attraction Booking #{{ $index + 1 }}</h6>
+                                            <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
@@ -854,26 +733,17 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <div class="row g-2">
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Attraction</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $attractionName }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Time Slot</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $timeSlot }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Ticket</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $ticket }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guests</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guestSummary }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Total Price</label>
-                                                        <input type="text" class="form-control form-control-sm" value="${{ number_format($totalPrice, 2) }}" readonly>
+                                                <div class="service-details">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Attraction:</strong> <span class="text-dark">{{ $attractionName }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time Slot:</strong> <span class="text-dark">{{ $timeSlot }}</span></p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-ticket-line me-2 text-info"></i><strong>Ticket:</strong> <span class="text-dark">{{ $ticket }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Guests:</strong> <span class="text-dark">{{ $guestSummary }}</span></p>
+                                                            <p class="small mb-0 text-muted"><i class="ri-money-dollar-circle-line me-2 text-success"></i><strong>Total Price:</strong> <span class="text-dark fw-bold">${{ number_format($totalPrice, 2) }}</span></p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -883,8 +753,8 @@
                                 </div>
                                 @endif
 
-                                    <!-- Guide Services Section -->
-                                    @if(isset($dayOrdersByType['guide']))
+                                <!-- Guide Services Section -->
+                                @if(isset($dayOrdersByType['guide']))
                                 <div class="service-section mb-3">
                                     <div class="card border-info shadow-sm">
                                         <div class="card-header bg-info text-white">
@@ -900,9 +770,9 @@
                                         </div>
                                         <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['guide'] as $index => $order)
-                                            <div class="guide-item mb-3 p-3 border rounded">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Tour Guide Booking #{{ $index + 1 }}</h6>
+                                            <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
@@ -929,22 +799,16 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <div class="row g-2">
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guide</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guideName }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Package</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $package }} hours" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Pickup Time</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guests</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guestSummary }}" readonly>
+                                                <div class="service-details">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-user-star-line me-2 text-primary"></i><strong>Guide:</strong> <span class="text-dark">{{ $guideName }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Package:</strong> <span class="text-dark">{{ $package }} hours</span></p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-info"></i><strong>Pickup Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                            <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Guests:</strong> <span class="text-dark">{{ $guestSummary }}</span></p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -971,9 +835,9 @@
                                         </div>
                                         <div class="card-body mt-3">
                                             @foreach($dayOrdersByType['restaurant'] as $index => $order)
-                                            <div class="restaurant-item mb-3 p-3 border rounded">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <h6 class="mb-0">Restaurant Booking #{{ $index + 1 }}</h6>
+                                            <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
                                                     <div class="d-flex gap-2">
                                                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                             <i class="ri-delete-bin-line"></i> Remove
@@ -986,87 +850,94 @@
                                                     $mealType = '';
                                                     $dishName = '';
                                                     $guestSummary = '';
+                                                    $totalPrice = 0;
+                                                    $mealDescription = null;
                                                     
                                                     if (is_array($restaurantData)) {
                                                         if (isset($restaurantData[0])) {
+                                                            // Array format (first element contains the data)
                                                             $restaurantName = $restaurantData[0]['restaurantName'] ?? 'N/A';
                                                             $mealType = $restaurantData[0]['mealType'] ?? 'N/A';
                                                             $mealSpecificType = $restaurantData[0]['mealSpecificType'] ?? 'N/A';
                                                             $adultCount = $restaurantData[0]['adultCount'] ?? 0;
                                                             $childCount = $restaurantData[0]['childCount'] ?? 0;
                                                             $totalPrice = $restaurantData[0]['totalPrice'] ?? 0;
+                                                            $mealDescription = $restaurantData[0]['MealDescription'] ?? null;
                                                             $guestSummary = $adultCount . ' adults, ' . $childCount . ' children';
                                                         } else {
+                                                            // Direct array format
                                                             $restaurantName = $restaurantData['restaurantName'] ?? 'N/A';
                                                             $mealType = $restaurantData['mealType'] ?? 'N/A';
                                                             $mealSpecificType = $restaurantData['mealSpecificType'] ?? 'N/A';
                                                             $adultCount = $restaurantData['adultCount'] ?? 0;
                                                             $childCount = $restaurantData['childCount'] ?? 0;
                                                             $totalPrice = $restaurantData['totalPrice'] ?? 0;
+                                                            $mealDescription = $restaurantData['MealDescription'] ?? null;
                                                             $guestSummary = $adultCount . ' adults, ' . $childCount . ' children';
                                                         }
                                                     }
+                                                    
+                                                    // Calculate total price from meal descriptions if totalPrice is 0 or missing
+                                                    if ($totalPrice <= 0 && is_array($mealDescription)) {
+                                                        $calculatedTotal = 0;
+                                                        foreach ($mealDescription as $meal) {
+                                                            $mealPrice = $meal['price'] ?? 0;
+                                                            $quantity = $meal['quantity'] ?? 1;
+                                                            $calculatedTotal += $mealPrice * $quantity;
+                                                        }
+                                                        if ($calculatedTotal > 0) {
+                                                            $totalPrice = $calculatedTotal;
+                                                        }
+                                                    }
+                                                    
+                                                    // Ensure meal prices are populated in meal description if missing
+                                                    if (is_array($mealDescription) && $totalPrice > 0) {
+                                                        foreach ($mealDescription as &$meal) {
+                                                            if (!isset($meal['price']) || $meal['price'] <= 0) {
+                                                                // If individual meal price is missing, distribute total price across meals
+                                                                $meal['price'] = $totalPrice / count($mealDescription);
+                                                            }
+                                                        }
+                                                    }
                                                 @endphp
-                                                <div class="row g-2">
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Restaurant</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $restaurantName }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Meal Type</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $mealType }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-semibold">Meal Specific</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $mealSpecificType }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Guests</label>
-                                                        <input type="text" class="form-control form-control-sm" value="{{ $guestSummary }}" readonly>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label small fw-semibold">Total Price</label>
-                                                        <input type="text" class="form-control form-control-sm" value="${{ number_format($totalPrice, 2) }}" readonly>
+                                                <div class="service-details">
+                                                    <div class="row g-2">
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-restaurant-line me-2 text-primary"></i><strong>Restaurant:</strong> <span class="text-dark">{{ $restaurantName }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-restaurant-2-line me-2 text-warning"></i><strong>Meal Type:</strong> <span class="text-dark">{{ $mealType }}</span></p>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <p class="small mb-2 text-muted"><i class="ri-bowl-line me-2 text-info"></i><strong>Meal Specific:</strong> <span class="text-dark">{{ $mealSpecificType }}</span></p>
+                                                            <p class="small mb-2 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Guests:</strong> <span class="text-dark">{{ $guestSummary }}</span></p>
+                                                            <p class="small mb-0 text-muted"><i class="ri-money-dollar-circle-line me-2 text-success"></i><strong>Total Price:</strong> <span class="text-dark fw-bold">${{ number_format($totalPrice, 2) }}</span></p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 
                                                 <!-- Meal Details Display -->
-                                                @if(isset($restaurantData[0]['MealDescription']) || isset($restaurantData['MealDescription']))
-                                                <div class="row mt-2">
-                                                    <div class="col-12">
-                                                        <label class="form-label small fw-semibold">Meal Details:</label>
-                                                        <div class="table-responsive">
-                                                            <table class="table table-sm table-bordered">
-                                                                <thead class="table-light">
-                                                                    <tr>
-                                                                        <th>Item Name</th>
-                                                                        <th>Description</th>
-                                                                        <th>Category</th>
-                                                                        <th>Type</th>
-                                                                        <th>Quantity</th>
-                                                                        <th>Price</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    @php
-                                                                        $mealDescription = isset($restaurantData[0]) ? $restaurantData[0]['MealDescription'] : $restaurantData['MealDescription'];
-                                                                        if (is_array($mealDescription)) {
-                                                                            foreach ($mealDescription as $meal) {
-                                                                                echo '<tr>';
-                                                                                echo '<td>' . ($meal['item_name'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['name'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['category'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['item_type'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>' . ($meal['quantity'] ?? 'N/A') . '</td>';
-                                                                                echo '<td>$' . number_format($meal['price'] ?? 0, 2) . '</td>';
-                                                                                echo '</tr>';
-                                                                            }
-                                                                        }
-                                                                    @endphp
-                                                                </tbody>
-                                                            </table>
+                                                @if(is_array($mealDescription) && count($mealDescription) > 0)
+                                                <div class="meal-details mt-3">
+                                                    <h6 class="small fw-semibold mb-3 text-primary"><i class="ri-restaurant-2-line me-2"></i>Meal Details:</h6>
+                                                    @foreach($mealDescription as $index => $meal)
+                                                    <div class="meal-item mb-3 p-3 border rounded shadow-sm bg-light">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-file-list-line me-2 text-primary"></i><strong>Item:</strong> <span class="text-dark">{{ $meal['item_name'] ?? 'N/A' }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-file-text-line me-2 text-info"></i><strong>Description:</strong> <span class="text-dark">{{ $meal['name'] ?? 'N/A' }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-folder-line me-2 text-warning"></i><strong>Category:</strong> <span class="text-dark">{{ $meal['category'] ?? 'N/A' }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-price-tag-3-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $meal['item_type'] ?? 'N/A' }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-0 text-muted"><i class="ri-number-1 me-2 text-success"></i><strong>Quantity:</strong> <span class="text-dark">{{ $meal['quantity'] ?? 'N/A' }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-0 text-muted"><i class="ri-money-dollar-circle-line me-2 text-success"></i><strong>Price:</strong> <span class="text-dark fw-bold">${{ number_format($meal['price'] ?? 0, 2) }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                    @endforeach
                                                 </div>
                                                 @endif
                                             </div>
@@ -1094,7 +965,7 @@
                                         <div class="card-body mt-3">
                                             @if(isset($dayOrdersByType['exit_port']))
                                                 @foreach($dayOrdersByType['exit_port'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
                                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                                         <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
@@ -1113,40 +984,33 @@
                                                         
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
-                                                                $pickupLocation = $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
-                                                                $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['entrydropoff'] ?? 'N/A';
+                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
+                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Vehicle</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleName }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label small fw-semibold">Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
+                                                    <div class="service-details">
+                                                        <div class="row g-2">
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
+                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
+                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1175,9 +1039,9 @@
                                         <div class="card-body mt-3">
                                             @if(isset($dayOrdersByType['travel_hourly']))
                                                 @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Hourly Transport #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -1205,23 +1069,11 @@
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
+                                                    <div class="transport-details">
+                                                        <p class="small mb-1"><i class="ri-map-pin-line me-1"></i><strong>Pickup Location:</strong> {{ $pickupLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-map-pin-2-line me-1"></i><strong>Dropoff Location:</strong> {{ $dropoffLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-time-line me-1"></i><strong>Pickup Time:</strong> {{ $pickupTime }}</p>
+                                                        <p class="small mb-0"><i class="ri-car-line me-1"></i><strong>Vehicle Type:</strong> {{ $vehicleType }}</p>
                                                     </div>
                                                 </div>
                                                 @endforeach
@@ -1229,9 +1081,9 @@
 
                                             @if(isset($dayOrdersByType['travel_point']))
                                                 @foreach($dayOrdersByType['travel_point'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Point-to-Point Transport #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -1248,34 +1100,22 @@
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
                                                                 $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
                                                                 $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
+                                                    <div class="transport-details">
+                                                        <p class="small mb-1"><i class="ri-map-pin-line me-1"></i><strong>Pickup Location:</strong> {{ $pickupLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-map-pin-2-line me-1"></i><strong>Dropoff Location:</strong> {{ $dropoffLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-time-line me-1"></i><strong>Pickup Time:</strong> {{ $pickupTime }}</p>
+                                                        <p class="small mb-0"><i class="ri-car-line me-1"></i><strong>Vehicle Type:</strong> {{ $vehicleType }}</p>
                                                     </div>
                                                 </div>
                                                 @endforeach
@@ -1283,9 +1123,9 @@
 
                                             @if(isset($dayOrdersByType['local_transport']))
                                                 @foreach($dayOrdersByType['local_transport'] as $index => $order)
-                                                <div class="transport-item mb-3 p-3 border rounded">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Local Transport #{{ $index + 1 }}</h6>
+                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                                                                                                                                             <div class="d-flex gap-2">
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
@@ -1302,34 +1142,22 @@
                                                         if (is_array($transportData)) {
                                                             if (isset($transportData[0])) {
                                                                 $pickupLocation = $transportData[0]["entrypickup"] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData[0]['dropoffLocation'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData[0]["entrytime"] ?? 'N/A';
                                                                 $vehicleType = $transportData[0]['type'] ?? 'N/A';
                                                             } else {
                                                                 $pickupLocation = $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? 'N/A';
+                                                                $dropoffLocation = $transportData['dropoffLocation'] ?? $transportData['entrydropoff'] ?? 'N/A';
                                                                 $pickupTime = $transportData['entrytime'] ?? 'N/A';
                                                                 $vehicleType = $transportData['type'] ?? 'N/A';
                                                             }
                                                         }
                                                     @endphp
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Dropoff Location</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $dropoffLocation }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Pickup Time</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $pickupTime }}" readonly>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label small fw-semibold">Vehicle Type</label>
-                                                            <input type="text" class="form-control form-control-sm" value="{{ $vehicleType }}" readonly>
-                                                        </div>
+                                                    <div class="transport-details">
+                                                        <p class="small mb-1"><i class="ri-map-pin-line me-1"></i><strong>Pickup Location:</strong> {{ $pickupLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-map-pin-2-line me-1"></i><strong>Dropoff Location:</strong> {{ $dropoffLocation }}</p>
+                                                        <p class="small mb-1"><i class="ri-time-line me-1"></i><strong>Pickup Time:</strong> {{ $pickupTime }}</p>
+                                                        <p class="small mb-0"><i class="ri-car-line me-1"></i><strong>Vehicle Type:</strong> {{ $vehicleType }}</p>
                                                     </div>
                                                 </div>
                                                 @endforeach
@@ -2327,7 +2155,7 @@
                                 <!-- Vehicle + Service Type in one row -->
                                 <div class="col-12">
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle</label>
                                             <select class="form-select vehicle-select" 
                                                     id="modal_transport_vehicle_id" 
@@ -2336,34 +2164,60 @@
                                                 <option value="">Choose vehicle</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold">Service Type</label>
-                                            <select class="form-select service-type-select" 
-                                                    id="modal_transport_service_type" 
-                                                    name="service_type" 
-                                                    onchange="updatePricing()">
-                                                <option value="">Select service type</option>
-                                                <option value="Shared">Shared</option>
-                                                <option value="Private">Private</option>
-                                            </select>
-                                        </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Service Type</label>
+                                    <select class="form-select service-type-select" 
+                                            id="modal_transport_service_type" 
+                                            name="service_type" 
+                                            onchange="updatePricing()">
+                                        <option value="">Select service type</option>
+                                        <option value="Shared">Shared</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                </div>
+
+                                <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
+                                <div class="col-md-3" id="transport_manual_price_field_container" style="display: none;">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="modal_transport_manual_price" 
+                                               name="manual_price" 
+                                               step="0.01" 
+                                               min="0" 
+                                               placeholder="0.00"
+                                               onchange="updatePricing()"
+                                               oninput="updatePricing()">
                                     </div>
-                                    
-                                    <!-- Guest Information -->
-                                    <div class="row mt-3">
-                                        <div class="col-md-12">
+                                    <small class="form-text text-muted">
+                                        <i class="ri-information-line me-1"></i>
+                                        Override vehicle price with custom amount
+                                    </small>
+                                </div>
+                                @endif
+                                <div class="col-md-2">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold">Number of Passengers</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="" onchange="updatePricing()">
+                                                    <input type="number" class="form-control" id="modal_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="" onkeyup="updatePricing()" onchange="updatePricing()">
                                                 </div>
                                                 <small class="form-text text-muted">
                                                     Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
                                                 </small>
                                             </div>
                                         </div>
-                                    </div>
+                            </div>
+                                    
+                                    <!-- Guest Information -->
+                                    <!-- <div class="row mt-3">
+                                        
+                                    </div> -->
                                     
                                     <!-- Price Display for Transport -->
                                     <div class="col-12 mt-3">
@@ -2444,12 +2298,14 @@
                                             <i class="ri-time-line me-1"></i>Hourly
                                         </label>
                                     </div>
+                                    @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
                                     <div class="form-check">
                                         <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')" checked>
                                         <label class="form-check-label fw-semibold text-success" for="local_transfer_service_type_local">
                                             <i class="ri-car-line me-1"></i>Local Transfer
                                         </label>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
                             
@@ -2695,7 +2551,7 @@
                                 <!-- Hourly Fields (Hidden Initially) -->
                                 <div class="col-12">
                                     <div id="hourly_fields" class="hourly-fields row g-4 col-12 align-items-end d-none">
-                                        <div class="col-md-4 hourly-fields">
+                                        <div class="col-md-3 hourly-fields">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
@@ -2709,7 +2565,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4 hourly-fields">
+                                        <div class="col-md-3 hourly-fields">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-time-line text-warning me-2"></i>Pick Up Time
@@ -2746,7 +2602,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4 hourly-fields">
+                                        <div class="col-md-3 hourly-fields">
                                             <div class="form-group">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
@@ -2754,6 +2610,32 @@
                                                 <div class="position-relative">
                                                     <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 hourly-fields">
+                                            <div class="form-group">
+                                                <label class="form-label fw-semibold text-muted mb-2">
+                                                    <i class="ri-time-line text-info me-2"></i>Number of Hours
+                                                </label>
+                                                <div class="position-relative">
+                                                    <select class="form-select border-2" id="local_transfer_hourly_hours" name="hourly_hours" style="padding-left: 45px;">
+                                                        <option value="">Select hours</option>
+                                                        <option value="1">1 Hour</option>
+                                                        <option value="2">2 Hours</option>
+                                                        <option value="3">3 Hours</option>
+                                                        <option value="4">4 Hours</option>
+                                                        <option value="5">5 Hours</option>
+                                                        <option value="6">6 Hours</option>
+                                                        <option value="7">7 Hours</option>
+                                                        <option value="8">8 Hours</option>
+                                                        <option value="9">9 Hours</option>
+                                                        <option value="10">10 Hours</option>
+                                                        <option value="11">11 Hours</option>
+                                                        <option value="12">12 Hours</option>
+                                                        <option value="24">24 Hours</option>
+                                                    </select>
+                                                    <i class="ri-hourglass-fill position-absolute text-info" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -2783,7 +2665,7 @@
                                 <!-- Vehicle + Service Type in one row -->
                                 <div class="col-12">
                                     <div class="row g-3">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label fw-semibold">Vehicle</label>
                                             <select class="form-select vehicle-select" 
                                                     id="local_transfer_vehicle_id" 
@@ -2805,10 +2687,10 @@
                                             </select>
                                         </div>
 
-                                        <!-- Manual Price Input for Point-to-Point -->
+                                        <!-- Manual Price Input (Only available for Point-to-Point) -->
                                         <div class="col-md-3" id="manual_price_field_container" style="display: none;">
                                             <label class="form-label fw-semibold">
-                                                <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price
+                                                <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
                                             </label>
                                             <div class="input-group">
                                                 <span class="input-group-text">$</span>
@@ -2824,24 +2706,20 @@
                                             </div>
                                             <small class="form-text text-muted">
                                                 <i class="ri-information-line me-1"></i>
-                                                Override vehicle price for point-to-point
+                                                Override vehicle price with custom amount
                                             </small>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Guest Information -->
-                                    <div class="row mt-3">
-                                        <div class="col-md-12">
-                                            <div class="form-group">
-                                                <label class="form-label fw-semibold">Number of Passengers</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                                    <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onchange="updateLocalTransferPricing()">
-                                                </div>
-                                                <small class="form-text text-muted">
-                                                    Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
-                                                </small>
+
+                                        <!-- Number of Passengers -->
+                                        <div class="col-md-2" style="display: none;">
+                                            <label class="form-label fw-semibold">Passengers1</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="ri-user-line"></i></span>
+                                                <input type="number" class="form-control" id="local_transfer_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateLocalTransferPricing()" onchange="updateLocalTransferPricing()">
                                             </div>
+                                            <small class="form-text text-muted">
+                                                Max: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}
+                                            </small>
                                         </div>
                                     </div>
                                     
@@ -3045,6 +2923,31 @@
                                         
                                     </select>
                                 </div>
+
+                                <!-- Manual Price Input (Available for both Zone On and Point-to-Point) -->
+                                @if(isset($UserDmc->zone_on) && $UserDmc->zone_on == 0)
+                                <div class="col-md-4" id="dropoff_transport_manual_price_field_container" style="display: none;">
+                                    <label class="form-label fw-semibold">
+                                        <i class="ri-money-dollar-circle-line text-success me-1"></i>Manual Price (Optional)
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="modal_dropoff_transport_manual_price" 
+                                               name="manual_price" 
+                                               step="0.01" 
+                                               min="0" 
+                                               placeholder="0.00"
+                                               onchange="updateDropoffPricing()"
+                                               oninput="updateDropoffPricing()">
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        <i class="ri-information-line me-1"></i>
+                                        Override vehicle price with custom amount
+                                    </small>
+                                </div>
+                                @endif
                             </div>
                             
                             <!-- Guest Information -->
@@ -3054,7 +2957,7 @@
                                         <label class="form-label fw-semibold">Number of Passengers</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="ri-user-line"></i></span>
-                                            <input type="number" class="form-control" id="modal_dropoff_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" oninput="updateDropoffPricing()">
+                                            <input type="number" class="form-control" id="modal_dropoff_transport_passengers" name="passengers" min="1" max="{{ ($tour->adult ?? 0) + ($tour->child ?? 0) }}" value="1" onkeyup="updateDropoffPricing()" onchange="updateDropoffPricing()">
                                         </div>
                                         <small class="form-text text-muted">
                                             Maximum passengers: {{ ($tour->adult ?? 0) + ($tour->child ?? 0) }} ({{ $tour->adult ?? 0 }} adults + {{ $tour->child ?? 0 }} children)
@@ -3199,10 +3102,36 @@
         console.log('Vehicle data updateServiceTypeOptions:', vehicleData);
         console.log('vehicleData.sharable:', vehicleData.sharable);
         
+        // Check if this is for local transfer and what type
+        const currentServiceType = window.currentLocalTransferServiceType || 'local_transfer';
+        console.log('Current service type:', currentServiceType);
+        
         // Clear existing options
         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
         console.log('Cleared service type options');
         
+        // For point-to-point and hourly, only show Private option
+        if (currentServiceType === 'point_to_point' || currentServiceType === 'hourly') {
+            console.log('Point-to-point or Hourly mode: Adding Private option only');
+            const privateOption = document.createElement('option');
+            privateOption.value = 'Private';
+            privateOption.textContent = 'Private';
+            serviceTypeSelect.appendChild(privateOption);
+            
+            // Auto-select Private since it's the only option
+            serviceTypeSelect.value = 'Private';
+            serviceTypeSelect.disabled = false;
+            console.log('Service type options updated (Private only for point-to-point/hourly) and auto-selected');
+            
+            // Trigger pricing update after auto-selection
+            if (serviceTypeSelectId === 'local_transfer_service_type') {
+                setTimeout(() => updateLocalTransferPricing(), 100);
+            }
+            
+            return;
+        }
+        
+        // For local transfer (zone-based), use sharable property
         // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
         if (vehicleData.sharable == 1) {
             // Private only
@@ -3995,6 +3924,9 @@
         if (localTransferServiceType) {
             localTransferServiceType.checked = true;
             handleLocalTransferServiceTypeChange('local_transfer');
+        } else {
+            // If local transfer radio doesn't exist, set default to point_to_point
+            window.currentLocalTransferServiceType = 'point_to_point';
         }
         
         // Initialize Google Maps autocomplete for the modal
@@ -4152,14 +4084,40 @@
         const point_to_point_fields = document.getElementById('point_to_point_fields');
         const hourly_fields = document.getElementById('hourly_fields');
         
-        // Note: Vehicle results section will be shown/hidden by individual search functions
-        // Don't hide it here as it interferes with the search results display
+        // Store the current service type for service type options filtering
+        window.currentLocalTransferServiceType = serviceType;
+        console.log('Service type changed to:', serviceType);
+        
+        // Hide vehicle results section when switching service types
+        const vehicleResultsSection = document.getElementById('local_transfer_vehicle_results');
+        if (vehicleResultsSection) {
+            vehicleResultsSection.style.display = 'none';
+        }
         
         // Clear vehicle dropdown when switching service types
         const vehicleSelect = document.getElementById('local_transfer_vehicle_id');
         if (vehicleSelect) {
             vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
             vehicleSelect.disabled = true;
+        }
+        
+        // Clear service type dropdown when switching service types
+        const serviceTypeSelect = document.getElementById('local_transfer_service_type');
+        if (serviceTypeSelect) {
+            serviceTypeSelect.value = '';
+            serviceTypeSelect.disabled = true;
+        }
+        
+        // Reset passengers to default value when switching service types
+        const passengersInput = document.getElementById('local_transfer_passengers');
+        if (passengersInput) {
+            passengersInput.value = '1';
+        }
+        
+        // Hide price display when switching service types
+        const priceDisplay = document.getElementById('local_transfer_price_display');
+        if (priceDisplay) {
+            priceDisplay.style.display = 'none';
         }
         
         // Hide manual price field when switching service types
@@ -4215,6 +4173,9 @@
             searchBtn.innerHTML = '<i class="ri-loader-4-line spin me-2"></i>Searching...';
             searchBtn.disabled = true;
         }
+        
+        // Store that this is a point-to-point search
+        window.currentLocalTransferServiceType = 'point_to_point';
         
         // Fetch vehicles from API - for point-to-point, show all vehicles regardless of city
         fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
@@ -4333,6 +4294,9 @@
             searchBtn.disabled = true;
         }
         
+        // Store that this is a hourly search
+        window.currentLocalTransferServiceType = 'hourly';
+        
         // Fetch vehicles from API - for hourly service, show all vehicles regardless of city
         fetch(`{{ route('fetch-vehicles-by-city-dmc') }}?show_all=1`)
             .then(response => response.json())
@@ -4345,22 +4309,31 @@
                 if (data.success && data.vehicles && data.vehicles.length > 0) {
                     console.log('Success: Found vehicles for hourly service, showing results section');
                     
-                    // Show the vehicle results section
-                    if (vehicleResultsSection) {
-                        vehicleResultsSection.style.display = 'block';
-                        vehicleResultsSection.style.visibility = 'visible';
-                        console.log('Vehicle results section shown for hourly service');
-                        vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    } else {
-                        console.error('Vehicle results section not found for hourly service!');
-                    }
+                    // Filter vehicles for hourly service - only show sharable = 1 or 3
+                    const hourlyVehicles = data.vehicles.filter(vehicle => {
+                        const sharable = parseInt(vehicle.sharable) || 0;
+                        return sharable === 1 || sharable === 3;
+                    });
                     
-                    // Populate vehicle dropdown
-                    if (vehicleSelect) {
-                        vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
-                        console.log('Starting to populate vehicle dropdown for hourly service with', data.vehicles.length, 'vehicles');
+                    console.log('Filtered vehicles for hourly service:', hourlyVehicles.length, 'out of', data.vehicles.length);
+                    
+                    if (hourlyVehicles.length > 0) {
+                        // Show the vehicle results section
+                        if (vehicleResultsSection) {
+                            vehicleResultsSection.style.display = 'block';
+                            vehicleResultsSection.style.visibility = 'visible';
+                            console.log('Vehicle results section shown for hourly service');
+                            vehicleResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        } else {
+                            console.error('Vehicle results section not found for hourly service!');
+                        }
                         
-                        data.vehicles.forEach((vehicle, index) => {
+                        // Populate vehicle dropdown
+                        if (vehicleSelect) {
+                            vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
+                            console.log('Starting to populate vehicle dropdown for hourly service with', hourlyVehicles.length, 'vehicles');
+                            
+                            hourlyVehicles.forEach((vehicle, index) => {
                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                             
                             // Debug logging for vehicle data
@@ -4389,19 +4362,25 @@
                                     ${vehicleInfo}
                                 </option>`;
                             }
-                        });
+                            });
+                            
+                            // Enable the vehicle select
+                            vehicleSelect.disabled = false;
+                            console.log('Vehicle dropdown populated successfully for hourly service');
+                            
+                            // Update vehicle details and pricing
+                            updateLocalTransferVehicleDetails();
+                        } else {
+                            console.error('Vehicle select dropdown not found for hourly service!');
+                        }
                         
-                        // Enable the vehicle select
-                        vehicleSelect.disabled = false;
-                        console.log('Vehicle dropdown populated successfully for hourly service');
-                        
-                        // Update vehicle details and pricing
-                        updateLocalTransferVehicleDetails();
+                        console.log(`Populated ${hourlyVehicles.length} vehicles in dropdown for hourly service`);
                     } else {
-                        console.error('Vehicle select dropdown not found for hourly service!');
+                        showNotification('No vehicles available for hourly service. Only vehicles with sharable option enabled are available.', 'warning');
+                        if (vehicleResultsSection) {
+                            vehicleResultsSection.style.display = 'none';
+                        }
                     }
-                    
-                    console.log(`Populated ${data.vehicles.length} vehicles in dropdown for hourly service`);
                 } else {
                     showNotification('No vehicles available. Please contact support.', 'warning');
                     if (vehicleResultsSection) {
@@ -4774,30 +4753,24 @@
         const toZoneId = dropoffZoneSelect.value;
         const searchBtn = document.getElementById('local_transfer_search_btn');
         
+        // Store that this is a local transfer (zone-based) search
+        window.currentLocalTransferServiceType = 'local_transfer';
+        
         console.log('Searching vehicles for local transfer:', { fromZoneId, toZoneId, pickupTime, pickupDate });
         
         // Get location types from the selected options
         let fromZoneType, toZoneType;
         
-        // Determine zone types based on option attributes or default values
+        // Determine zone types based on option attributes
         const pickupOption = pickupZoneSelect.options[pickupZoneSelect.selectedIndex];
         const dropoffOption = dropoffZoneSelect.options[dropoffZoneSelect.selectedIndex];
         
-        fromZoneType = pickupOption?.dataset?.type || 'port';
-        toZoneType = dropoffOption?.dataset?.type || 'attraction';
+        fromZoneType = pickupOption?.dataset?.type || 'Port';
+        toZoneType = dropoffOption?.dataset?.type || 'Hotel';
         
-        // Get the actual zone IDs based on type
+        // Get the actual zone IDs - use the selected values directly
         let actualFromZoneId = fromZoneId;
         let actualToZoneId = toZoneId;
-        
-        // For ports, use port_id from data attribute if available
-        if (fromZoneType === 'port') {
-            actualFromZoneId = pickupOption?.dataset?.portId || fromZoneId;
-        }
-        
-        if (toZoneType === 'port') {
-            actualToZoneId = dropoffOption?.dataset?.portId || toZoneId;
-        }
         
         console.log('Zone mapping:', {
             originalFromZoneId: fromZoneId,
@@ -4815,12 +4788,17 @@
         }
         const selectedCity = document.getElementById('modal_local_transfer_city').value;
         
+        // Get zone status from UserDmc
+        const user_dmc = @json($UserDmc);
+        const zone_status = user_dmc.zone_on;
+        
         const params = {
             from_zone_id: actualFromZoneId,
             to_zone_id: actualToZoneId,
             from_zone_type: fromZoneType,
             to_zone_type: toZoneType,
-            city: selectedCity
+            city: selectedCity,
+            zone_status: zone_status
         };
 
         console.log('API Request Parameters:', {
@@ -4828,7 +4806,8 @@
             to_zone_id: actualToZoneId,
             from_zone_type: fromZoneType,
             to_zone_type: toZoneType,
-            city: selectedCity
+            city: selectedCity,
+            zone_status: zone_status
         });
         
         // Fetch vehicles from API using zone-based endpoint
@@ -4913,6 +4892,7 @@
     function updateVehicleDetails() {
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
+        const manualPriceContainer = document.getElementById('transport_manual_price_field_container');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -4932,6 +4912,12 @@
             updateServiceTypeOptions(vehicleData, 'modal_transport_service_type');
             
             serviceTypeSelect.disabled = false;
+            
+            // Always show manual price field for both zone on and zone off modes
+            if (manualPriceContainer) {
+                manualPriceContainer.style.display = 'block';
+            }
+            
             updatePricing();
         }
     }
@@ -4946,18 +4932,11 @@
         console.log('serviceTypeSelect:', serviceTypeSelect);
         console.log('vehicleSelect.value:', vehicleSelect ? vehicleSelect.value : 'null');
         
-        // Check if point-to-point is selected and show/hide manual price field
-        const isPointToPoint = document.getElementById('is_point_to_point') ? 
-            document.getElementById('is_point_to_point').value === '1' : false;
-        const serviceTypeSelection = document.querySelector('input[name="service_type_selection"]:checked');
-        const isPointToPointSelected = serviceTypeSelection && serviceTypeSelection.value === 'point_to_point';
-        
-        if (manualPriceContainer) {
-            if ((isPointToPoint || isPointToPointSelected) && vehicleSelect && vehicleSelect.value) {
-                manualPriceContainer.style.display = 'block';
-            } else {
-                manualPriceContainer.style.display = 'none';
-            }
+        // Only show manual price field for Point to Point mode
+        if (manualPriceContainer && vehicleSelect && vehicleSelect.value && window.currentLocalTransferServiceType === 'point_to_point') {
+            manualPriceContainer.style.display = 'block';
+        } else if (manualPriceContainer) {
+            manualPriceContainer.style.display = 'none';
         }
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
@@ -4986,7 +4965,9 @@
                         base_price: selectedOption.dataset.privatePrice || '',
                         sharable_base_price: selectedOption.dataset.sharedPrice || '',
                         service_type: selectedOption.dataset.serviceType || '',
-                        sharable: selectedOption.dataset.sharable || ''
+                        sharable: selectedOption.dataset.sharable || '',
+                        cost_per_hour: selectedOption.dataset.costPerHour || '',
+                        sharable_cost_per_hour: selectedOption.dataset.sharableCostPerHour || ''
                     };
                 }
             } catch (error) {
@@ -5310,6 +5291,7 @@
     function updateDropoffVehicleDetails() {
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
+        const manualPriceContainer = document.getElementById('dropoff_transport_manual_price_field_container');
         
         if (vehicleSelect && vehicleSelect.value && serviceTypeSelect) {
             // Get selected vehicle data
@@ -5341,6 +5323,12 @@
             updateServiceTypeOptions(vehicleData, 'modal_dropoff_transport_service_type');
             
             serviceTypeSelect.disabled = false;
+            
+            // Always show manual price field for both zone on and zone off modes
+            if (manualPriceContainer) {
+                manualPriceContainer.style.display = 'block';
+            }
+            
             updateDropoffPricing();
         }
     }
@@ -5349,6 +5337,7 @@
         const vehicleSelect = document.getElementById('modal_dropoff_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_dropoff_transport_service_type');
         const passengersInput = document.getElementById('modal_dropoff_transport_passengers');
+        const manualPriceInput = document.getElementById('modal_dropoff_transport_manual_price');
         const priceDisplay = document.getElementById('dropoff_transport_price_display');
         const priceDetails = document.getElementById('dropoff_transport_price_details');
         
@@ -5395,27 +5384,47 @@
             const serviceType = serviceTypeSelect.value;
             const passengers = parseInt(passengersInput.value) || 1;
             
-            // Get correct price based on service type
+            // Check if manual price is provided (for zone off mode)
+            const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
+            const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
+            
+            // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
-            if (serviceType === 'Private') {
-                basePrice = parseFloat(vehicleData.base_price) || 0;
-                totalPrice = basePrice;
-            } else if (serviceType === 'Shared') {
-                basePrice = parseFloat(vehicleData.sharable_base_price) || 0;
-                totalPrice = basePrice * passengers; // Fix: multiply by passengers for shared service
+            
+            if (isManualPriceUsed) {
+                // Use manual price for zone off mode
+                basePrice = manualPrice;
+                totalPrice = manualPrice;
+            } else {
+                // Use vehicle's default pricing
+                if (serviceType === 'Private') {
+                    basePrice = parseFloat(vehicleData.base_price) || 0;
+                    totalPrice = basePrice;
+                } else if (serviceType === 'Shared') {
+                    basePrice = parseFloat(vehicleData.sharable_base_price) || 0;
+                    totalPrice = basePrice * passengers; // Fix: multiply by passengers for shared service
+                }
             }
             
             // Format price details
+            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
+            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
+                    <div class="col-md-4">
+                        <i class="${priceSourceIcon} me-1"></i>
+                        ${priceSource}: $${basePrice.toFixed(2)}
+                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
+                    </div>
                     <div class="col-md-4">Service: ${serviceType}</div>
                     <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
                     Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom manual price override' : ''}
                 </div>
             `;
             
@@ -5616,6 +5625,7 @@
         const vehicleSelect = document.getElementById('modal_transport_vehicle_id');
         const serviceTypeSelect = document.getElementById('modal_transport_service_type');
         const passengersInput = document.getElementById('modal_transport_passengers');
+        const manualPriceInput = document.getElementById('modal_transport_manual_price');
         const priceDisplay = document.getElementById('transport_price_display');
         const priceDetails = document.getElementById('transport_price_details');
         
@@ -5651,29 +5661,49 @@
             };
             console.log('vehicle data:', vehicleData);
             const serviceType = serviceTypeSelect.value;
-            const passengers = parseInt(passengersInput.value) || 1;
+            const validatedPassengers = parseInt(passengersInput.value) || 1;
             
-            // Get correct price based on service type
+            // Check if manual price is provided (for zone off mode)
+            const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
+            const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
+            
+            // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
-            if (serviceType === 'Private') {
-                basePrice = parseFloat(vehicleData.privatePrice) || 0;
-                totalPrice = basePrice;
-            } else if (serviceType === 'Shared') {
-                basePrice = parseFloat(vehicleData.sharedPrice) || 0;
-                totalPrice = basePrice*passengers;
+            
+            if (isManualPriceUsed) {
+                // Use manual price for zone off mode
+                basePrice = manualPrice;
+                totalPrice = manualPrice;
+            } else {
+                // Use vehicle's default pricing
+                if (serviceType === 'Private') {
+                    basePrice = parseFloat(vehicleData.privatePrice) || 0;
+                    totalPrice = basePrice;
+                } else if (serviceType === 'Shared') {
+                    basePrice = parseFloat(vehicleData.sharedPrice) || 0;
+                    totalPrice = basePrice * validatedPassengers;
+                }
             }
             
             // Format price details
+            const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
+            const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">Base Price: $${basePrice.toFixed(2)}</div>
-                    <div class="col-md-4">Service: ${serviceType}</div>
-                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                    <div class="col-md-4">
+                        <i class="${priceSourceIcon} me-1"></i>
+                        <span style="color: #26c6f9;">${priceSource}: $${basePrice.toFixed(2)}</span>
+                        ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
+                    </div>
+                    <div class="col-md-4"><span style="color: #26c6f9;">Service: ${serviceType}</span></div>
+                    <div class="col-md-4"><strong style="color: #26c6f9;">Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    Vehicle: ${vehicleData.vehicle_name} (${vehicleData.seating_capacity} seats) - ${passengers} passengers
+                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${validatedPassengers} passengers</span>
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
                 </div>
             `;
             
@@ -5695,6 +5725,7 @@
         const manualPriceInput = document.getElementById('local_transfer_manual_price');
         const priceDisplay = document.getElementById('local_transfer_price_display');
         const priceDetails = document.getElementById('local_transfer_price_details');
+        const hoursSelect = document.getElementById('local_transfer_hourly_hours');
         
         if (!vehicleSelect || !serviceTypeSelect || !passengersInput || !priceDisplay || !priceDetails) {
             return;
@@ -5719,7 +5750,9 @@
                 seatingCapacity: selectedOption.dataset.seatingCapacity,
                 privatePrice: selectedOption.dataset.privatePrice,
                 sharedPrice: selectedOption.dataset.sharedPrice,
-                serviceType: selectedOption.dataset.serviceType
+                serviceType: selectedOption.dataset.serviceType,
+                costPerHour: selectedOption.dataset.costPerHour,
+                sharableCostPerHour: selectedOption.dataset.sharableCostPerHour,
             };
             console.log('vehicle data:', vehicleData);
             const serviceType = serviceTypeSelect.value;
@@ -5729,9 +5762,16 @@
             const manualPrice = manualPriceInput ? parseFloat(manualPriceInput.value) : 0;
             const isManualPriceUsed = manualPriceInput && manualPriceInput.value && manualPrice > 0;
             
+            // Check if this is hourly service
+            const selectedServiceType = document.querySelector('input[name="service_type_selection"]:checked');
+            const isHourlyService = selectedServiceType && selectedServiceType.value === 'hourly';
+            const selectedHours = hoursSelect ? parseInt(hoursSelect.value) || 0 : 0;
+            
             // Get correct price based on service type or use manual price
             let basePrice = 0;
             let totalPrice = 0;
+            let priceMultiplier = 1;
+            let priceMultiplierText = '';
             
             if (isManualPriceUsed) {
                 // Use manual price for point-to-point
@@ -5741,10 +5781,28 @@
                 // Use vehicle's default pricing
                 if (serviceType == 'Private') {
                     basePrice = parseFloat(vehicleData.privatePrice) || 0;
-                    totalPrice = basePrice;
+                    
+                    // Apply hourly calculation if this is hourly service
+                    if (isHourlyService && selectedHours > 0) {
+                        const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+                        priceMultiplier = selectedHours;
+                        totalPrice = basePrice + (selectedHours * costPerHour);
+                        priceMultiplierText = ` + (${selectedHours} hrs × $${costPerHour.toFixed(2)})`;
+                    } else {
+                        totalPrice = basePrice;
+                    }
                 } else if (serviceType == 'Shared') {
                     basePrice = parseFloat(vehicleData.sharedPrice) || 0;
-                    totalPrice = basePrice * validatedPassengers;
+                    
+                    // Apply hourly calculation if this is hourly service
+                    if (isHourlyService && selectedHours > 0) {
+                        const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
+                        priceMultiplier = selectedHours;
+                        totalPrice = basePrice + (selectedHours * sharableCostPerHour * validatedPassengers);
+                        priceMultiplierText = ` + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax)`;
+                    } else {
+                        totalPrice = basePrice * validatedPassengers;
+                    }
                 }
             }
             
@@ -5752,20 +5810,38 @@
             const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
             const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
             
+            // Format price calculation for better readability
+            let priceCalculationText = '';
+            if (isHourlyService && selectedHours > 0 && !isManualPriceUsed) {
+                if (serviceType == 'Private') {
+                    const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+                    priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${costPerHour.toFixed(2)}) = $${totalPrice.toFixed(2)}`;
+                } else if (serviceType == 'Shared') {
+                    const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
+                    priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax) = $${totalPrice.toFixed(2)}`;
+                }
+            } else {
+                priceCalculationText = `$${basePrice.toFixed(2)}${priceMultiplierText}`;
+            }
+            const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+
             priceDetails.innerHTML = `
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <i class="${priceSourceIcon} me-1"></i>
-                        ${priceSource}: $${basePrice.toFixed(2)}
+                        ${isHourlyService && selectedHours > 0 ? `<span class="badge bg-warning ms-1">Hourly Rate: $${costPerHour.toFixed(2)}</span>` : ''}
+                        <span style="white-space: nowrap; color: #26c6f9;">${priceSource}: ${priceCalculationText}</span>
                         ${isManualPriceUsed ? '<span class="badge bg-info ms-1">Custom</span>' : ''}
+                        ${isHourlyService && selectedHours > 0 ? '<span class="badge bg-warning ms-1">Hourly</span>' : ''}
                     </div>
-                    <div class="col-md-4">Service: ${serviceType}</div>
-                    <div class="col-md-4"><strong>Total: $${totalPrice.toFixed(2)}</strong></div>
+                    <div class="col-md-3"><span style="color: #26c6f9;">Service: ${serviceType}</span></div>
+                    <div class="col-md-3"><strong style="color: #26c6f9;">Total: $${totalPrice.toFixed(2)}</strong></div>
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers
-                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i>Using custom price for point-to-point service' : ''}
+                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers</span>
+                    ${isHourlyService && selectedHours > 0 ? `<br><i class="ri-time-line me-1"></i><span style="color: #26c6f9;">Duration: ${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>` : ''}
+                    ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
                 </div>
             `;
             
@@ -7769,7 +7845,7 @@
         const maxOccupancy = selectedBedOption ? selectedBedOption.getAttribute('data-bed-max-occupancy') : 1;
         const selectedRoomType = selectedRoomOption ? selectedRoomOption.getAttribute('data-room-type') : 'Standard';
         const selectedBedType = selectedBedOption ? selectedBedOption.getAttribute('data-bed-type') : 'King Bed';
-        const selectedMealPlan = mealPlan.value || 'Room Only';
+        const selectedMealPlan = mealPlan.value || 'room_only';
         
         // Get bed data from the selected bed option
         let bedData = {};
@@ -7780,6 +7856,48 @@
                 console.log('Error parsing bed data:', e);
             }
         }
+        
+        // Get room data for pricing
+        const roomData = window.roomData ? window.roomData.find(r => r.room_id == roomId) : null;
+        
+        // Calculate number of nights
+        const checkInDate = new Date(checkIn);
+        const checkOutDate = new Date(checkOut);
+        const numberOfNights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+        
+        // Get the selected number of persons
+        const personCountSelect = document.getElementById('person_count_select');
+        const headCount = personCountSelect ? parseInt(personCountSelect.value) : 1;
+        
+        // Determine pricing based on occupancy
+        const isSingleOccupancy = headCount <= 1;
+        let pricePerNight = 0;
+        
+        if (roomData) {
+            if (isSingleOccupancy) {
+                pricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
+            } else {
+                pricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
+            }
+        } else {
+            pricePerNight = parseFloat(bedData.price || 190);
+        }
+        
+        // Calculate total price
+        const totalPrice = pricePerNight * numberOfNights;
+        
+        // Generate selectedMeals object for each night
+        const selectedMeals = {};
+        for (let i = 1; i <= numberOfNights; i++) {
+            selectedMeals[`meal_${i}`] = {
+                type: selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                price: pricePerNight
+            };
+        }
+        
+        // Get check-in and check-out times from room data or hotel data
+        const checkInTime = roomData?.check_in_time || hotelData.check_in_time || "15:00:00";
+        const checkOutTime = roomData?.check_out_time || hotelData.check_out_time || "12:00:00";
         
         // Build the complex data structure
         const bookingData = {
@@ -7801,15 +7919,10 @@
                             bed_id: parseInt(bedId) || 1,
                             bed_type: selectedBedType,
                             max_occupancy: parseInt(maxOccupancy) || 1,
-                            mealTypes: [selectedMealPlan],
-                            selectedMeals: {
-                                meal_1: {
-                                    type: selectedMealPlan,
-                                    price: parseFloat(bedData.price) || 190
-                                }
-                            },
-                            head_count: parseInt(maxOccupancy) || 1,
-                            price: parseFloat(bedData.price) || 190,
+                            mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
+                            selectedMeals: selectedMeals,
+                            head_count: headCount,
+                            price: pricePerNight,
                             baby_cot: parseInt(bedData.baby_cot) || 0,
                             room_type: selectedRoomType
                         }
@@ -7817,15 +7930,17 @@
                 }
             ],
             bookingType: "booking",
-            totalPrice: parseFloat(bedData.price) || 190,
+            totalPrice: totalPrice,
             priceMode: "dmc",
             priceModeId: parseInt(hotelData.dmc_id) || 4,
             hotelDetails: {
                 hotel_id: hotelId,
                 hotel_name: hotelData.name || "Hotel",
-                location: hotelData.location || "Location",
-                image: hotelData.image || "",
-                cancellation_charge: []
+                checkInTime: checkInTime,
+                checkOutTime: checkOutTime,
+                location: hotelData.location || null,
+                image: hotelData.master_image || hotelData.image || "",
+                cancellation_charge: null
             },
             bookingDate: [checkIn, checkOut]
         };
@@ -8435,8 +8550,13 @@
         // For demo purposes, show sample restaurants
         // In production, this would fetch from API
         const all_restaurants = @json($restaurants);
-
-        const restaurants = all_restaurants.filter(restaurant => restaurant.city == city);
+        console.log('All Restaurants:', all_restaurants);
+        
+        // Convert object to array if needed
+        const restaurantsArray = Array.isArray(all_restaurants) ? all_restaurants : Object.values(all_restaurants || {});
+        console.log('Restaurants Array:', restaurantsArray);
+        
+        const restaurants = restaurantsArray.filter(restaurant => restaurant.city == city);
         console.log('Restaurants:', restaurants);
         
         // Add restaurant options
@@ -9459,6 +9579,7 @@
         const hourlyPickupTimeField = document.getElementById('local_transfer_hourly_pickup_time');
         const hourlyPickupDateField = document.getElementById('local_transfer_hourly_pickup_date');
         const hourlyPickupLocationField = document.getElementById('local_transfer_hourly_pickup_location');
+        const hourlyHoursField = document.getElementById('local_transfer_hourly_hours');
         
         if (hourlyPickupTimeField) {
             hourlyPickupTimeField.addEventListener('change', checkHourlyFormCompletion);
@@ -9468,6 +9589,12 @@
         }
         if (hourlyPickupLocationField) {
             hourlyPickupLocationField.addEventListener('input', checkHourlyFormCompletion);
+        }
+        if (hourlyHoursField) {
+            hourlyHoursField.addEventListener('change', function() {
+                checkHourlyFormCompletion();
+                updateLocalTransferPricing(); // Update pricing when hours change
+            });
         }
         
         // Local Transfer (zone-based) fields

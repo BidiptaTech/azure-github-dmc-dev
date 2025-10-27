@@ -192,7 +192,7 @@
                                 <label for="latitude" class="form-label">
                                     <strong>Latitude</strong><span class="text-danger">*</span>
                                 </label>
-                                <input name="latitude" type="text" id="latitude" class="form-control" value="{{ old('latitude') }}" placeholder="Enter Latitude" oninput="validateLatitude(this)">
+                                <input name="latitude" type="text" id="latitude" class="form-control" value="{{ old('latitude') }}" placeholder="Enter Latitude" oninput="validateLatitude(this)" required>
                                 <small class="validation-message text-danger" id="latitude-validation-message"></small>
                                 @error('latitude')
                                 <div class="text-danger mt-1">{{ $message }}</div>
@@ -241,7 +241,7 @@
                             <div class="col-md-3 mb-3">
                                 <label for="property" class="form-label"><strong>Property</strong><span
                                         class="text-danger">*</span></label>
-                                <select name="property" class="form-select">
+                                <select name="property" class="form-select" required>
                                     <option value="">Select</option>
                                     <option value="third_party" {{ old('property') == 'third_party' ? 'selected' : '' }}>Third Party</option>
                                     <option value="owner" {{ old('property') == 'owner' ? 'selected' : '' }}>Ownership</option>
@@ -382,8 +382,11 @@
                         <div class="col-md-12">
                             <div class="form-check form-switch">
                                 <input type="hidden" name="restaurant_status" value="0">
-                                <input class="form-check-input" name="restaurant_status" type="checkbox" id="restaurant_status" value="1" {{ old('restaurant_status') == '1' ? 'checked' : '' }}>
-                                <label for="restaurant_status" class="form-check-label"><strong>Status</strong></label>
+                                <input class="form-check-input" name="restaurant_status" type="checkbox" id="restaurant_status" value="1" {{ old('restaurant_status') == '1' ? 'checked' : '' }} required>
+                                <label for="restaurant_status" class="form-check-label"><strong>Status</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                @error('restaurant_status')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
                             </div>
                         </div>
                     </div>

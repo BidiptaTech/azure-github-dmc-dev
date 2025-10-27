@@ -1153,7 +1153,8 @@ class HotelBookingController extends Controller
                     'tour' => [
                         'tour_id' => $tour->tour_id ?? $tourId,
                         'check_in_time' => $tour->check_in_time ?? null,
-                        'check_out_time' => $tour->check_out_time ?? null
+                        'check_out_time' => $tour->check_out_time ?? null,
+                        'auto_cancel_date' => $tour->auto_cancel_date ?? null
                     ],
                     'hotel_booking' => [
                         'booking_id' => $hotelOrder->id,
@@ -2825,6 +2826,7 @@ class HotelBookingController extends Controller
                 ->where('tour_id', $tourId)
                 ->where('type', 'attraction')
                 // ->orderBy('id')
+                ->whereNull('deleted_at')
                 ->skip($attractionOrderIndex)
                 ->first();
 
@@ -2843,14 +2845,74 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            // Handle file upload if provided
-            $approval_file = $attractionOrder->approval_file ?? '';
-            if ($request->hasFile('reference_file')) {
-                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
-                if (!empty($approval_file['master_value'])) {
-                    $approval_file = $approval_file['master_value'];
-                }
+            // Handle multiple file uploads if provided with optimized processing
+            $uploadedFiles = [];
+            $existingFiles = [];
+            $uploadErrors = [];
+            
+            // Get existing files from upload_files column if any
+            if (!empty($attractionOrder->upload_files)) {
+                $existingFiles = json_decode($attractionOrder->upload_files, true) ?? [];
             }
+            
+            if ($request->hasFile('reference_files')) {
+                $files = $request->file('reference_files');
+                $fileCount = count($files);
+                
+                Log::info('Processing file uploads', [
+                    'file_count' => $fileCount,
+                    'tour_id' => $tourId,
+                    'attraction_order_id' => $attractionOrder->id
+                ]);
+                
+                // Process files with error handling
+                foreach ($files as $index => $file) {
+                    try {
+                        // Validate file before processing
+                        if (!$file->isValid()) {
+                            $uploadErrors[] = "File " . ($index + 1) . " is invalid";
+                            continue;
+                        }
+                        
+                        // Check file size (max 10MB)
+                        if ($file->getSize() > 10485760) {
+                            $uploadErrors[] = "File " . ($index + 1) . " exceeds 10MB limit";
+                            continue;
+                        }
+                        
+                        // Process file upload
+                        $uploadResult = CommonHelper::image_path('file_storage', $file);
+                        if (!empty($uploadResult['master_value'])) {
+                            $uploadedFiles[] = $uploadResult['master_value'];
+                            Log::info('File uploaded successfully', [
+                                'file_index' => $index + 1,
+                                'file_path' => $uploadResult['master_value']
+                            ]);
+                        } else {
+                            $uploadErrors[] = "Failed to upload file " . ($index + 1);
+                        }
+                        
+                    } catch (\Exception $fileError) {
+                        Log::error('Error uploading individual file', [
+                            'file_index' => $index + 1,
+                            'error' => $fileError->getMessage()
+                        ]);
+                        $uploadErrors[] = "Error uploading file " . ($index + 1) . ": " . $fileError->getMessage();
+                    }
+                }
+                
+                // Log upload summary
+                Log::info('File upload summary', [
+                    'total_files' => $fileCount,
+                    'successful_uploads' => count($uploadedFiles),
+                    'failed_uploads' => count($uploadErrors),
+                    'errors' => $uploadErrors
+                ]);
+            }
+            
+            // Merge existing files with new uploaded files
+            $allFiles = array_merge($existingFiles, $uploadedFiles);
+            $upload_files = !empty($allFiles) ? json_encode($allFiles) : null;
 
             // Update the orders table with approval data
             $updateData = [
@@ -2858,7 +2920,7 @@ class HotelBookingController extends Controller
                 'actual_due_date' => $actualDueDate,
                 'display_due_date' => $displayDueDate,
                 'is_approve' => true,
-                'approval_file' => $approval_file,
+                'upload_files' => $upload_files,
                 'updated_at' => now()
             ];
 
@@ -2883,16 +2945,27 @@ class HotelBookingController extends Controller
                 'display_due_date' => $displayDueDate
             ]);
 
+            // Prepare success message with upload information
+            $message = 'Attraction booking approved successfully';
+            if (!empty($uploadedFiles)) {
+                $message .= '. ' . count($uploadedFiles) . ' file(s) uploaded successfully';
+                if (!empty($uploadErrors)) {
+                    $message .= ' (with ' . count($uploadErrors) . ' upload error(s))';
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Attraction booking approved successfully',
+                'message' => $message,
                 'data' => [
                     'tour_id' => $tourId,
                     'attraction_order_id' => $attractionOrder->id,
                     'reference_id' => $referenceId,
                     'actual_due_date' => $actualDueDate,
                     'display_due_date' => $displayDueDate,
-                    'approval_file' => $approval_file
+                    'upload_files' => $allFiles,
+                    'uploaded_count' => count($uploadedFiles),
+                    'upload_errors' => $uploadErrors
                 ]
             ]);
 
@@ -2960,6 +3033,7 @@ class HotelBookingController extends Controller
                 ->where('tour_id', $tourId)
                 ->where('type', 'restaurant')
                 // ->orderBy('id')
+                ->whereNull('deleted_at')
                 ->skip($restaurantOrderIndex)
                 ->first();
 
@@ -2978,14 +3052,74 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            // Handle file upload if provided
-            $approval_file = $restaurantOrder->approval_file ?? '';
-            if ($request->hasFile('reference_file')) {
-                $approval_file = CommonHelper::image_path('file_storage', $request->file('reference_file'));
-                if (!empty($approval_file['master_value'])) {
-                    $approval_file = $approval_file['master_value'];
-                }
+            // Handle multiple file uploads if provided with optimized processing
+            $uploadedFiles = [];
+            $existingFiles = [];
+            $uploadErrors = [];
+            
+            // Get existing files from upload_files column if any
+            if (!empty($restaurantOrder->upload_files)) {
+                $existingFiles = json_decode($restaurantOrder->upload_files, true) ?? [];
             }
+            
+            if ($request->hasFile('reference_files')) {
+                $files = $request->file('reference_files');
+                $fileCount = count($files);
+                
+                Log::info('Processing restaurant file uploads', [
+                    'file_count' => $fileCount,
+                    'tour_id' => $tourId,
+                    'restaurant_order_id' => $restaurantOrder->id
+                ]);
+                
+                // Process files with error handling
+                foreach ($files as $index => $file) {
+                    try {
+                        // Validate file before processing
+                        if (!$file->isValid()) {
+                            $uploadErrors[] = "File " . ($index + 1) . " is invalid";
+                            continue;
+                        }
+                        
+                        // Check file size (max 10MB)
+                        if ($file->getSize() > 10485760) {
+                            $uploadErrors[] = "File " . ($index + 1) . " exceeds 10MB limit";
+                            continue;
+                        }
+                        
+                        // Process file upload
+                        $uploadResult = CommonHelper::image_path('file_storage', $file);
+                        if (!empty($uploadResult['master_value'])) {
+                            $uploadedFiles[] = $uploadResult['master_value'];
+                            Log::info('Restaurant file uploaded successfully', [
+                                'file_index' => $index + 1,
+                                'file_path' => $uploadResult['master_value']
+                            ]);
+                        } else {
+                            $uploadErrors[] = "Failed to upload file " . ($index + 1);
+                        }
+                        
+                    } catch (\Exception $fileError) {
+                        Log::error('Error uploading individual restaurant file', [
+                            'file_index' => $index + 1,
+                            'error' => $fileError->getMessage()
+                        ]);
+                        $uploadErrors[] = "Error uploading file " . ($index + 1) . ": " . $fileError->getMessage();
+                    }
+                }
+                
+                // Log upload summary
+                Log::info('Restaurant file upload summary', [
+                    'total_files' => $fileCount,
+                    'successful_uploads' => count($uploadedFiles),
+                    'failed_uploads' => count($uploadErrors),
+                    'errors' => $uploadErrors
+                ]);
+            }
+            
+            // Merge existing files with new uploaded files
+            $allFiles = array_merge($existingFiles, $uploadedFiles);
+            $upload_files = !empty($allFiles) ? json_encode($allFiles) : null;
 
             // Update the orders table with approval data
             $updateData = [
@@ -2993,7 +3127,7 @@ class HotelBookingController extends Controller
                 'actual_due_date' => $actualDueDate,
                 'display_due_date' => $displayDueDate,
                 'is_approve' => true,
-                'approval_file' => $approval_file,
+                'upload_files' => $upload_files,
                 'updated_at' => now()
             ];
 
@@ -3018,16 +3152,27 @@ class HotelBookingController extends Controller
                 'display_due_date' => $displayDueDate
             ]);
 
+            // Prepare success message with upload information
+            $message = 'Restaurant booking approved successfully';
+            if (!empty($uploadedFiles)) {
+                $message .= '. ' . count($uploadedFiles) . ' file(s) uploaded successfully';
+                if (!empty($uploadErrors)) {
+                    $message .= ' (with ' . count($uploadErrors) . ' upload error(s))';
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Restaurant booking approved successfully',
+                'message' => $message,
                 'data' => [
                     'tour_id' => $tourId,
                     'restaurant_order_id' => $restaurantOrder->id,
                     'reference_id' => $referenceId,
                     'actual_due_date' => $actualDueDate,
                     'display_due_date' => $displayDueDate,
-                    'approval_file' => $approval_file
+                    'upload_files' => $allFiles,
+                    'uploaded_count' => count($uploadedFiles),
+                    'upload_errors' => $uploadErrors
                 ]
             ]);
 
@@ -4809,6 +4954,574 @@ class HotelBookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while rejecting local transport booking: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get attraction files for viewing and management
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getAttractionFiles(Request $request): JsonResponse
+    {
+        try {
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'attraction_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $attractionOrderIndex = $request->attraction_order_index;
+            $bookingIndex = $request->booking_index;
+
+            // Find the attraction order
+            $attractionOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'attraction')
+                ->whereNull('deleted_at')
+                ->skip($attractionOrderIndex)
+                ->first();
+
+            if (!$attractionOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction order not found'
+                ], 404);
+            }
+
+            // Decode the JSON data to get attraction name
+            $attractionData = json_decode($attractionOrder->data, true);
+            $attractionName = 'Unknown Attraction';
+            
+            if ($attractionData && isset($attractionData[$bookingIndex])) {
+                $booking = $attractionData[$bookingIndex];
+                $attractionName = $booking['AttractionName'] ?? 'Unknown Attraction';
+            }
+
+            // Get upload files
+            $uploadFiles = [];
+            if (!empty($attractionOrder->upload_files)) {
+                $uploadFiles = json_decode($attractionOrder->upload_files, true) ?? [];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'attraction_name' => $attractionName,
+                    'upload_files' => $uploadFiles,
+                    'order_id' => $attractionOrder->id
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting attraction files', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while retrieving files: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove a specific file from attraction booking
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function removeAttractionFile(Request $request): JsonResponse
+    {
+        try {
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'attraction_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'file_index' => 'required|integer|min:0'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $attractionOrderIndex = $request->attraction_order_index;
+            $bookingIndex = $request->booking_index;
+            $fileIndex = $request->file_index;
+
+            // Find the attraction order
+            $attractionOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'attraction')
+                ->whereNull('deleted_at')
+                ->skip($attractionOrderIndex)
+                ->first();
+
+            if (!$attractionOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction order not found'
+                ], 404);
+            }
+
+            // Get current files
+            $uploadFiles = [];
+            if (!empty($attractionOrder->upload_files)) {
+                $uploadFiles = json_decode($attractionOrder->upload_files, true) ?? [];
+            }
+
+            // Check if file index exists
+            if (!isset($uploadFiles[$fileIndex])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File not found at the specified index'
+                ], 404);
+            }
+
+            // Remove the file from array
+            array_splice($uploadFiles, $fileIndex, 1);
+
+            // Update the database
+            $updated = DB::table('orders')
+                ->where('id', $attractionOrder->id)
+                ->update([
+                    'upload_files' => !empty($uploadFiles) ? json_encode($uploadFiles) : null,
+                    'updated_at' => now()
+                ]);
+
+            if ($updated) {
+                Log::info('Attraction file removed successfully', [
+                    'tour_id' => $tourId,
+                    'order_id' => $attractionOrder->id,
+                    'file_index' => $fileIndex,
+                    'remaining_files' => count($uploadFiles)
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'File removed successfully',
+                    'data' => [
+                        'remaining_files' => $uploadFiles
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to remove file'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error removing attraction file', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while removing file: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload new files to attraction booking
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function uploadAttractionFiles(Request $request): JsonResponse
+    {
+        try {
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'attraction_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'new_files' => 'required|array',
+                'new_files.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max per file
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $attractionOrderIndex = $request->attraction_order_index;
+            $bookingIndex = $request->booking_index;
+
+            // Find the attraction order
+            $attractionOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'attraction')
+                ->whereNull('deleted_at')
+                ->skip($attractionOrderIndex)
+                ->first();
+
+            if (!$attractionOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attraction order not found'
+                ], 404);
+            }
+
+            // Get existing files
+            $existingFiles = [];
+            if (!empty($attractionOrder->upload_files)) {
+                $existingFiles = json_decode($attractionOrder->upload_files, true) ?? [];
+            }
+
+            // Upload new files
+            $uploadedFiles = [];
+            if ($request->hasFile('new_files')) {
+                foreach ($request->file('new_files') as $file) {
+                    $uploadResult = CommonHelper::image_path('file_storage', $file);
+                    if (!empty($uploadResult['master_value'])) {
+                        $uploadedFiles[] = $uploadResult['master_value'];
+                    }
+                }
+            }
+
+            // Merge existing and new files
+            $allFiles = array_merge($existingFiles, $uploadedFiles);
+
+            // Update the database
+            $updated = DB::table('orders')
+                ->where('id', $attractionOrder->id)
+                ->update([
+                    'upload_files' => !empty($allFiles) ? json_encode($allFiles) : null,
+                    'updated_at' => now()
+                ]);
+
+            if ($updated) {
+                Log::info('Attraction files uploaded successfully', [
+                    'tour_id' => $tourId,
+                    'order_id' => $attractionOrder->id,
+                    'new_files_count' => count($uploadedFiles),
+                    'total_files_count' => count($allFiles)
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => count($uploadedFiles) . ' file(s) uploaded successfully',
+                    'data' => [
+                        'uploaded_files' => $uploadedFiles,
+                        'total_files' => $allFiles
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to save uploaded files'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error uploading attraction files', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while uploading files: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get restaurant files for a specific booking
+     */
+    public function getRestaurantFiles(Request $request): JsonResponse
+    {
+        try {
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'restaurant_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $restaurantOrderIndex = $request->restaurant_order_index;
+            $bookingIndex = $request->booking_index;
+
+            // Find the restaurant order
+            $restaurantOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'restaurant')
+                ->whereNull('deleted_at')
+                ->skip($restaurantOrderIndex)
+                ->first();
+
+            if (!$restaurantOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant order not found'
+                ], 404);
+            }
+
+            // Decode the JSON data to get restaurant name
+            $restaurantData = json_decode($restaurantOrder->data, true);
+            $restaurantName = 'Unknown Restaurant';
+            
+            if ($restaurantData && isset($restaurantData[$bookingIndex])) {
+                $booking = $restaurantData[$bookingIndex];
+                // Try multiple possible keys for restaurant name (based on actual data structure)
+                $restaurantName = $booking['restaurantName'] ?? 
+                                $booking['RestaurantName'] ?? 
+                                $booking['restaurant_name'] ?? 
+                                'Unknown Restaurant';
+            }
+
+            // Get upload files
+            $uploadFiles = [];
+            if (!empty($restaurantOrder->upload_files)) {
+                $uploadFiles = json_decode($restaurantOrder->upload_files, true) ?? [];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'restaurant_name' => $restaurantName,
+                    'upload_files' => $uploadFiles,
+                    'order_id' => $restaurantOrder->id
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting restaurant files', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching files: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove a specific file from restaurant booking
+     */
+    public function removeRestaurantFile(Request $request): JsonResponse
+    {
+        try {
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'restaurant_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'file_index' => 'required|integer|min:0'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $restaurantOrderIndex = $request->restaurant_order_index;
+            $bookingIndex = $request->booking_index;
+            $fileIndex = $request->file_index;
+
+            // Find the restaurant order
+            $restaurantOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'restaurant')
+                ->whereNull('deleted_at')
+                ->skip($restaurantOrderIndex)
+                ->first();
+
+            if (!$restaurantOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant order not found'
+                ], 404);
+            }
+
+            // Get current upload files
+            $uploadFiles = [];
+            if (!empty($restaurantOrder->upload_files)) {
+                $uploadFiles = json_decode($restaurantOrder->upload_files, true) ?? [];
+            }
+
+            // Check if file index exists
+            if (!isset($uploadFiles[$fileIndex])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File not found at the specified index'
+                ], 404);
+            }
+
+            // Remove the file from array
+            array_splice($uploadFiles, $fileIndex, 1);
+
+            // Update the order with new files array
+            DB::table('orders')
+                ->where('id', $restaurantOrder->id)
+                ->update([
+                    'upload_files' => json_encode($uploadFiles),
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File removed successfully',
+                'data' => [
+                    'remaining_files' => $uploadFiles
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error removing restaurant file', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while removing file: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload new files for restaurant booking
+     */
+    public function uploadRestaurantFiles(Request $request): JsonResponse
+    {
+        try {
+            // Validate the incoming request
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'restaurant_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+                'new_files' => 'required|array|min:1',
+                'new_files.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max per file
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $tourId = $request->tour_id;
+            $restaurantOrderIndex = $request->restaurant_order_index;
+            $bookingIndex = $request->booking_index;
+
+            // Find the restaurant order
+            $restaurantOrder = DB::table('orders')
+                ->where('tour_id', $tourId)
+                ->where('type', 'restaurant')
+                ->whereNull('deleted_at')
+                ->skip($restaurantOrderIndex)
+                ->first();
+
+            if (!$restaurantOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant order not found'
+                ], 404);
+            }
+
+            // Get existing upload files
+            $existingFiles = [];
+            if (!empty($restaurantOrder->upload_files)) {
+                $existingFiles = json_decode($restaurantOrder->upload_files, true) ?? [];
+            }
+
+            // Process new files
+            $uploadedFiles = [];
+            if ($request->hasFile('new_files')) {
+                foreach ($request->file('new_files') as $file) {
+                    $uploadResult = CommonHelper::image_path('file_storage', $file);
+                    if (!empty($uploadResult['master_value'])) {
+                        $uploadedFiles[] = $uploadResult['master_value'];
+                    }
+                }
+            }
+
+            // Merge existing and new files
+            $allFiles = array_merge($existingFiles, $uploadedFiles);
+
+            // Update the order with new files
+            DB::table('orders')
+                ->where('id', $restaurantOrder->id)
+                ->update([
+                    'upload_files' => json_encode($allFiles),
+                    'updated_at' => now()
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Files uploaded successfully',
+                'data' => [
+                    'uploaded_files' => $uploadedFiles,
+                    'all_files' => $allFiles,
+                    'upload_count' => count($uploadedFiles)
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error uploading restaurant files', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while uploading files: ' . $e->getMessage()
             ], 500);
         }
     }

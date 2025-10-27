@@ -249,7 +249,7 @@ class AgentController extends Controller
             $dmc_id = $dmc->userId;
         }
         elseif($currentUser->role_id == 20){
-            $dmc_id = $dmc->userId;
+            $dmc_id = $currentUser->userId;
         }
 
         if (!$dmc_id) {
@@ -400,6 +400,21 @@ class AgentController extends Controller
         }
     }
     
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(string $agent_id)
+    {
+        try {
+            $agent_id = Crypt::decrypt($agent_id);
+            $agent = Agent::where('agent_id', $agent_id)->firstOrFail();
+            
+            return view('agents.show', compact('agent'));
+        } catch (\Exception $e) {
+            return redirect()->route('agents.index')->with('error', 'Agent not found.');
+        }
+    }
 
     /**
     * Show the form for editing the specified resource.
@@ -830,5 +845,257 @@ class AgentController extends Controller
         $agent->delete();
 
         return redirect()->route('agents.index')->with('success', 'Agent deleted successfully!');
+    }
+
+    /**
+     * Show the agents import page
+     */
+    public function importView()
+    {
+        $user = Auth::user();
+        
+        // Check if user has permission to import agents
+        $allowedRoles = [11, 33, 128, 129, 130, 134, 135, 136, 138, 12, 37, 38];
+        
+        if (!in_array($user->role_id, $allowedRoles)) {
+            abort(403, 'You do not have permission to import agents.');
+        }
+
+        // Get agencies available for this user's DMC
+        $agencies = $this->getAvailableAgencies($user);
+
+        // Get recent upload history
+        $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'agents')
+            ->where('uploaded_by', $user->userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return view('agents.import', compact('uploadHistory', 'agencies'));
+    }
+
+    /**
+     * Get available agencies based on user role
+     */
+    private function getAvailableAgencies($user)
+    {
+        $dmcId = $this->determineDmcIdForImport($user);
+        
+        if (!$dmcId) {
+            return collect();
+        }
+
+        return Agency::where('status', 1)
+            ->whereRaw('dmc_id::jsonb @> ?', [json_encode([$dmcId])])
+            ->orderBy('agency_name', 'asc')
+            ->get();
+    }
+
+    /**
+     * Determine DMC ID for import based on user role
+     */
+    private function determineDmcIdForImport($user)
+    {
+        switch ($user->role_id) {
+            case 11: // DMC
+                return $user->userId;
+                
+            case 33: // Sales Head
+            case 128:
+            case 129:
+            case 130:
+            case 134:
+            case 135:
+            case 136:
+            case 138:
+                return $user->created_by;
+                
+            case 12: // Sales Manager
+            case 37:
+                $salesHead = User::where('userId', $user->created_by)->first();
+                return $salesHead ? $salesHead->created_by : null;
+                
+            case 38: // Assistant Sales Manager
+                $salesManager = User::where('userId', $user->created_by)->first();
+                if ($salesManager) {
+                    $salesHead = User::where('userId', $salesManager->created_by)->first();
+                    return $salesHead ? $salesHead->created_by : null;
+                }
+                return null;
+                
+            case 1: // Admin
+            case 2:
+            case 3:
+            case 4:
+            case 19:
+                $virtualDmc = User::where('role_id', 20)->first();
+                return $virtualDmc ? $virtualDmc->userId : null;
+                
+            case 20: // Virtual DMC
+                return $user->userId;
+                
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Handle the agents CSV import
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+            ]);
+
+            $file = $request->file('file');
+            $originalFileName = $file->getClientOriginalName();
+            
+            // Generate file hash to prevent duplicate uploads
+            $fileHash = hash_file('md5', $file->getPathname());
+            $auth_user = Auth::user();
+            $cacheKey = "agent_upload_{$fileHash}_{$auth_user->userId}";
+            
+            // Check if this exact file was uploaded recently (within last 30 seconds)
+            if (cache()->has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file was already uploaded recently. Please wait a moment before uploading again.');
+            }
+
+            // Create the import instance
+            $import = new \App\Imports\AgentsImport();
+            
+            // Import the file
+            $result = $import->import($file->getPathname());
+            
+            // Cache the upload to prevent duplicates
+            cache()->put($cacheKey, true, 30);
+            
+            $successCount = $result['success'];
+            $errorCount = $result['errors'];
+            $errorMessages = $result['error_messages'];
+            $totalRecords = $successCount + $errorCount;
+            
+            // Create upload history record
+            \App\Models\UploadHistory::createRecord(
+                'agents',
+                $originalFileName,
+                $originalFileName,
+                $totalRecords,
+                $successCount,
+                $errorCount,
+                $errorMessages,
+                $auth_user->userId
+            );
+            
+            if ($errorCount > 0) {
+                // Format error summary with better structure
+                $errorSummary = '<div class="error-summary-list mt-2">';
+                $displayErrors = array_slice($errorMessages, 0, 10);
+                
+                foreach ($displayErrors as $index => $error) {
+                    $errorSummary .= '<div class="error-summary-item mb-1">';
+                    $errorSummary .= '<i class="ri-close-circle-line text-danger me-1"></i>';
+                    $errorSummary .= '<strong>' . ($index + 1) . '.</strong> ' . $error;
+                    $errorSummary .= '</div>';
+                }
+                
+                if (count($errorMessages) > 10) {
+                    $errorSummary .= '<div class="error-summary-item mt-2 text-muted">';
+                    $errorSummary .= '<i class="ri-more-line me-1"></i>';
+                    $errorSummary .= '<em>... and ' . (count($errorMessages) - 10) . ' more errors. View upload history for complete details.</em>';
+                    $errorSummary .= '</div>';
+                }
+                
+                $errorSummary .= '</div>';
+                
+                if ($successCount > 0) {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-information-line me-1"></i>';
+                    $message .= '<strong>Import Summary:</strong><br>';
+                    $message .= '<span class="text-success"><i class="ri-check-line me-1"></i>' . $successCount . ' agents imported successfully</span><br>';
+                    $message .= '<span class="text-danger"><i class="ri-close-line me-1"></i>' . $errorCount . ' rows failed</span>';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Failed Rows:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('warning', $message);
+                } else {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-error-warning-line me-1"></i>';
+                    $message .= '<strong>No agents were imported.</strong> All ' . $errorCount . ' rows had errors.';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Error Details:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('error', $message);
+                }
+            }
+            
+            if ($successCount > 0) {
+                return redirect()->back()->with('success', "Successfully imported {$successCount} agents!");
+            } else {
+                return redirect()->back()->with('error', 'No agents were imported. Please check your CSV file.');
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Agent import error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Failed to import agents. Please ensure the file is properly formatted. Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download the agents import template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="agents_import_template.csv"',
+        ];
+
+        $columns = [
+            'agency_name',
+            'salutation',
+            'name',
+            'email',
+            'phone',
+            'designation',
+            'password'
+        ];
+
+        $callback = function() use ($columns) {
+            $file = fopen('php://output', 'w');
+            
+            // Write header row
+            fputcsv($file, $columns);
+            
+            // Write sample data rows
+            fputcsv($file, [
+                'Sunrise Travel Agency',
+                'Mr',
+                'John Smith',
+                'john.smith@example.com',
+                '1234567890',
+                'Sales Manager',
+                'Password@123'
+            ]);
+            
+            fputcsv($file, [
+                'Global Tours Ltd',
+                'Mrs',
+                'Jane Doe',
+                'jane.doe@example.com',
+                '9876543210',
+                'Travel Consultant',
+                'SecurePass@456'
+            ]);
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
