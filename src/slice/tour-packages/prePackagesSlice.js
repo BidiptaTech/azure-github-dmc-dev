@@ -117,22 +117,27 @@ export const fetchPackages = createAsyncThunk(
       // Get selected DMC ID from Redux state
       const state = getState();
       const selectedDmcId = selectDmcId(state);
-      // console.log('🎯 PrePackagesSlice - Fetching packages with DMC ID:', selectedDmcId);
-      // console.log('🎯 PrePackagesSlice - Pagination params:', { start, limit });
-
-      // Add DMC ID and pagination parameters to search parameters
-      const updatedSearchParams = {
+      
+      // Build search params with pagination
+      let updatedSearchParams = {
         ...searchParams,
         start,
         limit,
-        ...(selectedDmcId && { dmc_id: selectedDmcId })
       };
-
       
+      // Use dmc_id from searchParams if provided, otherwise use selectedDmcId from Redux
+      if (searchParams?.dmc_id) {
+        updatedSearchParams.dmc_id = searchParams.dmc_id;
+        console.log('🎯 PrePackagesSlice - Using DMC ID from searchParams:', searchParams.dmc_id);
+      } else if (selectedDmcId) {
+        updatedSearchParams.dmc_id = selectedDmcId;
+        console.log('🎯 PrePackagesSlice - Using DMC ID from Redux:', selectedDmcId);
+      }
+      
+      console.log('🎯 PrePackagesSlice - Final search params:', updatedSearchParams);
 
       const response = await packageAPI.fetchPackages(updatedSearchParams);
-      // console.log('🎯 PrePackagesSlice - API response:', response);
-      // console.log('🎯 PrePackagesSlice - API response data:', response.data);
+      console.log('🎯 PrePackagesSlice - API response:', response.data);
       return response.data;
     } catch (error) {
       console.error('🎯 PrePackagesSlice - API error:', error);

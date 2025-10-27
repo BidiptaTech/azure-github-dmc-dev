@@ -13,13 +13,20 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
-import LocationSearch from '../hero/hero-3/LocationSearch';
+import LocationSearch from '../hero/hero-2/LocationSearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
-import CitySearch from '../hero/hero-3/CitySearch';
 import SelectAgent from '../hero/hero-3/SelectAgent';
 import DateSelect from './common/DateSelect';
 import { fetchPackages, setSearchParams } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
+import {
+  fetchDMCsByCountry,
+  setSelectedDmcId,
+  clearSelectedDmc,
+  selectDMCs,
+  selectDMCLoading,
+  selectDMCError,
+} from '../../slice/dmc/dmcSlice';
 // import LuggageIcon from '@mui/icons-material/Luggage';
 // import LuggageIcon from '@mui/icons-material/Luggage';
 import ExploreIcon from '@mui/icons-material/Explore';
@@ -76,6 +83,7 @@ const IconContainer = styled(Box)(({ theme }) => ({
 }));
 
 
+
 const PreDefinePackages = () => {
   const dispatch = useDispatch();
   const { searchParams } = useSelector(state => state.prePackages);
@@ -84,9 +92,20 @@ const PreDefinePackages = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedCity, setSelectedCity] = useState(null);
+  const [locationData, setLocationData] = useState(null); // Combined location data (country + city)
   const [selectedAgent, setSelectedAgent] = useState(null);
+  
+  // DMC-related state and selectors
+  const apiDMCs = useSelector(selectDMCs);
+  const dmcLoading = useSelector(selectDMCLoading);
+  const dmcError = useSelector(selectDMCError);
+  const selectedDmcId = useSelector((state) => state.dmc.dmcId); // Single DMC selection
+  const selectedDmcData = useSelector((state) => state.dmc.selectedDmcData); // Single DMC data
+  
+  // Component state for DMC management
+  const [dmcOptions, setDmcOptions] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [hasDMCsAvailable, setHasDMCsAvailable] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
   const [guestCounts, setGuestCounts] = useState({
     Adults: 1,
@@ -102,27 +121,51 @@ const PreDefinePackages = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  // Auto-fetch DMCs when location is selected
+  useEffect(() => {
+    if (locationData && locationData.country) {
+      const countryName = locationData.country;
+      console.log('🏢 Auto-fetching DMCs for country:', countryName);
+      dispatch(fetchDMCsByCountry([countryName]));
+    }
+  }, [locationData, dispatch]);
+
+  // Process DMC data for sidebar options
+  useEffect(() => {
+    if (apiDMCs && apiDMCs.data && Array.isArray(apiDMCs.data)) {
+      const processedDMCs = apiDMCs.data.map((dmc, index) => ({
+        id: `dmc-${index}`,
+        dmcId: dmc.userId || null,
+        name: dmc.company_name || `DMC ${index + 1}`,
+        location: dmc.country || 'Unknown Location',
+        logo: dmc.logo || '',
+        description: 'Professional destination management services',
+        originalData: dmc,
+      }));
+      
+      setDmcOptions(processedDMCs);
+      setHasDMCsAvailable(processedDMCs.length > 0);
+    } else {
+      setDmcOptions([]);
+      setHasDMCsAvailable(false);
+    }
+  }, [apiDMCs]);
+
   // Check if search parameters exist when component mounts
   useEffect(() => {
     if (searchParams) {
       setHasSearched(true);
-      // Optionally restore form values from searchParams
-      if (searchParams.country) {
-        // If country is a string, create an object, otherwise use as is
-        const countryObj = typeof searchParams.country === 'string' 
-          ? { name: searchParams.country, code: searchParams.country }
-          : searchParams.country;
-        setSelectedLocation(countryObj);
+      
+      // Restore location data (country + city combined)
+      if (searchParams.country && searchParams.city) {
+        setLocationData({
+          country: searchParams.country,
+          city: searchParams.city,
+          countryCode: searchParams.country_code || null,
+          cityCode: searchParams.city_code || null
+        });
       }
-      if (searchParams.city) {
-        // If city is a string, create an object, otherwise use as is
-        const cityObj = typeof searchParams.city === 'string' 
-          ? { name: searchParams.city, address: searchParams.city }
-          : searchParams.city;
-        setSelectedCity(cityObj);
-      }
-      if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
-      if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
+      
       if (searchParams.agent_id && showAgentSelector) setSelectedAgent(searchParams.agent_id);
       if (searchParams.date) setSelectedDate(searchParams.date);
       
@@ -155,27 +198,47 @@ const PreDefinePackages = () => {
   };
   
   const handleLocationSelect = (location) => {
-    
-    
-    // Check if this is the same location as already selected
-    const isSameLocation = selectedLocation?.name === location?.name;
-    
-    setSelectedLocation(location);
-    
-    // Only reset city if the location actually changed AND we're not initializing
-    if (!isSameLocation && !isInitializing) {
-     
-      setSelectedCity(null);
-    }
-  };
-
-  const handleCitySelect = (city) => {
-  
-    setSelectedCity(city);
+    // LocationSearch (hero-2) returns combined data: { country, countryCode, city, cityCode }
+    // or null when cleared
+    console.log('📍 Location data received:', location);
+    setLocationData(location);
   };
 
   const handleAgentSelect = (agent) => {
     setSelectedAgent(agent);
+  };
+
+  // === DMC Selection Handlers (Single Selection) ===
+  const handleDMCCardClick = (dmc) => {
+    console.log('🏢 DMC card clicked:', dmc);
+    
+    // Check if this DMC is already selected
+    const isSelected = selectedDmcId === dmc.dmcId;
+    
+    if (isSelected) {
+      // Deselect: clear the selection
+      dispatch(clearSelectedDmc());
+      console.log('🏢 DMC deselected');
+    } else {
+      // Select: set this DMC as the selected one (replaces any previous selection)
+      dispatch(setSelectedDmcId({ dmcId: dmc.dmcId, dmcData: dmc }));
+      console.log('🏢 DMC selected:', dmc.name);
+    }
+  };
+
+  const handleFilterChange = (event) => {
+    setFilterText(event.target.value);
+  };
+
+  // Filter DMCs based on search text
+  const filteredDMCs = dmcOptions.filter(dmc => 
+    dmc.name.toLowerCase().includes(filterText.toLowerCase()) ||
+    dmc.location.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  // Check if a DMC is selected
+  const isDMCSelected = (dmc) => {
+    return selectedDmcId === dmc.dmcId;
   };
   
   const handleCloseSnackbar = () => {
@@ -183,20 +246,16 @@ const PreDefinePackages = () => {
   };
 
   const validateForm = () => {
- 
-    
-    // Validate location selection
-    if (!selectedLocation) {
-     
-      setSnackbarMessage("Please select a location");
+    // Validate location selection (country)
+    if (!locationData || !locationData.country) {
+      setSnackbarMessage("Please select a country");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
 
     // Validate city selection
-    if (!selectedCity) {
-     
+    if (!locationData.city) {
       setSnackbarMessage("Please select a city");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -284,8 +343,7 @@ const PreDefinePackages = () => {
 
     // Format the data for submission
     const formData = {
-      location: selectedLocation,
-      city: selectedCity,
+      location: locationData,
       date: selectedDate,
       guests: {
         adults: guestCounts.Adults,
@@ -302,12 +360,14 @@ const PreDefinePackages = () => {
       formData.agent = selectedAgent;
     }
     
-   
+    console.log('📦 Submitting package search with data:', formData);
     
     // Format the data for API request
     const searchParams = {
-      country: selectedLocation?.name || selectedLocation,
-      city: selectedCity?.name || selectedCity,
+      country: locationData.country,
+      city: locationData.city,
+      country_code: locationData.countryCode || null,
+      city_code: locationData.cityCode || null,
       date: selectedDate,
       adults: guestCounts.Adults,
       male_count: guestCounts.maleCount || 0,
@@ -320,6 +380,12 @@ const PreDefinePackages = () => {
     // Add agent_id parameter only if the agent selector is shown
     if (showAgentSelector && selectedAgent) {
       searchParams.agent_id = selectedAgent?.id;
+    }
+    
+    // Add DMC ID if one is selected (single selection)
+    if (selectedDmcId) {
+      searchParams.dmc_id = selectedDmcId;
+      console.log('🏢 Including DMC ID in search:', selectedDmcId);
     }
     
 
@@ -343,6 +409,7 @@ const PreDefinePackages = () => {
         setOpenSnackbar(true);
       });
   };
+
 
   return (
     <StyledContainer maxWidth="lg">
@@ -391,20 +458,13 @@ const PreDefinePackages = () => {
               flexWrap: isMobile ? 'wrap' : 'nowrap',
               gap: isMobile ? '16px' : '0'
             }}>
+              {/* Combined Location Search (Country + City) - Uses hero-2 pattern */}
               <div style={{ 
-                flex: isMobile ? '1 1 100%' : '1', 
+                flex: isMobile ? '1 1 100%' : showAgentSelector ? '1.5' : '2', 
                 minWidth: '0',
                 marginBottom: isMobile ? '8px' : '0'
               }}>
-                <LocationSearch onLocationSelect={handleLocationSelect} initialValue={selectedLocation} />
-              </div>
-              
-              <div style={{ 
-                flex: isMobile ? '1 1 100%' : '1', 
-                minWidth: '0',
-                marginBottom: isMobile ? '8px' : '0'
-              }}>
-                <CitySearch selectedCountry={selectedLocation} onCitySelect={handleCitySelect} initialValue={selectedCity} />
+                <LocationSearch onLocationSelect={handleLocationSelect} />
               </div>
 
               {showAgentSelector && (
@@ -462,9 +522,20 @@ const PreDefinePackages = () => {
           </div>
         </Paper>
         
-        <ListingCards hasSearched={hasSearched} />
-        
-        
+        <ListingCards 
+          hasSearched={hasSearched} 
+          selectedDmcId={selectedDmcId}
+          selectedDmcData={selectedDmcData}
+          locationData={locationData}
+          dmcOptions={dmcOptions}
+          filteredDMCs={filteredDMCs}
+          dmcLoading={dmcLoading}
+          dmcError={dmcError}
+          filterText={filterText}
+          handleFilterChange={handleFilterChange}
+          handleDMCCardClick={handleDMCCardClick}
+          isDMCSelected={isDMCSelected}
+        />
         
       </Box>
       

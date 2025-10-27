@@ -79,10 +79,8 @@ const MainMenu = ({ style = "" }) => {
   const [isDMCModalOpen, setIsDMCModalOpen] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState(null);
 
-  // State for Packages flow (single DMC selection - same as Book Tour)
-  const [isPackagesLocationModalOpen, setIsPackagesLocationModalOpen] = useState(false);
-  const [isPackagesDMCModalOpen, setIsPackagesDMCModalOpen] = useState(false);
-  const [packagesSearchCriteria, setPackagesSearchCriteria] = useState(null);
+  // State for Packages flow (removed - now follows Quick Enquiry pattern)
+  // No modals needed - user selects location on the packages page itself
 
   // Get DMC count and selected DMC from Redux state
   const dmcCount = useSelector((state) => state.dmc.dmcCount);
@@ -109,11 +107,8 @@ const MainMenu = ({ style = "" }) => {
         if (pathname.includes("/dashboard/db-dashboard/home_1")) {
           console.log('🌍 Auto-opening Book Tour location modal - no location selected');
           setIsBookTourLocationModalOpen(true);
-        } else if (pathname.includes("/dashboard/pre-define-packages")) {
-          console.log('🌍 Auto-opening Packages location modal - no location selected');
-          setIsPackagesLocationModalOpen(true);
         }
-        // Note: Quick Enquiry (home_2) does not auto-open modal - user selects location on the page
+        // Note: Quick Enquiry (home_2) and Packages do not auto-open modal - user selects location on the page
       }
     }
   }, [selectedDmcData, selectedCountries, dmcCountLoading, userRole, pathname]);
@@ -195,7 +190,7 @@ const MainMenu = ({ style = "" }) => {
     navigate("/dashboard/db-dashboard/home_2");
   };
 
-  // === Packages Handlers (Single DMC Selection - Same as Book Tour) ===
+  // === Packages Handlers (Direct Navigation - No Modal, Same as Quick Enquiry) ===
   const handlePackagesClick = (e) => {
     e.preventDefault();
     
@@ -213,65 +208,9 @@ const MainMenu = ({ style = "" }) => {
     };
     dispatch(commonActions.setGuestCounts(defaultGuestCounts));
     
-    // Wait for DMC count to load
-    if (dmcCountLoading) {
-      return;
-    }
-    
-    // For non-Agent users, skip DMC selection and go directly to packages
-    if (userRole !== "Agent") {
-      navigate(packagesPath, { 
-        state: { 
-          selectedDMC: null,
-          searchCriteria: null 
-        } 
-      });
-      return;
-    }
-    
-    // For Agent users, always show location modal
-    setIsPackagesLocationModalOpen(true);
-  };
-
-  const handlePackagesLocationSelect = (locationData) => {
-    console.log('📍 Location selected for Packages:', locationData);
-    
-    // Only proceed if we have both country and city
-    if (locationData && locationData.country && locationData.city) {
-      setIsPackagesLocationModalOpen(false);
-      
-      // Set search criteria and open DMC selection modal
-      const searchCriteria = { 
-        country: { name: locationData.country },
-        city: locationData.city 
-      };
-      setPackagesSearchCriteria(searchCriteria);
-      setIsPackagesDMCModalOpen(true);
-    } else {
-      console.warn('⚠️ Incomplete location data - need both country and city');
-    }
-  };
-
-  const handlePackagesDMCSelect = (selectedDMC) => {
-    // Clear packages listing when navigating to packages
-    dispatch(resetPackages());
-    
-    // Navigate to the packages page with the selected DMC and search criteria
-    navigate(packagesPath, { 
-      state: { 
-        selectedDMC,
-        searchCriteria: packagesSearchCriteria 
-      } 
-    });
-  };
-
-  const handleClosePackagesLocationModal = () => {
-    setIsPackagesLocationModalOpen(false);
-  };
-
-  const handleClosePackagesDMCModal = () => {
-    setIsPackagesDMCModalOpen(false);
-    setPackagesSearchCriteria(null);
+    // Navigate directly to packages page
+    // User will select location and DMCs on the Packages page itself (after search)
+    navigate(packagesPath);
   };
 
   return (
@@ -456,44 +395,8 @@ const MainMenu = ({ style = "" }) => {
       {/* Book an Enquiry Flow - Direct Navigation (No Modal) */}
       {/* User will select location directly on the Quick Enquiry page */}
 
-      {/* Packages Flow - Location Selection + Single DMC Selection */}
-      <StyledDialog
-        open={isPackagesLocationModalOpen}
-        onClose={handleClosePackagesLocationModal}
-        maxWidth="md"
-        fullWidth
-      >
-        <StyledDialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-            <TravelIcon sx={{ fontSize: 32, mr: 2 }} />
-            <Box>
-              <Typography variant="h5" component="div" sx={{ fontWeight: 600 }}>
-                Select Destination for Packages
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
-                Choose your travel destination
-              </Typography>
-            </Box>
-          </Box>
-          <IconButton
-            onClick={handleClosePackagesLocationModal}
-            sx={{ position: 'absolute', right: 16, top: 16 }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </StyledDialogTitle>
-        <DialogContent sx={{ p: 4, minHeight: '300px' }}>
-          <LocationSearch onLocationSelect={handlePackagesLocationSelect} />
-        </DialogContent>
-      </StyledDialog>
-
-      <DMCSelectionModal
-        open={isPackagesDMCModalOpen}
-        onClose={handleClosePackagesDMCModal}
-        onSelect={handlePackagesDMCSelect}
-        searchCriteria={packagesSearchCriteria}
-        multiSelect={false}
-      />
+      {/* Packages Flow - Direct Navigation (No Modal, Same as Quick Enquiry) */}
+      {/* User will select location and DMCs directly on the Packages page */}
     </>
   );
 };
