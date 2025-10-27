@@ -86,7 +86,10 @@ class TourController extends Controller
             $random_dmc_id = null;
             $dmcId = $request->dmc_id;
             if(empty($request->dmc_id)){
-                $dmc_idd = User::where('country', $countryNames)->where('role_id', 11)->first();
+                // Find DMC user by matching country from the destination array
+                $dmc_idd = User::whereIn('country', $countryArray)
+                              ->where('role_id', 11)
+                              ->first();
                 if ($dmc_idd) {
                     $dmcId = $dmc_idd->userId;
                     $random_dmc_id = $dmc_idd->userId;
@@ -262,8 +265,8 @@ class TourController extends Controller
                     'adult' => $tour->adult,
                     'total_pax' => $tour->adult + $tour->child,
                     'service' => $service,
-                    'city' => $cities,
                     'random_dmc_id' => $random_dmc_id,
+                    'city' => $cities,
                     'EnquiryDetails' => [
                         'hotel' => $hotels,
                         'attraction' => $attraction,
