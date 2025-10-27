@@ -11,19 +11,7 @@ const Sidebar = ({ hourlyPrices, priceRange, setPriceRange }) => {
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   return (
     <>
-      {/* <div className="sidebar__item -no-border">
-        <h5 className="text-18 fw-500 mb-10">Activity Types</h5>
-        <div className="sidebar-checkbox">
-          <ActivityTypes />
-        </div>
-      </div>
-
-      <div className="sidebar__item">
-        <h5 className="text-18 fw-500 mb-10">Other</h5>
-        <div className="sidebar-checkbox">
-          <OthersFilter />
-        </div>
-      </div> */}
+     
       <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Mode</h5>
         <div className="sidebar-checkbox">

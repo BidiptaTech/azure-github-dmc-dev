@@ -112,8 +112,8 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
   
   // Get the search parameters from Redux store
   const searchParams = useSelector((state) => state.tourguide.searchParams, shallowEqual);
-  const initialAdults = searchParams?.adults || 1;
-  const initialChildren = searchParams?.children || 0;
+  const initialAdults = searchParams?.adults ?? 1;
+  const initialChildren = searchParams?.children ?? 0;
   const totalAllowed = initialAdults + initialChildren; // Total passengers allowed from search
   console.log('PassengerSelection debug:', value);
   // Initialize guest counts with maximum values from search parameters
@@ -145,8 +145,8 @@ const PassengerSelection = ({ value, onChange, disabled }) => {
   // Update guest counts when search parameters change, but only when needed
   useEffect(() => {
     if (searchParams) {
-      const newAdults = searchParams.adults || 1;
-      const newChildren = searchParams.children || 0;
+      const newAdults = searchParams.adults ?? 1;
+      const newChildren = searchParams.children ?? 0;
       
       // Only update if there's a real change and no value prop
       if (!value && (
