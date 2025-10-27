@@ -95,8 +95,6 @@
                         @if(session('error'))
                             <div class="alert alert-danger alert-dismissible fade show modern-alert" role="alert">
                                 <div class="d-flex align-items-start">
-                                    <div class="alert-icon me-3">
-                                        <i class="ri-error-warning-line"></i>
                                     <div class="flex-grow-1">
                                         <h5 class="alert-heading mb-2">
                                             <i class="ri-close-circle-line me-2"></i>Upload Failed
