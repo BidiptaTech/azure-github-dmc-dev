@@ -95,7 +95,7 @@ class TourController extends Controller
                 }
             }
             $userDMC = User::where('userId', $dmcId)->first();
-            $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+            $auto_cancel_day = $userDMC && isset($userDMC->auto_cancel_date) ? (int) $userDMC->auto_cancel_date : 1; // Default to 1 day if not set
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
             $tour = new Tour();
