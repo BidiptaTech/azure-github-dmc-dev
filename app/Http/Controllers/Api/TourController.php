@@ -83,8 +83,18 @@ class TourController extends Controller
                                       ->first();
                 $multi_enq_id = $formEnquiry->multi_enq_id ?? '';
             }
-            
-            $userDMC = User::where('userId', $request->dmc_id)->first();
+            $random_dmc_id = null;
+            $dmcId = $request->dmc_id;
+            if(empty($request->dmc_id)){
+                $dmc_idd = User::where('country', $countryNames)->where('role_id', 11)->first();
+                if ($dmc_idd) {
+                    $dmcId = $dmc_idd->userId;
+                    $random_dmc_id = $dmc_idd->userId;
+                } else {
+                    $dmcId = null;
+                }
+            }
+            $userDMC = User::where('userId', $dmcId)->first();
             $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
@@ -102,7 +112,7 @@ class TourController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
-            $tour->dmc_id = $request->dmc_id;
+            $tour->dmc_id = $dmcId;
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
