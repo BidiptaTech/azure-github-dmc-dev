@@ -135,12 +135,13 @@ const MainMenu = ({ style = "" }) => {
     e.preventDefault();
     
     // Wait for DMC count to load
-    if (dmcCountLoading) {
-      return;
-    }
+    // if (dmcCountLoading) {
+    //   return;
+    // }
+    navigate("/dashboard/db-dashboard/home_1");
     
     // Always show location modal
-    setIsBookTourLocationModalOpen(true);
+    //setIsBookTourLocationModalOpen(true);
   };
 
   const handleBookTourLocationSelect = (locationData) => {
