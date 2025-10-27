@@ -469,6 +469,11 @@
         background: rgba(220, 38, 38, 0.1);
     }
     
+    .ri-percent-line {
+        color: #16a34a !important; /* Green */
+        background: rgba(22, 163, 74, 0.1);
+    }
+    
     .roadmap-icon:hover {
   color: #2ecc71;
   transform: scale(1.1);
@@ -1702,6 +1707,40 @@
                     </ul>
                 </li>
                 @endif
+
+                <!-- Tax Management for DMC -->
+                @php
+                    $dmcTaxRoles = 11;
+                @endphp
+
+                @if(Auth::user()->role_id == $dmcTaxRoles)
+                    <li class="menu-header mt-5">
+                        <span class="menu-header-text" data-i18n="Tax Management">Tax Management</span>
+                    </li>
+
+                    <li class="menu-item @if(Request::is('tax*')) open active @endif">
+                        <a href="javascript:void(0);" class="menu-link menu-toggle">
+                            <i class="menu-icon tf-icons ri-percent-line"></i>
+                            <div data-i18n="Tax Management">Tax Management</div>
+                        </a>
+                        <ul class="menu-sub">
+                            <!-- Tax Settings -->
+                            <li class="menu-item @if(Request::is('tax/settings')) active @endif">
+                                <a href="{{ route('tax.settings') }}" class="menu-link">
+                                    <div data-i18n="Tax Settings">Tax Settings</div>
+                                </a>
+                            </li>
+
+                            <!-- Tax List -->
+                            <li class="menu-item @if(Request::is('tax')) active @endif">
+                                <a href="{{ route('tax.index') }}" class="menu-link">
+                                    <div data-i18n="All Taxes">All Taxes</div>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif
+                
                 <!-- Operation Country -->
                 {{-- @if(hasPermission('view country'))
                 <li class="menu-header mt-5">
