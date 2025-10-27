@@ -51,6 +51,7 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
 use App\Http\Controllers\GuestController;
+use App\Http\Controllers\TaxController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -231,6 +232,16 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        
+        // Tax Management Routes (DMC Only)
+        Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');
+        Route::get('/tax/settings', [TaxController::class, 'settings'])->name('tax.settings');
+        Route::post('/tax', [TaxController::class, 'store'])->name('tax.store');
+        Route::get('/tax/{id}/edit', [TaxController::class, 'edit'])->name('tax.edit');
+        Route::put('/tax/{id}', [TaxController::class, 'update'])->name('tax.update');
+        Route::delete('/tax/{id}', [TaxController::class, 'destroy'])->name('tax.destroy');
+        Route::post('/tax/{id}/toggle-status', [TaxController::class, 'toggleStatus'])->name('tax.toggle-status');
+        
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
         Route::get('/get-ports', [HotelController::class, 'getPorts'])->name('get.ports');
