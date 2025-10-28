@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
 //import { setHotelService } from "@/slice/common/BookingSlice";
 import { setUserInfo, setBookingResponse } from "@/slice/common/customerInfo";
-import { setBookingType, setIsNavigating } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
 
 const Index = () => {
   const location1 = useLocation();
@@ -123,6 +123,7 @@ const Index = () => {
       .then((response) => {
         setResponseData(response);
         dispatch(setBookingType(response.order?.bookingType));
+        dispatch(setHaveBooking(true));
         dispatch(setIsNavigating(false));
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
@@ -220,6 +221,7 @@ const Index = () => {
       .then((response) => {
         setResponseData(response);
         dispatch(setBookingType(response.order?.bookingType));
+        dispatch(setHaveBooking(true));
         dispatch(setIsNavigating(false));
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));

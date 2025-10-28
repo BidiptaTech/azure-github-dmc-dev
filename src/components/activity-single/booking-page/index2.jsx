@@ -23,7 +23,7 @@ import {
   selectUserInfo,
   selectBookingResponse,
 } from "@/slice/common/customerInfo";
-import { setBookingType } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "@/slice/common/commonSlice";
 import {
   createBooking,
   setRestaurantsService,
@@ -413,6 +413,7 @@ export default function Index2() {
       dispatch(setResponse(response));
 
       dispatch(setBookingType(response.order?.bookingType));
+      dispatch(setHaveBooking(true));
       // Check that service exists and has the expected structure
       if (response.service && response.service.date_service) {
         dispatch(setDateService(response.service.date_service));
@@ -522,7 +523,7 @@ export default function Index2() {
       if (response) {
         dispatch(setResponse(response));
         dispatch(setBookingType(response.order?.bookingType));
-
+        dispatch(setHaveBooking(true));
         // If the response contains a service date, update Redux state
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));

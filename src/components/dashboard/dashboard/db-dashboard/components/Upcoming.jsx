@@ -43,7 +43,7 @@ import MuiAlert from "@mui/material/Alert";
 import { setDateService } from "@/slice/common/dateServicesSlice";
 import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
-import { setBookingType } from "../../../../../slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "../../../../../slice/common/commonSlice";
 import dayjs from "dayjs";
 import { Button, InputAdornment, TextField, Typography, IconButton, Tooltip } from "@mui/material";
 import CustomPaymentTooltip from "./CustomTooltip";
@@ -750,7 +750,7 @@ export default function Pending({ filters = {} }) {
     setSnackbarMessage("Submitting Id...");
     setSnackbarSeverity("info");
     setOpenSnackbar(true);
-
+    dispatch(setHaveBooking(false));
     // Dispatch necessary actions
     dispatch(setId(list.id));
     dispatch(setTourId(list.id));
@@ -779,7 +779,9 @@ export default function Pending({ filters = {} }) {
         // FIX: Check if customerInfo is an object (not an array)
         if (data.customerInfo && typeof data.customerInfo === "object") {
           //console.log("Processing customer info:", data.customerInfo);
-
+          if(data.customerInfo.fullName) {
+            dispatch(setHaveBooking(true));
+          }
           // Directly use the customerInfo object
           dispatch(
             customerInfoSetUserInfo({

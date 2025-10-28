@@ -6,6 +6,7 @@ import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
 import PickUpLocation from "@/components/hero/hero-8/PickUpLocation";
 import DropOffLocation from "@/components/hero/hero-8/DropOffLocation";
+import { setHaveBooking } from "@/slice/common/commonSlice";
 // import { pick } from "lodash";
 // import state from "sweetalert/typings/modules/state";
 //import { format } from "date-fns";
@@ -475,7 +476,7 @@ export const Localtourslice = createAsyncThunk(
         responseData.length > 0
       ) {
         dispatch(setPointToPoint(responseData));
-       
+        
       } else if (
         response.data.service.type === "travel_hourly" &&
         responseData.length > 0
@@ -899,6 +900,7 @@ const LocalSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
+    
   },
 });
 

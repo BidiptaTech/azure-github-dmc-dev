@@ -8,6 +8,7 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { BASE_URL } from "@/services/api";
 import { useSelector } from "react-redux";
 import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
+import { setHaveBooking } from "@/slice/common/commonSlice";
 
 // Selector to get DMC ID from dmc slice
 const selectDmcId = (state) => state.dmc?.dmcId;
@@ -300,7 +301,6 @@ const hotelSlice = createSlice({
           // No more data available, stop pagination
           state.hasMore = false;
         }
-        
         // console.log(`Hotels after update: ${state.hotels.length}, hasMore: ${state.hasMore}`);
       })
       .addCase(fetchHotels.rejected, (state, action) => {
