@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchPackageDetails, fetchPackages } from '../../../slice/tour-packages/prePackagesSlice';
+import { fetchPackageDetails, fetchPackages, setSearchParams } from '../../../slice/tour-packages/prePackagesSlice';
 import { 
   Box, 
   Card, 
@@ -24,8 +24,11 @@ import {
   CircularProgress,
   LinearProgress,
   Tooltip,
-  IconButton
+  IconButton,
+  TextField,
+  Badge,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import HotelIcon from '@mui/icons-material/Hotel';
@@ -47,6 +50,10 @@ import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import FlightIcon from '@mui/icons-material/Flight';
 import PersonIcon from '@mui/icons-material/Person';
 import GroupIcon from '@mui/icons-material/Group';
+import BusinessIcon from '@mui/icons-material/Business';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import InfoIcon from '@mui/icons-material/Info';
+import TravelExploreIconMui from '@mui/icons-material/TravelExplore';
 
 // Styled components for blur effect
 const BlurOverlay = ({ children, active, hasSearched }) => {
@@ -75,6 +82,48 @@ const BlurOverlay = ({ children, active, hasSearched }) => {
     </Box>
   );
 };
+
+// DMC Selection Panel Components
+const DMCSelectionPanel = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  height: 'fit-content',
+  maxHeight: '80vh',
+  overflowY: 'auto',
+  position: 'sticky',
+  top: theme.spacing(2),
+  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+  border: '1px solid rgba(102, 126, 234, 0.1)',
+  borderRadius: theme.spacing(2),
+  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+  '&::-webkit-scrollbar': {
+    width: '6px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'rgba(0,0,0,0.05)',
+    borderRadius: '3px',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: 'rgba(102, 126, 234, 0.3)',
+    borderRadius: '3px',
+    '&:hover': {
+      background: 'rgba(102, 126, 234, 0.5)',
+    },
+  },
+}));
+
+const DMCCard = styled(Card)(({ theme, selected }) => ({
+  marginBottom: theme.spacing(1.5),
+  border: selected ? '2px solid #667eea' : '1px solid #e0e3e8',
+  backgroundColor: selected ? 'rgba(102, 126, 234, 0.05)' : 'white',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  borderRadius: theme.spacing(1.5),
+  '&:hover': {
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+    transform: 'translateY(-2px)',
+    border: '2px solid #667eea',
+  },
+}));
 
 const PackageCard = ({ packageData }) => {
   const dispatch = useDispatch();
@@ -661,15 +710,36 @@ const LoadMoreIndicator = () => (
   </Box>
 );
 
-const ListingCards = ({ hasSearched = false }) => {
+const ListingCards = ({ 
+  hasSearched = false, 
+  selectedDmcId = null, // Single DMC ID
+  selectedDmcData = null, // Single DMC data
+  locationData = null,
+  dmcOptions = [],
+  filteredDMCs = [],
+  dmcLoading = false,
+  dmcError = null,
+  filterText = '',
+  handleFilterChange = () => {},
+  handleDMCCardClick = () => {},
+  isDMCSelected = () => false,
+}) => {
   const { packages, loading, error, searchParams } = useSelector(state => state.prePackages);
   const dispatch = useDispatch();
+  
+  // Log DMC information for debugging
+  console.log('🏢 ListingCards - Selected DMC ID:', selectedDmcId);
+  console.log('🏢 ListingCards - Selected DMC Data:', selectedDmcData);
   
   // Infinite scroll states
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loaderRef = useRef(null);
+  
+  // Track if this is the first render to avoid unnecessary refetch
+  const isFirstRender = useRef(true);
+  const previousDmcId = useRef(selectedDmcId);
 
 
 
@@ -690,6 +760,61 @@ const ListingCards = ({ hasSearched = false }) => {
       setIsLoadingMore(false);
     }
   }, [searchParams]);
+
+  // Refetch packages when DMC selection changes (Single DMC)
+  useEffect(() => {
+    // Skip on first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      previousDmcId.current = selectedDmcId;
+      return;
+    }
+    
+    // Check if DMC ID actually changed
+    const dmcIdChanged = previousDmcId.current !== selectedDmcId;
+    
+    if (!dmcIdChanged) {
+      return;
+    }
+    
+    // Update previous DMC ID
+    previousDmcId.current = selectedDmcId;
+    
+    // Only refetch if we have searchParams (a search has been performed)
+    if (searchParams) {
+      console.log('🏢 DMC selection changed, refetching packages with DMC ID:', selectedDmcId);
+      
+      // Update searchParams with new DMC ID (single selection)
+      const updatedSearchParams = { ...searchParams };
+      
+      // Set or remove dmc_id based on selection
+      if (selectedDmcId) {
+        updatedSearchParams.dmc_id = selectedDmcId;
+      } else {
+        delete updatedSearchParams.dmc_id;
+      }
+      
+      // Remove dmc_ids if it exists (ensure we only use single dmc_id)
+      delete updatedSearchParams.dmc_ids;
+      
+      // Update Redux searchParams
+      dispatch(setSearchParams(updatedSearchParams));
+      
+      // Refetch packages from the beginning
+      setCurrentPage(1);
+      setHasMore(true);
+      setIsLoadingMore(false);
+      
+      dispatch(fetchPackages({ searchParams: updatedSearchParams, start: 0, limit: 5 }))
+        .unwrap()
+        .then((response) => {
+          console.log('🏢 Packages refetched successfully with DMC filter');
+        })
+        .catch((error) => {
+          console.error('🏢 Failed to refetch packages:', error);
+        });
+    }
+  }, [selectedDmcId, searchParams, dispatch]); // Track single selectedDmcId
 
   // Infinite scroll effect - load more packages when scrolling
   useEffect(() => {
@@ -746,11 +871,241 @@ const ListingCards = ({ hasSearched = false }) => {
 
 
 
-  // Show empty space if no search has been performed yet
+  // Render DMC Selection Panel
+  const renderDMCSelectionPanel = () => (
+    <DMCSelectionPanel elevation={2}>
+      {/* Location Section */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+          📍 Destination
+        </Typography>
+        
+        {locationData ? (
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: 'rgba(102, 126, 234, 0.08)', 
+            borderRadius: 2, 
+            border: '1px solid rgba(102, 126, 234, 0.2)',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <LocationOnIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500, color: '#333' }}>
+                {locationData.country}
+              </Typography>
+              {locationData.city && (
+                <Typography variant="caption" sx={{ color: '#666' }}>
+                  {locationData.city}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        ) : (
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: 'rgba(255, 152, 0, 0.08)', 
+            borderRadius: 2, 
+            border: '1px solid rgba(255, 152, 0, 0.2)',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <InfoIcon sx={{ fontSize: 18, color: '#ff9800', mr: 1 }} />
+            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>
+              Please select a location from the search form first
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* DMC Filter & Selection */}
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+            🏢 Select DMC Partner
+          </Typography>
+          {selectedDmcData && (
+            <CheckCircleIcon sx={{ color: '#4caf50', fontSize: 18 }} />
+          )}
+        </Box>
+        
+        {locationData && (
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search DMCs..."
+            value={filterText}
+            onChange={handleFilterChange}
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ color: '#999', mr: 0.5, fontSize: '1.2rem' }} />
+            }}
+            sx={{ 
+              mb: 2,
+              '& .MuiOutlinedInput-input': {
+                fontSize: '0.875rem'
+              }
+            }}
+          />
+        )}
+      </Box>
+
+      {/* DMC List */}
+      <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
+        {dmcLoading && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              Loading DMCs...
+            </Typography>
+          </Box>
+        )}
+
+        {dmcError && (
+          <Box sx={{ p: 2, bgcolor: '#fff3e0', borderRadius: 1, mb: 2, border: '1px solid #ffb74d' }}>
+            <Typography variant="body2" color="error" sx={{ fontSize: '0.875rem' }}>
+              Error: {dmcError}
+            </Typography>
+          </Box>
+        )}
+
+        {!locationData && !dmcLoading && (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <TravelExploreIconMui sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              Select a destination first
+            </Typography>
+          </Box>
+        )}
+
+        {locationData && !dmcLoading && filteredDMCs.length === 0 && dmcOptions.length === 0 && (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <InfoIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              No DMCs available
+            </Typography>
+          </Box>
+        )}
+
+        {filteredDMCs.length === 0 && dmcOptions.length > 0 && (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <SearchIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              No matches found
+            </Typography>
+          </Box>
+        )}
+
+        {filteredDMCs.map((dmc) => (
+          <DMCCard
+            key={dmc.id}
+            selected={isDMCSelected(dmc)}
+            onClick={() => handleDMCCardClick(dmc)}
+          >
+            <CardContent sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                {dmc.logo ? (
+                  <Avatar
+                    src={dmc.logo}
+                    alt={dmc.name}
+                    sx={{ width: 32, height: 32, mr: 1.5 }}
+                  >
+                    <BusinessIcon fontSize="small" />
+                  </Avatar>
+                ) : (
+                  <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#667eea' }}>
+                    <BusinessIcon fontSize="small" />
+                  </Avatar>
+                )}
+                
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: isDMCSelected(dmc) ? '#667eea' : '#333',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.875rem',
+                    lineHeight: 1.2
+                  }}>
+                    {dmc.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    fontSize: '0.75rem',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    lineHeight: 1.2
+                  }}>
+                    📍 {dmc.location}
+                  </Typography>
+                </Box>
+                
+                {isDMCSelected(dmc) && (
+                  <CheckCircleIcon sx={{ color: '#4caf50', fontSize: 18 }} />
+                )}
+              </Box>
+            </CardContent>
+          </DMCCard>
+        ))}
+      </Box>
+
+      {/* Selected DMC Summary */}
+      {selectedDmcData && (
+        <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #e0e3e8' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem', mb: 1 }}>
+            ✅ Selected DMC
+          </Typography>
+          <Box sx={{ 
+            p: 1.5, 
+            bgcolor: 'rgba(76, 175, 80, 0.08)', 
+            borderRadius: 1.5, 
+            border: '1px solid rgba(76, 175, 80, 0.2)',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            {selectedDmcData.logo ? (
+              <Avatar
+                src={selectedDmcData.logo}
+                alt={selectedDmcData.name}
+                sx={{ width: 28, height: 28, mr: 1 }}
+              >
+                <BusinessIcon fontSize="small" />
+              </Avatar>
+            ) : (
+              <Avatar sx={{ width: 28, height: 28, mr: 1, bgcolor: '#4caf50' }}>
+                <BusinessIcon fontSize="small" />
+              </Avatar>
+            )}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 600, 
+                color: '#2e7d32',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: '0.875rem',
+                lineHeight: 1.2
+              }}>
+                {selectedDmcData.name}
+              </Typography>
+              <Typography variant="caption" sx={{ 
+                color: '#666',
+                fontSize: '0.7rem'
+              }}>
+                {selectedDmcData.location}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+    </DMCSelectionPanel>
+  );
+
+  // Show empty space if no search has been performed yet (NO DMC panel before search)
   if (!searchParams) {
     return (
       <Box sx={{ mt: 4, minHeight: '570px' }}>
-        {/* Empty space - content will appear here after search */}
+        {/* Empty space - DMC panel and results will appear here after search */}
       </Box>
     );
   }
@@ -759,6 +1114,7 @@ const ListingCards = ({ hasSearched = false }) => {
     return (
       <BlurOverlay active={true} hasSearched={hasSearched}>
         <Box sx={{ mt: 4 }}>
+          {/* Package Search Results Header - Full Width */}
           <Paper
             elevation={0}
             sx={{
@@ -832,10 +1188,22 @@ const ListingCards = ({ hasSearched = false }) => {
               }}
             />
           </Paper>
+
+          {/* Grid Layout: DMC Panel (Left) + Loading Skeletons (Right) */}
           <Grid container spacing={3}>
-            {[1, 2, 3].map(item => (
-              <LoadingSkeleton key={`skeleton-${item}`} />
-            ))}
+            {/* Left Column - DMC Selection */}
+            <Grid item xs={12} md={4} lg={3}>
+              {renderDMCSelectionPanel()}
+            </Grid>
+
+            {/* Right Column - Loading Skeletons */}
+            <Grid item xs={12} md={8} lg={9}>
+              <Grid container spacing={3}>
+                {[1, 2, 3].map(item => (
+                  <LoadingSkeleton key={`skeleton-${item}`} />
+                ))}
+              </Grid>
+            </Grid>
           </Grid>
         </Box>
       </BlurOverlay>
@@ -845,11 +1213,55 @@ const ListingCards = ({ hasSearched = false }) => {
   if (error) {
     return (
       <BlurOverlay active={true} hasSearched={hasSearched}>
-        <Box sx={{ mt: 4, p: 3, bgcolor: '#FFF4F4', borderRadius: 2 }}>
-          <Typography color="error" variant="h6" gutterBottom>
-            Error loading packages
-          </Typography>
-          <Typography color="error.light">{error}</Typography>
+        <Box sx={{ mt: 4 }}>
+          {/* Package Search Results Header - Full Width */}
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 2.5, 
+              mb: 3, 
+              borderRadius: 2, 
+              background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
+              border: '1px solid #e0e7ee'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <TravelExploreIcon 
+                sx={{ 
+                  fontSize: 32, 
+                  mr: 1.5, 
+                  color: 'error.main' 
+                }} 
+              />
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'error.main'
+                }}
+              >
+                Package Search Results
+              </Typography>
+            </Box>
+          </Paper>
+
+          {/* Grid Layout: DMC Panel (Left) + Error Message (Right) */}
+          <Grid container spacing={3}>
+            {/* Left Column - DMC Selection */}
+            <Grid item xs={12} md={4} lg={3}>
+              {renderDMCSelectionPanel()}
+            </Grid>
+
+            {/* Right Column - Error Message */}
+            <Grid item xs={12} md={8} lg={9}>
+              <Box sx={{ p: 3, bgcolor: '#FFF4F4', borderRadius: 2 }}>
+                <Typography color="error" variant="h6" gutterBottom>
+                  Error loading packages
+                </Typography>
+                <Typography color="error.light">{error}</Typography>
+              </Box>
+            </Grid>
+          </Grid>
         </Box>
       </BlurOverlay>
     );
@@ -859,40 +1271,52 @@ const ListingCards = ({ hasSearched = false }) => {
     return (
       <BlurOverlay active={true} hasSearched={hasSearched}>
         <Box sx={{ mt: 4 }}>
+          {/* Package Search Results Header - Full Width */}
           <Paper 
-          elevation={0} 
-          sx={{ 
-            p: 2.5, 
-            mb: 3, 
-            borderRadius: 2, 
-            background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
-            border: '1px solid #e0e7ee'
-          }}
-        >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <TravelExploreIcon 
+            elevation={0} 
             sx={{ 
-              fontSize: 32, 
-              mr: 1.5, 
-              color: 'primary.main' 
-            }} 
-          />
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 600,
-              background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              p: 2.5, 
+              mb: 3, 
+              borderRadius: 2, 
+              background: 'linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%)',
+              border: '1px solid #e0e7ee'
             }}
           >
-            Package Search Results
-          </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <TravelExploreIcon 
+                sx={{ 
+                  fontSize: 32, 
+                  mr: 1.5, 
+                  color: 'primary.main' 
+                }} 
+              />
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  fontWeight: 600,
+                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}
+              >
+                Package Search Results
+              </Typography>
+            </Box>
+          </Paper>
+
+          {/* Grid Layout: DMC Panel (Left) + No Results (Right) */}
+          <Grid container spacing={3}>
+            {/* Left Column - DMC Selection */}
+            <Grid item xs={12} md={4} lg={3}>
+              {renderDMCSelectionPanel()}
+            </Grid>
+
+            {/* Right Column - No Results */}
+            <Grid item xs={12} md={8} lg={9}>
+              <NoResults hasSearched={hasSearched} />
+            </Grid>
+          </Grid>
         </Box>
-        
-      </Paper>
-        <NoResults hasSearched={hasSearched} />
-      </Box>
       </BlurOverlay>
     );
   }
@@ -900,6 +1324,7 @@ const ListingCards = ({ hasSearched = false }) => {
   return (
     <BlurOverlay active={true} hasSearched={hasSearched}>
       <Box sx={{ mt: 4 }}>
+        {/* Package Search Results Header - Full Width */}
         <Paper 
           elevation={0} 
           sx={{ 
@@ -951,47 +1376,92 @@ const ListingCards = ({ hasSearched = false }) => {
               package{packages.length !== 1 ? 's' : ''} for you
             </Typography>
           </Box>
-        </Paper>
-        
-        <Box sx={{ position: 'relative' }}>
-          <Grid container spacing={3}>
-            {packages.map((packageItem, index) => (
-              <Grid item xs={12} sm={6} md={4} key={`package-${packageItem.package_id || `temp-${index}`}`}>
-                <PackageCard packageData={packageItem} />
-              </Grid>
-            ))}
-          </Grid>
           
-          {/* Loading more skeleton */}
-          {isLoadingMore && <LoadMoreIndicator />}
-          
-          {/* Debug button for testing */}
-          {packages.length > 0 && (
-            <div className="text-center py-4">
-            </div>
-          )}
-          
-          {/* No more data indicator */}
-          {!hasMore && packages.length > 0 && (
-            <div className="text-center py-20">
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#6c757d',
-                  fontSize: '14px',
-                  fontWeight: 500,
+          {/* DMC Information Display (Single DMC) */}
+          {selectedDmcData && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e7ee' }}>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  fontWeight: 600, 
+                  color: 'text.secondary',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 1
+                  mb: 1
                 }}
               >
-                <span style={{ fontSize: '16px' }}>📭</span>
-                No more data • {packages.length} packages found
+                <BusinessIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                Showing packages from:
               </Typography>
-            </div>
+              <Chip
+                avatar={
+                  selectedDmcData.logo ? (
+                    <Avatar src={selectedDmcData.logo} alt={selectedDmcData.name} />
+                  ) : (
+                    <Avatar sx={{ bgcolor: '#0ea5e9' }}>
+                      <BusinessIcon fontSize="small" />
+                    </Avatar>
+                  )
+                }
+                label={`${selectedDmcData.name} (${selectedDmcData.location})`}
+                color="info"
+                variant="outlined"
+                sx={{ fontSize: '0.75rem', fontWeight: 500 }}
+              />
+            </Box>
           )}
-        </Box>
+        </Paper>
+
+        {/* Grid Layout: DMC Panel (Left) + Package Listing (Right) */}
+        <Grid container spacing={3}>
+          {/* Left Column - DMC Selection Panel */}
+          <Grid item xs={12} md={4} lg={3}>
+            {renderDMCSelectionPanel()}
+          </Grid>
+
+          {/* Right Column - Package Cards */}
+          <Grid item xs={12} md={8} lg={9}>
+            <Box sx={{ position: 'relative' }}>
+              <Grid container spacing={3}>
+                {packages.map((packageItem, index) => (
+                  <Grid item xs={12} sm={6} md={6} lg={4} key={`package-${packageItem.package_id || `temp-${index}`}`}>
+                    <PackageCard packageData={packageItem} />
+                  </Grid>
+                ))}
+              </Grid>
+              
+              {/* Loading more skeleton */}
+              {isLoadingMore && <LoadMoreIndicator />}
+              
+              {/* Debug button for testing */}
+              {packages.length > 0 && (
+                <div className="text-center py-4">
+                </div>
+              )}
+              
+              {/* No more data indicator */}
+              {!hasMore && packages.length > 0 && (
+                <div className="text-center py-20">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#6c757d',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1
+                    }}
+                  >
+                    <span style={{ fontSize: '16px' }}>📭</span>
+                    No more data • {packages.length} packages found
+                  </Typography>
+                </div>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
       </Box>
     </BlurOverlay>
   );
