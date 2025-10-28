@@ -27,7 +27,7 @@ import {
   updateStepStatus,
   setType,
 } from "../../../slice/common/stepsSlice";
-import { setBookingType } from "../../../slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "../../../slice/common/commonSlice";
 import moment from "moment";
 import { clearUserInfo } from "../../../slice/common/customerInfo"; // Add this import
 import { clearAttractions, setIsFromMainSearch } from "../../../slice/attractions/attractionSlice";
@@ -291,7 +291,7 @@ const MainFilterSearchBox = () => {
           console.error("Tour ID or destination not found in response:", data);
           throw new Error("Invalid response data.");
         }
-
+        dispatch(setHaveBooking(false));
         // Step 5: Update state with API response
         dispatch(updateSearchState({ location: destination })); // Update location with full name
         dispatch(settourdetails({

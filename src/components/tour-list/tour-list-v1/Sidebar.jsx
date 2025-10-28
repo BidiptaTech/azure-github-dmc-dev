@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setFilters, selectFilters, selectFilteredAttractions } from "../../../slice/attractions/attractionSlice"; // Adjust the import path
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import { Slider, Avatar } from "@mui/material"; // Import Material-UI components
+import DmcFilter from "../../hotel-list/sidebar/dmcFilter";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
@@ -18,7 +19,7 @@ const Sidebar = () => {
   // Get DMC logo and company name from DMC slice instead of auth slice
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
-  
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   // Get currency information from Redux store
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -204,7 +205,14 @@ const Sidebar = () => {
         </div>
       </div>
       )}
-      
+      {haveBooking === false && (
+      <div className="sidebar__item">
+        <h5 className="text-18 fw-500 mb-10">DMC</h5>
+        <div className="sidebar-checkbox">
+          <DmcFilter />
+        </div>
+      </div>
+      )}
     </>
   );
 };

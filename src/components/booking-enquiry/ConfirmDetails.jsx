@@ -51,7 +51,20 @@ import {
   Map as MapIcon,
   Tour as TourIcon
 } from "@mui/icons-material";
-import { submitEnquiryForm, updateServiceDetails, updateCalculatedPrice, clearServiceDetails, clearSpecificService } from "@/slice/common/EnquirySlice";
+import { 
+  updateServiceDetails, 
+  updateCalculatedPrice, 
+  clearServiceDetails, 
+  clearSpecificService,
+  fetchBookingid
+} from "@/slice/common/EnquirySlice";
+import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
+import { 
+  updateSearchState,
+  settourdetails,
+  setId 
+} from "@/slice/hotel/hotelSlice";
+import { setBookingType } from "@/slice/common/commonSlice";
 import axios from "axios";
 import Cookies from "js-cookie";  
 import { BASE_URL } from '@/services/api';
@@ -1218,26 +1231,201 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   };
 
   const handleSubmit = async () => {
-    // console.log("Submit button clicked - handleSubmit function triggered");
-    // console.log("Current enquiryId:", enquiryId);
-    // console.log("Current localEnquiryId:", localEnquiryId);
-    // console.log("Current enquiryStatus:", enquiryStatus);
-    // console.log("Current selectedServices:", selectedServices);
-    
-    // Use the local enquiryId if available, otherwise use the one from Redux
-    const submissionId = localEnquiryId || enquiryId;
-    
-    console.log("Submitting enquiry:", {
-      submissionId,
+    console.log("Creating enquiry:", {
       isMultiEnquiry,
-      selectedServices
+      selectedServices,
+      serviceDetails
     });
     
-    if (!submissionId) {
-      console.error("No enquiryId found - cannot submit form");
-      setSubmitError("No enquiry ID found. Please go back and start the booking process again.");
-      return;
-    }
+    // Build the payload for create-enquiry API
+    const buildEnquiryPayload = () => {
+      const payload = {
+        approx_price: calculatedPrice || 0,
+        // Hotel service
+        hotel: selectedServices.includes("hotel"),
+        hotel_ids: [],
+        hotel_categories: [],
+        hotel_compare: "no",
+        hotel_remarks: "",
+        // Port service
+        port: selectedServices.includes("entryExitPort"),
+        entry_port: false,
+        entry_port_id: null,
+        entry_port_address: "",
+        entry_dropoff_type: "hotel",
+        entry_dropoff_location_id: null,
+        exit_port: false,
+        exit_port_id: null,
+        exit_port_address: "",
+        exit_pickup_type: "hotel",
+        exit_pickup_location_id: null,
+        port_ids: [],
+        port_transport_type: "sharable",
+        port_remarks: "",
+        // Attraction service
+        attraction: selectedServices.includes("attraction"),
+        attraction_ids: [],
+        attraction_transport: false,
+        attraction_transport_type: "sharable",
+        attraction_remarks: "",
+        // Packaged attractions service
+        packaged_attractions: selectedServices.includes("packagedAttractions"),
+        packaged_attraction_ids: [],
+        packaged_attractions_remarks: "",
+        // Local transfer service
+        local_transfer: selectedServices.includes("localTour"),
+        local_transport_vehicle_ids: [],
+        local_transfer_remarks: "",
+        // Guide service
+        guide: selectedServices.includes("tourGuide"),
+        guide_ids: [],
+        guide_remarks: "",
+        // Restaurant service
+        restaurant: selectedServices.includes("restaurant"),
+        restaurant_ids: [],
+        restaurant_transport: false,
+        restaurant_transport_type: "sharable",
+        restaurant_remarks: "",
+      };
+
+      // Populate hotel data
+      if (selectedServices.includes("hotel") && serviceDetails.hotel) {
+        const hotelDetails = serviceDetails.hotel || serviceDetails["undefined"] || {};
+        payload.hotel_compare = hotelDetails.compareHotels || "no";
+        payload.hotel_remarks = hotelDetails.remarks || "";
+        
+        if (hotelDetails.starCategory) {
+          payload.hotel_categories = [hotelDetails.starCategory];
+        }
+        
+        if (hotelDetails.preferredHotels && Array.isArray(hotelDetails.preferredHotels)) {
+          payload.hotel_ids = hotelDetails.preferredHotels.map(hotel => {
+            // Extract hotel_unique_id from hotel object
+            if (typeof hotel === 'string') {
+              return hotel;
+            }
+            return hotel.hotel_unique_id || hotel.id || hotel.hotel_id || hotel;
+          });
+        }
+      }
+
+      // Populate entry/exit port data
+      if (selectedServices.includes("entryExitPort") && serviceDetails.entryExitPort) {
+        const portDetails = serviceDetails.entryExitPort;
+        
+        // Entry port
+        payload.entry_port = portDetails.showEntryPort !== false;
+        if (payload.entry_port) {
+          if (portDetails.portAddress) {
+            payload.entry_port_id = portDetails.portAddress.port_id || portDetails.portAddress.id || null;
+            payload.entry_port_address = portDetails.portAddress.port_name || portDetails.portAddress.name || portDetails.portAddress;
+          }
+          payload.entry_dropoff_type = portDetails.entryDropoffLocationType || "hotel";
+          
+          if (portDetails.hotelDropOff && payload.entry_dropoff_type === "hotel") {
+            payload.entry_dropoff_location_id = portDetails.hotelDropOff.hotel_id || portDetails.hotelDropOff.id || null;
+          } else if (portDetails.attractionDropOff && payload.entry_dropoff_type === "attraction") {
+            payload.entry_dropoff_location_id = portDetails.attractionDropOff.attraction_id || portDetails.attractionDropOff.id || null;
+          } else if (portDetails.restaurantDropOff && payload.entry_dropoff_type === "restaurant") {
+            payload.entry_dropoff_location_id = portDetails.restaurantDropOff.restaurant_id || portDetails.restaurantDropOff.id || null;
+          }
+        }
+        
+        // Exit port
+        payload.exit_port = portDetails.showExitPort === true;
+        if (payload.exit_port) {
+          if (portDetails.exitPortAddress) {
+            payload.exit_port_id = portDetails.exitPortAddress.port_id || portDetails.exitPortAddress.id || null;
+            payload.exit_port_address = portDetails.exitPortAddress.port_name || portDetails.exitPortAddress.name || portDetails.exitPortAddress;
+          }
+          payload.exit_pickup_type = portDetails.exitPickupLocationType || "hotel";
+          
+          if (portDetails.exitPickupLocation && payload.exit_pickup_type === "hotel") {
+            payload.exit_pickup_location_id = portDetails.exitPickupLocation.hotel_id || portDetails.exitPickupLocation.id || null;
+          } else if (portDetails.exitAttractionPickup && payload.exit_pickup_type === "attraction") {
+            payload.exit_pickup_location_id = portDetails.exitAttractionPickup.attraction_id || portDetails.exitAttractionPickup.id || null;
+          } else if (portDetails.exitRestaurantPickup && payload.exit_pickup_type === "restaurant") {
+            payload.exit_pickup_location_id = portDetails.exitRestaurantPickup.restaurant_id || portDetails.exitRestaurantPickup.id || null;
+          }
+        }
+        
+        payload.port_transport_type = portDetails.carType || "sharable";
+        payload.port_remarks = portDetails.remarks || "";
+        
+        if (portDetails.preferredCars && Array.isArray(portDetails.preferredCars)) {
+          payload.port_ids = portDetails.preferredCars.map(car => 
+            car.id || car.vehicle_id || car
+          );
+        }
+      }
+
+      // Populate attraction data
+      if (selectedServices.includes("attraction") && serviceDetails.attraction) {
+        const attractionDetails = serviceDetails.attraction;
+        payload.attraction_transport = attractionDetails.needTransport || false;
+        payload.attraction_transport_type = attractionDetails.carType || "sharable";
+        payload.attraction_remarks = attractionDetails.remarks || "";
+        
+        if (attractionDetails.selectedAttractions && Array.isArray(attractionDetails.selectedAttractions)) {
+          payload.attraction_ids = attractionDetails.selectedAttractions.map(attraction => 
+            attraction.id || attraction.attraction_id || attraction
+          );
+        }
+      }
+
+      // Populate packaged attractions data
+      if (selectedServices.includes("packagedAttractions") && serviceDetails.packagedAttractions) {
+        const packagedDetails = serviceDetails.packagedAttractions;
+        payload.packaged_attractions_remarks = packagedDetails.remarks || "";
+        
+        if (packagedDetails.selectedPackagedAttractions && Array.isArray(packagedDetails.selectedPackagedAttractions)) {
+          payload.packaged_attraction_ids = packagedDetails.selectedPackagedAttractions.map(pkg => 
+            pkg.id || pkg.package_id || pkg
+          );
+        }
+      }
+
+      // Populate local tour data
+      if (selectedServices.includes("localTour") && serviceDetails.localTour) {
+        const localTourDetails = serviceDetails.localTour;
+        payload.local_transfer_remarks = localTourDetails.remarks || "";
+        
+        if (localTourDetails.preferredCars && Array.isArray(localTourDetails.preferredCars)) {
+          payload.local_transport_vehicle_ids = localTourDetails.preferredCars.map(car => 
+            car.id || car.vehicle_id || car
+          );
+        }
+      }
+
+      // Populate tour guide data
+      if (selectedServices.includes("tourGuide") && serviceDetails.tourGuide) {
+        const guideDetails = serviceDetails.tourGuide;
+        payload.guide_remarks = guideDetails.specialRequirements || "";
+        
+        if (guideDetails.preferredGuides && Array.isArray(guideDetails.preferredGuides)) {
+          payload.guide_ids = guideDetails.preferredGuides.map(guide => 
+            guide.id || guide.guide_id || guide
+          );
+        }
+      }
+
+      // Populate restaurant data
+      if (selectedServices.includes("restaurant") && serviceDetails.restaurant) {
+        const restaurantDetails = serviceDetails.restaurant;
+        payload.restaurant_transport = restaurantDetails.needTransport || false;
+        payload.restaurant_transport_type = restaurantDetails.carType || "sharable";
+        payload.restaurant_remarks = restaurantDetails.remarks || "";
+        
+        if (restaurantDetails.selectedRestaurants && Array.isArray(restaurantDetails.selectedRestaurants)) {
+          payload.restaurant_ids = restaurantDetails.selectedRestaurants.map(restaurant => 
+            restaurant.id || restaurant.restaurant_id || restaurant
+          );
+        }
+      }
+
+      console.log("Built enquiry payload:", payload);
+      return payload;
+    };
     
     // Update hotel remarks in serviceDetails before submission if needed
     if (selectedServices.includes("hotel")) {
@@ -1286,21 +1474,60 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     setSubmitError(null);
     
     try {
-      console.log("Preparing to dispatch submitEnquiryForm with ID:", submissionId);
-      console.log("Service details to be submitted:", serviceDetails);
+      console.log("Creating enquiry with fetchBookingid (create-enquiry API)...");
+      console.log("Service details:", serviceDetails);
       
-      // Dispatch the action to submit form data
-      const resultAction = await dispatch(submitEnquiryForm(submissionId));
+      // Build the payload for the create-enquiry API
+      const enquiryPayload = buildEnquiryPayload();
+      console.log("Sending enquiry payload to create-enquiry API:", enquiryPayload);
       
-      console.log("API call completed, result action:", resultAction);
+      // Call fetchBookingid which calls the create-enquiry API with our payload
+      const bookingIdResult = await dispatch(fetchBookingid(enquiryPayload));
       
-      if (submitEnquiryForm.fulfilled.match(resultAction)) {
-        console.log("Form submitted successfully:", resultAction.payload);
+      if (fetchBookingid.fulfilled.match(bookingIdResult)) {
+        const bookingData = bookingIdResult.payload;
+        const id = bookingData?.multi_enq_id;
+        const country = bookingData?.country || bookingData?.data?.country || bookingDetails?.searchLocation?.country;
+        const city = bookingData?.city || bookingData?.data?.city || bookingDetails?.searchLocation?.city;
+
+        console.log("Enquiry created successfully:", { id, country, city, bookingData });
+
+        if (id) {
+          // Update state with API response
+          dispatch(updateSearchState({ 
+            location: country,
+            cityName: city,
+            countryName: country
+          }));
+          
+          dispatch(settourdetails(bookingData)); // Set full enquiry details
+          dispatch(setId(id)); // Set the ID
+          dispatch(setBookingType("enquiry")); // Set booking type to enquiry
+          
+          // Fetch the enquiry list data for hotels and other services
+          if (country && city) {
+            const fetchParams = {
+              country: country,
+              city: city
+            };
+            
+            // Validate fetchParams before making the API call
+            if (typeof fetchParams.country === 'string' && typeof fetchParams.city === 'string') {
+              console.log("Calling fetchEnquiryList with params:", fetchParams);
+              dispatch(fetchEnquiryList(fetchParams));
+            } else {
+              console.warn("Invalid fetchParams format:", fetchParams);
+            }
+          } else {
+            console.warn("Missing country or city for fetchEnquiryList:", { country, city });
+          }
+          
+          // Mark as successful
         setSubmitSuccess(true);
         
         // Clear Redux service details after successful submission
         dispatch(clearServiceDetails());
-        console.log("Cleared service details from Redux after successful submission");
+          console.log("Cleared service details from Redux after successful enquiry creation");
         
         // Reset booking options
         if (resetBookingOptions && typeof resetBookingOptions === 'function') {
@@ -1309,7 +1536,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         
         // Store successful submission state in localStorage for the thank you page
         localStorage.setItem('enquirySubmitted', 'true');
-        localStorage.setItem('enquiryData', JSON.stringify(resultAction.payload));
+          localStorage.setItem('enquiryData', JSON.stringify(bookingData));
         
         // Use the onComplete callback if available
         if (onComplete && typeof onComplete === 'function') {
@@ -1328,10 +1555,14 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           }, 2000);
         }
       } else {
-        // Handle error from the action
-        const errorMessage = resultAction.error?.message || "Failed to submit booking";
-        console.error("Form submission failed:", errorMessage);
-        console.error("Error details:", resultAction.error);
+          console.warn("No multi_enq_id found in fetchBookingid response:", bookingData);
+          throw new Error("Invalid response: No enquiry ID found");
+        }
+      } else {
+        // Handle error from fetchBookingid
+        const errorMessage = bookingIdResult.error?.message || "Failed to create enquiry";
+        console.error("Enquiry creation failed:", errorMessage);
+        console.error("Error details:", bookingIdResult.error);
         setSubmitError(errorMessage);
       }
     } catch (error) {

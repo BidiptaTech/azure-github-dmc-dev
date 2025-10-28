@@ -28,7 +28,7 @@ import { setSelectedCity } from "@/slice/common/commonSlice";
 import { fetchBookingid, setSearchLocation, setCheckIn, setCheckOut, setGuest } from "../../../slice/common/EnquirySlice";
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { store } from "../../../store/store";
-import { selectSelectedDmcIds } from "../../../slice/dmc/dmcSlice";
+import { selectSelectedDmcIds, clearSelectedDmcs } from "../../../slice/dmc/dmcSlice";
 import { clearServiceDetails, clearSpecificService } from "../../../slice/common/EnquirySlice"; //EnquirySlice
 
 // Create a reusable alert component
@@ -244,6 +244,9 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
 
     // Clear any existing restaurants data
     dispatch(clearRestaurants());
+    
+    // Clear selected DMCs when searching for a new location
+    dispatch(clearSelectedDmcs());
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
@@ -264,6 +267,8 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
       })
     );
 
+    // COMMENTED OUT: fetchBookingid will now be called after final submission in ConfirmDetails.jsx
+    /*
     // Add a small delay to ensure the guest data is set before making the API call
     setTimeout(() => {
       // Debug: Get current state from Redux to verify data
@@ -334,6 +339,11 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
           setOpenSnackbar(true);
         });
     }, 300);
+    */
+
+    // Navigate directly to next step without calling fetchBookingid
+    // fetchBookingid will be called after final form submission in ConfirmDetails.jsx
+    onNext();
   }, [validateForm, selectedDates, locationData, guestCounts, location.state, dispatch, onNext]);
 
 

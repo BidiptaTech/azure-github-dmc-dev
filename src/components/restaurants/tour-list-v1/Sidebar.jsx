@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setFilters, selectFilters, selectRestaurants } from "../../../slice/restaurant/RestaurantsSlice";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import { Slider, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Avatar } from "@mui/material";
+import DmcFilter from "../../hotel-list/sidebar/dmcFilter";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
@@ -11,7 +12,7 @@ const Sidebar = () => {
   // Get DMC logo and company name from DMC slice instead of auth slice
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
-  
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   // Get currency information from Redux store
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -226,6 +227,15 @@ const Sidebar = () => {
         <div className="d-flex justify-between mt-10">
           <div className="text-15">{currencyCode} 0</div>
           <div className="text-15">{currencyCode} {convertedMaxPrice}</div>
+        </div>
+      </div>
+      )}
+
+{haveBooking === false && (
+<div className="sidebar__item">
+        <h5 className="text-18 fw-500 mb-10">DMC</h5>
+        <div className="sidebar-checkbox">
+          <DmcFilter />
         </div>
       </div>
       )}

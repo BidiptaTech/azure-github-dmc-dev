@@ -54,6 +54,7 @@ import AirportShuttleIcon from '@mui/icons-material/AirportShuttle';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import GroupIcon from '@mui/icons-material/Group';
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice";
+import { setHaveBooking } from "@/slice/common/commonSlice";
 
 const RoomCard = styled(Card)(({ theme }) => ({
   background: "white",
@@ -336,6 +337,7 @@ const truncateToWords = (text, wordLimit) => {
        if (response?.service?.date_service) {
          dispatch(setDateService(response.service.date_service));
          dispatch(setRestaurantsService(response.service.data));
+         dispatch(setHaveBooking(true));
          toast.success("Booking successful!", {
            position: "top-center",
            autoClose: 3000,
@@ -451,6 +453,7 @@ const truncateToWords = (text, wordLimit) => {
        dispatch(setDateService(response.service.date_service));
        dispatch(setRestaurantsService(response.service.data));
        
+       dispatch(setHaveBooking(true));
        toast.success("Enquiry submitted successfully!", {
          position: "top-center",
          autoClose: 3000,

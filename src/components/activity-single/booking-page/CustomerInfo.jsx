@@ -32,7 +32,7 @@ import {
   setbookingtype1,
 } from "@/slice/port/pickupDropSlice";
 import { setDateService } from "@/slice/common/dateServicesSlice";
-import { setBookingType } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "@/slice/common/commonSlice";
 import { useSelector } from "react-redux";
 import {
   selectUserInfo,
@@ -519,7 +519,7 @@ const CustomerInfo = ({
       if (response) {
         dispatch(setResponse(response));
         dispatch(setBookingType(response.order?.bookingType));
-
+        dispatch(setHaveBooking(true));
         // If the response contains a service date, update Redux state
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
@@ -641,6 +641,7 @@ const CustomerInfo = ({
       // Set booking type
       if (response.order && response.order.bookingType) {
         dispatch(setBookingType(response.order.bookingType));
+        dispatch(setHaveBooking(true));
       }
 
       // Set date service if available

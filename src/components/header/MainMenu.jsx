@@ -7,11 +7,66 @@ import {
   FaBoxOpen,
 } from "react-icons/fa";
 import { useSelector, useDispatch } from "react-redux";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Box,
+  IconButton,
+} from "@mui/material";
+import {
+  Close as CloseIcon,
+  TravelExplore as TravelIcon,
+} from "@mui/icons-material";
+import { styled } from "@mui/material/styles";
 import DMCSelectionModal from "../common/DMCSelectionModal";
-import SearchLocationModal from "../common/SearchLocationModal";
+import LocationSearch from "../hero/hero-2/LocationSearch";
 import { fetchDMCCount } from "../../slice/dmc/dmcSlice";
 import { resetPackages } from "../../slice/tour-packages/prePackagesSlice";
 import * as commonActions from "../../slice/common/commonSlice";
+
+// Styled components for the location modal
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+  '& .MuiDialog-paper': {
+    borderRadius: '20px',
+    padding: '0px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '80vh',
+    boxShadow: '0 32px 64px 8px rgba(0,0,0,0.18)',
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(20px)',
+  },
+}));
+
+const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
+  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  color: 'white',
+  padding: '24px 32px',
+  borderRadius: '20px 20px 0 0',
+  position: 'relative',
+  minHeight: '80px',
+  display: 'flex',
+  alignItems: 'center',
+  '& .MuiIconButton-root': {
+    color: 'white',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: '12px',
+    borderRadius: '50%',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      transform: 'scale(1.05)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+    },
+  },
+}));
 
 const MainMenu = ({ style = "" }) => {
   const { pathname } = useLocation();
@@ -20,17 +75,12 @@ const MainMenu = ({ style = "" }) => {
   const { userRole } = useSelector((state) => state.auth);
   
   // State for Book Tour flow (single DMC selection)
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isBookTourLocationModalOpen, setIsBookTourLocationModalOpen] = useState(false);
   const [isDMCModalOpen, setIsDMCModalOpen] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState(null);
-  
-  // State for Book an Enquiry flow (multiple DMC selection)
-  const [isEnquirySearchModalOpen, setIsEnquirySearchModalOpen] = useState(false);
-  const [isEnquiryDMCModalOpen, setIsEnquiryDMCModalOpen] = useState(false);
-  const [enquirySearchCriteria, setEnquirySearchCriteria] = useState(null);
 
   // State for Packages flow (single DMC selection - same as Book Tour)
-  const [isPackagesSearchModalOpen, setIsPackagesSearchModalOpen] = useState(false);
+  const [isPackagesLocationModalOpen, setIsPackagesLocationModalOpen] = useState(false);
   const [isPackagesDMCModalOpen, setIsPackagesDMCModalOpen] = useState(false);
   const [packagesSearchCriteria, setPackagesSearchCriteria] = useState(null);
 
@@ -57,15 +107,13 @@ const MainMenu = ({ style = "" }) => {
       // Only auto-open for Agent users, and only if we're on a relevant page
       if (userRole === "Agent") {
         if (pathname.includes("/dashboard/db-dashboard/home_1")) {
-          console.log('🌍 Auto-opening Book Tour search modal - no country selected');
-          setIsSearchModalOpen(true);
-        } else if (pathname.includes("/dashboard/db-dashboard/home_2")) {
-          console.log('🌍 Auto-opening Enquiry search modal - no country selected');
-          setIsEnquirySearchModalOpen(true);
+          console.log('🌍 Auto-opening Book Tour location modal - no location selected');
+          //setIsBookTourLocationModalOpen(true);
         } else if (pathname.includes("/dashboard/pre-define-packages")) {
-          console.log('🌍 Auto-opening Packages search modal - no country selected');
-          setIsPackagesSearchModalOpen(true);
+          console.log('🌍 Auto-opening Packages location modal - no location selected');
+          setIsPackagesLocationModalOpen(true);
         }
+        // Note: Quick Enquiry (home_2) does not auto-open modal - user selects location on the page
       }
     }
   }, [selectedDmcData, selectedCountries, dmcCountLoading, userRole, pathname]);
@@ -92,36 +140,31 @@ const MainMenu = ({ style = "" }) => {
     e.preventDefault();
     
     // Wait for DMC count to load
-    if (dmcCountLoading) {
-      return;
-    }
+    // if (dmcCountLoading) {
+    //   return;
+    // }
+    navigate("/dashboard/db-dashboard/home_1");
     
-    // Always show search modal
-    setIsSearchModalOpen(true);
+    // Always show location modal
+    //setIsBookTourLocationModalOpen(true);
   };
 
-  const handleSearchSubmit = (searchData) => {
-    // Check if this is a single DMC auto-selection (skipDMCModal: true)
-    if (searchData.skipDMCModal && searchData.selectedDMC) {
-      // Single DMC auto-selected - navigate directly to booking page
-      navigate("/dashboard/db-dashboard/home_1", { 
-        state: { 
-          selectedDMC: searchData.selectedDMC,
-          searchCriteria: { country: searchData.country }
-        } 
-      });
-    } else {
-      // Multiple DMCs - proceed with normal DMC selection modal
-      console.log('📋 MainMenu: Opening DMC modal with searchData:', searchData);
-      setSearchCriteria({ country: searchData });
-      setIsSearchModalOpen(false);
-      setIsDMCModalOpen(true);
-      console.log('✅ MainMenu: DMC modal state set to true');
+  const handleBookTourLocationSelect = (locationData) => {
+    console.log('📍 Location selected for Book Tour:', locationData);
+    
+    // Only proceed if we have both country and city
+    if (locationData && locationData.country && locationData.city) {
+      setIsBookTourLocationModalOpen(false);
       
-      // Debug: Check modal state after a brief delay
-      setTimeout(() => {
-        console.log('🔍 MainMenu: Checking DMC modal state after delay');
-      }, 100);
+      // Set search criteria and open DMC selection modal
+      const searchCriteria = { 
+        country: { name: locationData.country },
+        city: locationData.city 
+      };
+      setSearchCriteria(searchCriteria);
+      setIsDMCModalOpen(true);
+    } else {
+      console.warn('⚠️ Incomplete location data - need both country and city');
     }
   };
 
@@ -135,8 +178,8 @@ const MainMenu = ({ style = "" }) => {
     });
   };
 
-  const handleCloseSearchModal = () => {
-    setIsSearchModalOpen(false);
+  const handleCloseBookTourLocationModal = () => {
+    setIsBookTourLocationModalOpen(false);
   };
 
   const handleCloseDMCModal = () => {
@@ -144,52 +187,13 @@ const MainMenu = ({ style = "" }) => {
     setSearchCriteria(null);
   };
 
-  // === Book an Enquiry Handlers (Multiple DMC Selection) ===
+  // === Book an Enquiry Handlers (Direct Navigation - No Modal) ===
   const handleBookEnquiryClick = (e) => {
     e.preventDefault();
-    if (dmcCountLoading) {  
-      return;
-    }
-
-    // Always show search modal
-    setIsEnquirySearchModalOpen(true);
-  };
-
-  const handleEnquirySearchSubmit = (searchData) => {
-    // Check if this is a single DMC auto-selection (skipDMCModal: true)
-    if (searchData.skipDMCModal && searchData.selectedDMC) {
-      // Single DMC auto-selected - navigate directly to enquiry page
-      navigate("/dashboard/db-dashboard/home_2", { 
-        state: { 
-          selectedDMCs: [searchData.selectedDMC],
-          searchCriteria: { country: searchData.country }
-        } 
-      });
-    } else {
-      // Multiple DMCs - proceed with normal DMC selection modal
-      setEnquirySearchCriteria({ country: searchData });
-      setIsEnquirySearchModalOpen(false);
-      setIsEnquiryDMCModalOpen(true);
-    }
-  };
-
-  const handleEnquiryDMCSelect = (selectedDMCs) => {
-    // Navigate to the enquiry page with the selected DMCs and search criteria
-    navigate("/dashboard/db-dashboard/home_2", { 
-      state: { 
-        selectedDMCs,
-        searchCriteria: enquirySearchCriteria 
-      } 
-    });
-  };
-
-  const handleCloseEnquirySearchModal = () => {
-    setIsEnquirySearchModalOpen(false);
-  };
-
-  const handleCloseEnquiryDMCModal = () => {
-    setIsEnquiryDMCModalOpen(false);
-    setEnquirySearchCriteria(null);
+    
+    // Navigate directly to enquiry page
+    // User will select location on the Quick Enquiry page itself
+    navigate("/dashboard/db-dashboard/home_2");
   };
 
   // === Packages Handlers (Single DMC Selection - Same as Book Tour) ===
@@ -226,25 +230,26 @@ const MainMenu = ({ style = "" }) => {
       return;
     }
     
-    // For Agent users, always show search modal
-    setIsPackagesSearchModalOpen(true);
+    // For Agent users, always show location modal
+    setIsPackagesLocationModalOpen(true);
   };
 
-  const handlePackagesSearchSubmit = (searchData) => {
-    // Check if this is a single DMC auto-selection (skipDMCModal: true)
-    if (searchData.skipDMCModal && searchData.selectedDMC) {
-      // Single DMC auto-selected - navigate directly to packages page
-      navigate(packagesPath, { 
-        state: { 
-          selectedDMC: searchData.selectedDMC,
-          searchCriteria: { country: searchData.country }
-        } 
-      });
-    } else {
-      // Multiple DMCs - proceed with normal DMC selection modal
-      setPackagesSearchCriteria({ country: searchData });
-      setIsPackagesSearchModalOpen(false);
+  const handlePackagesLocationSelect = (locationData) => {
+    console.log('📍 Location selected for Packages:', locationData);
+    
+    // Only proceed if we have both country and city
+    if (locationData && locationData.country && locationData.city) {
+      setIsPackagesLocationModalOpen(false);
+      
+      // Set search criteria and open DMC selection modal
+      const searchCriteria = { 
+        country: { name: locationData.country },
+        city: locationData.city 
+      };
+      setPackagesSearchCriteria(searchCriteria);
       setIsPackagesDMCModalOpen(true);
+    } else {
+      console.warn('⚠️ Incomplete location data - need both country and city');
     }
   };
 
@@ -261,8 +266,8 @@ const MainMenu = ({ style = "" }) => {
     });
   };
 
-  const handleClosePackagesSearchModal = () => {
-    setIsPackagesSearchModalOpen(false);
+  const handleClosePackagesLocationModal = () => {
+    setIsPackagesLocationModalOpen(false);
   };
 
   const handleClosePackagesDMCModal = () => {
@@ -410,12 +415,36 @@ const MainMenu = ({ style = "" }) => {
       </ul>
     </nav>
 
-      {/* Book Tour Flow - Single DMC Selection */}
-      <SearchLocationModal
-        open={isSearchModalOpen}
-        onClose={handleCloseSearchModal}
-        onSearch={handleSearchSubmit}
-      />
+      {/* Book Tour Flow - Location Selection + Single DMC Selection */}
+      <StyledDialog
+        open={isBookTourLocationModalOpen}
+        onClose={handleCloseBookTourLocationModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <StyledDialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <TravelIcon sx={{ fontSize: 32, mr: 2 }} />
+            <Box>
+              <Typography variant="h5" component="div" sx={{ fontWeight: 600 }}>
+                Select Destination for Book Tour
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+                Choose your travel destination
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton
+            onClick={handleCloseBookTourLocationModal}
+            sx={{ position: 'absolute', right: 16, top: 16 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </StyledDialogTitle>
+        <DialogContent sx={{ p: 4, minHeight: '300px' }}>
+          <LocationSearch onLocationSelect={handleBookTourLocationSelect} />
+        </DialogContent>
+      </StyledDialog>
 
       <DMCSelectionModal
         open={isDMCModalOpen}
@@ -425,27 +454,39 @@ const MainMenu = ({ style = "" }) => {
         multiSelect={false}
       />
 
-      {/* Book an Enquiry Flow - Multiple DMC Selection */}
-      <SearchLocationModal
-        open={isEnquirySearchModalOpen}
-        onClose={handleCloseEnquirySearchModal}
-        onSearch={handleEnquirySearchSubmit}
-      />
+      {/* Book an Enquiry Flow - Direct Navigation (No Modal) */}
+      {/* User will select location directly on the Quick Enquiry page */}
 
-      <DMCSelectionModal
-        open={isEnquiryDMCModalOpen}
-        onClose={handleCloseEnquiryDMCModal}
-        onSelect={handleEnquiryDMCSelect}
-        searchCriteria={enquirySearchCriteria}
-        multiSelect={true}
-      />
-
-      {/* Packages Flow - Single DMC Selection (Same as Book Tour) */}
-      <SearchLocationModal
-        open={isPackagesSearchModalOpen}
-        onClose={handleClosePackagesSearchModal}
-        onSearch={handlePackagesSearchSubmit}
-      />
+      {/* Packages Flow - Location Selection + Single DMC Selection */}
+      <StyledDialog
+        open={isPackagesLocationModalOpen}
+        onClose={handleClosePackagesLocationModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <StyledDialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <TravelIcon sx={{ fontSize: 32, mr: 2 }} />
+            <Box>
+              <Typography variant="h5" component="div" sx={{ fontWeight: 600 }}>
+                Select Destination for Packages
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+                Choose your travel destination
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton
+            onClick={handleClosePackagesLocationModal}
+            sx={{ position: 'absolute', right: 16, top: 16 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </StyledDialogTitle>
+        <DialogContent sx={{ p: 4, minHeight: '300px' }}>
+          <LocationSearch onLocationSelect={handlePackagesLocationSelect} />
+        </DialogContent>
+      </StyledDialog>
 
       <DMCSelectionModal
         open={isPackagesDMCModalOpen}

@@ -13,7 +13,7 @@ import { useState, useEffect, useMemo } from "react";
 import { setFilter, clearFilters, setPriceMode, setPriceBounds } from "@/slice/hotel/CategorySlice";
 import PriceModeFilter from "../sidebar/PriceModeFilter";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
-
+import DmcFilter from "../sidebar/dmcFilter";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
@@ -25,6 +25,7 @@ const Sidebar = () => {
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || 'DMC';
   const hotels = useSelector((state) => state.hotels.hotels);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate) || 1;
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   
   // Flag to track if API data has been loaded
   const [apiDataLoaded, setApiDataLoaded] = useState(false);
@@ -342,6 +343,14 @@ const Sidebar = () => {
           />
         </div>
       </div>
+      {haveBooking === false && (
+      <div className="sidebar__item">
+        <h5 className="text-18 fw-500 mb-10">DMC</h5>
+        <div className="sidebar-checkbox">
+          <DmcFilter />
+        </div>
+      </div>
+      )}
       {/* End price mode filter */}
 
       {/* <div className="sidebar__item">
