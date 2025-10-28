@@ -28,6 +28,7 @@ use App\Models\EnquiryForm;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Agency;
+use App\Models\Tax;
 
 class SingleTourPackageController extends Controller
 {
@@ -583,6 +584,29 @@ class SingleTourPackageController extends Controller
             $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
+            $dmcId = Auth::user()->created_by;
+            
+            // Get DMC taxes and store as JSON
+            $taxArray = [];
+            if ($dmcId) {
+                $taxes = Tax::where('dmc_id', $dmcId)
+                    ->where('is_active', 1)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                
+                foreach ($taxes as $tax) {
+                    $taxArray[] = [
+                        'tax_id' => $tax->tax_id,
+                        'tax_name' => $tax->tax_name,
+                        'tax_type' => $tax->tax_type,
+                        'tax_value' => $tax->tax_value,
+                        'calculate_on' => $tax->calculate_on,
+                        'description' => $tax->description ?? '',
+                        'if_fixed' => $tax->if_fixed ?? null,
+                    ];
+                }
+            }
+
             // Create new tour record following TourController pattern
             $tour = new Tour();
             $tour->destination = $request->user_country;
@@ -598,9 +622,10 @@ class SingleTourPackageController extends Controller
             $tour->display_id = $display_id;
             $tour->tour_status = "New Enquiry";
             $tour->city = $request->city;
-            $tour->dmc_id = Auth::user()->created_by;
+            $tour->dmc_id = $dmcId;
             $tour->child_ages = $request->child_ages ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
+            $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->save();
 
             $thisTour = Tour::where('tour_id', $tour->tour_id)->first();
