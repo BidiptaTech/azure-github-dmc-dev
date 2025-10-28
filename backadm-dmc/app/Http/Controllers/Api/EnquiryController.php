@@ -41,9 +41,77 @@ class EnquiryController extends Controller
         }
 
         $random_dmc_id = null;
+        $user = auth()->user();
+        $agent_id = $user->agent_id;
         
         if (empty($dmc_ids)) {
-            $dmc_idd = User::where('country', $country)->where('role_id', 11)->first();
+            // Get auth user agency id and get dmc ids
+            $agentDmcIds = [];
+            $agencyCountryArray = [];
+            
+            if($user->agency_id){
+                $agency = Agency::where('agency_id', $user->agency_id)->first();
+                if($agency){
+                    $agentDmcIds = $agency->dmc_id;
+                    
+                    // Get agency's country for filtering
+                    if($agency->country){
+                        // Handle country as comma-separated string or array
+                        if(is_array($agency->country)){
+                            $agencyCountryArray = $agency->country;
+                        } else {
+                            // Remove spaces and split by comma
+                            $agencyCountryArray = array_map('trim', explode(',', str_replace(' ', '', $agency->country)));
+                        }
+                        $agencyCountryArray = array_filter($agencyCountryArray); // Remove empty values
+                    }
+                }
+            }
+            
+            // Ensure agentDmcIds is an array
+            if(!$agentDmcIds){
+                $agentDmcIds = [];
+            } else {
+                $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+            }
+            
+            // Prepare country array for filtering
+            $countryArray = [];
+            if($country){
+                if(is_array($country)){
+                    $countryArray = $country;
+                } else {
+                    $countryArray = array_map('trim', explode(',', $country));
+                }
+                $countryArray = array_filter($countryArray);
+            }
+            
+            // Find DMC user by matching country from the destination array
+            $dmcQuery = User::where('role_id', 11);
+            
+            // Filter by agency DMC IDs if available
+            if(!empty($agentDmcIds)){
+                $dmcQuery->whereIn('userId', $agentDmcIds);
+            }
+            
+            // If agency has country, filter DMCs by agency country
+            if(!empty($agencyCountryArray)){
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $agencyCountryArray) . '}' ]
+                );
+            }
+            
+            // Also filter by destination country
+            if(!empty($countryArray)){
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $countryArray) . '}' ]
+                );
+            }
+            
+            $dmc_idd = $dmcQuery->first();
+            
             if ($dmc_idd) {
                 $dmc_ids = [$dmc_idd->userId];
                 $random_dmc_id = $dmc_idd->userId;
@@ -51,9 +119,6 @@ class EnquiryController extends Controller
                 $dmc_ids = [];
             }
         }
-
-        $user = auth()->user();
-        $agent_id = $user->agent_id;
 
         try {
             // Parse the dates

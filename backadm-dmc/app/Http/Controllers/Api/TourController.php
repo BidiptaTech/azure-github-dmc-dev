@@ -31,6 +31,7 @@ use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Validator;
 use DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Agency;
 
 
 class TourController extends Controller
@@ -86,10 +87,61 @@ class TourController extends Controller
             $random_dmc_id = null;
             $dmcId = $request->dmc_id;
             if(empty($request->dmc_id)){
+                // Get auth user agency id and get dmc ids
+                $user = auth()->user();
+                $agentDmcIds = [];
+                $agencyCountryArray = [];
+                
+                if($user->agency_id){
+                    $agency = Agency::where('agency_id', $user->agency_id)->first();
+                    if($agency){
+                        $agentDmcIds = $agency->dmc_id;
+                        
+                        // Get agency's country for filtering
+                        if($agency->country){
+                            // Handle country as comma-separated string or array
+                            if(is_array($agency->country)){
+                                $agencyCountryArray = $agency->country;
+                            } else {
+                                // Remove spaces and split by comma
+                                $agencyCountryArray = array_map('trim', explode(',', str_replace(' ', '', $agency->country)));
+                            }
+                            $agencyCountryArray = array_filter($agencyCountryArray); // Remove empty values
+                        }
+                    }
+                }
+                
+                // Ensure agentDmcIds is an array
+                if(!$agentDmcIds){
+                    $agentDmcIds = [];
+                } else {
+                    $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+                }
+                
                 // Find DMC user by matching country from the destination array
-                $dmc_idd = User::whereIn('country', $countryArray)
-                              ->where('role_id', 11)
-                              ->first();
+                $dmcQuery = User::where('role_id', 11);
+                
+                // Filter by agency DMC IDs if available
+                if(!empty($agentDmcIds)){
+                    $dmcQuery->whereIn('userId', $agentDmcIds);
+                }
+                
+                // If agency has country, filter DMCs by agency country
+                if(!empty($agencyCountryArray)){
+                    $dmcQuery->whereRaw(
+                        "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                        [ '{' . implode(',', $agencyCountryArray) . '}' ]
+                    );
+                }
+                
+                // Also filter by destination country
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $countryArray) . '}' ]
+                );
+                
+                $dmc_idd = $dmcQuery->first();
+                
                 if ($dmc_idd) {
                     $dmcId = $dmc_idd->userId;
                     $random_dmc_id = $dmc_idd->userId;
