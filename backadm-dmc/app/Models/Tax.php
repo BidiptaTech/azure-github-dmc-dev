@@ -22,7 +22,8 @@ class Tax extends Model
         'city',
         'dmc_id',
         'is_active',
-        'description'
+        'description',
+        'if_fixed'
     ];
 
     protected $casts = [

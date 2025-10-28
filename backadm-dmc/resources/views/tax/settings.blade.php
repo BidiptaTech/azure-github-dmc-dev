@@ -27,6 +27,25 @@
     </script>
     @endif
 
+    @if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" id="error-alert">
+        <i class="ri-error-warning-line me-2"></i>
+        {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(function () {
+                var alert = document.getElementById('error-alert');
+                if (alert) {
+                    var bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        });
+    </script>
+    @endif
+
     <div class="row">
         <!-- Quick Add Tax Card -->
         <div class="col-md-8 offset-md-2">
@@ -72,10 +91,11 @@
                         <div class="mb-3">
                             <label class="form-label">Calculate On <span class="text-danger">*</span></label>
                             <select name="calculate_on" class="form-select" required>
-                                <option value="">Select Base</option>
-                                <option value="subtotal">Subtotal (Before Service Charge)</option>
-                                <option value="service_charge">After Service Charge</option>
+                                <option value="">Select Option</option>
                                 <option value="total">Total Amount</option>
+                                @foreach($allTaxes as $index => $existingTax)
+                                    <option value="tax_{{ $existingTax->tax_id }}">{{ $existingTax->tax_name }}</option>
+                                @endforeach
                             </select>
                             <div class="form-text">Choose when this tax should be calculated</div>
                         </div>

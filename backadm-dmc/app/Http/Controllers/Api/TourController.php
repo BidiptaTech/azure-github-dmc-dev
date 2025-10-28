@@ -27,6 +27,7 @@ use App\Models\Vehicle;
 use App\Models\Ticket;
 use App\Models\OperationalCountry;
 use App\Models\PackagedAttraction;
+use App\Models\Tax;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Validator;
 use DB;
@@ -153,6 +154,27 @@ class TourController extends Controller
             $auto_cancel_day = $userDMC && isset($userDMC->auto_cancel_date) ? (int) $userDMC->auto_cancel_date : 1; // Default to 1 day if not set
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
+            // Get DMC taxes and store as JSON
+            $taxArray = [];
+            if ($dmcId) {
+                $taxes = Tax::where('dmc_id', $dmcId)
+                    ->where('is_active', 1)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                
+                foreach ($taxes as $tax) {
+                    $taxArray[] = [
+                        'tax_id' => $tax->tax_id,
+                        'tax_name' => $tax->tax_name,
+                        'tax_type' => $tax->tax_type,
+                        'tax_value' => $tax->tax_value,
+                        'calculate_on' => $tax->calculate_on,
+                        'description' => $tax->description ?? '',
+                        'if_fixed' => $tax->if_fixed ?? null,
+                    ];
+                }
+            }
+            
             $tour = new Tour();
             $tour->destination = $validatedData['destination'];
             $tour->adult = $validatedData['adult'];
@@ -171,6 +193,7 @@ class TourController extends Controller
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
+            $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->save();
             $tour->refresh();
             if($formEnquiry){
@@ -639,6 +662,9 @@ class TourController extends Controller
             $taxAmount = ceil($taxAmount); // Apply ceiling to tax amount
             $finalAmountWithTax = $baseAmount + $taxAmount;
 
+            // Get taxes from tours table (stored when tour was created)
+            $taxArray = $tour->taxes ?? [];
+
             $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
             $totalPaid = 0;
             if (is_array($paymentData)) {
@@ -695,6 +721,7 @@ class TourController extends Controller
                 'taxPercentage' => $taxPercentage,
                 'taxAmount' => $taxAmount,
                 'finalAmountWithTax' => $finalAmountWithTax,
+                'taxes' => $taxArray,
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
                 'dmc_id' => $tour->dmc_id, 
