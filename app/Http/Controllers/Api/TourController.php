@@ -339,8 +339,8 @@ class TourController extends Controller
                     'CheckOutTime' => CommonHelper::DateFormat($checkOutTime),
                     'adult' => $tour->adult,
                     'total_pax' => $tour->adult + $tour->child,
-                    'service' => $service,
                     'random_dmc_id' => $random_dmc_id,
+                    'service' => $service,
                     'city' => $cities,
                     'EnquiryDetails' => [
                         'hotel' => $hotels,
