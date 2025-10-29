@@ -919,6 +919,9 @@ class TourController extends Controller
 
         $tour_id = $validatedData['tour_id'];
         
+        // Variable to store tour creation response
+        $tourCreationData = null;
+        
         // If tour_id is null or 0, create a new tour first
         if (empty($tour_id) || $tour_id == 0) {
             try {
@@ -951,8 +954,18 @@ class TourController extends Controller
                 $tourId = CommonHelper::createId($max_tour_id);
                 $display_id = 'DMC-ORD' . $tourId;
                 
+                // Get country names and cities
+                $countryNames = $tourValidation['destination'];
+                $countryArray = array_map('trim', explode(',', $countryNames));
+                $cities = City::whereIn('country', $countryArray)
+                      ->select('name', 'country')
+                      ->get()
+                      ->map(fn($city) => "{$city->name}, ({$city->country})")
+                      ->toArray();
+                
                 // Get DMC ID
                 $dmcId = $request->dmc_id;
+                $random_dmc_id = null;
                 if(empty($dmcId)){
                     // Get auth user agency id and get dmc ids
                     $authUser = auth()->user();
@@ -984,7 +997,6 @@ class TourController extends Controller
                     }
                     
                     // Find DMC user by matching country from the destination array
-                    $countryArray = array_map('trim', explode(',', $tourValidation['destination']));
                     $dmcQuery = User::where('role_id', 11);
                     
                     // Filter by agency DMC IDs if available
@@ -1010,6 +1022,7 @@ class TourController extends Controller
                     
                     if ($dmc_idd) {
                         $dmcId = $dmc_idd->userId;
+                        $random_dmc_id = $dmc_idd->userId;
                     } else {
                         $dmcId = null;
                     }
@@ -1060,6 +1073,47 @@ class TourController extends Controller
                 $tour->auto_cancel_date = $auto_cancel_date;
                 $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
                 $tour->save();
+                $tour->refresh();
+                
+                // Prepare service response
+                $service = CommonHelper::CommonResponse($agent_id, $tour->tour_id);
+                
+                // Prepare tour creation response data
+                $tourCreationData = [
+                    'tour_id' => $tour->tour_id,
+                    'unique_tour_id' => $tour->unique_tour_id,
+                    'agent_id' => $agent_id,
+                    'destination' => $tour->destination,
+                    'child' => $tour->child,
+                    'infant' => $tour->infant,
+                    'male' => $tour->male_count,
+                    'female' => $tour->female_count,
+                    'CheckInTime' => CommonHelper::DateFormat($checkInTime),
+                    'CheckOutTime' => CommonHelper::DateFormat($checkOutTime),
+                    'adult' => $tour->adult,
+                    'total_pax' => $tour->adult + $tour->child,
+                    'random_dmc_id' => $random_dmc_id,
+                    'service' => $service,
+                    'city' => $cities,
+                    'EnquiryDetails' => [
+                        'hotel' => [],
+                        'attraction' => [],
+                        'restaurant' => [],
+                        'guide' => [],
+                        'driver' => [],
+                        'ports' => [],
+                        'packaged_attractions' => [],
+                        'hotel_on' => false,
+                        'pickup_on' => false,
+                        'localtransfer_on' => false,
+                        'attraction_on' => false,
+                        'restaurant_on' => false,
+                        'guide_on' => false,
+                        'entry_port_on' => false,
+                        'exit_port_on' => false,
+                        'packaged_attraction_on' => false,
+                    ],
+                ];
                 
                 // Use the newly created tour_id
                 $tour_id = $tourId;
@@ -1116,7 +1170,7 @@ class TourController extends Controller
             if(in_array($validatedData['type'], ['entry_port', 'exit_port', 'local_transport']) && $zone_on == 1){
                 $to_zone_id = $order->to_zone_id;
                 $from_zone_id = $order->from_zone_id;
-                $existingOrder = Order::where('tour_id', $validatedData['tour_id'])
+                $existingOrder = Order::where('tour_id', $tour_id)
                 ->where('type', $validatedData['type'])
                 ->first();
 
@@ -1136,7 +1190,7 @@ class TourController extends Controller
                     
                         $order = new Order();
                         $order->agent_id = $agent_id;
-                        $order->tour_id = $validatedData['tour_id'];
+                        $order->tour_id = $tour_id;
                         $order->data = $validatedData['data'];
                         $order->type = $validatedData['type'];
                         $order->booking_id = $bookId;
@@ -1156,11 +1210,19 @@ class TourController extends Controller
                                 'tour_status' => "New Enquiry",
                             ]);
                         }
-                        return response()->json([
+                        $response = [
                             'message' => ucfirst($validatedData['type']) . ' order created successfully.',
                             'order' => $order,
                             'service' => $service
-                        ], 201);
+                        ];
+                        
+                        // Add tour creation data if tour was created
+                        if ($tourCreationData) {
+                            $response['tour_created'] = true;
+                            $response['tour_data'] = $tourCreationData;
+                        }
+                        
+                        return response()->json($response, 201);
                     
                 }
                 else{
@@ -1168,7 +1230,7 @@ class TourController extends Controller
                 }
             }
 
-            $existingOrder = Order::where('tour_id', $validatedData['tour_id'])
+            $existingOrder = Order::where('tour_id', $tour_id)
             ->where('type', $validatedData['type'])
             ->first();
             
@@ -1284,7 +1346,7 @@ class TourController extends Controller
             if($flag == 1){
                 $order = new Order();
                 $order->agent_id = $agent_id;
-                $order->tour_id = $validatedData['tour_id'];
+                $order->tour_id = $tour_id;
                 $order->data = $validatedData['data'];
                 $order->type = $validatedData['type'];
                 $order->booking_id = $bookId;
@@ -1304,11 +1366,20 @@ class TourController extends Controller
                         'tour_status' => "New Enquiry",
                     ]);
                 }
-                return response()->json([
+                
+                $response = [
                     'message' => ucfirst($validatedData['type']) . ' order created successfully.',
                     'order' => $order,
                     'service' => $service
-                ], 201);
+                ];
+                
+                // Add tour creation data if tour was created
+                if ($tourCreationData) {
+                    $response['tour_created'] = true;
+                    $response['tour_data'] = $tourCreationData;
+                }
+                
+                return response()->json($response, 201);
                 
             }
             else{
@@ -2350,7 +2421,7 @@ class TourController extends Controller
                 $stattus = 1;
                 $order = new Order();
                 $order->agent_id = $agent_id;
-                $order->tour_id = $validatedData['tour_id'];
+                $order->tour_id = $tour_id;
                 $order->data = $validatedData['data'];
                 $order->type = $validatedData['type'];
                 $order->booking_id = $bookId;
@@ -2435,13 +2506,22 @@ class TourController extends Controller
                 Tour::where('tour_id', $tour_id)->update([
                         'tour_status' => "New Enquiry",
                     ]);
-                return response()->json([
+                
+                $response = [
                     'message' => ucfirst($validatedData['type']) . ' Enquiry has been sent successfully..',
                     'order' => $order,
                     'service' => $service,
                     'comment' => $request->comment,
                     'enqueryPrice' => $request->enquiryPrice,
-                ], 201);
+                ];
+                
+                // Add tour creation data if tour was created
+                if ($tourCreationData) {
+                    $response['tour_created'] = true;
+                    $response['tour_data'] = $tourCreationData;
+                }
+                
+                return response()->json($response, 201);
             }else{
                 $service = CommonHelper::CommonBookingResponse($agent_id,$tour_id,$type);
                 if($tourStatus == "Tentative"){
@@ -2460,11 +2540,20 @@ class TourController extends Controller
                         'tour_status' => "New Enquiry",
                     ]);
                 }
-                return response()->json([
+                
+                $response = [
                     'message' => ucfirst($validatedData['type']) . ' Booking created successfully.',
                     'order' => $order,
                     'service' => $service,
-                ], 201);
+                ];
+                
+                // Add tour creation data if tour was created
+                if ($tourCreationData) {
+                    $response['tour_created'] = true;
+                    $response['tour_data'] = $tourCreationData;
+                }
+                
+                return response()->json($response, 201);
             }
             }
             else{
