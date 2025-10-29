@@ -417,6 +417,8 @@ Route::get('/clear', function () {
         
         // Cities Management
         Route::resource('cities', CityController::class);
+        Route::get('/cities/{id}/explore', [CityController::class, 'exploreCity'])->name('cities.explore');
+        Route::post('/cities/{id}/explore', [CityController::class, 'storeExploration'])->name('cities.storeExploration');
         // Route::get('/get-cities-by-country', [CityController::class, 'getCitiesByCountry'])->name('cities.getCitiesByCountry');
 
 

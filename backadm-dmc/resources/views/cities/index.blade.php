@@ -50,6 +50,7 @@ use Illuminate\Support\Facades\Crypt;
                             <th>Country</th>
                             {{-- <th>City ID</th> --}}
                             <th>Created At</th>
+                            <th>Explore City</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -61,6 +62,15 @@ use Illuminate\Support\Facades\Crypt;
                                 <td class="country-name">{{ $city->country }}</td>
                                 {{-- <td class="city-id">{{ $city->city_id }}</td> --}}
                                 <td>{{ $city->created_at->format('d M Y') }}</td>
+                                <td>
+                                    <!-- Explore City Button -->
+                                    <a href="{{ route('cities.explore', Crypt::encrypt($city->city_id)) }}" 
+                                       class="btn btn-success btn-sm waves-effect waves-light" 
+                                       title="Explore City">
+                                        <i class="mdi mdi-map-marker-radius me-1"></i>
+                                        {{ $city->exploration ? 'Edit' : 'Add' }}
+                                    </a>
+                                </td>
                                 <td style="display: inline-block; white-space: nowrap;">
                                     <!-- Edit Button -->
                                     <a href="{{ route('cities.edit', Crypt::encrypt($city->city_id)) }}" 
