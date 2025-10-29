@@ -341,6 +341,10 @@ const PreDefinePackages = () => {
       return;
     }
 
+    // Reset DMC selection on new search
+    console.log('🔄 Resetting DMC selection for new search');
+    dispatch(clearSelectedDmc());
+
     // Format the data for submission
     const formData = {
       location: locationData,
@@ -382,11 +386,9 @@ const PreDefinePackages = () => {
       searchParams.agent_id = selectedAgent?.id;
     }
     
-    // Add DMC ID if one is selected (single selection)
-    if (selectedDmcId) {
-      searchParams.dmc_id = selectedDmcId;
-      console.log('🏢 Including DMC ID in search:', selectedDmcId);
-    }
+    // Note: DMC ID is NOT included in initial search
+    // User will select DMC after seeing the search results
+    // DMC selection will trigger a refetch with the selected DMC ID
     
 
     

@@ -2092,7 +2092,7 @@ const BookingEnquiries = ({
                                 />
                               </FormControl>
                             </Grid>
-                            <Grid item xs={12}>
+                            {/* <Grid item xs={12}>
                               <FormControl>
                                 <Typography
                                   variant="body1"
@@ -2146,7 +2146,7 @@ const BookingEnquiries = ({
                                   />
                                 </RadioGroup>
                               </FormControl>
-                            </Grid>
+                            </Grid> */}
                             <Grid item xs={12}>
                               <PreferredHotelsDropdown
                                 onSelect={handlePreferredHotelsSelect}
