@@ -5,9 +5,11 @@ use App\Helpers\CountryHelper;
 use App\Helpers\CommonHelper;
 use App\Models\City;
 use App\Models\Country;
+use App\Models\CityExploration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 class CityController extends Controller
 {
     /**
@@ -299,5 +301,251 @@ class CityController extends Controller
             ->get(['city_id', 'name']);
 
         return response()->json($cities);
+    }
+
+    /**
+     * Show the exploration form for a specific city
+     */
+    public function exploreCity(string $id)
+    {
+        try {
+            $city = City::where('city_id', Crypt::decrypt($id))->first();
+            
+            if (!$city) {
+                return redirect()->route('cities.index')->with('error', 'City not found.');
+            }
+
+            // Get existing exploration data if available
+            $exploration = CityExploration::where('city_id', $city->city_id)->first();
+
+            return view('cities.explore', compact('city', 'exploration'));
+        } catch (\Exception $e) {
+            return redirect()->route('cities.index')->with('error', 'Invalid city ID.');
+        }
+    }
+
+    /**
+     * Store or update city exploration data
+     */
+    public function storeExploration(Request $request, string $id)
+    {
+        try {
+            $cityId = Crypt::decrypt($id);
+            $city = City::where('city_id', $cityId)->first();
+            
+            if (!$city) {
+                return redirect()->route('cities.index')->with('error', 'City not found.');
+            }
+
+            DB::beginTransaction();
+
+            // Process Overview section
+            $overview = [
+                'city_name' => $request->input('overview_city_name'),
+                'image' => null,
+                'short_description' => $request->input('overview_description'),
+                'best_known_for' => $request->input('overview_known_for'),
+                'local_language' => $request->input('overview_language'),
+                'currency' => $request->input('overview_currency'),
+                'time_zone' => $request->input('overview_timezone'),
+                'population' => $request->input('overview_population'),
+            ];
+
+            // Handle overview image
+            if ($request->hasFile('overview_image')) {
+                $uploadResult = CommonHelper::image_path('file_storage', $request->file('overview_image'), 'uploads/city_explorations');
+                $overview['image'] = $uploadResult['master_value'] ?? null;
+            } elseif ($request->input('existing_overview_image')) {
+                $overview['image'] = $request->input('existing_overview_image');
+            }
+
+            // Process Attractions
+            $attractions = [];
+            if ($request->has('attraction_type')) {
+                foreach ($request->input('attraction_type') as $index => $type) {
+                    $attractionData = [
+                        'type' => $type,
+                        'name' => $request->input('attraction_name')[$index] ?? '',
+                        'image' => null,
+                    ];
+
+                    // Handle attraction image
+                    if ($request->hasFile("attraction_image.{$index}")) {
+                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("attraction_image.{$index}"), 'uploads/city_explorations/attractions');
+                        $attractionData['image'] = $uploadResult['master_value'] ?? null;
+                    } elseif ($request->input("existing_attraction_image.{$index}")) {
+                        $attractionData['image'] = $request->input("existing_attraction_image.{$index}");
+                    }
+
+                    $attractions[] = $attractionData;
+                }
+            }
+
+            // Process Food and Cuisine
+            $foodCuisine = [
+                'famous_dishes' => $request->input('food_dish_name') ? array_combine(
+                    $request->input('food_dish_name', []),
+                    $request->input('food_dish_description', [])
+                ) : [],
+                'top_restaurants' => [],
+                'street_spots' => [],
+            ];
+
+            // Process restaurants
+            if ($request->has('restaurant_name')) {
+                foreach ($request->input('restaurant_name') as $index => $name) {
+                    $foodCuisine['top_restaurants'][] = [
+                        'name' => $name,
+                        'cuisine_type' => $request->input('restaurant_cuisine')[$index] ?? '',
+                        'address' => $request->input('restaurant_address')[$index] ?? '',
+                    ];
+                }
+            }
+
+            // Process street spots
+            if ($request->has('street_spot_name')) {
+                foreach ($request->input('street_spot_name') as $index => $name) {
+                    $foodCuisine['street_spots'][] = [
+                        'name' => $name,
+                        'description' => $request->input('street_spot_description')[$index] ?? '',
+                    ];
+                }
+            }
+
+            // Handle food image
+            if ($request->hasFile('food_image')) {
+                $uploadResult = CommonHelper::image_path('file_storage', $request->file('food_image'), 'uploads/city_explorations/food');
+                $foodCuisine['image'] = $uploadResult['master_value'] ?? null;
+            } elseif ($request->input('existing_food_image')) {
+                $foodCuisine['image'] = $request->input('existing_food_image');
+            }
+
+            // Process Accommodation
+            $accommodation = [];
+            if ($request->has('hotel_name')) {
+                foreach ($request->input('hotel_name') as $index => $name) {
+                    $hotelData = [
+                        'name' => $name,
+                        'category' => $request->input('hotel_category')[$index] ?? '',
+                        'location' => $request->input('hotel_location')[$index] ?? '',
+                        'image' => null,
+                    ];
+
+                    if ($request->hasFile("hotel_image.{$index}")) {
+                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("hotel_image.{$index}"), 'uploads/city_explorations/hotels');
+                        $hotelData['image'] = $uploadResult['master_value'] ?? null;
+                    } elseif ($request->input("existing_hotel_image.{$index}")) {
+                        $hotelData['image'] = $request->input("existing_hotel_image.{$index}");
+                    }
+
+                    $accommodation[] = $hotelData;
+                }
+            }
+
+            // Process Transportation
+            $transportation = [
+                'airports' => $this->processMultipleFields($request, 'airport_name', 'airport_distance', 'airport_code'),
+                'railway_stations' => $this->processMultipleFields($request, 'railway_name', 'railway_distance'),
+                'local_transport' => $request->input('transport_type') ? array_combine(
+                    $request->input('transport_type', []),
+                    $request->input('transport_description', [])
+                ) : [],
+            ];
+
+            // Process Best Time to Visit
+            $bestTimeVisit = [
+                'seasonal_highlights' => $this->processMultipleFields($request, 'season_period', 'season_description'),
+                'festival_periods' => $this->processMultipleFields($request, 'festival_name', 'festival_period', 'festival_description'),
+            ];
+
+            // Process Shopping
+            $shopping = [];
+            if ($request->has('shopping_name')) {
+                foreach ($request->input('shopping_name') as $index => $name) {
+                    $shopping[] = [
+                        'name' => $name,
+                        'type' => $request->input('shopping_type')[$index] ?? '',
+                        'description' => $request->input('shopping_description')[$index] ?? '',
+                    ];
+                }
+            }
+
+            // Process Hospitals and Emergency
+            $hospitalsEmergency = [
+                'hospitals' => [],
+                'pharmacies' => $this->processSimpleList($request, 'pharmacy_name'),
+                'emergency_numbers' => $this->processMultipleFields($request, 'emergency_service', 'emergency_number'),
+            ];
+
+            if ($request->has('hospital_name')) {
+                foreach ($request->input('hospital_name') as $index => $name) {
+                    $hospitalsEmergency['hospitals'][] = [
+                        'name' => $name,
+                        'type' => $request->input('hospital_type')[$index] ?? '',
+                        'address' => $request->input('hospital_address')[$index] ?? '',
+                        'contact' => $request->input('hospital_contact')[$index] ?? '',
+                    ];
+                }
+            }
+
+            // Create or update exploration data
+            CityExploration::updateOrCreate(
+                ['city_id' => $cityId],
+                [
+                    'overview' => $overview,
+                    'attractions' => $attractions,
+                    'food_cuisine' => $foodCuisine,
+                    'accommodation' => $accommodation,
+                    'transportation' => $transportation,
+                    'best_time_visit' => $bestTimeVisit,
+                    'shopping' => $shopping,
+                    'hospitals_emergency' => $hospitalsEmergency,
+                ]
+            );
+
+            DB::commit();
+
+            return redirect()->route('cities.index')
+                ->with('success', "Exploration data for '{$city->name}' saved successfully!");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Failed to save exploration data: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Helper function to process multiple fields
+     */
+    private function processMultipleFields(Request $request, ...$fields)
+    {
+        $result = [];
+        $primaryField = $fields[0];
+        
+        if (!$request->has($primaryField)) {
+            return $result;
+        }
+
+        foreach ($request->input($primaryField) as $index => $value) {
+            $item = [];
+            foreach ($fields as $fieldIndex => $field) {
+                $fieldName = explode('_', $field);
+                $key = end($fieldName);
+                $item[$key] = $request->input($field)[$index] ?? '';
+            }
+            $result[] = $item;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Helper function to process simple list
+     */
+    private function processSimpleList(Request $request, $fieldName)
+    {
+        return $request->input($fieldName, []);
     }
 }
