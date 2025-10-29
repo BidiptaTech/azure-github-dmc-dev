@@ -106,7 +106,7 @@ const MainMenu = ({ style = "" }) => {
       if (userRole === "Agent") {
         if (pathname.includes("/dashboard/db-dashboard/home_1")) {
           console.log('🌍 Auto-opening Book Tour location modal - no location selected');
-          setIsBookTourLocationModalOpen(true);
+          //setIsBookTourLocationModalOpen(true);
         }
         // Note: Quick Enquiry (home_2) and Packages do not auto-open modal - user selects location on the page
       }
