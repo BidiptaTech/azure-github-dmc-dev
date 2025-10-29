@@ -3453,13 +3453,189 @@ export default function Pending({ filters = {} }) {
                                       })()}
                                     </span>
                                   </div>
-                                  {sgdTax > 0 && (
-                                    <div style={{ textAlign: "center", marginTop: "2px" }}>
-                                      <span style={{ fontSize: "8px", color: "#5E35B1", fontWeight: "600" }}>
-                                        (incl. {sgdTax}% tax)
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      marginBottom: "6px",
+                                      padding: "4px 8px",
+                                      backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                      borderRadius: "6px",
+                                      border: "1px solid rgba(76, 175, 80, 0.2)",
+                                    }}
+                                  >
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                      <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                      <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                        Total(Tax Included)
                                       </span>
                                     </div>
-                                  )}
+                                    <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>{(() => {
+                                        // Base amount - check first
+                                        const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                        
+                                        // If finalAmountWithTax is 0, return 0 (don't calculate taxes)
+                                        if (!baseFinalAmount || baseFinalAmount <= 0) {
+                                          return `SGD 0`;
+                                        }
+
+                                        // Helper function to safely convert to number
+                                        const safeNumber = (value) => {
+                                          const num = Number(value);
+                                          return isNaN(num) ? 0 : num;
+                                        };
+
+                                        // Helper function to calculate nights
+                                        const calculateNights = (checkIn, checkOut) => {
+                                          if (!checkIn || !checkOut) return 0;
+                                          try {
+                                            const inDate = dayjs(checkIn);
+                                            const outDate = dayjs(checkOut);
+                                            const nights = outDate.diff(inDate, 'day');
+                                            return Math.max(nights, 0);
+                                          } catch (e) {
+                                            return 0;
+                                          }
+                                        };
+
+                                        // Parse taxes from JSON string
+                                        let taxes = [];
+                                        try {
+                                          if (list.taxes && typeof list.taxes === 'string') {
+                                            taxes = JSON.parse(list.taxes);
+                                          } else if (Array.isArray(list.taxes)) {
+                                            taxes = list.taxes;
+                                          }
+                                        } catch (e) {
+                                          console.error('Error parsing taxes for tour:', list.display_id, e);
+                                          return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                        }
+
+                                        if (!taxes || taxes.length === 0) {
+                                          return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                        }
+
+                                        // Initialize with base amount
+                                        let total = baseFinalAmount;
+                                        const totalPax = safeNumber(list.total_pax);
+                                        const nights = calculateNights(list.check_in_time, list.check_out_time);
+
+                                        // Store calculated amounts for each tax (for cascading)
+                                        const taxCalculations = {};
+
+                                        // Step 1: Process taxes where calculate_on = "total"
+                                        const totalTaxes = taxes.filter(tax => 
+                                          tax.calculate_on && tax.calculate_on.toLowerCase() === 'total'
+                                        );
+
+                                        totalTaxes.forEach(tax => {
+                                          let taxAmount = 0;
+                                          const taxValue = safeNumber(tax.tax_value);
+
+                                          if (tax.tax_type === 'percentage') {
+                                            // Calculate percentage tax on BASE amount (not running total)
+                                            taxAmount = (baseFinalAmount * taxValue) / 100;
+                                          } else if (tax.tax_type === 'fixed') {
+                                            // Calculate fixed tax based on if_fixed type
+                                            switch (tax.if_fixed) {
+                                              case 'person':
+                                                taxAmount = totalPax * taxValue;
+                                                break;
+                                              case 'person_day':
+                                                taxAmount = totalPax * nights * taxValue;
+                                                break;
+                                              case 'per_day':
+                                                taxAmount = nights * taxValue;
+                                                break;
+                                              case 'per_tour':
+                                              case 'person_tour':
+                                                taxAmount = taxValue;
+                                                break;
+                                              default:
+                                                taxAmount = taxValue;
+                                            }
+                                          }
+
+                                          // Validate taxAmount is not NaN
+                                          if (isNaN(taxAmount)) {
+                                            taxAmount = 0;
+                                          }
+
+                                          // Round the tax amount for consistency between display and calculation
+                                          const roundedTaxAmount = Math.ceil(taxAmount);
+                                          total += roundedTaxAmount;
+
+                                          // Store the total after this tax (for potential cascading)
+                                          taxCalculations[tax.tax_name] = {
+                                            amount: total,
+                                            taxAmount: roundedTaxAmount
+                                          };
+                                        });
+
+                                        // Step 2: Process cascading taxes (where calculate_on != "total")
+                                        const cascadingTaxes = taxes.filter(tax => 
+                                          tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+                                        );
+
+                                        cascadingTaxes.forEach(tax => {
+                                          let taxAmount = 0;
+                                          const taxValue = safeNumber(tax.tax_value);
+
+                                          // Find the base amount from the previous tax calculation
+                                          const baseCalc = taxCalculations[tax.calculate_on];
+                                          const baseAmount = baseCalc ? baseCalc.amount : total;
+
+                                          if (tax.tax_type === 'percentage') {
+                                            // Calculate percentage tax on the base
+                                            taxAmount = (baseAmount * taxValue) / 100;
+                                          } else if (tax.tax_type === 'fixed') {
+                                            // Calculate fixed tax based on if_fixed type
+                                            switch (tax.if_fixed) {
+                                              case 'person':
+                                              case 'per_person':
+                                                taxAmount = totalPax * taxValue;
+                                                break;
+                                              case 'per_person_per_day':
+                                                taxAmount = totalPax * nights * taxValue;
+                                                break;
+                                              case 'per_tour_per_day':
+                                                taxAmount = nights * taxValue;
+                                                break;
+                                              case 'per_tour':
+                                                taxAmount = taxValue;
+                                                break;
+                                              default:
+                                                taxAmount = taxValue;
+                                            }
+                                          }
+
+                                          // Validate taxAmount is not NaN
+                                          if (isNaN(taxAmount)) {
+                                            taxAmount = 0;
+                                          }
+
+                                          // Round the tax amount for consistency between display and calculation
+                                          const roundedTaxAmount = Math.ceil(taxAmount);
+                                          total += roundedTaxAmount;
+
+                                          // Store the total after this tax
+                                          taxCalculations[tax.tax_name] = {
+                                            amount: total,
+                                            taxAmount: roundedTaxAmount
+                                          };
+                                        });
+
+                                        // Final validation - if total is NaN, fallback to baseFinalAmount
+                                        if (isNaN(total) || !isFinite(total)) {
+                                          console.error('Total became NaN for tour:', list.display_id);
+                                          return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                        }
+
+                                        return `SGD ${total}`;
+                                      })()}
+                                      </span>
+                                    </div>
                                 </>
                             
                               {/* Payment Status */}

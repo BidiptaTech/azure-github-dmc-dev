@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Typography, Divider, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useSelector } from 'react-redux';
+import dayjs from 'dayjs';
 
 const StyledTooltipContent = styled(Box)(({ theme }) => ({
   backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -11,7 +12,7 @@ const StyledTooltipContent = styled(Box)(({ theme }) => ({
   boxShadow: '0 6px 24px rgba(0, 0, 0, 0.15)',
   padding: '12px',
   minWidth: '220px',
-  maxWidth: '260px',
+  maxWidth: '300px',
   position: 'relative',
   '&::before': {
     content: '""',
@@ -48,6 +49,17 @@ const PaymentRow = styled(Box)(({ theme, variant = 'default' }) => ({
     backgroundColor: 'rgba(76, 175, 80, 0.08)',
     borderColor: 'rgba(76, 175, 80, 0.2)',
   }),
+  ...(variant === 'tax' && {
+    backgroundColor: 'rgba(156, 39, 176, 0.06)',
+    borderColor: 'rgba(156, 39, 176, 0.15)',
+    marginLeft: '8px',
+    padding: '4px 6px',
+  }),
+  ...(variant === 'totalWithTax' && {
+    backgroundColor: 'rgba(76, 175, 80, 0.12)',
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+    fontWeight: 700,
+  }),
   ...(variant === 'status' && {
     backgroundColor: 'rgba(156, 39, 176, 0.08)',
     borderColor: 'rgba(156, 39, 176, 0.2)',
@@ -60,7 +72,204 @@ const PaymentRow = styled(Box)(({ theme, variant = 'default' }) => ({
 
 const PaymentDetailsTooltip = ({ list }) => {
   const sgdTax = useSelector((state) => state.auth.sgdTax);
-  const PriceHide = useSelector((state) => state.auth.PriceHide);
+  //const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const PriceHide = "0";
+  
+  // Calculate tax breakdown
+  const taxBreakdown = useMemo(() => {
+    // Helper function to safely convert to number
+    const safeNumber = (value) => {
+      const num = Number(value);
+      return isNaN(num) ? 0 : num;
+    };
+
+    // Helper function to calculate nights
+    const calculateNights = (checkIn, checkOut) => {
+      if (!checkIn || !checkOut) return 0;
+      try {
+        const inDate = dayjs(checkIn);
+        const outDate = dayjs(checkOut);
+        const nights = outDate.diff(inDate, 'day');
+        return Math.max(nights, 0);
+      } catch (e) {
+        return 0;
+      }
+    };
+
+    // Base amount - check first
+    const baseFinalAmount = safeNumber(list.finalAmountWithTax);
+    
+    // If finalAmountWithTax is 0, return empty breakdown
+    if (!baseFinalAmount || baseFinalAmount <= 0) {
+      return {
+        taxes: [],
+        totalWithTax: 0,
+        hasValidTaxes: false
+      };
+    }
+
+    // Parse taxes from JSON string
+    let taxes = [];
+    try {
+      if (list.taxes && typeof list.taxes === 'string') {
+        taxes = JSON.parse(list.taxes);
+      } else if (Array.isArray(list.taxes)) {
+        taxes = list.taxes;
+      }
+    } catch (e) {
+      return {
+        taxes: [],
+        totalWithTax: baseFinalAmount,
+        hasValidTaxes: false
+      };
+    }
+
+    if (!taxes || taxes.length === 0) {
+      return {
+        taxes: [],
+        totalWithTax: baseFinalAmount,
+        hasValidTaxes: false
+      };
+    }
+
+    // Initialize with base amount
+    let total = baseFinalAmount;
+    const totalPax = safeNumber(list.total_pax);
+    const nights = calculateNights(list.check_in_time, list.check_out_time);
+
+    // Store calculated amounts for each tax
+    const taxCalculations = {};
+    const taxDetails = [];
+
+    // Step 1: Process taxes where calculate_on = "total"
+    const totalTaxes = taxes.filter(tax => 
+      tax.calculate_on && tax.calculate_on.toLowerCase() === 'total'
+    );
+
+    totalTaxes.forEach(tax => {
+      let taxAmount = 0;
+      const taxValue = safeNumber(tax.tax_value);
+
+      if (tax.tax_type === 'percentage') {
+        // Calculate percentage tax on BASE amount (not running total)
+        taxAmount = (baseFinalAmount * taxValue) / 100;
+      } else if (tax.tax_type === 'fixed') {
+        switch (tax.if_fixed) {
+          case 'person':
+            taxAmount = totalPax * taxValue;
+            break;
+          case 'person_day':
+            taxAmount = totalPax * nights * taxValue;
+            break;
+          case 'per_day':
+            taxAmount = nights * taxValue;
+            break;
+          case 'per_tour':
+          case 'person_tour':
+            taxAmount = taxValue;
+            break;
+          default:
+            taxAmount = taxValue;
+        }
+      }
+
+      if (isNaN(taxAmount)) {
+        taxAmount = 0;
+      }
+
+      // Round the tax amount for consistency between display and calculation
+      const roundedTaxAmount = Math.ceil(taxAmount);
+      total += roundedTaxAmount;
+
+      taxCalculations[tax.tax_name] = {
+        amount: total,
+        taxAmount: roundedTaxAmount
+      };
+
+      taxDetails.push({
+        name: tax.tax_name,
+        type: tax.tax_type,
+        value: taxValue,
+        amount: roundedTaxAmount,
+        isPercentage: tax.tax_type === 'percentage',
+        if_fixed: tax.if_fixed
+      });
+    });
+
+    // Step 2: Process cascading taxes
+    const cascadingTaxes = taxes.filter(tax => 
+      tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+    );
+
+    cascadingTaxes.forEach(tax => {
+      let taxAmount = 0;
+      const taxValue = safeNumber(tax.tax_value);
+
+      const baseCalc = taxCalculations[tax.calculate_on];
+      const baseAmount = baseCalc ? baseCalc.amount : total;
+
+      if (tax.tax_type === 'percentage') {
+        taxAmount = (baseAmount * taxValue) / 100;
+      } else if (tax.tax_type === 'fixed') {
+        switch (tax.if_fixed) {
+          case 'person':
+          case 'per_person':
+          taxAmount = totalPax * taxValue;
+          break;
+        case 'per_person_per_day':
+          taxAmount = totalPax * nights * taxValue;
+          break;
+        case 'per_tour_per_day':
+          taxAmount = nights * taxValue;
+          break;
+        case 'per_tour':
+          taxAmount = taxValue;
+            break;
+          default:
+            taxAmount = taxValue;
+        }
+      }
+
+      if (isNaN(taxAmount)) {
+        taxAmount = 0;
+      }
+
+      // Round the tax amount for consistency between display and calculation
+      const roundedTaxAmount = Math.ceil(taxAmount);
+      total += roundedTaxAmount;
+
+      taxCalculations[tax.tax_name] = {
+        amount: total,
+        taxAmount: roundedTaxAmount
+      };
+
+      taxDetails.push({
+        name: tax.tax_name,
+        type: tax.tax_type,
+        value: taxValue,
+        amount: roundedTaxAmount,
+        isPercentage: tax.tax_type === 'percentage',
+        if_fixed: tax.if_fixed,
+        calculatedOn: tax.calculate_on
+      });
+    });
+
+    // Final validation
+    if (isNaN(total) || !isFinite(total)) {
+      return {
+        taxes: [],
+        totalWithTax: baseFinalAmount,
+        hasValidTaxes: false
+      };
+    }
+
+    return {
+      taxes: taxDetails,
+      totalWithTax: total,
+      hasValidTaxes: taxDetails.length > 0
+    };
+  }, [list]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Not Paid':
@@ -155,7 +364,60 @@ const PaymentDetailsTooltip = ({ list }) => {
             </Typography>
           </PaymentRow>
 
-          {sgdTax > 0 && (
+          {/* Tax Breakdown Section */}
+          {taxBreakdown.hasValidTaxes && (
+            <>
+              <Divider sx={{ my: 1 }} />
+              
+              <Box sx={{ mb: 1 }}>
+                <Typography 
+                  variant="caption" 
+                  fontWeight={600} 
+                  color="#9c27b0" 
+                  sx={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}
+                >
+                  <i className="icon-info" style={{ fontSize: '10px' }}></i>
+                  Tax Breakdown
+                </Typography>
+                
+                {taxBreakdown.taxes.map((tax, index) => (
+                  <PaymentRow key={index} variant="tax">
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" fontWeight={600} color="#9c27b0" sx={{ fontSize: '0.65rem' }}>
+                        {tax.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block' }}>
+                        {tax.isPercentage ? (
+                          `${tax.value}%`
+                        ) : (
+                          `Fixed: ${tax.if_fixed ? tax.if_fixed.replace('_', ' ') : 'per tour'}`
+                        )}
+                        {tax.calculatedOn && ` (on ${tax.calculatedOn})`}
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" fontWeight={700} color="#9c27b0" sx={{ fontSize: '0.65rem' }}>
+                      +SGD {tax.amount}
+                    </Typography>
+                  </PaymentRow>
+                ))}
+              </Box>
+
+              {/* Total with Tax */}
+              <PaymentRow variant="totalWithTax">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <i className="icon-wallet" style={{ fontSize: '11px', color: '#4caf50' }}></i>
+                  <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.75rem' }}>
+                    Total (with Tax)
+                  </Typography>
+                </Box>
+                <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.75rem' }}>
+                  SGD {taxBreakdown.totalWithTax}
+                </Typography>
+              </PaymentRow>
+            </>
+          )}
+
+          {sgdTax > 0 && !taxBreakdown.hasValidTaxes && (
             <Box sx={{ textAlign: 'center', mt: 0.5 }}>
               <Typography variant="caption" sx={{ fontSize: '0.6rem', color: '#5E35B1', fontWeight: 600 }}>
                 (Final amount incl. {sgdTax}% tax)
