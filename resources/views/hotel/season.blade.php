@@ -103,7 +103,7 @@
             
             @if($auth_user->role_id == 11)
             <!-- Tab Navigation for DMC Users -->
-            {{-- <div class="card-body pb-0">
+            <div class="card-body pb-0">
                 <ul class="nav nav-tabs nav-fill" role="tablist">
                     <li class="nav-item">
                         <button
@@ -132,7 +132,7 @@
                         </button>
                     </li>
                 </ul>
-            </div> --}}
+            </div>
             
             <div class="tab-content">
                 <!-- Single Season Tab -->
@@ -324,18 +324,26 @@
                                 
                                 <div class="row g-4">
                                     <div class="col-md-6">
-                                        <div class="card border-success">
+                                        <div class="card border-success shadow-sm">
                                             <div class="card-body">
                                                 <div class="d-flex align-items-center">
-                                                    <div class="avatar-md bg-success bg-soft rounded me-3">
-                                                        <i class="bx bx-download text-success fs-4"></i>
+                                                    <div class="d-flex align-items-center justify-content-center me-3" 
+                                                         style="width: 70px; height: 70px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="white" viewBox="0 0 16 16">
+                                                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                                        </svg>
                                                     </div>
                                                     <div>
                                                         <h5 class="mb-1">Download Template</h5>
                                                         <p class="text-muted mb-2">Get the CSV template with sample data and proper formatting</p>
                                                         <a href="{{ route('seasons.template_for_hotel', $hotel->hotel_unique_id) }}" 
-                                                           class="btn btn-outline-success btn-sm">
-                                                            <i class="bx bx-download me-1"></i>Download CSV Template
+                                                           class="btn btn-success btn-sm">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                                                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                                                            </svg>
+                                                            Download CSV Template
                                                         </a>
                                                     </div>
                                                 </div>
@@ -344,18 +352,26 @@
                                     </div>
                                     
                                     <div class="col-md-6">
-                                        <div class="card border-primary">
+                                        <div class="card border-primary shadow-sm">
                                             <div class="card-body">
                                                 <div class="d-flex align-items-center">
-                                                    <div class="avatar-md bg-primary bg-soft rounded me-3">
-                                                        <i class="bx bx-upload text-primary fs-4"></i>
+                                                    <div class="d-flex align-items-center justify-content-center me-3" 
+                                                         style="width: 70px; height: 70px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="white" viewBox="0 0 16 16">
+                                                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                            <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                                                        </svg>
                                                     </div>
                                                     <div>
                                                         <h5 class="mb-1">Upload Seasons</h5>
                                                         <p class="text-muted mb-2">Upload your filled CSV file with season data and pricing</p>
                                                         <a href="{{ route('seasons.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}" 
                                                            class="btn btn-primary btn-sm">
-                                                            <i class="bx bx-cloud-upload me-1"></i>Start Bulk Upload
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                                                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                                                <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                                                            </svg>
+                                                            Start Bulk Upload
                                                         </a>
                                                     </div>
                                                 </div>

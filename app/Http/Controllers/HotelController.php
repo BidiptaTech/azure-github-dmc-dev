@@ -27,6 +27,7 @@ use App\Models\Restaurant;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 
 class HotelController extends Controller
 {
@@ -1607,7 +1608,7 @@ class HotelController extends Controller
     public function editroom(Request $request, $id)
     {
         $auth_user = Auth::user();
-        $originalRoom = Room::where('room_id', $id)->first();
+        $originalRoom = Room::where('room_id', Crypt::decrypt($id))->first();
 
         if (!$originalRoom) {
             return redirect()->back()->with('error', 'Room not found.');
@@ -3427,6 +3428,271 @@ class HotelController extends Controller
         ]);
         
         return back()->with('success', 'Hotel selected successfully');
+    }
+
+    /**
+     * Display rooms import view with upload history
+     */
+    public function roomsImportView($hotel_id)
+    {
+        $user = Auth::user();
+        
+        // Only DMC users can import rooms
+        if ($user->user_type != 2) {
+            abort(403, 'You do not have permission to import rooms.');
+        }
+
+        // Get the specific hotel
+        $hotel = Hotel::where('hotel_unique_id', $hotel_id)->first();
+
+        if (!$hotel) {
+            return redirect()->back()->with('error', 'Hotel not found.');
+        }
+
+        // Check if user has access to this hotel
+        $dmcIds = is_string($hotel->dmc_id) ? json_decode($hotel->dmc_id, true) : $hotel->dmc_id;
+        if (!is_array($dmcIds)) {
+            $dmcIds = [];
+        }
+
+        if (!in_array($user->userId, $dmcIds)) {
+            return redirect()->back()->with('error', 'You do not have access to this hotel.');
+        }
+
+        // Get recent upload history for this hotel
+        $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'rooms')
+            ->where('uploaded_by', $user->userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return view('hotel.rooms-import', compact('uploadHistory', 'hotel'));
+    }
+
+    /**
+     * Process rooms bulk upload
+     */
+    public function roomsImport(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:csv,txt|max:10240',
+        ]);
+
+        $user = Auth::user();
+
+        // Only DMC users can import
+        if ($user->user_type != 2) {
+            return redirect()->back()->with('error', 'You do not have permission to import rooms.');
+        }
+
+        try {
+            $file = $request->file('file');
+            $originalFileName = $file->getClientOriginalName();
+            
+            // Check for duplicate uploads within 5 minutes
+            $cacheKey = 'room_upload_' . $user->userId . '_' . md5($originalFileName . $file->getSize());
+            
+            if (\Cache::has($cacheKey)) {
+                return redirect()->back()->with('error', 'This file has already been uploaded recently. Please wait a few minutes before trying again.');
+            }
+
+            // Store file temporarily
+            $filePath = $file->getRealPath();
+
+            // Count total records
+            $csv = array_map('str_getcsv', file($filePath));
+            $totalRecords = count($csv) - 1; // Subtract header row
+
+            // Process import
+            $importer = new \App\Imports\RoomsImport();
+            $result = $importer->import($filePath);
+
+            $successCount = $result['success'];
+            $errorCount = $result['errors'];
+            $errorMessages = $result['error_messages'];
+
+            // Cache this upload to prevent duplicates
+            \Cache::put($cacheKey, true, now()->addMinutes(5));
+
+            // Record upload history
+            \App\Models\UploadHistory::createRecord(
+                'rooms',
+                $originalFileName,
+                $originalFileName,
+                $totalRecords,
+                $successCount,
+                $errorCount,
+                $errorMessages,
+                $user->userId
+            );
+
+            // Return appropriate response
+            if ($errorCount > 0) {
+                // Format error summary with better structure
+                $errorSummary = '<div class="error-summary-list mt-2">';
+                $displayErrors = array_slice($errorMessages, 0, 10);
+                
+                foreach ($displayErrors as $index => $error) {
+                    $errorSummary .= '<div class="error-summary-item mb-1">';
+                    $errorSummary .= '<i class="ri-close-circle-line text-danger me-1"></i>';
+                    $errorSummary .= '<strong>' . ($index + 1) . '.</strong> ' . $error;
+                    $errorSummary .= '</div>';
+                }
+                
+                if (count($errorMessages) > 10) {
+                    $errorSummary .= '<div class="error-summary-item mt-2 text-muted">';
+                    $errorSummary .= '<i class="ri-more-line me-1"></i>';
+                    $errorSummary .= '<em>... and ' . (count($errorMessages) - 10) . ' more errors. View upload history for complete details.</em>';
+                    $errorSummary .= '</div>';
+                }
+                
+                $errorSummary .= '</div>';
+                
+                if ($successCount > 0) {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-information-line me-1"></i>';
+                    $message .= '<strong>Import Summary:</strong><br>';
+                    $message .= '<span class="text-success"><i class="ri-check-line me-1"></i>' . $successCount . ' rooms updated successfully</span><br>';
+                    $message .= '<span class="text-danger"><i class="ri-close-line me-1"></i>' . $errorCount . ' rows failed</span>';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Failed Rows:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('warning', $message);
+                } else {
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-error-warning-line me-1"></i>';
+                    $message .= '<strong>No rooms were updated.</strong> All ' . $errorCount . ' rows had errors.';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Error Details:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('error', $message);
+                }
+            }
+
+            return redirect()->back()->with('success', '<div><i class="ri-check-circle-line me-1"></i><strong>Success!</strong> ' . $successCount . ' rooms updated successfully.</div>');
+
+        } catch (\Exception $e) {
+            \Log::error('Room import error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download template with existing room data
+     */
+    public function roomsDownloadTemplate($hotel_id)
+    {
+        $user = Auth::user();
+
+        // Only DMC users can download template
+        if ($user->user_type != 2) {
+            abort(403, 'You do not have permission to download this template.');
+        }
+
+        // Use the hotel_id from route parameter
+        $hotelId = $hotel_id;
+
+        if (!$hotelId) {
+            return redirect()->back()->with('error', 'Hotel ID is required.');
+        }
+
+        // Get rooms directly using the hotel_id from the parameter
+        // This hotel_id matches the hotel_id column in rooms table
+        $rooms = Room::where('hotel_id', $hotelId)
+            ->where('created_by', 1) // Only admin base rooms
+            ->orderBy('room_type')
+            ->get();
+
+        if ($rooms->isEmpty()) {
+            return redirect()->back()->with('error', 'No admin base rooms found for this hotel. Please contact administrator to create base rooms first.');
+        }
+
+        // Get hotel info for CSV filename (optional, for better naming)
+        $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
+        $hotelName = $hotel ? $hotel->name : 'hotel';
+
+        // Verify user has access to this hotel
+        if ($hotel) {
+            $dmcIds = is_string($hotel->dmc_id) ? json_decode($hotel->dmc_id, true) : $hotel->dmc_id;
+            if (!is_array($dmcIds)) {
+                $dmcIds = [];
+            }
+
+            if (!in_array($user->userId, $dmcIds)) {
+                return redirect()->back()->with('error', 'You do not have access to this hotel.');
+            }
+        }
+
+        // Create CSV content
+        $csvData = [];
+        
+        // Header row (removed room_id, hotel_id, base_room, rooms_only)
+        $csvData[] = [
+            'hotel_name',
+            'room_type',
+            'no_of_room',
+            'dimension',
+            'weekday_price',
+            'weekend_price',
+            'double_weekday_price',
+            'double_weekend_price',
+            'breakfast',
+            'breakfast_type',
+            'breakfast_price',
+            'lunch',
+            'lunch_type',
+            'lunch_price',
+            'dinner',
+            'dinner_type',
+            'dinner_price',
+            'breakfast_included',
+        ];
+
+        // Data rows (removed room_id, hotel_id, base_room, rooms_only)
+        foreach ($rooms as $room) {
+            $csvData[] = [
+                $hotelName,
+                $room->room_type,
+                $room->no_of_room ?? 0,
+                $room->dimension ?? '',
+                $room->weekday_price ?? 0,
+                $room->weekend_price ?? 0,
+                $room->double_weekday_price ?? 0,
+                $room->double_weekend_price ?? 0,
+                $room->breakfast ? 1 : 0,
+                $room->breakfast_type ?? '',
+                $room->breakfast_price ?? '',
+                $room->lunch ? 1 : 0,
+                $room->lunch_type ?? '',
+                $room->lunch_price ?? '',
+                $room->dinner ? 1 : 0,
+                $room->dinner_type ?? '',
+                $room->dinner_price ?? '',
+                $room->breakfast_included ? 1 : 0,
+            ];
+        }
+
+        // Generate CSV file
+        $hotelNameSlug = \Str::slug($hotelName);
+        $fileName = 'rooms_' . $hotelNameSlug . '_' . date('Y-m-d_His') . '.csv';
+        $filePath = storage_path('app/temp/' . $fileName);
+
+        // Create temp directory if it doesn't exist
+        if (!file_exists(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        // Write CSV file
+        $file = fopen($filePath, 'w');
+        foreach ($csvData as $row) {
+            fputcsv($file, $row);
+        }
+        fclose($file);
+
+        // Download and delete file
+        return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
     }
     
 }
