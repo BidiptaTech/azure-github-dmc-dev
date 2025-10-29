@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const taxId = this.getAttribute('data-tax-id');
             
             // Fetch tax data via AJAX
-            fetch(`/tax/${taxId}/edit`, {
+            fetch(`{{ url('tax') }}/${taxId}/edit`, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     // Update form action
-                    document.getElementById('editTaxForm').action = `/tax/${taxId}`;
+                    document.getElementById('editTaxForm').action = `{{ url('tax') }}/${taxId}`;
                     
                     // Open the modal after data is loaded
                     const editModal = new bootstrap.Modal(document.getElementById('editTaxModal'));
@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isActive = this.checked ? 1 : 0;
             const statusText = isActive ? 'activated' : 'deactivated';
             
-            fetch(`/tax/${taxId}/toggle-status`, {
+            fetch(`{{ url('tax') }}/${taxId}/toggle-status`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (confirm('Are you sure you want to delete this tax?')) {
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = `/tax/${taxId}`;
+                form.action = `{{ url('tax') }}/${taxId}`;
                 
                 const csrfField = document.createElement('input');
                 csrfField.type = 'hidden';
