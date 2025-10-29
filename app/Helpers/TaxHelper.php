@@ -55,14 +55,16 @@ class TaxHelper
                     $taxAmount = $taxValue;
                 } else {
                     switch (strtolower($ifFixed)) {
+                        case 'person':
                         case 'per_person':
                             $taxAmount = $taxValue * $persons;
                             break;
+                        case 'tour':
                         case 'per_tour':
                             $taxAmount = $taxValue;
                             break;
-                        case 'per_person_per_tour':
-                            $taxAmount = $taxValue * $persons;
+                        case 'per_tour_per_day':
+                            $taxAmount = $taxValue * $days;
                             break;
                         case 'per_person_per_day':
                             $taxAmount = $taxValue * $persons * $days;
