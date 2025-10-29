@@ -6,6 +6,7 @@ import { logoutUser } from "../common/authSlices";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
 import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setHaveBooking } from "../common/commonSlice";
 
 
 export const fetchVehicles = createAsyncThunk(
@@ -1129,6 +1130,7 @@ const pickupDropSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       });
+    
   },
 });
 

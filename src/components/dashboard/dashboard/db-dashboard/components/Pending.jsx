@@ -60,7 +60,7 @@ import {
   resetBookingState,
   clearUserInfo,
 } from "@/slice/common/customerInfo";
-import { setBookingType } from "../../../../../slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "../../../../../slice/common/commonSlice";
 import HotelIcon from "@mui/icons-material/Hotel";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import TourIcon from "@mui/icons-material/Tour";
@@ -739,7 +739,7 @@ export default function Pending({ filters = {} }) {
     setSnackbarMessage("Submitting Id...");
     setSnackbarSeverity("info");
     setOpenSnackbar(true);
-
+    dispatch(setHaveBooking(false));
     // Clear attractions and restaurants data first
     dispatch(clearAttractions());
     dispatch(clearRestaurants());
@@ -781,11 +781,14 @@ export default function Pending({ filters = {} }) {
         const data = response.data;
         const bookingType = data.bookingType || "booking";
         dispatch(setBookingType(bookingType));
+        
 
         // Handle customer info if it exists
         if (data.customerInfo && typeof data.customerInfo === "object") {
           //console.log("Processing customer info:", data.customerInfo);
-
+          if(data.customerInfo.fullName) {
+            dispatch(setHaveBooking(true));
+          }
           // Directly use the customerInfo object
           dispatch(
             customerInfoSetUserInfo({

@@ -6,24 +6,14 @@ import PriceSlider from "../sidebar/PirceSlider"; // Fixed typo
 import PopularAttractions from "../sidebar/PopularAttractions";
 import PriceModeFilter from "../sidebar/PriceModeFilter";
 import { useSelector } from "react-redux";
+import DmcFilter from "../../hotel-list/sidebar/dmcFilter";
 
 const Sidebar = ({ hourlyPrices, priceRange, setPriceRange }) => {
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   return (
     <>
-      {/* <div className="sidebar__item -no-border">
-        <h5 className="text-18 fw-500 mb-10">Activity Types</h5>
-        <div className="sidebar-checkbox">
-          <ActivityTypes />
-        </div>
-      </div>
-
-      <div className="sidebar__item">
-        <h5 className="text-18 fw-500 mb-10">Other</h5>
-        <div className="sidebar-checkbox">
-          <OthersFilter />
-        </div>
-      </div> */}
+     
       <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Mode</h5>
         <div className="sidebar-checkbox">
@@ -47,7 +37,14 @@ const Sidebar = ({ hourlyPrices, priceRange, setPriceRange }) => {
           </>
         )}
       </div>
-
+{haveBooking === false && (
+      <div className="sidebar__item">
+        <h5 className="text-18 fw-500 mb-10">DMC</h5>
+        <div className="sidebar-checkbox">
+          <DmcFilter />
+        </div>
+      </div>
+      )}
       {/* <div className="sidebar__item">
         <h5 className="text-18 fw-500 mb-10">Duration</h5>
         <div className="sidebar-checkbox">

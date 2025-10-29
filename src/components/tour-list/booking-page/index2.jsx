@@ -48,6 +48,7 @@ import {
   setBookingType,
   setBookingMode,
   setIsNavigating,
+  setHaveBooking,
 } from "../../../slice/common/commonSlice";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 
@@ -350,6 +351,7 @@ export default function Index2() {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
+        dispatch(setHaveBooking(true));
 
         toast.success("Booking successful!", {
           position: "top-center",
@@ -516,7 +518,7 @@ export default function Index2() {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-
+        dispatch(setHaveBooking(true));
         toast.success("Enquiry submitted successfully!", {
           position: "top-center",
           autoClose: 3000,

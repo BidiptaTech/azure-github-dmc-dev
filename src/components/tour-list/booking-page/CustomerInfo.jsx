@@ -28,7 +28,7 @@ import {
 } from "../../../slice/attractions/attractionSlice";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
-import { setBookingType, setBookingMode, setIsNavigating } from '../../../slice/common/commonSlice';
+import { setBookingType, setBookingMode, setIsNavigating, setHaveBooking } from '../../../slice/common/commonSlice';
 
 // Add this near the top with other constants
 const countryCodes = [
@@ -383,7 +383,7 @@ const CustomerInfo = forwardRef((props, ref) => {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-        
+        dispatch(setHaveBooking(true));
         // Navigate to thank you page after a short delay to ensure Redux updates
         setTimeout(() => {
           navigate("/dashboard/db-dashboard/attraction-thank-you", {
@@ -546,7 +546,7 @@ const CustomerInfo = forwardRef((props, ref) => {
         dispatch(setUserInfo(formData));
         dispatch(setBookingResponse(response));
         dispatch(setBookingType(response?.order?.bookingType));
-        
+        dispatch(setHaveBooking(true));
         // Show success message
         toast.success("Enquiry submitted successfully!", {
           position: "top-center",

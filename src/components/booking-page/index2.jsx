@@ -39,7 +39,7 @@ import BabyChangingStationIcon from "@mui/icons-material/BabyChangingStation";
 import dayjs from "dayjs";
 import { setHotelDetails } from "@/slice/hotel/HotelDetailsSlice";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
-import { setBookingType } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking } from "@/slice/common/commonSlice";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
@@ -238,6 +238,7 @@ export default function Index2() {
       ).unwrap();
 
       setResponseData(response);
+      dispatch(setHaveBooking(true));
       dispatch(setBookingType(response.order?.bookingType));
       if (response?.service?.date_service) {
         dispatch(setDateService(response.service.date_service));
@@ -330,6 +331,7 @@ export default function Index2() {
       ).unwrap();
 
       setResponseData(response);
+      dispatch(setHaveBooking(true));
       dispatch(setBookingType(response.order?.bookingType));
 
       if (response?.service?.date_service) {

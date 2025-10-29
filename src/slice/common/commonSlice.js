@@ -41,6 +41,7 @@ const initialState = {
   bookingType: null, // can be 'booking' or 'enquiry'
   bookingMode: "dmc", // Default to 'dmc', will be updated based on selection
   isNavigating: false,
+  haveBooking: false,
   selectedCity: null,
   guestCounts: {
     Adults: 1,
@@ -87,6 +88,9 @@ const commonSlice = createSlice({
     setGuestCounts: (state, action) => {
       state.guestCounts = action.payload;
     },
+    setHaveBooking: (state, action) => {
+      state.haveBooking = action.payload;
+    },
     resetGuestSearch: (state) => {
       state.guestCounts = {
         Adults: 1,
@@ -104,11 +108,12 @@ const commonSlice = createSlice({
   },
 });
 
-export const { setBookingType, setBookingMode, setIsNavigating, setSelectedCity, setGuestCounts, resetGuestSearch, clearGuestSearchReset } =
+export const { setBookingType, setBookingMode, setIsNavigating, setSelectedCity, setGuestCounts, resetGuestSearch, clearGuestSearchReset, setHaveBooking } =
   commonSlice.actions;
 export const selectBookingType = (state) => state.common.bookingType;
 export const selectIsNavigating = (state) => state.common.isNavigating;
 export const selectBookingMode = (state) => state.common.bookingMode;
 export const selectGuestCounts = (state) => state.common.guestCounts;
 export const selectShouldResetGuestSearch = (state) => state.common.shouldResetGuestSearch;
+export const selectHaveBooking = (state) => state.common.haveBooking;
 export default commonSlice.reducer;

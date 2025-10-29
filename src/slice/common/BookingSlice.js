@@ -40,9 +40,9 @@ export const fetchBookingid = createAsyncThunk(
         });
       }
 
-      // Get selected DMC ID from Redux state
-      const selectedDmcId = selectDmcId(getState());
-      console.log('🎯 BookingSlice - Creating tour with DMC ID:', selectedDmcId);
+      // // Get selected DMC ID from Redux state
+      // const selectedDmcId = selectDmcId(getState());
+      // console.log('🎯 BookingSlice - Creating tour with DMC ID:', selectedDmcId);
 
       // Prepare request body
       const requestBody = {
@@ -58,7 +58,7 @@ export const fetchBookingid = createAsyncThunk(
         female: femaleCount,
         children_ages: guests.childrenAges.join(", "),
         enquiry_id: null,
-        dmc_id: selectedDmcId // Add DMC ID to request body
+       
       };
 
       console.log("Request Body:", requestBody);
@@ -242,6 +242,7 @@ const BookingSlice = createSlice({
           checkOut: state.checkOut,
           pax: state.guests.adults + state.guests.children,
           destination: data.destination || "",
+          dmc_id: data.random_dmc_id || "",
         };
 
         state.bookings.push(newBooking);
