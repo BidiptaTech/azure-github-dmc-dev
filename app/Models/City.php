@@ -18,4 +18,9 @@ class City extends Model
         return $this->belongsTo(Country::class);
     }
 
+    public function exploration()
+    {
+        return $this->hasOne(CityExploration::class, 'city_id', 'city_id');
+    }
+
 }
