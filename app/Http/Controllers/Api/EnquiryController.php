@@ -41,9 +41,77 @@ class EnquiryController extends Controller
         }
 
         $random_dmc_id = null;
+        $user = auth()->user();
+        $agent_id = $user->agent_id;
         
         if (empty($dmc_ids)) {
-            $dmc_idd = User::where('country', $country)->where('role_id', 11)->first();
+            // Get auth user agency id and get dmc ids
+            $agentDmcIds = [];
+            $agencyCountryArray = [];
+            
+            if($user->agency_id){
+                $agency = Agency::where('agency_id', $user->agency_id)->first();
+                if($agency){
+                    $agentDmcIds = $agency->dmc_id;
+                    
+                    // Get agency's country for filtering
+                    if($agency->country){
+                        // Handle country as comma-separated string or array
+                        if(is_array($agency->country)){
+                            $agencyCountryArray = $agency->country;
+                        } else {
+                            // Remove spaces and split by comma
+                            $agencyCountryArray = array_map('trim', explode(',', str_replace(' ', '', $agency->country)));
+                        }
+                        $agencyCountryArray = array_filter($agencyCountryArray); // Remove empty values
+                    }
+                }
+            }
+            
+            // Ensure agentDmcIds is an array
+            if(!$agentDmcIds){
+                $agentDmcIds = [];
+            } else {
+                $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+            }
+            
+            // Prepare country array for filtering
+            $countryArray = [];
+            if($country){
+                if(is_array($country)){
+                    $countryArray = $country;
+                } else {
+                    $countryArray = array_map('trim', explode(',', $country));
+                }
+                $countryArray = array_filter($countryArray);
+            }
+            
+            // Find DMC user by matching country from the destination array
+            $dmcQuery = User::where('role_id', 11);
+            
+            // Filter by agency DMC IDs if available
+            if(!empty($agentDmcIds)){
+                $dmcQuery->whereIn('userId', $agentDmcIds);
+            }
+            
+            // If agency has country, filter DMCs by agency country
+            if(!empty($agencyCountryArray)){
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $agencyCountryArray) . '}' ]
+                );
+            }
+            
+            // Also filter by destination country
+            if(!empty($countryArray)){
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $countryArray) . '}' ]
+                );
+            }
+            
+            $dmc_idd = $dmcQuery->first();
+            
             if ($dmc_idd) {
                 $dmc_ids = [$dmc_idd->userId];
                 $random_dmc_id = $dmc_idd->userId;
@@ -51,9 +119,6 @@ class EnquiryController extends Controller
                 $dmc_ids = [];
             }
         }
-
-        $user = auth()->user();
-        $agent_id = $user->agent_id;
 
         try {
             // Parse the dates
@@ -115,11 +180,79 @@ class EnquiryController extends Controller
                 ];
             }
 
+            // Update additional details for all created enquiries with the same multi_enq_id
+            $enquiries = EnquiryForm::where('multi_enq_id', $multi_enq_id)->get();
+
+            // Update each enquiry if additional fields are provided
+            foreach ($enquiries as $enquiry) {
+                // Update hotel fields
+                $enquiry->hotel = $request->hotel ?? null;
+                $enquiry->hotel_ids = $request->hotel_ids ? json_encode($request->hotel_ids) : null;
+                $enquiry->hotel_categories = $request->hotel_categories ? json_encode($request->hotel_categories) : null;
+                $enquiry->hotel_remarks = $request->hotel_remarks ?? null;
+                
+                // Update pickup fields
+                $enquiry->pickup = $request->port ?? null;
+                $enquiry->pickup_remarks = $request->port_remarks ?? null;
+
+                // Update transfer fields
+                $enquiry->local_transfer = $request->local_transfer ?? null;
+
+                // Update attraction fields
+                $enquiry->attraction = $request->attraction ?? null;
+                $enquiry->attraction_ids = $request->attraction_ids ? json_encode($request->attraction_ids) : null;
+                $enquiry->attraction_remarks = $request->attraction_remarks ?? null;
+                $enquiry->attraction_transport = $request->attraction_transport ?? null;
+                $enquiry->attraction_transport_type = $request->attraction_transport_type ?? null;
+
+                // Update restaurant fields
+                $enquiry->restaurant = $request->restaurant ?? null;
+                $enquiry->restaurant_ids = $request->restaurant_ids ? json_encode($request->restaurant_ids) : null;
+                $enquiry->restaurant_remarks = $request->restaurant_remarks ?? null;
+                $enquiry->restaurant_transport = $request->restaurant_transport ?? null;
+                $enquiry->restaurant_transport_type = $request->restaurant_transport_type ?? null;
+
+                // Update guide fields
+                $enquiry->guide = $request->guide ?? null;
+                $enquiry->guide_ids = $request->guide_ids ? json_encode($request->guide_ids) : null;
+                $enquiry->guide_remarks = $request->guide_remarks ?? null;
+
+                // Additional transport and vehicle fields
+                $enquiry->local_transport_type = $request->local_transport_type ?? null;
+                $enquiry->port_transport_type = $request->port_transport_type ?? null;
+                $enquiry->local_transport_vehicle_ids = $request->local_transport_vehicle_ids ? json_encode($request->local_transport_vehicle_ids) : null;
+                $enquiry->port_vehicle_ids = $request->port_vehicle_ids ? json_encode($request->port_vehicle_ids) : null;
+                $enquiry->compare_hotel = $request->compare_hotel ?? null;
+                $enquiry->port_type = $request->port_type ?? null;
+
+                // Entry and exit port fields
+                $enquiry->entry_port = $request->entry_port ?? null;
+                $enquiry->entry_port_address = $request->entry_port_address ?? null;
+                $enquiry->entry_dropoff_type = $request->entry_dropoff_type ?? null;
+                $enquiry->entry_dropoff_location_id = $request->entry_dropoff_location_id ?? null;
+
+                $enquiry->exit_port = $request->exit_port ?? null;
+                $enquiry->exit_port_address = $request->exit_port_address ?? null;
+                $enquiry->exit_pickup_type = $request->exit_pickup_type ?? null;
+                $enquiry->exit_pickup_location_id = $request->exit_pickup_location_id ?? null;
+                
+                // Other fields
+                $enquiry->approx_price = $request->approx_price ?? null;
+                $enquiry->packaged_attractions = $request->packaged_attractions ?? null;
+                $enquiry->packaged_attraction_ids = $request->packaged_attraction_ids ? json_encode($request->packaged_attraction_ids) : null;
+
+                // Save the updated enquiry
+                $enquiry->save();
+            }
+
             return response()->json([
-                'message' => 'Multiple enquiries created successfully',
+                'message' => 'Multiple enquiries created and updated successfully',
                 'multi_enq_id' => $multi_enq_id,
                 'data' => $created_enquiries,
                 'random_dmc' => $random_dmc_id,
+                'total_enquiries' => count($created_enquiries),
+                'updated' => $enquiries->isNotEmpty(),
+                'updated_count' => $enquiries->count()
             ], 201);
 
         } catch (\Exception $e) {

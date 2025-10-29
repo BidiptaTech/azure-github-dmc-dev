@@ -10,137 +10,136 @@
 
 <!-- Add Bootstrap Tab Styles -->
 <style>
-.nav-tabs .nav-link {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    color: #495057;
-    margin-right: 0.25rem;
-    border-radius: 0.375rem 0.375rem 0 0;
-}
+    .nav-tabs .nav-link {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        margin-right: 0.25rem;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
 
-.nav-tabs .nav-link:hover {
-    background-color: #e9ecef;
-    color: #495057;
-}
+    .nav-tabs .nav-link:hover {
+        background-color: #e9ecef;
+        color: #495057;
+    }
 
-.nav-tabs .nav-link.active {
-    background-color: #696cff;
-    border-color: #696cff;
-    color: white;
-}
+    .nav-tabs .nav-link.active {
+        background-color: #696cff;
+        border-color: #696cff;
+        color: white;
+    }
 
-.tab-content {
-    background-color: white;
-    border: 1px solid #dee2e6;
-    border-top: none;
-    padding: 0;
-    border-radius: 0 0 0.375rem 0.375rem;
-}
+    .tab-content {
+        background-color: white;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        padding: 0;
+        border-radius: 0 0 0.375rem 0.375rem;
+    }
 
-.bulk-upload-info {
-    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-    border-radius: 0.375rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border: 1px solid rgba(102, 126, 234, 0.1);
-}
+    .bulk-upload-info {
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+    }
 
-.bulk-upload-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    border-radius: 0.375rem;
-    padding: 0.75rem 1.5rem;
-    color: white;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
+    .bulk-upload-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 0.375rem;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
 
-.bulk-upload-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    color: white;
-    text-decoration: none;
-}
+    .bulk-upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        color: white;
+        text-decoration: none;
+    }
 
-<style>
-/* DMC Filter Styles */
-#dmcFilter {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    background-color: #fff;
-    color: #566a7f;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
+    /* DMC Filter Styles */
+    #dmcFilter {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        background-color: #fff;
+        color: #566a7f;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
 
-#dmcFilter:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-    outline: 0;
-}
+    #dmcFilter:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+        outline: 0;
+    }
 
-/* DMC Badge Styles */
-.badge.bg-primary {
-    background-color: #696cff !important;
-}
+    /* DMC Badge Styles */
+    .badge.bg-primary {
+        background-color: #696cff !important;
+    }
 
-.badge.bg-secondary {
-    background-color: #8592a3 !important;
-}
+    .badge.bg-secondary {
+        background-color: #8592a3 !important;
+    }
 
-/* Filter Info Text */
-.filter-info {
-    font-size: 0.875rem;
-    color: #6c757d;
-    font-style: italic;
-}
+    /* Filter Info Text */
+    .filter-info {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-style: italic;
+    }
 
-/* DataTable Responsive Styles */
-.dataTables_wrapper .dataTables_filter input {
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.375rem;
-    border: 1px solid #d9dee3;
-}
+    /* DataTable Responsive Styles */
+    .dataTables_wrapper .dataTables_filter input {
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d9dee3;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.5rem 0.75rem;
-    margin: 0 0.125rem;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    background-color: #fff;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.125rem;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        background-color: #fff;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background-color: #696cff;
-    border-color: #696cff;
-    color: #fff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #696cff;
+        border-color: #696cff;
+        color: #fff !important;
+    }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #e7e7ff;
-    border-color: #696cff;
-    color: #696cff !important;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #e7e7ff;
+        border-color: #696cff;
+        color: #696cff !important;
+    }
 
-/* Table Styles */
-.table> :not(caption)>*>* {
-    padding: 0.75rem;
-}
+    /* Table Styles */
+    .table> :not(caption)>*>* {
+        padding: 0.75rem;
+    }
 
-/* Button Styles */
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+    /* Button Styles */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 <!-- Start of the form -->
 <div class="content-wrapper">

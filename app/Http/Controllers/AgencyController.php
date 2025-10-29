@@ -595,7 +595,16 @@ class AgencyController extends Controller
      */
     public function importView()
     {
-        return view('agencies.import');
+        $auth_user = Auth::user();
+        
+        // Get recent upload history for agencies (last 10 uploads)
+        $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'agencies')
+            ->where('uploaded_by', $auth_user->userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        return view('agencies.import', compact('uploadHistory'));
     }
 
     /**
@@ -609,6 +618,7 @@ class AgencyController extends Controller
             ]);
 
             $file = $request->file('file');
+            $originalFileName = $file->getClientOriginalName();
             
             // Generate file hash to prevent duplicate uploads
             $fileHash = hash_file('md5', $file->getPathname());
@@ -632,22 +642,66 @@ class AgencyController extends Controller
             $successCount = $result['success'];
             $errorCount = $result['errors'];
             $errorMessages = $result['error_messages'];
+            $totalRecords = $successCount + $errorCount;
+            
+            // Create upload history record
+            \App\Models\UploadHistory::createRecord(
+                'agencies',
+                $originalFileName,
+                $originalFileName,
+                $totalRecords,
+                $successCount,
+                $errorCount,
+                $errorMessages,
+                $auth_user->userId
+            );
             
             if ($errorCount > 0) {
-                $errorSummary = implode('<br>', array_slice($errorMessages, 0, 10));
-                if (count($errorMessages) > 10) {
-                    $errorSummary .= '<br><em>... and ' . (count($errorMessages) - 10) . ' more errors</em>';
+                // Format error summary with better structure
+                $errorSummary = '<div class="error-summary-list mt-2">';
+                $displayErrors = array_slice($errorMessages, 0, 10);
+                
+                foreach ($displayErrors as $index => $error) {
+                    $errorSummary .= '<div class="error-summary-item mb-1">';
+                    $errorSummary .= '<i class="ri-close-circle-line text-danger me-1"></i>';
+                    $errorSummary .= '<strong>' . ($index + 1) . '.</strong> ' . $error;
+                    $errorSummary .= '</div>';
                 }
                 
+                if (count($errorMessages) > 10) {
+                    $errorSummary .= '<div class="error-summary-item mt-2 text-muted">';
+                    $errorSummary .= '<i class="ri-more-line me-1"></i>';
+                    $errorSummary .= '<em>... and ' . (count($errorMessages) - 10) . ' more errors. View upload history for complete details.</em>';
+                    $errorSummary .= '</div>';
+                }
+                
+                $errorSummary .= '</div>';
+                
                 if ($successCount > 0) {
-                    return redirect()->back()->with('warning', "Import completed with warnings. Successfully imported {$successCount} agencies. {$errorCount} rows failed:<br>{$errorSummary}");
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-information-line me-1"></i>';
+                    $message .= '<strong>Import Summary:</strong><br>';
+                    $message .= '<span class="text-success"><i class="ri-check-line me-1"></i>' . $successCount . ' agencies imported successfully</span><br>';
+                    $message .= '<span class="text-danger"><i class="ri-close-line me-1"></i>' . $errorCount . ' rows failed</span>';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Failed Rows:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('warning', $message);
                 } else {
-                    return redirect()->back()->with('error', "Import failed. {$errorCount} rows had errors:<br>{$errorSummary}");
+                    $message = '<div class="mb-2">';
+                    $message .= '<i class="ri-error-warning-line me-1"></i>';
+                    $message .= '<strong>No agencies were imported.</strong> All ' . $errorCount . ' rows had errors.';
+                    $message .= '</div>';
+                    $message .= '<div class="mb-2"><strong>Error Details:</strong></div>';
+                    $message .= $errorSummary;
+                    
+                    return redirect()->back()->with('error', $message);
                 }
             }
             
             if ($successCount > 0) {
-                return redirect()->route('agencies.index')->with('success', "Successfully imported {$successCount} agencies!");
+                return redirect()->back()->with('success', "Successfully imported {$successCount} agencies!");
             } else {
                 return redirect()->back()->with('error', 'No agencies were imported. Please check your CSV file.');
             }

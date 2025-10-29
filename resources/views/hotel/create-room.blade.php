@@ -8,327 +8,327 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap5.min.css">
 
 <style>
-/* DataTable Styles */
-.dataTables_wrapper .dataTables_filter input {
-    padding: 0.4rem 0.75rem;
-    border-radius: 0.375rem;
-    border: 1px solid #d9dee3;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 0.5rem 0.75rem;
-    margin: 0 0.125rem;
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    background-color: #fff;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background-color: #696cff;
-    border-color: #696cff;
-    color: #fff !important;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #e7e7ff;
-    border-color: #696cff;
-    color: #696cff !important;
-}
-
-/* Table Styles */
-.table> :not(caption)>*>* {
-    padding: 0.75rem;
-}
-
-/* Button Styles */
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-label-primary {
-    background-color: #e7e7ff;
-    color: #696cff;
-    border: none;
-}
-
-.btn-label-primary:hover {
-    background-color: #696cff;
-    color: #fff;
-}
-
-.btn-label-danger {
-    background-color: #ffe7e7;
-    color: #ff3e1d;
-    border: none;
-}
-
-.btn-label-danger:hover {
-    background-color: #ff3e1d;
-    color: #fff;
-}
-
-/* Badge Styles */
-.badge.bg-label-success {
-    background-color: #e8fadf !important;
-    color: #71dd37 !important;
-}
-
-.badge.bg-label-danger {
-    background-color: #ffe7e7 !important;
-    color: #ff3e1d !important;
-}
-
-/* Image Upload Styles */
-.drop-area {
-    border: 2px dashed #696cff;
-    border-radius: 0.375rem;
-    padding: 20px;
-    text-align: center;
-    background-color: #f8f9fa;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.drop-area.highlight {
-    background-color: #e7e7ff;
-    border-color: #696cff;
-}
-
-.preview-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.preview-container img {
-    max-width: 100px;
-    height: auto;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Form Field Styles */
-.form-floating>.form-control {
-    padding-top: 1.625rem;
-    padding-bottom: 0.625rem;
-}
-
-.form-floating>label {
-    padding: 1rem 0.75rem;
-}
-
-fieldset {
-    border-radius: 0.375rem;
-    border-color: #d9dee3;
-}
-
-fieldset legend {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #566a7f;
-    width: auto;
-    padding: 0 0.5rem;
-    margin-bottom: 0;
-}
-
-/* Validation Messages */
-.validation-message {
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-}
-
-/* Modal Styles */
-.modal-content {
-    border-radius: 0.5rem;
-}
-
-.modal-header {
-    border-bottom: 1px solid #d9dee3;
-    padding: 1.5rem;
-}
-
-.modal-footer {
-    border-top: 1px solid #d9dee3;
-    padding: 1.5rem;
-}
-
-/* Toggle Switch Styles for Data Table */
-.table .form-check.form-switch {
-    margin: 0;
-    padding-left: 2.5em;
-    position: relative; /* For tooltip positioning */
-}
-
-/* Custom Tooltip Styles */
-.tooltip {
-    position: absolute;
-    z-index: 1070;
-    display: block;
-    margin: 0;
-    font-family: var(--bs-font-sans-serif);
-    font-style: normal;
-    font-weight: 400;
-    line-height: 1.5;
-    text-align: left;
-    text-decoration: none;
-    text-shadow: none;
-    text-transform: none;
-    letter-spacing: normal;
-    word-break: normal;
-    word-spacing: normal;
-    white-space: normal;
-    line-break: auto;
-    font-size: 0.875rem;
-    word-wrap: break-word;
-    opacity: 0;
-}
-
-.tooltip.show {
-    opacity: 1;
-}
-
-.tooltip-inner {
-    max-width: 200px;
-    padding: 0.25rem 0.5rem;
-    color: #fff;
-    text-align: center;
-    background-color: #dc3545;
-    border-radius: 0.25rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* Disabled toggle style */
-.form-check-input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Delete button styles */
-.delete-room-btn:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
-}
-
-.delete-room-btn:disabled:hover {
-    background-color: #dc3545 !important;
-    opacity: 0.5 !important;
-}
-
-/* Animation for delete modal */
-@keyframes shakeX {
-    from,
-    to {
-        transform: translate3d(0, 0, 0);
+    /* DataTable Styles */
+    .dataTables_wrapper .dataTables_filter input {
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d9dee3;
     }
 
-    10%,
-    30%,
-    50%,
-    70%,
-    90% {
-        transform: translate3d(-10px, 0, 0);
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.125rem;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        background-color: #fff;
     }
 
-    20%,
-    40%,
-    60%,
-    80% {
-        transform: translate3d(10px, 0, 0);
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background-color: #696cff;
+        border-color: #696cff;
+        color: #fff !important;
     }
-}
 
-.animate__animated {
-    animation-duration: 1s;
-    animation-fill-mode: both;
-}
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: #e7e7ff;
+        border-color: #696cff;
+        color: #696cff !important;
+    }
 
-.animate__shakeX {
-    animation-name: shakeX;
-}
+    /* Table Styles */
+    .table> :not(caption)>*>* {
+        padding: 0.75rem;
+    }
 
-.table .form-check-input {
-    height: 1.5em;
-    width: 2.75em;
-    cursor: pointer;
-}
+    /* Button Styles */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.table .form-check-label {
-    margin-left: 0.5em;
-    font-size: 0.875rem;
-    cursor: pointer;
-    vertical-align: middle;
-}
+    .btn-label-primary {
+        background-color: #e7e7ff;
+        color: #696cff;
+        border: none;
+    }
 
-/* Spinner and icon styles */
-.table .spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
-    vertical-align: middle;
-}
+    .btn-label-primary:hover {
+        background-color: #696cff;
+        color: #fff;
+    }
 
-.table td .text-success,
-.table td .text-danger {
-    font-size: 0.875rem;
-}
+    .btn-label-danger {
+        background-color: #ffe7e7;
+        color: #ff3e1d;
+        border: none;
+    }
 
-/* Calculation Display Styles */
-.calculation-display {
-    font-size: 0.8rem;
-    font-weight: 500;
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    margin-top: 0.25rem;
-    font-family: monospace;
-    text-align: center;
-    color: #495057;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
+    .btn-label-danger:hover {
+        background-color: #ff3e1d;
+        color: #fff;
+    }
 
-.calculation-display i {
-    margin-right: 0.25rem;
-    color: #6c757d;
-}
+    /* Badge Styles */
+    .badge.bg-label-success {
+        background-color: #e8fadf !important;
+        color: #71dd37 !important;
+    }
 
-/* DMC Filter Styles */
-#dmcFilter {
-    border: 1px solid #d9dee3;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    background-color: #fff;
-    color: #566a7f;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
+    .badge.bg-label-danger {
+        background-color: #ffe7e7 !important;
+        color: #ff3e1d !important;
+    }
 
-#dmcFilter:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
-    outline: 0;
-}
+    /* Image Upload Styles */
+    .drop-area {
+        border: 2px dashed #696cff;
+        border-radius: 0.375rem;
+        padding: 20px;
+        text-align: center;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
 
-/* DMC Badge Styles */
-.badge.bg-info {
-    background-color: #54a3ff !important;
-}
+    .drop-area.highlight {
+        background-color: #e7e7ff;
+        border-color: #696cff;
+    }
 
-.badge.bg-primary {
-    background-color: #696cff !important;
-}
+    .preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
 
-/* Filter Info Text */
-.filter-info {
-    font-size: 0.875rem;
-    color: #6c757d;
-    font-style: italic;
-}
+    .preview-container img {
+        max-width: 100px;
+        height: auto;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Form Field Styles */
+    .form-floating>.form-control {
+        padding-top: 1.625rem;
+        padding-bottom: 0.625rem;
+    }
+
+    .form-floating>label {
+        padding: 1rem 0.75rem;
+    }
+
+    fieldset {
+        border-radius: 0.375rem;
+        border-color: #d9dee3;
+    }
+
+    fieldset legend {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #566a7f;
+        width: auto;
+        padding: 0 0.5rem;
+        margin-bottom: 0;
+    }
+
+    /* Validation Messages */
+    .validation-message {
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border-radius: 0.5rem;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #d9dee3;
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #d9dee3;
+        padding: 1.5rem;
+    }
+
+    /* Toggle Switch Styles for Data Table */
+    .table .form-check.form-switch {
+        margin: 0;
+        padding-left: 2.5em;
+        position: relative; /* For tooltip positioning */
+    }
+
+    /* Custom Tooltip Styles */
+    .tooltip {
+        position: absolute;
+        z-index: 1070;
+        display: block;
+        margin: 0;
+        font-family: var(--bs-font-sans-serif);
+        font-style: normal;
+        font-weight: 400;
+        line-height: 1.5;
+        text-align: left;
+        text-decoration: none;
+        text-shadow: none;
+        text-transform: none;
+        letter-spacing: normal;
+        word-break: normal;
+        word-spacing: normal;
+        white-space: normal;
+        line-break: auto;
+        font-size: 0.875rem;
+        word-wrap: break-word;
+        opacity: 0;
+    }
+
+    .tooltip.show {
+        opacity: 1;
+    }
+
+    .tooltip-inner {
+        max-width: 200px;
+        padding: 0.25rem 0.5rem;
+        color: #fff;
+        text-align: center;
+        background-color: #dc3545;
+        border-radius: 0.25rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Disabled toggle style */
+    .form-check-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Delete button styles */
+    .delete-room-btn:disabled {
+        opacity: 0.5 !important;
+        cursor: not-allowed !important;
+    }
+
+    .delete-room-btn:disabled:hover {
+        background-color: #dc3545 !important;
+        opacity: 0.5 !important;
+    }
+
+    /* Animation for delete modal */
+    @keyframes shakeX {
+        from,
+        to {
+            transform: translate3d(0, 0, 0);
+        }
+
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+            transform: translate3d(-10px, 0, 0);
+        }
+
+        20%,
+        40%,
+        60%,
+        80% {
+            transform: translate3d(10px, 0, 0);
+        }
+    }
+
+    .animate__animated {
+        animation-duration: 1s;
+        animation-fill-mode: both;
+    }
+
+    .animate__shakeX {
+        animation-name: shakeX;
+    }
+
+    .table .form-check-input {
+        height: 1.5em;
+        width: 2.75em;
+        cursor: pointer;
+    }
+
+    .table .form-check-label {
+        margin-left: 0.5em;
+        font-size: 0.875rem;
+        cursor: pointer;
+        vertical-align: middle;
+    }
+
+    /* Spinner and icon styles */
+    .table .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        vertical-align: middle;
+    }
+
+    .table td .text-success,
+    .table td .text-danger {
+        font-size: 0.875rem;
+    }
+
+    /* Calculation Display Styles */
+    .calculation-display {
+        font-size: 0.8rem;
+        font-weight: 500;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        margin-top: 0.25rem;
+        font-family: monospace;
+        text-align: center;
+        color: #495057;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .calculation-display i {
+        margin-right: 0.25rem;
+        color: #6c757d;
+    }
+
+    /* DMC Filter Styles */
+    #dmcFilter {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        background-color: #fff;
+        color: #566a7f;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    #dmcFilter:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+        outline: 0;
+    }
+
+    /* DMC Badge Styles */
+    .badge.bg-info {
+        background-color: #54a3ff !important;
+    }
+
+    .badge.bg-primary {
+        background-color: #696cff !important;
+    }
+
+    /* Filter Info Text */
+    .filter-info {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-style: italic;
+    }
 </style>
 
 <!-- Start of the form - Only for Admin and Virtual DMC -->
@@ -711,6 +711,13 @@ fieldset legend {
                         </div>
                         @endif
                         
+                        <!-- Import Button -->
+                        @if($auth_user->role_id == 11)
+                        <a href="{{ route('rooms.import', ['hotel_id' => $hotel->hotel_unique_id]) }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-file-upload"></i> Import Rooms
+                        </a>
+                        @endif
+                        
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
                             <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -828,7 +835,7 @@ fieldset legend {
                                     <div class="d-flex gap-2">
                                     <!-- Edit Button -->
                                     {{-- @if(hasPermission('edit room')) --}}
-                                    <a href="{{ route('rooms.edit', $room->room_id) }}" 
+                                    <a href="{{ route('rooms.edit', Crypt::encrypt($room->room_id)) }}" 
                                         class="btn btn-primary btn-sm rounded-circle" 
                                         style="width: 28px; height: 28px; padding: 0;">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
@@ -1556,16 +1563,32 @@ function handleDeleteClick(button, action) {
     
     // Set the form action
     document.getElementById('deleteForm').action = action;
-    
-    // Display the modal
-    var deleteModal = document.getElementById('deleteModal');
-    if (typeof bootstrap !== 'undefined') {
-        var bsModal = new bootstrap.Modal(deleteModal);
-        bsModal.show();
-    } else {
-        $('#deleteModal').modal('show');
-    }
 }
+
+// Fix for modal backdrop issue - ensure proper cleanup
+$(document).ready(function() {
+    // Event handler for when modal is closed
+    $('#deleteModal').on('hidden.bs.modal', function () {
+        // Remove any lingering backdrops
+        $('.modal-backdrop').remove();
+        // Remove modal-open class from body
+        $('body').removeClass('modal-open');
+        // Remove any inline styles that might have been added
+        $('body').css({
+            'overflow': '',
+            'padding-right': ''
+        });
+    });
+    
+    // Additional cleanup on modal cancel/close buttons
+    $('#deleteModal').on('click', '[data-bs-dismiss="modal"]', function() {
+        // Force close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+        if (modal) {
+            modal.hide();
+        }
+    });
+});
 </script>
 
 <script>

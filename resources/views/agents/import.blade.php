@@ -1,6 +1,6 @@
-@extends('layouts.layout')
+ @extends('layouts.layout')
 
-@section('title', 'Import Agencies')
+@section('title', 'Import Travel Agents')
 
 @section('content')
 <div class="content-wrapper">
@@ -15,25 +15,25 @@
                             <div class="header-content">
                                 <div class="d-flex align-items-center mb-2">
                                     <div class="icon-wrapper me-3">
-                                        <i class="ri-building-line"></i>
+                                        <i class="ri-user-add-line"></i>
                                     </div>
                                     <div>
-                                        <h4 class="card-title mb-1 text-white">Import Agencies</h4>
-                                        <h6 class="text-white-50 mb-0">Bulk Upload Multiple Agencies</h6>
+                                        <h4 class="card-title mb-1 text-white">Import Travel Agents</h4>
+                                        <h6 class="text-white-50 mb-0">Bulk Upload Multiple Agents</h6>
                                     </div>
                                 </div>
                                 <p class="text-white-75 mb-0">
-                                    <i class="ri-information-line me-1"></i>Quickly add multiple agencies to your system by uploading a CSV file
+                                    <i class="ri-information-line me-1"></i>Quickly add multiple travel agents to your system by uploading a CSV file
                                 </p>
                             </div>
                             <div class="d-flex gap-2 flex-wrap">
-                                <a href="{{ route('agencies.import.template') }}" 
+                                <a href="{{ route('agents.import.template') }}" 
                                    class="btn btn-light btn-sm shadow-sm">
                                     <i class="ri-download-cloud-2-line me-1"></i>Download Template
                                 </a>
-                                <a href="{{ route('agencies.index') }}" 
+                                <a href="{{ route('agents.index') }}" 
                                    class="btn btn-outline-light btn-sm">
-                                    <i class="ri-arrow-left-line me-1"></i>Back to Agencies
+                                    <i class="ri-arrow-left-line me-1"></i>Back to Agents
                                 </a>
                             </div>
                         </div>
@@ -154,7 +154,7 @@
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-edit-line text-primary"></i>
-                                                <span>Fill in your agency data (required fields marked with *)</span>
+                                                <span>Fill in your agent data (required fields marked with *)</span>
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-file-text-line text-warning"></i>
@@ -173,7 +173,7 @@
                                             </h6>
                                             <div class="instruction-item">
                                                 <i class="ri-checkbox-circle-line text-danger"></i>
-                                                <span><strong>Required:</strong> Agency Name, Email, Country, City</span>
+                                                <span><strong>Required:</strong> Agency Name, Salutation, Name, Email, Phone, Designation, Password</span>
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-mail-line text-primary"></i>
@@ -181,7 +181,7 @@
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-shield-check-line text-success"></i>
-                                                <span><strong>Auto-populated:</strong> ID Card Type (based on country)</span>
+                                                <span><strong>Auto-assigned:</strong> DMC ID (based on your role hierarchy)</span>
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-alert-line text-warning"></i>
@@ -190,7 +190,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <!-- Field Details Table -->
                                 <div class="row mt-4">
                                     <div class="col-12">
@@ -212,50 +212,44 @@
                                                         <tr>
                                                             <td><code class="field-code">agency_name</code></td>
                                                             <td><span class="badge bg-danger">Required</span></td>
-                                                            <td>Full name of the agency</td>
+                                                            <td>Name of the agency (must exist in system)</td>
                                                             <td><span class="text-muted">Sunrise Travel Agency</span></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><code class="field-code">salutation</code></td>
+                                                            <td><span class="badge bg-danger">Required</span></td>
+                                                            <td>Title (Mr, Mrs, Miss, Dear only)</td>
+                                                            <td><span class="text-muted">Mr</span></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><code class="field-code">name</code></td>
+                                                            <td><span class="badge bg-danger">Required</span></td>
+                                                            <td>Full name of the agent</td>
+                                                            <td><span class="text-muted">John Smith</span></td>
                                                         </tr>
                                                         <tr>
                                                             <td><code class="field-code">email</code></td>
                                                             <td><span class="badge bg-danger">Required</span></td>
                                                             <td>Unique email address</td>
-                                                            <td><span class="text-muted">info@sunrisetravel.com</span></td>
+                                                            <td><span class="text-muted">john.smith@example.com</span></td>
                                                         </tr>
                                                         <tr>
                                                             <td><code class="field-code">phone</code></td>
-                                                            <td><span class="badge bg-secondary">Optional</span></td>
-                                                            <td>Contact phone number</td>
-                                                            <td><span class="text-muted">+1-555-123-4567</span></td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td><code class="field-code">country</code></td>
                                                             <td><span class="badge bg-danger">Required</span></td>
-                                                            <td>Country name (ID card type will be auto-populated)</td>
-                                                            <td><span class="text-muted">United States</span></td>
+                                                            <td>Contact phone number (numeric only)</td>
+                                                            <td><span class="text-muted">1234567890</span></td>
                                                         </tr>
                                                         <tr>
-                                                            <td><code class="field-code">city</code></td>
+                                                            <td><code class="field-code">designation</code></td>
                                                             <td><span class="badge bg-danger">Required</span></td>
-                                                            <td>City name</td>
-                                                            <td><span class="text-muted">New York</span></td>
+                                                            <td>Job title or position</td>
+                                                            <td><span class="text-muted">Sales Manager</span></td>
                                                         </tr>
                                                         <tr>
-                                                            <td><code class="field-code">address</code></td>
-                                                            <td><span class="badge bg-secondary">Optional</span></td>
-                                                            <td>Full street address</td>
-                                                            <td><span class="text-muted">123 Main Street, Suite 100</span></td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td><code class="field-code">postal_code</code></td>
-                                                            <td><span class="badge bg-secondary">Optional</span></td>
-                                                            <td>Postal or ZIP code</td>
-                                                            <td><span class="text-muted">10001</span></td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td><code class="field-code">contact_person</code></td>
-                                                            <td><span class="badge bg-secondary">Optional</span></td>
-                                                            <td>Primary contact person name</td>
-                                                            <td><span class="text-muted">John Smith</span></td>
+                                                            <td><code class="field-code">password</code></td>
+                                                            <td><span class="badge bg-danger">Required</span></td>
+                                                            <td>Login password (minimum 8 characters)</td>
+                                                            <td><span class="text-muted">Password@123</span></td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
@@ -271,7 +265,7 @@
                                                 <i class="ri-lightbulb-line me-2 mt-1"></i>
                                                 <div>
                                                     <strong>Pro Tips:</strong>
-                                                    <span class="ms-2">Ensure email addresses are unique. Country and city names must match existing records. Use proper email format (user@domain.com). ID Card Type is automatically set based on country. Card numbers are NOT imported for security reasons. Soft-deleted agencies with same email will be restored and updated.</span>
+                                                    <span class="ms-2">Agency names must match existing agencies in your DMC. Email addresses must be unique. Phone numbers should be numeric only. Passwords will be encrypted automatically. Salutation must be one of: Mr, Mrs, Miss, Dear. Soft-deleted agents with same email will be restored and updated. Email notifications will be sent to all successfully imported agents.</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -282,7 +276,7 @@
 
                         <!-- Upload Form -->
                         <div class="upload-section">
-                            <form action="{{ route('agencies.import.upload') }}" 
+                            <form action="{{ route('agents.import.upload') }}" 
                                   method="POST" 
                                   enctype="multipart/form-data" 
                                   class="upload-form"
@@ -319,7 +313,7 @@
                                     <div class="col-md-4">
                                         <button type="submit" class="btn btn-primary w-100 upload-btn" id="submitBtn">
                                             <i class="ri-upload-cloud-2-line me-2"></i>
-                                            <span class="btn-text">Upload Agencies</span>
+                                            <span class="btn-text">Upload Agents</span>
                                             <span class="btn-loader d-none">
                                                 <span class="spinner-border spinner-border-sm me-2"></span>
                                                 Uploading...
@@ -329,26 +323,6 @@
                                 </div>
                             </form>
                         </div>
-
-                        <!-- Display Errors -->
-                        @if($errors->any())
-                            <div class="error-section mt-4">
-                                <div class="alert alert-warning modern-alert">
-                                    <div class="alert-header">
-                                        <i class="ri-error-warning-line me-2"></i>
-                                        <strong>Upload Errors Detected</strong>
-                                    </div>
-                                    <div class="error-list">
-                                        @foreach($errors->all() as $error)
-                                            <div class="error-item">
-                                                <i class="ri-close-circle-line text-danger me-2"></i>
-                                                {{ $error }}
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -362,7 +336,7 @@
                         <div class="d-flex align-items-center justify-content-between">
                             <h5 class="card-title mb-0 text-white">
                                 <i class="ri-history-line me-2"></i>Recent Upload History
-                                <small class="d-block text-white-50 fs-6 mt-1">Agencies Import</small>
+                                <small class="d-block text-white-50 fs-6 mt-1">Travel Agents Import</small>
                             </h5>
                             <span class="badge bg-light bg-opacity-20 text-white">
                                 {{ isset($uploadHistory) && $uploadHistory ? $uploadHistory->count() : 0 }} uploads
@@ -412,7 +386,7 @@
                                                             <i class="ri-file-excel-2-line text-success fs-4"></i>
                                                         </div>
                                                         <div>
-                                                            <div class="fw-medium text-dark">{{ $history->original_file_name ?? 'agencies_import.csv' }}</div>
+                                                            <div class="fw-medium text-dark">{{ $history->original_file_name ?? 'agents_import.csv' }}</div>
                                                             <small class="text-muted">CSV File</small>
                                                         </div>
                                                     </div>
@@ -532,7 +506,7 @@
                                             <div class="d-flex align-items-center">
                                                 <i class="ri-file-excel-2-line text-success fs-4 me-2"></i>
                                                 <div>
-                                                    <div class="fw-medium text-dark">{{ $history->original_file_name ?? 'agencies_import.csv' }}</div>
+                                                    <div class="fw-medium text-dark">{{ $history->original_file_name ?? 'agents_import.csv' }}</div>
                                                     <small class="text-muted">{{ \Carbon\Carbon::parse($history->created_at)->format('M d, Y h:i A') }}</small>
                                                 </div>
                                             </div>
@@ -639,7 +613,7 @@
                                         <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
                                     </div>
                                     <h6 class="text-muted mb-2">No Upload History</h6>
-                                    <p class="text-muted small mb-0">Your agency upload history will appear here once you start importing agencies.</p>
+                                    <p class="text-muted small mb-0">Your agent upload history will appear here once you start importing agents.</p>
                                 </div>
                             </div>
                         @endif
@@ -838,102 +812,6 @@
     display: inline-block !important;
 }
 
-/* Tables */
-.modern-table {
-    border: none;
-}
-
-.modern-table thead th {
-    background-color: #f8fafc;
-    font-weight: 600;
-    color: #475569;
-    border-bottom: 2px solid #e2e8f0;
-    padding: 1rem 1.25rem;
-}
-
-.modern-table tbody tr {
-    border: none;
-    transition: all 0.2s ease;
-}
-
-.modern-table tbody tr:hover {
-    background-color: #f8fafc;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.modern-table tbody td {
-    padding: 0.75rem 1.25rem;
-    vertical-align: middle;
-}
-
-.field-code {
-    background-color: #f0f4ff;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.875rem;
-    color: #667eea;
-    font-weight: 600;
-}
-
-/* Error Section */
-.error-section .modern-alert {
-    border-radius: var(--border-radius-sm);
-    border: none;
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    border-left: 4px solid var(--warning-color);
-}
-
-.alert-header {
-    display: flex;
-    align-items: center;
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-    color: #856404;
-}
-
-.error-item {
-    display: flex;
-    align-items: flex-start;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
-    font-size: 0.9rem;
-}
-
-.error-item:last-child {
-    border-bottom: none;
-}
-
-/* Buttons */
-.btn {
-    border-radius: var(--border-radius-sm);
-    font-weight: 500;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-}
-
-.btn-light {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.btn-outline-light {
-    border: 2px solid rgba(255, 255, 255, 0.7);
-    color: white;
-}
-
-.btn-outline-light:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: white;
-}
-
 /* Modern Alert Boxes */
 .modern-alert {
     border: none;
@@ -1028,6 +906,125 @@
     padding: 0.25rem 0;
     font-size: 0.95rem;
     line-height: 1.6;
+}
+
+/* Tables */
+.modern-table {
+    border: none;
+}
+
+.modern-table thead th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1rem 1.25rem;
+}
+
+.modern-table tbody tr {
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.modern-table tbody tr:hover {
+    background-color: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.modern-table tbody td {
+    padding: 0.75rem 1.25rem;
+    vertical-align: middle;
+}
+
+.field-code {
+    background-color: #f0f4ff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* Buttons */
+.btn {
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-light {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline-light {
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    color: white;
+}
+
+.btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: white;
+}
+
+/* View Errors Button */
+.view-errors-btn {
+    border-radius: 6px;
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.view-errors-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Error Details Modal */
+.error-detail-item {
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.error-detail-item:hover {
+    background-color: #fff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header.bg-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+}
+
+.error-details-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.error-details-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.error-details-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.error-details-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.error-details-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 /* Badges */
@@ -1137,57 +1134,6 @@
 
 .empty-state {
     padding: 3rem 2rem;
-}
-
-/* View Errors Button */
-.view-errors-btn {
-    border-radius: 6px;
-    font-size: 0.875rem;
-    padding: 0.375rem 0.75rem;
-    transition: all 0.3s ease;
-}
-
-.view-errors-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
-}
-
-/* Error Details Modal */
-.error-detail-item {
-    border-radius: 6px;
-    transition: all 0.2s ease;
-}
-
-.error-detail-item:hover {
-    background-color: #fff !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.modal-header.bg-danger {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-}
-
-.error-details-list {
-    max-height: 500px;
-    overflow-y: auto;
-}
-
-.error-details-list::-webkit-scrollbar {
-    width: 8px;
-}
-
-.error-details-list::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
-
-.error-details-list::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 10px;
-}
-
-.error-details-list::-webkit-scrollbar-thumb:hover {
-    background: #555;
 }
 
 /* Animations */
@@ -1366,17 +1312,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }, 10000);
-
-    // Add smooth scroll to upload history after form submit
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('scrollTo') === 'history') {
-        setTimeout(function() {
-            const historySection = document.querySelector('.upload-history-section');
-            if (historySection) {
-                historySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 500);
-    }
 });
 </script>
 @endsection

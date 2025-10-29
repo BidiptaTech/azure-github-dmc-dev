@@ -36,6 +36,12 @@
                           <i class="fas fa-plus"></i> Add New Travel Agent
                       </a>
                     @endif
+                    <!-- Import Agents Button -->
+                    @if(in_array(auth()->user()->role_id, [11, 33, 128, 129, 130, 134, 135, 136, 138, 12, 37, 38]))
+                      <a href="{{ route('agents.import') }}" class="btn btn-success btn-sm d-flex align-items-center gap-2">
+                          <i class="fas fa-file-upload"></i> Bulk Import
+                      </a>
+                    @endif
                     <!-- Export Dropdown Button -->
                     <div class="dropdown">
                         <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"

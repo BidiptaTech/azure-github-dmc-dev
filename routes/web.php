@@ -51,6 +51,7 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
 use App\Http\Controllers\GuestController;
+use App\Http\Controllers\TaxController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
@@ -231,6 +232,16 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        
+        // Tax Management Routes (DMC Only)
+        Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');
+        Route::get('/tax/settings', [TaxController::class, 'settings'])->name('tax.settings');
+        Route::post('/tax', [TaxController::class, 'store'])->name('tax.store');
+        Route::get('/tax/{id}/edit', [TaxController::class, 'edit'])->name('tax.edit');
+        Route::put('/tax/{id}', [TaxController::class, 'update'])->name('tax.update');
+        Route::delete('/tax/{id}', [TaxController::class, 'destroy'])->name('tax.destroy');
+        Route::post('/tax/{id}/toggle-status', [TaxController::class, 'toggleStatus'])->name('tax.toggle-status');
+        
         Route::post('/tour/{tourId}/verify-payment', [TourController::class, 'verifyPayment'])->name('tour.verify-payment');
         Route::post('/tour/{tourId}/decline-payment', [TourController::class, 'declinePayment'])->name('tour.decline-payment');
         Route::get('/get-ports', [HotelController::class, 'getPorts'])->name('get.ports');
@@ -681,6 +692,11 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::post('update-base-room', [RoomtypeController::class, 'updateBaseRoom'])->name('rooms.update-base-room');
         Route::post('update-rooms-only', [RoomtypeController::class, 'updateRoomsOnly'])->name('rooms.update-rooms-only');
 
+        // Room Bulk Import Routes - Only for DMC users (user_type = 2)
+        Route::get('/rooms/import/{hotel_id}', [HotelController::class, 'roomsImportView'])->name('rooms.import');
+        Route::post('/rooms/import', [HotelController::class, 'roomsImport'])->name('rooms.import.upload');
+        Route::get('/rooms/import/template/{hotel_id}', [HotelController::class, 'roomsDownloadTemplate'])->name('rooms.import.template');
+
         Route::get('/hotels/{hotel}/beds', [HotelController::class, 'hotelbeds'])->name('hotels.beds');
         Route::post('storebeds', [HotelController::class, 'storebeds'])->name('storebed');
         Route::get('edit_bed/{id}/{hotel_id}', [HotelController::class, 'editbed'])->name('bed.edit');
@@ -703,6 +719,12 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::post('restaurantCloseDate', [RestaurantController::class, 'restaurantCloseDate'])->name('restaurant_close_dates');
         Route::post('hotelCloseDate', [HotelController::class, 'hotelCloseDate'])->name('hotel_close_dates');
 
+        // Agent Import Routes (must come BEFORE resource route to avoid route conflicts)
+        Route::get('/agents/import', [AgentController::class, 'importView'])->name('agents.import');
+        Route::post('/agents/import', [AgentController::class, 'import'])->name('agents.import.upload');
+        Route::get('/agents/import/template', [AgentController::class, 'downloadTemplate'])->name('agents.import.template');
+        
+        // Agent Resource and other routes
         Route::resource('agents', AgentController::class);
         Route::get('/get-sales-manager-details/{userId}', [AgentController::class, 'getSalesManagerDetails'])->name('get-sales-manager-details');
         Route::get('/get-cities-by-country', [AgentController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country');
