@@ -239,9 +239,7 @@ class HotelController extends Controller
         $get_tour_id = $request->query('tour-id');
         $dmcs_id = $request->query('dmc_id');
         $price_mode = $request->query('price-mode');
-        if(!$get_tour_id){
-            return response()->json(['message' => 'Tour Id required'], 404);
-        }
+        
         if(!$dmcs_id){
             return response()->json(['message' => 'Dmc Id required'], 404);
         }
@@ -353,6 +351,56 @@ class HotelController extends Controller
         //     'bf_price' => $bf_price
         // ];
         
+        // Fetch tour data and perform calculations once before iterating through rooms
+        $extra_bed_age_limit = $hotel->extra_bed_age_limit;
+        $extra_child_age_limit = $hotel->child_age_limit;
+        $check_in_time = $hotel->check_in_time;
+        $check_out_time = $hotel->check_out_time;
+        
+        // Fetch tour data only if tour_id is provided
+        $tours = null;
+        if ($get_tour_id) {
+            $tours = Tour::where('tour_id', $get_tour_id)->first();
+        }
+        
+        if ($tours && $tours->child_ages) {
+            $child_ages_array = explode(',', $tours->child_ages);
+            $filtered_ages = array_filter($child_ages_array, function ($age) use ($extra_bed_age_limit) {
+                return $age <= $extra_bed_age_limit;
+            });
+
+            $filtered_ages_above = array_filter($child_ages_array, function ($age) use ($extra_bed_age_limit) {
+                return $age > $extra_bed_age_limit;
+            });
+
+            //For Caluculate Child Age
+
+            $filtered_child_ages = array_filter($child_ages_array, function ($age) use ($extra_child_age_limit) {
+                return $age <= $extra_child_age_limit;
+            });
+
+            $filtered_child_ages_above = array_filter($child_ages_array, function ($age) use ($extra_child_age_limit) {
+                return $age > $extra_child_age_limit;
+            });
+
+            $filtered_count = count($filtered_ages);
+            $filtered_count_above = count($filtered_ages_above);
+
+            $filtered_child_count = count($filtered_child_ages);
+            $filtered_child_count_above = count($filtered_child_ages_above);
+
+            $total_count = $tours->adult - $filtered_count;
+        } else {
+            $filtered_count = 0;
+            $filtered_count_above = 0;
+
+            $filtered_child_count = 0;
+            $filtered_child_count_above = 0;
+            $total_count = 0;
+        }
+        $tour_adult = $tours ? (($tours->adult + $filtered_count_above) ?? 0) : 0;
+        // $tour_adult = $tours->adult + $tours->child + $tours->infant;
+        
         // Iterate through rooms
         foreach ($hotel->rooms as $room) {
             $bed_data = [];
@@ -397,48 +445,6 @@ class HotelController extends Controller
             $base_price = min($base_price, $price);
             $double_base_price = min($double_base_price, $double_price);
             $beds = Bed::where('room_id', $room->room_id)->get();
-            $extra_bed_age_limit = $hotel->extra_bed_age_limit;
-            $extra_child_age_limit = $hotel->child_age_limit;
-            $check_in_time = $hotel->check_in_time;
-            $check_out_time = $hotel->check_out_time;
-            $tours = Tour::where('tour_id', $get_tour_id)->first();
-            if ($tours && $tours->child_ages) {
-                $child_ages_array = explode(',', $tours->child_ages);
-                $filtered_ages = array_filter($child_ages_array, function ($age) use ($extra_bed_age_limit) {
-                    return $age <= $extra_bed_age_limit;
-                });
-
-                $filtered_ages_above = array_filter($child_ages_array, function ($age) use ($extra_bed_age_limit) {
-                    return $age > $extra_bed_age_limit;
-                });
-
-                //For Caluculate Child Age
-
-                $filtered_child_ages = array_filter($child_ages_array, function ($age) use ($extra_child_age_limit) {
-                    return $age <= $extra_child_age_limit;
-                });
-
-                $filtered_child_ages_above = array_filter($child_ages_array, function ($age) use ($extra_child_age_limit) {
-                    return $age > $extra_child_age_limit;
-                });
-
-                $filtered_count = count($filtered_ages);
-                $filtered_count_above = count($filtered_ages_above);
-
-                $filtered_child_count = count($filtered_child_ages);
-                $filtered_child_count_above = count($filtered_child_ages_above);
-
-                $total_count = $tours->adult - $filtered_count;
-            } else {
-                $filtered_count = 0;
-                $filtered_count_above = 0;
-
-                $filtered_child_count = 0;
-                $filtered_child_count_above = 0;
-                $total_count = 0;
-            }
-            $tour_adult = ($tours->adult + $filtered_count_above) ?? 0;
-            // $tour_adult = $tours->adult + $tours->child + $tours->infant;
 
             // Process beds
             foreach ($beds as $bed) {
@@ -564,15 +570,15 @@ class HotelController extends Controller
             'hotel_name' => $hotel->name,
             'category' => $hotel->category->name ?? 'N/A',
             'image' => $hotel->main_image ?? '',
-            'tour_male' => $tours->male_count ?? 0,
-            'tour_female' => $tours->female_count ?? 0,
-            'tour_adult' => $tours->adult + $tours->child ?? 0,
-            'all_pax'=> $tours->adult + $tours->child + $tours->infant ?? 0,
-            'tour_child'=> ($tours->child - $filtered_child_count_above) ?? 0,
+            'tour_male' => $tours ? ($tours->male_count ?? 0) : 0,
+            'tour_female' => $tours ? ($tours->female_count ?? 0) : 0,
+            'tour_adult' => $tours ? (($tours->adult + $tours->child) ?? 0) : 0,
+            'all_pax'=> $tours ? (($tours->adult + $tours->child + $tours->infant) ?? 0) : 0,
+            'tour_child'=> $tours ? (($tours->child - $filtered_child_count_above) ?? 0) : 0,
             'tour_child_adult' => $filtered_child_count_above ?? 0,
             'check_in_time' => $check_in_time,
             'check_out_time' => $check_out_time,
-            'tour_infant'=> $tours->infant ?? 0,
+            'tour_infant'=> $tours ? ($tours->infant ?? 0) : 0,
             'price_mode' => $price_mode,
             'latitude' => $hotel->latitude ?? '',
             'longitude' => $hotel->longitude ?? '',
