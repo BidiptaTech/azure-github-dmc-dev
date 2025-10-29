@@ -352,9 +352,18 @@ class CityController extends Controller
             ];
 
             // Handle overview image
+            $existingExploration = CityExploration::where('city_id', $cityId)->first();
+            
             if ($request->hasFile('overview_image')) {
-                $uploadResult = CommonHelper::image_path('file_storage', $request->file('overview_image'), 'uploads/city_explorations');
-                $overview['image'] = $uploadResult['master_value'] ?? null;
+                // Delete old overview image if exists
+                if ($existingExploration && !empty($existingExploration->overview['image'])) {
+                    CommonHelper::deleteAzureImage($existingExploration->overview['image']);
+                }
+                
+                $uploadResult = CommonHelper::image_path('file_storage', $request->file('overview_image'));
+                if (!empty($uploadResult['master_value'])) {
+                    $overview['image'] = $uploadResult['master_value'];
+                }
             } elseif ($request->input('existing_overview_image')) {
                 $overview['image'] = $request->input('existing_overview_image');
             }
@@ -371,8 +380,17 @@ class CityController extends Controller
 
                     // Handle attraction image
                     if ($request->hasFile("attraction_image.{$index}")) {
-                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("attraction_image.{$index}"), 'uploads/city_explorations/attractions');
-                        $attractionData['image'] = $uploadResult['master_value'] ?? null;
+                        // Delete old attraction image if exists and being replaced
+                        if ($existingExploration && 
+                            isset($existingExploration->attractions[$index]['image']) && 
+                            !empty($existingExploration->attractions[$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->attractions[$index]['image']);
+                        }
+                        
+                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("attraction_image.{$index}"));
+                        if (!empty($uploadResult['master_value'])) {
+                            $attractionData['image'] = $uploadResult['master_value'];
+                        }
                     } elseif ($request->input("existing_attraction_image.{$index}")) {
                         $attractionData['image'] = $request->input("existing_attraction_image.{$index}");
                     }
@@ -414,8 +432,15 @@ class CityController extends Controller
 
             // Handle food image
             if ($request->hasFile('food_image')) {
-                $uploadResult = CommonHelper::image_path('file_storage', $request->file('food_image'), 'uploads/city_explorations/food');
-                $foodCuisine['image'] = $uploadResult['master_value'] ?? null;
+                // Delete old food image if exists
+                if ($existingExploration && !empty($existingExploration->food_cuisine['image'])) {
+                    CommonHelper::deleteAzureImage($existingExploration->food_cuisine['image']);
+                }
+                
+                $uploadResult = CommonHelper::image_path('file_storage', $request->file('food_image'));
+                if (!empty($uploadResult['master_value'])) {
+                    $foodCuisine['image'] = $uploadResult['master_value'];
+                }
             } elseif ($request->input('existing_food_image')) {
                 $foodCuisine['image'] = $request->input('existing_food_image');
             }
@@ -432,8 +457,17 @@ class CityController extends Controller
                     ];
 
                     if ($request->hasFile("hotel_image.{$index}")) {
-                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("hotel_image.{$index}"), 'uploads/city_explorations/hotels');
-                        $hotelData['image'] = $uploadResult['master_value'] ?? null;
+                        // Delete old hotel image if exists and being replaced
+                        if ($existingExploration && 
+                            isset($existingExploration->accommodation[$index]['image']) && 
+                            !empty($existingExploration->accommodation[$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->accommodation[$index]['image']);
+                        }
+                        
+                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("hotel_image.{$index}"));
+                        if (!empty($uploadResult['master_value'])) {
+                            $hotelData['image'] = $uploadResult['master_value'];
+                        }
                     } elseif ($request->input("existing_hotel_image.{$index}")) {
                         $hotelData['image'] = $request->input("existing_hotel_image.{$index}");
                     }
@@ -547,5 +581,58 @@ class CityController extends Controller
     private function processSimpleList(Request $request, $fieldName)
     {
         return $request->input($fieldName, []);
+    }
+
+    /**
+     * Delete city exploration data and all associated images
+     */
+    public function destroyExploration(string $id)
+    {
+        try {
+            $cityId = Crypt::decrypt($id);
+            $exploration = CityExploration::where('city_id', $cityId)->first();
+            
+            if (!$exploration) {
+                return redirect()->route('cities.index')->with('error', 'Exploration data not found.');
+            }
+
+            // Delete overview image
+            if (!empty($exploration->overview['image'])) {
+                CommonHelper::deleteAzureImage($exploration->overview['image']);
+            }
+
+            // Delete attraction images
+            if (!empty($exploration->attractions)) {
+                foreach ($exploration->attractions as $attraction) {
+                    if (!empty($attraction['image'])) {
+                        CommonHelper::deleteAzureImage($attraction['image']);
+                    }
+                }
+            }
+
+            // Delete food image
+            if (!empty($exploration->food_cuisine['image'])) {
+                CommonHelper::deleteAzureImage($exploration->food_cuisine['image']);
+            }
+
+            // Delete hotel images
+            if (!empty($exploration->accommodation)) {
+                foreach ($exploration->accommodation as $hotel) {
+                    if (!empty($hotel['image'])) {
+                        CommonHelper::deleteAzureImage($hotel['image']);
+                    }
+                }
+            }
+
+            // Delete the exploration record
+            $exploration->delete();
+
+            return redirect()->route('cities.index')
+                ->with('success', 'City exploration data deleted successfully!');
+
+        } catch (\Exception $e) {
+            return redirect()->route('cities.index')
+                ->with('error', 'Failed to delete exploration data: ' . $e->getMessage());
+        }
     }
 }
