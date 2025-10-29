@@ -194,6 +194,13 @@ class CountryController extends Controller
             );
             $dmcs = $dmcsQuery->paginate($perPage, ['*'], 'page', $page);
         }
+        
+        // Transform the response to ensure zone_on and price_hide are always included
+        $dmcs->getCollection()->transform(function ($dmc) {
+            $dmc->zone_on = $dmc->zone_on ?? false;
+            $dmc->price_hide = $dmc->price_hide ?? false;
+            return $dmc;
+        });
        
         return response()->json($dmcs);
     }

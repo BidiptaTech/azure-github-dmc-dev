@@ -48,8 +48,11 @@ class TaxController extends Controller
 
         $taxes = $query->paginate(15);
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        
+        // Get all taxes for calculate_on dropdown (ordered by creation)
+        $allTaxes = Tax::where('dmc_id', $dmcId)->orderBy('created_at', 'asc')->get();
 
-        return view('tax.index', compact('taxes', 'countries', 'dmcId'));
+        return view('tax.index', compact('taxes', 'countries', 'dmcId', 'allTaxes'));
     }
 
     /**
@@ -66,7 +69,10 @@ class TaxController extends Controller
 
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
         
-        return view('tax.settings', compact('countries', 'dmcId'));
+        // Get all taxes for calculate_on dropdown (ordered by creation)
+        $allTaxes = Tax::where('dmc_id', $dmcId)->orderBy('created_at', 'asc')->get();
+        
+        return view('tax.settings', compact('countries', 'dmcId', 'allTaxes'));
     }
 
     /**
@@ -81,12 +87,25 @@ class TaxController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized access.'], 403);
         }
 
+        // Check if DMC already has 5 taxes
+        $taxCount = Tax::where('dmc_id', $dmcId)->count();
+        if ($taxCount >= 5) {
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Maximum 5 taxes allowed per DMC. You have reached the limit.'
+                ], 422);
+            }
+            return redirect()->back()->with('error', 'Maximum 5 taxes allowed per DMC. You have reached the limit.');
+        }
+
         $validated = $request->validate([
             'tax_name' => 'required|string|max:255',
             'tax_type' => 'required|in:percentage,fixed',
             'tax_value' => 'required|numeric|min:0',
             'calculate_on' => 'required|in:subtotal,service_charge,total',
             'description' => 'nullable|string|max:1000',
+            'if_fixed' => 'nullable|string|max:1000',
         ]);
 
         $validated['dmc_id'] = $dmcId;
@@ -150,7 +169,8 @@ class TaxController extends Controller
             'tax_type' => 'required|in:percentage,fixed',
             'tax_value' => 'required|numeric|min:0',
             'calculate_on' => 'required|in:subtotal,service_charge,total',
-            'description' => 'nullable|string|max:1000',
+            'description' => 'nullable|string|max:1000',    
+            'if_fixed' => 'nullable|string|max:1000',
         ]);
 
         $tax->update($validated);

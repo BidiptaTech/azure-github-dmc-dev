@@ -30,6 +30,25 @@
     </script>
     @endif
 
+    @if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" id="error-alert">
+        <i class="ri-error-warning-line me-2"></i>
+        {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(function () {
+                var alert = document.getElementById('error-alert');
+                if (alert) {
+                    var bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        });
+    </script>
+    @endif
+
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Tax Management</h5>
@@ -184,9 +203,10 @@
                             <label class="form-label">Calculate On <span class="text-danger">*</span></label>
                             <select name="calculate_on" id="add_calculate_on" class="form-select" required>
                                 <option value="">Select Option</option>
-                                <option value="subtotal">Subtotal</option>
-                                <option value="service_charge">After Service Charge</option>
                                 <option value="total">Total Amount</option>
+                                @foreach($allTaxes as $index => $existingTax)
+                                    <option value="tax_{{ $existingTax->tax_id }}">{{ $existingTax->tax_name }}</option>
+                                @endforeach
                             </select>
                         </div>
                         
@@ -249,10 +269,11 @@
                         <div class="col-md-6">
                             <label class="form-label">Calculate On <span class="text-danger">*</span></label>
                             <select name="calculate_on" id="edit_calculate_on" class="form-select" required>
-                                <option value="">Select Base</option>
-                                <option value="subtotal">Subtotal</option>
-                                <option value="service_charge">After Service Charge</option>
-                                <option value="total">Total Amount</option>  
+                                <option value="">Select Option</option>
+                                <option value="total">Total Amount</option>
+                                @foreach($allTaxes as $index => $existingTax)
+                                    <option value="tax_{{ $existingTax->tax_id }}" data-tax-id="{{ $existingTax->tax_id }}">{{ $existingTax->tax_name }}</option>
+                                @endforeach
                             </select>
                         </div>
                         
@@ -328,6 +349,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Handle Add Tax Form submission via AJAX
+    const addTaxForm = document.getElementById('addTaxForm');
+    addTaxForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitButton = this.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        
+        // Disable submit button and show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+        
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            return response.json().then(data => ({
+                status: response.status,
+                ok: response.ok,
+                data: data
+            }));
+        })
+        .then(result => {
+            if (result.ok && result.data.success) {
+                // Show success message
+                showAlert('success', result.data.message);
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addTaxModal'));
+                modal.hide();
+                
+                // Reset form
+                addTaxForm.reset();
+                
+                // Reload page to show new tax
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                // Show error message
+                showAlert('danger', result.data.message || 'Error creating tax. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'Error creating tax. Please try again.');
+        })
+        .finally(() => {
+            // Re-enable submit button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        });
+    });
+
     // Handle Edit Tax button click
     const editButtons = document.querySelectorAll('.edit-tax');
     editButtons.forEach(button => {
@@ -370,6 +451,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         editIfFixedSection.style.display = 'none';
                         editIfFixed.removeAttribute('required');
                     }
+                    
+                    // Hide current tax from calculate_on dropdown to prevent circular dependency
+                    const calculateOnSelect = document.getElementById('edit_calculate_on');
+                    const options = calculateOnSelect.querySelectorAll('option');
+                    options.forEach(option => {
+                        const optionTaxId = option.getAttribute('data-tax-id');
+                        if (optionTaxId && optionTaxId == tax.tax_id) {
+                            option.style.display = 'none';
+                            option.disabled = true;
+                        } else if (optionTaxId) {
+                            option.style.display = 'block';
+                            option.disabled = false;
+                        }
+                    });
                     
                     // Update form action
                     document.getElementById('editTaxForm').action = `/tax/${taxId}`;

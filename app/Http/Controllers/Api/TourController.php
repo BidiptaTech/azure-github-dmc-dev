@@ -27,10 +27,12 @@ use App\Models\Vehicle;
 use App\Models\Ticket;
 use App\Models\OperationalCountry;
 use App\Models\PackagedAttraction;
+use App\Models\Tax;
 use App\Services\LogActivityService;
 use Illuminate\Support\Facades\Validator;
 use DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Agency;
 
 
 class TourController extends Controller
@@ -86,7 +88,61 @@ class TourController extends Controller
             $random_dmc_id = null;
             $dmcId = $request->dmc_id;
             if(empty($request->dmc_id)){
-                $dmc_idd = User::where('country', $countryNames)->where('role_id', 11)->first();
+                // Get auth user agency id and get dmc ids
+                $user = auth()->user();
+                $agentDmcIds = [];
+                $agencyCountryArray = [];
+                
+                if($user->agency_id){
+                    $agency = Agency::where('agency_id', $user->agency_id)->first();
+                    if($agency){
+                        $agentDmcIds = $agency->dmc_id;
+                        
+                        // Get agency's country for filtering
+                        if($agency->country){
+                            // Handle country as comma-separated string or array
+                            if(is_array($agency->country)){
+                                $agencyCountryArray = $agency->country;
+                            } else {
+                                // Remove spaces and split by comma
+                                $agencyCountryArray = array_map('trim', explode(',', str_replace(' ', '', $agency->country)));
+                            }
+                            $agencyCountryArray = array_filter($agencyCountryArray); // Remove empty values
+                        }
+                    }
+                }
+                
+                // Ensure agentDmcIds is an array
+                if(!$agentDmcIds){
+                    $agentDmcIds = [];
+                } else {
+                    $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
+                }
+                
+                // Find DMC user by matching country from the destination array
+                $dmcQuery = User::where('role_id', 11);
+                
+                // Filter by agency DMC IDs if available
+                if(!empty($agentDmcIds)){
+                    $dmcQuery->whereIn('userId', $agentDmcIds);
+                }
+                
+                // If agency has country, filter DMCs by agency country
+                if(!empty($agencyCountryArray)){
+                    $dmcQuery->whereRaw(
+                        "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                        [ '{' . implode(',', $agencyCountryArray) . '}' ]
+                    );
+                }
+                
+                // Also filter by destination country
+                $dmcQuery->whereRaw(
+                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
+                    [ '{' . implode(',', $countryArray) . '}' ]
+                );
+                
+                $dmc_idd = $dmcQuery->first();
+                
                 if ($dmc_idd) {
                     $dmcId = $dmc_idd->userId;
                     $random_dmc_id = $dmc_idd->userId;
@@ -95,9 +151,30 @@ class TourController extends Controller
                 }
             }
             $userDMC = User::where('userId', $dmcId)->first();
-            $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
+            $auto_cancel_day = $userDMC && isset($userDMC->auto_cancel_date) ? (int) $userDMC->auto_cancel_date : 1; // Default to 1 day if not set
             $auto_cancel_date = $checkInTime->copy()->subDays($auto_cancel_day)->toDateString();
 
+            // Get DMC taxes and store as JSON
+            $taxArray = [];
+            if ($dmcId) {
+                $taxes = Tax::where('dmc_id', $dmcId)
+                    ->where('is_active', 1)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+                
+                foreach ($taxes as $tax) {
+                    $taxArray[] = [
+                        'tax_id' => $tax->tax_id,
+                        'tax_name' => $tax->tax_name,
+                        'tax_type' => $tax->tax_type,
+                        'tax_value' => $tax->tax_value,
+                        'calculate_on' => $tax->calculate_on,
+                        'description' => $tax->description ?? '',
+                        'if_fixed' => $tax->if_fixed ?? null,
+                    ];
+                }
+            }
+            
             $tour = new Tour();
             $tour->destination = $validatedData['destination'];
             $tour->adult = $validatedData['adult'];
@@ -116,6 +193,7 @@ class TourController extends Controller
             $tour->multi_enq_id = $multi_enq_id ?? '';
             $tour->child_ages = $validatedData['children_ages'] ?? null;
             $tour->auto_cancel_date = $auto_cancel_date;
+            $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->save();
             $tour->refresh();
             if($formEnquiry){
@@ -261,6 +339,7 @@ class TourController extends Controller
                     'CheckOutTime' => CommonHelper::DateFormat($checkOutTime),
                     'adult' => $tour->adult,
                     'total_pax' => $tour->adult + $tour->child,
+                    'random_dmc_id' => $random_dmc_id,
                     'service' => $service,
                     'city' => $cities,
                     'EnquiryDetails' => [
@@ -583,6 +662,9 @@ class TourController extends Controller
             $taxAmount = ceil($taxAmount); // Apply ceiling to tax amount
             $finalAmountWithTax = $baseAmount + $taxAmount;
 
+            // Get taxes from tours table (stored when tour was created)
+            $taxArray = $tour->taxes ?? [];
+
             $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
             $totalPaid = 0;
             if (is_array($paymentData)) {
@@ -639,6 +721,7 @@ class TourController extends Controller
                 'taxPercentage' => $taxPercentage,
                 'taxAmount' => $taxAmount,
                 'finalAmountWithTax' => $finalAmountWithTax,
+                'taxes' => $taxArray,
                 'payment_status' => $payment_status,
                 'tour_status' => $tour->tour_status,
                 'dmc_id' => $tour->dmc_id, 
