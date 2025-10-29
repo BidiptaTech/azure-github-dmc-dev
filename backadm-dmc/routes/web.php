@@ -690,6 +690,11 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::post('update-base-room', [RoomtypeController::class, 'updateBaseRoom'])->name('rooms.update-base-room');
         Route::post('update-rooms-only', [RoomtypeController::class, 'updateRoomsOnly'])->name('rooms.update-rooms-only');
 
+        // Room Bulk Import Routes - Only for DMC users (user_type = 2)
+        Route::get('/rooms/import/{hotel_id}', [HotelController::class, 'roomsImportView'])->name('rooms.import');
+        Route::post('/rooms/import', [HotelController::class, 'roomsImport'])->name('rooms.import.upload');
+        Route::get('/rooms/import/template/{hotel_id}', [HotelController::class, 'roomsDownloadTemplate'])->name('rooms.import.template');
+
         Route::get('/hotels/{hotel}/beds', [HotelController::class, 'hotelbeds'])->name('hotels.beds');
         Route::post('storebeds', [HotelController::class, 'storebeds'])->name('storebed');
         Route::get('edit_bed/{id}/{hotel_id}', [HotelController::class, 'editbed'])->name('bed.edit');
