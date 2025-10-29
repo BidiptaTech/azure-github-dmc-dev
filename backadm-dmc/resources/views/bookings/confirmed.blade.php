@@ -3447,11 +3447,16 @@
         // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
         $baseAmount = round($tourTotalPrice) - $discountAmount;
         
-        // Calculate tax amount and final amount with tax
-        $taxPercentage = $country_tax ?? 0;
-        $taxAmount = ($baseAmount * $taxPercentage) / 100;
-        // Apply ceiling to tax amount (round up to next whole number)
-        $taxAmount = ceil($taxAmount);
+        // Calculate tax amount using TaxHelper
+        $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
+        $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+        
+        // Debug: Log the taxes data for this tour
+        \Log::info('Tour #' . $tour->tour_id . ' Taxes Data:', ['taxes' => $tour->taxes, 'persons' => $persons, 'days' => $days, 'baseAmount' => $baseAmount]);
+        
+        $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+        $taxAmount = $taxResult['total_tax'];
+        $taxBreakdown = $taxResult['breakdown'];
         $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -3596,8 +3601,20 @@
                             <div class="col-md-3">
                                 <div class="card bg-info text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Tax ({{ number_format($taxPercentage, 2) }}%)</h6>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }} taxes)@endif
+                                        </h6>
                                         <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($taxAmount, 2) }}</h5>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <small style="font-size: 0.65rem; opacity: 0.9;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    {{ $taxName }}: {{ number_format($taxVal, 2) }}@if(!$loop->last), @endif
+                                                @endforeach
+                                            </small>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -3684,8 +3701,20 @@
                                         <div class="fw-bold text-dark">{{ number_format($baseAmount, 2) }} SGD</div>
                                     </div>
                                     <div class="col-4">
-                                        <small class="text-muted">Tax ({{ number_format($taxPercentage, 2) }}%)</small>
+                                        <small class="text-muted" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
+                                        </small>
                                         <div class="fw-bold text-warning">{{ number_format($taxAmount, 2) }} SGD</div>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <div style="font-size: 0.7rem; margin-top: 2px;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    <div>{{ $taxName }}: {{ number_format($taxVal, 2) }}</div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>

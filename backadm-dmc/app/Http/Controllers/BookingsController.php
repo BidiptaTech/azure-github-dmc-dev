@@ -472,6 +472,7 @@ class BookingsController extends Controller
                 'tours.check_out_time',
                 'tours.tour_status',
                 'tours.payment_details',
+                'tours.taxes',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -524,6 +525,7 @@ class BookingsController extends Controller
                 'tours.check_out_time',
                 'tours.tour_status',
                 'tours.payment_details',
+                'tours.taxes',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -534,8 +536,7 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
         }
-        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.confirmed', compact('tours', 'country_tax'));
+        return view('bookings.confirmed', compact('tours'));
     }
 
     /**
