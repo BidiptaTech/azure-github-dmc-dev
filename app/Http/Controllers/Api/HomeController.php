@@ -23,11 +23,12 @@ class HomeController extends Controller
     */
     public function attractionListing(Request $request)
     {
-        $location = $request->city;
-        $parts = explode(',', $location);
-        $city = trim($parts[0]);
-        $country = trim($parts[1] ?? '');
-        $country = trim($country, '()');
+        $city = $request->city;
+        $country = $request->country;
+        // $parts = explode(',', $location);
+        // $city = trim($parts[0]);
+        // $country = trim($country, '()');
+        
         $dmcId = $request->dmc_id;
         $start = $request->start ?? 0;
         $limit = $request->limit ?? 10;
