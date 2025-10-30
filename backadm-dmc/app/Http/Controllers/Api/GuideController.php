@@ -19,11 +19,12 @@ class GuideController extends Controller
     */
     public function index(Request $request)
     {
-        $location = $request->city;
-        $parts = explode(',', $location);
-        $city = trim($parts[0]);
-        $country = trim($parts[1] ?? '');
-        $country = trim($country, '()');
+        $city = $request->city;
+        $country = $request->country;
+        // $parts = explode(',', $location);
+        // $city = trim($parts[0]);
+        // $country = trim($parts[1] ?? '');
+        // $country = trim($country, '()');
     
         $agentId = auth()->user()->agent_id;
         $dmcId = $request->dmc_id;
