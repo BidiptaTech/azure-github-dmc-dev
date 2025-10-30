@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use App\Models\Attraction;
+use App\Models\Hotel;
+use App\Models\Restaurant;
 class CityController extends Controller
 {
     /**
@@ -314,11 +317,13 @@ class CityController extends Controller
             if (!$city) {
                 return redirect()->route('cities.index')->with('error', 'City not found.');
             }
-
+            $attractions = Attraction::where('location', $city->name)->get();
+            $hotels = Hotel::where('city', $city->name)->get();
+            $restaurants = Restaurant::where('city', $city->name)->get();
             // Get existing exploration data if available
             $exploration = CityExploration::where('city_id', $city->city_id)->first();
 
-            return view('cities.explore', compact('city', 'exploration'));
+            return view('cities.explore', compact('city', 'exploration', 'attractions', 'hotels', 'restaurants'));
         } catch (\Exception $e) {
             return redirect()->route('cities.index')->with('error', 'Invalid city ID.');
         }
@@ -370,11 +375,10 @@ class CityController extends Controller
 
             // Process Attractions
             $attractions = [];
-            if ($request->has('attraction_type')) {
-                foreach ($request->input('attraction_type') as $index => $type) {
+            if ($request->has('attraction_name')) {
+                foreach ($request->input('attraction_name') as $index => $name) {
                     $attractionData = [
-                        'type' => $type,
-                        'name' => $request->input('attraction_name')[$index] ?? '',
+                        'name' => $name,
                         'image' => null,
                     ];
 
@@ -412,11 +416,29 @@ class CityController extends Controller
             // Process restaurants
             if ($request->has('restaurant_name')) {
                 foreach ($request->input('restaurant_name') as $index => $name) {
-                    $foodCuisine['top_restaurants'][] = [
+                    $restaurantData = [
                         'name' => $name,
-                        'cuisine_type' => $request->input('restaurant_cuisine')[$index] ?? '',
-                        'address' => $request->input('restaurant_address')[$index] ?? '',
+                        'image' => null,
                     ];
+
+                    // Handle restaurant image
+                    if ($request->hasFile("restaurant_image.{$index}")) {
+                        // Delete old restaurant image if exists and being replaced
+                        if ($existingExploration && 
+                            isset($existingExploration->food_cuisine['top_restaurants'][$index]['image']) && 
+                            !empty($existingExploration->food_cuisine['top_restaurants'][$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->food_cuisine['top_restaurants'][$index]['image']);
+                        }
+                        
+                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("restaurant_image.{$index}"));
+                        if (!empty($uploadResult['master_value'])) {
+                            $restaurantData['image'] = $uploadResult['master_value'];
+                        }
+                    } elseif ($request->input("existing_restaurant_image.{$index}")) {
+                        $restaurantData['image'] = $request->input("existing_restaurant_image.{$index}");
+                    }
+
+                    $foodCuisine['top_restaurants'][] = $restaurantData;
                 }
             }
 
@@ -451,8 +473,6 @@ class CityController extends Controller
                 foreach ($request->input('hotel_name') as $index => $name) {
                     $hotelData = [
                         'name' => $name,
-                        'category' => $request->input('hotel_category')[$index] ?? '',
-                        'location' => $request->input('hotel_location')[$index] ?? '',
                         'image' => null,
                     ];
 
@@ -496,11 +516,31 @@ class CityController extends Controller
             $shopping = [];
             if ($request->has('shopping_name')) {
                 foreach ($request->input('shopping_name') as $index => $name) {
-                    $shopping[] = [
+                    $shoppingData = [
                         'name' => $name,
                         'type' => $request->input('shopping_type')[$index] ?? '',
                         'description' => $request->input('shopping_description')[$index] ?? '',
+                        'image' => null,
                     ];
+
+                    // Handle shopping image
+                    if ($request->hasFile("shopping_image.{$index}")) {
+                        // Delete old shopping image if exists and being replaced
+                        if ($existingExploration && 
+                            isset($existingExploration->shopping[$index]['image']) && 
+                            !empty($existingExploration->shopping[$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->shopping[$index]['image']);
+                        }
+                        
+                        $uploadResult = CommonHelper::image_path('file_storage', $request->file("shopping_image.{$index}"));
+                        if (!empty($uploadResult['master_value'])) {
+                            $shoppingData['image'] = $uploadResult['master_value'];
+                        }
+                    } elseif ($request->input("existing_shopping_image.{$index}")) {
+                        $shoppingData['image'] = $request->input("existing_shopping_image.{$index}");
+                    }
+
+                    $shopping[] = $shoppingData;
                 }
             }
 
@@ -613,6 +653,24 @@ class CityController extends Controller
             // Delete food image
             if (!empty($exploration->food_cuisine['image'])) {
                 CommonHelper::deleteAzureImage($exploration->food_cuisine['image']);
+            }
+
+            // Delete restaurant images
+            if (!empty($exploration->food_cuisine['top_restaurants'])) {
+                foreach ($exploration->food_cuisine['top_restaurants'] as $restaurant) {
+                    if (!empty($restaurant['image'])) {
+                        CommonHelper::deleteAzureImage($restaurant['image']);
+                    }
+                }
+            }
+
+            // Delete shopping images
+            if (!empty($exploration->shopping)) {
+                foreach ($exploration->shopping as $shopping) {
+                    if (!empty($shopping['image'])) {
+                        CommonHelper::deleteAzureImage($shopping['image']);
+                    }
+                }
             }
 
             // Delete hotel images
