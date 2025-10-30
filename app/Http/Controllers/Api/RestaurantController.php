@@ -22,11 +22,8 @@ class RestaurantController extends Controller
     */
     public function index(Request $request)
     {
-        $location = $request->city;
-        $parts = explode(',', $location);
-        $city = trim($parts[0]); // it gives "Kolkata"
-        $country = trim($parts[1] ?? '');
-        $country = trim($country, '()'); //it gives "India"
+        $city = $request->city; // it gives "Kolkata"
+        $country = $request->country;
         $dmcId = $request->dmc_id;
         $start = $request->start ?? 0;
         $limit = $request->limit ?? 10;
