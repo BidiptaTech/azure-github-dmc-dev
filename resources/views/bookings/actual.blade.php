@@ -269,12 +269,13 @@
                             // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
                             $baseAmount = round($tourTotalPrice) - $discountAmount;
                             
-                            // Calculate tax amount and final amount with tax
-                            $country_tax = optional($tour->operationalCountry)->tax ?? 0;
-                            $taxPercentage = $country_tax;
-                            $taxAmount = ($baseAmount * $taxPercentage) / 100;
-                            // Apply ceiling to tax amount (round up to next whole number)
-                            $taxAmount = ceil($taxAmount);
+                            // Calculate tax amount using TaxHelper
+                            $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                            $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+                            
+                            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+                            $taxAmount = $taxResult['total_tax'];
+                            $taxBreakdown = $taxResult['breakdown'];
                             $finalAmount = $baseAmount + $taxAmount;
                             
                             $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -3540,12 +3541,13 @@
         // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
         $baseAmount = round($tourTotalPrice) - $discountAmount;
         
-        // Calculate tax amount and final amount with tax
-        $country_tax = optional($tour->operationalCountry)->tax ?? 0;
-        $taxPercentage = $country_tax;
-        $taxAmount = ($baseAmount * $taxPercentage) / 100;
-        // Apply ceiling to tax amount (round up to next whole number)
-        $taxAmount = ceil($taxAmount);
+        // Calculate tax amount using TaxHelper
+        $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
+        $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+        
+        $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+        $taxAmount = $taxResult['total_tax'];
+        $taxBreakdown = $taxResult['breakdown'];
         $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -3710,8 +3712,20 @@
                                         <div class="fw-bold text-dark">{{ number_format($baseAmount, 2) }} SGD</div>
                                     </div>
                                     <div class="col-4">
-                                        <small class="text-muted">Tax ({{ number_format($taxPercentage, 2) }}%)</small>
+                                        <small class="text-muted" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
+                                        </small>
                                         <div class="fw-bold text-warning">{{ number_format($taxAmount, 2) }} SGD</div>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <div style="font-size: 0.7rem; margin-top: 2px;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    <div>{{ $taxName }}: {{ number_format($taxVal, 2) }}</div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
