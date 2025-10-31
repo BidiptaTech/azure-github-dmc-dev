@@ -2267,12 +2267,7 @@ export default function Pending({ filters = {} }) {
                           </div>
                         </td>
                         <td
-                          style={{
-                            padding: "8px 12px",
-                            width: "140px",
-                            minWidth: "140px",
-                            maxWidth: "140px",
-                          }}
+                          className="payment-column"
                         >
                           <CustomPaymentTooltip list={list}>
                             <div
@@ -2294,7 +2289,7 @@ export default function Pending({ filters = {} }) {
                                 e.currentTarget.style.boxShadow = "0 2px 8px rgba(33, 150, 243, 0.15)";
                               }}
                             >
-                              {/* Original Amount */}
+                              {/* Original Amount (from API, no tax) */}
                               <div
                                 style={{
                                   display: "flex",
@@ -2314,7 +2309,14 @@ export default function Pending({ filters = {} }) {
                                   </span>
                                 </div>
                                 <span style={{ fontSize: "9px", color: "#1976d2", fontWeight: "700" }}>
-                                  SGD {Math.ceil(list.finalAmount + list.discountAmount)}
+                                  {(() => {
+                                    const original = Math.ceil(
+                                      list.tour_total_price != null
+                                        ? Number(list.tour_total_price)
+                                        : Number(list.finalAmount || 0) + Number(list.discountAmount || 0)
+                                    );
+                                    return `SGD ${original}`;
+                                  })()}
                                 </span>
                               </div>
 
@@ -2344,7 +2346,7 @@ export default function Pending({ filters = {} }) {
                                 </div>
                               )}
 
-                              {/* Final Amount */}
+                              {/* Final Amount (API final + tax) */}
                               <div
                                 style={{
                                   display: "flex",
@@ -2366,19 +2368,195 @@ export default function Pending({ filters = {} }) {
                                 <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>
                                   {(() => {
                                     const baseFinal = Number(list.finalAmountWithTax || 0);
-                                    const withTax = Math.ceil(baseFinal);
+                                    const withTax = Math.ceil(baseFinal );
                                     return `SGD ${withTax}`;
                                   })()}
                                 </span>
                               </div>
-                              
-                              {sgdTax > 0 && (
-                                <div style={{ textAlign: "center", marginTop: "2px" }}>
-                                  <span style={{ fontSize: "8px", color: "#5E35B1", fontWeight: "600" }}>
-                                    (incl. {sgdTax}% tax)
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  marginBottom: "6px",
+                                  padding: "4px 8px",
+                                  backgroundColor: "rgba(76, 175, 80, 0.1)",
+                                  borderRadius: "6px",
+                                  border: "1px solid rgba(76, 175, 80, 0.2)",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <i className="icon-wallet" style={{ fontSize: "10px", color: "#4CAF50" }}></i>
+                                  <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "600" }}>
+                                    Total(Tax Included)
                                   </span>
                                 </div>
-                              )}
+                                <span style={{ fontSize: "10px", color: "#4CAF50", fontWeight: "700" }}>{(() => {
+                                    // Base amount - check first
+                                    const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                    
+                                    // If finalAmountWithTax is 0, return 0 (don't calculate taxes)
+                                    if (!baseFinalAmount || baseFinalAmount <= 0) {
+                                      return `SGD 0`;
+                                    }
+
+                                    // Helper function to safely convert to number
+                                    const safeNumber = (value) => {
+                                      const num = Number(value);
+                                      return isNaN(num) ? 0 : num;
+                                    };
+
+                                    // Helper function to calculate nights
+                                    const calculateNights = (checkIn, checkOut) => {
+                                      if (!checkIn || !checkOut) return 0;
+                                      try {
+                                        const inDate = dayjs(checkIn);
+                                        const outDate = dayjs(checkOut);
+                                        const nights = outDate.diff(inDate, 'day');
+                                        return Math.max(nights, 0);
+                                      } catch (e) {
+                                        return 0;
+                                      }
+                                    };
+
+                                    // Parse taxes from JSON string
+                                    let taxes = [];
+                                    try {
+                                      if (list.taxes && typeof list.taxes === 'string') {
+                                        taxes = JSON.parse(list.taxes);
+                                      } else if (Array.isArray(list.taxes)) {
+                                        taxes = list.taxes;
+                                      }
+                                    } catch (e) {
+                                      console.error('Error parsing taxes for tour:', list.display_id, e);
+                                      return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                    }
+
+                                    if (!taxes || taxes.length === 0) {
+                                      return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                    }
+
+                                    // Initialize with base amount
+                                    let total = baseFinalAmount;
+                                    const totalPax = safeNumber(list.total_pax);
+                                    const nights = calculateNights(list.check_in_time, list.check_out_time);
+
+                                    // Store calculated amounts for each tax (for cascading)
+                                    const taxCalculations = {};
+
+                                    // Step 1: Process taxes where calculate_on = "total"
+                                    const totalTaxes = taxes.filter(tax => 
+                                      tax.calculate_on && tax.calculate_on.toLowerCase() === 'total'
+                                    );
+
+                                    totalTaxes.forEach(tax => {
+                                      let taxAmount = 0;
+                                      const taxValue = safeNumber(tax.tax_value);
+
+                                      if (tax.tax_type === 'percentage') {
+                                        // Calculate percentage tax on BASE amount (not running total)
+                                        taxAmount = (baseFinalAmount * taxValue) / 100;
+                                      } else if (tax.tax_type === 'fixed') {
+                                        // Calculate fixed tax based on if_fixed type
+                                        switch (tax.if_fixed) {
+                                          case 'person':
+                                            taxAmount = totalPax * taxValue;
+                                            break;
+                                          case 'person_day':
+                                            taxAmount = totalPax * nights * taxValue;
+                                            break;
+                                          case 'per_day':
+                                            taxAmount = nights * taxValue;
+                                            break;
+                                          case 'per_tour':
+                                          case 'person_tour':
+                                            taxAmount = taxValue;
+                                            break;
+                                          default:
+                                            taxAmount = taxValue;
+                                        }
+                                      }
+
+                                      // Validate taxAmount is not NaN
+                                      if (isNaN(taxAmount)) {
+                                        taxAmount = 0;
+                                      }
+
+                                      // Round the tax amount for consistency between display and calculation
+                                      const roundedTaxAmount = Math.ceil(taxAmount);
+                                      total += roundedTaxAmount;
+
+                                      // Store the total after this tax (for potential cascading)
+                                      taxCalculations[tax.tax_name] = {
+                                        amount: total,
+                                        taxAmount: roundedTaxAmount
+                                      };
+                                    });
+
+                                    // Step 2: Process cascading taxes (where calculate_on != "total")
+                                    const cascadingTaxes = taxes.filter(tax => 
+                                      tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+                                    );
+
+                                    cascadingTaxes.forEach(tax => {
+                                      let taxAmount = 0;
+                                      const taxValue = safeNumber(tax.tax_value);
+
+                                      // Find the base amount from the previous tax calculation
+                                      const baseCalc = taxCalculations[tax.calculate_on];
+                                      const baseAmount = baseCalc ? baseCalc.amount : total;
+
+                                      if (tax.tax_type === 'percentage') {
+                                        // Calculate percentage tax on the base
+                                        taxAmount = (baseAmount * taxValue) / 100;
+                                      } else if (tax.tax_type === 'fixed') {
+                                        // Calculate fixed tax based on if_fixed type
+                                        switch (tax.if_fixed) {
+                                          case 'person':
+                                          case 'per_person':
+                                            taxAmount = totalPax * taxValue;
+                                            break;
+                                          case 'per_person_per_day':
+                                            taxAmount = totalPax * nights * taxValue;
+                                            break;
+                                          case 'per_tour_per_day':
+                                            taxAmount = nights * taxValue;
+                                            break;
+                                          case 'per_tour':
+                                            taxAmount = taxValue;
+                                            break;
+                                          default:
+                                            taxAmount = taxValue;
+                                        }
+                                      }
+
+                                      // Validate taxAmount is not NaN
+                                      if (isNaN(taxAmount)) {
+                                        taxAmount = 0;
+                                      }
+
+                                      // Round the tax amount for consistency between display and calculation
+                                      const roundedTaxAmount = Math.ceil(taxAmount);
+                                      total += roundedTaxAmount;
+
+                                      // Store the total after this tax
+                                      taxCalculations[tax.tax_name] = {
+                                        amount: total,
+                                        taxAmount: roundedTaxAmount
+                                      };
+                                    });
+
+                                    // Final validation - if total is NaN, fallback to baseFinalAmount
+                                    if (isNaN(total) || !isFinite(total)) {
+                                      console.error('Total became NaN for tour:', list.display_id);
+                                      return `SGD ${Math.ceil(baseFinalAmount)}`;
+                                    }
+
+                                    return `SGD ${total}`;
+                                  })()}
+                                </span>
+                              </div>
 
                               {/* Payment Status */}
                               <div
@@ -2449,7 +2627,18 @@ export default function Pending({ filters = {} }) {
                               </div>
 
                               {/* Due Amount Warning */}
-                              {list.dueAmount > 0 && (
+                              {(() => {
+                                const baseFinalAmount = Number(list.finalAmountWithTax || 0);
+                                if (!baseFinalAmount || baseFinalAmount <= 0) return false;
+                                const safeNumber = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+                                const calculateNights = (ci, co) => { if(!ci||!co) return 0; try{ const i=dayjs(ci); const o=dayjs(co); const d=o.diff(i,'day'); return Math.max(d,0);}catch{return 0;} };
+                                let taxes=[]; try{ if(list.taxes && typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; }
+                                let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time, list.check_out_time); const taxCalculations={};
+                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_name]={amount:total,taxAmount:r}; });
+                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); const baseCalc=taxCalculations[t.calculate_on]; const b=baseCalc?baseCalc.amount:total; if(t.tax_type==='percentage') a=(b*v)/100; else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; });
+                                const dueNow=Math.max(total - safeNumber(list.paidAmount),0);
+                                return dueNow > 0;
+                              })() && (
                                 <div
                                   style={{
                                     display: "flex",
@@ -2465,11 +2654,7 @@ export default function Pending({ filters = {} }) {
                                 >
                                   <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
                                   <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
-                                    {(() => {
-                                      const baseDue = Number(list.dueAmount || 0);
-                                      const withTax = Math.ceil(baseDue);
-                                      return `Due: SGD ${withTax}`;
-                                    })()}
+                                    {(() => { const safeNumber=(v)=>{const n=Number(v);return isNaN(n)?0:n;}; const calculateNights=(ci,co)=>{if(!ci||!co)return 0; try{const i=dayjs(ci); const o=dayjs(co); const d=o.diff(i,'day'); return Math.max(d,0);}catch{return 0;}}; const baseFinalAmount=Number(list.finalAmountWithTax||0); let taxes=[]; try{ if(list.taxes&&typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; } let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time,list.check_out_time); const taxCalculations={}; (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_name]={amount:total,taxAmount:r}; }); (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); const baseCalc=taxCalculations[t.calculate_on]; const b=baseCalc?baseCalc.amount:total; if(t.tax_type==='percentage') a=(b*v)/100; else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; }); const dueNow=Math.max(total - safeNumber(list.paidAmount),0); return `Due: SGD ${Math.ceil(dueNow)}`; })()}
                                   </span>
                                 </div>
                               )}

@@ -17,6 +17,7 @@ const StyledTooltip = styled(({ className, ...props }) => (
   },
   '& .MuiTooltip-arrow': {
     display: 'none',
+    direction: 'bottom',
   },
 }));
 
@@ -24,7 +25,7 @@ const CustomPaymentTooltip = ({ children, list, ...props }) => {
   return (
     <StyledTooltip
       title={<PaymentDetailsTooltip list={list} />}
-      placement="top"
+      placement="bottom"
       arrow={false}
       enterDelay={300}
       leaveDelay={200}
