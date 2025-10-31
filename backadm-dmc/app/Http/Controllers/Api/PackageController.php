@@ -578,6 +578,13 @@ class PackageController extends Controller
         $auto_cancel_day = (int) $userDMC->auto_cancel_date; // e.g. 1
         $auto_cancel_date = Carbon::parse($check_out)->subDays($auto_cancel_day)->toDateString();
 
+		// Fetch active taxes for this DMC to store with booking
+		$taxesData = Tax::where('dmc_id', $dmc_id)
+			->where('is_active', 1)
+			->orderBy('created_at', 'asc')
+			->get(['tax_id','tax_name','tax_type','tax_value','calculate_on','if_fixed','description'])
+			->toArray();
+
         $booking = new PackageBooking();
         $booking->booking_id = $bookingId;
         $booking->package_id = $package_id;
@@ -591,6 +598,7 @@ class PackageController extends Controller
         $booking->selected_hotels = $hotelIds;
         $booking->selected_attractions = $attractionIds;
         $booking->selected_guides = $guideIds;
+		$booking->taxes = $taxesData;
 
         $booking->status = '1';
         $booking->booked_by = $user->userId ?? $user->agent_id;
@@ -675,7 +683,7 @@ class PackageController extends Controller
                 if($user->userId){
                     // If DMC ID is found, filter bookings by DMC
                     if ($dmc_id) {
-                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'created_at', 'auto_cancel_date')
+                        $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'taxes', 'created_at', 'auto_cancel_date')
                             ->where('dmc_id', $dmc_id)->orderBy('booking_id', 'desc');
                             
                     } else {
@@ -687,7 +695,7 @@ class PackageController extends Controller
                     }
                 }
                 elseif( $user->agent_id){
-                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'dmc_id', 'created_at', 'auto_cancel_date')
+                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'taxes', 'dmc_id', 'created_at', 'auto_cancel_date')
                         ->where('booked_by', $user->agent_id)->orderBy('booking_id', 'desc');
                 }
                 else{
@@ -699,13 +707,13 @@ class PackageController extends Controller
                 }
             }
             else{
-                $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'dmc_id', 'created_at', 'auto_cancel_date');
+                $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'taxes', 'dmc_id', 'created_at', 'auto_cancel_date');
                 // Only add the where clause if agent_id is not null
                 if ($agent_id !== null && $user->agent_id) {
                     $booking_query = $booking_query->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
                 }
                 elseif($agent_id !== null && $user->userId){
-                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'dmc_id', 'created_at', 'auto_cancel_date')
+                    $booking_query = PackageBooking::select('booking_id', 'package_id', 'booking_details', 'travel_dates', 'selected_hotels', 'selected_attractions', 'selected_guides', 'selected_restaurants', 'status', 'booked_by', 'package', 'user_info', 'payment_details', 'taxes', 'dmc_id', 'created_at', 'auto_cancel_date')
                         ->where('dmc_id', $dmc_id)->where('agent_id', $agent_id)->orderBy('booking_id', 'desc');
                 }
                 else{
@@ -801,20 +809,19 @@ class PackageController extends Controller
                     }
                 }
 
-                // Tax calculation using active DMC taxes
-                $persons = (int) ($bookingDetails['adult_count'] ?? 0) + (int) ($bookingDetails['child_count'] ?? 0);
-                $days = (isset($bookingDetails['itinerary']) && is_array($bookingDetails['itinerary'])) ? count($bookingDetails['itinerary']) : 1;
+                // Taxes array - prefer stored on booking, fallback to active DMC taxes
                 $effectiveDmcId = $user->agent_id ? ($b->dmc_id ?? null) : ($dmc_id ?? null);
                 $taxes = [];
-                if ($effectiveDmcId) {
+                $bookingTaxes = is_array($b->taxes) ? $b->taxes : (is_string($b->taxes) ? json_decode($b->taxes, true) : []);
+                if (!empty($bookingTaxes)) {
+                    $taxes = $bookingTaxes;
+                } elseif ($effectiveDmcId) {
                     $taxes = Tax::where('dmc_id', $effectiveDmcId)
                         ->where('is_active', 1)
                         ->orderBy('created_at', 'asc')
                         ->get()
                         ->toArray();
                 }
-                $taxCalc = TaxHelper::calculateTourTaxes($totalAmount, $taxes, $persons, $days);
-                $taxAmount = is_array($taxCalc) ? (float) ($taxCalc['total_tax'] ?? 0) : 0.0;
 
                 $data[] = [
                     'dmc_data' => $dmc_data,
@@ -832,7 +839,7 @@ class PackageController extends Controller
                     'auto_cancel_date' => $b->auto_cancel_date,
                     'total_amount' => round($totalAmount, 2),
                     'paid_amount' => round($paidAmount, 2),
-                    'tax_amount' => round($taxAmount, 2),
+                    'taxes' => $taxes,
                 ];
             }
             
