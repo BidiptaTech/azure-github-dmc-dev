@@ -3459,9 +3459,10 @@ class HotelController extends Controller
             return redirect()->back()->with('error', 'You do not have access to this hotel.');
         }
 
-        // Get recent upload history for this hotel
+        // Get recent upload history for this specific hotel
         $uploadHistory = \App\Models\UploadHistory::where('upload_type', 'rooms')
             ->where('uploaded_by', $user->userId)
+            ->where('hotel_id', $hotel_id)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -3476,6 +3477,7 @@ class HotelController extends Controller
     {
         $request->validate([
             'file' => 'required|mimes:csv,txt|max:10240',
+            'hotel_id' => 'required|string',
         ]);
 
         $user = Auth::user();
@@ -3487,10 +3489,11 @@ class HotelController extends Controller
 
         try {
             $file = $request->file('file');
+            $hotelId = $request->input('hotel_id');
             $originalFileName = $file->getClientOriginalName();
             
             // Check for duplicate uploads within 5 minutes
-            $cacheKey = 'room_upload_' . $user->userId . '_' . md5($originalFileName . $file->getSize());
+            $cacheKey = 'room_upload_' . $user->userId . '_' . $hotelId . '_' . md5($originalFileName . $file->getSize());
             
             if (\Cache::has($cacheKey)) {
                 return redirect()->back()->with('error', 'This file has already been uploaded recently. Please wait a few minutes before trying again.');
@@ -3514,7 +3517,7 @@ class HotelController extends Controller
             // Cache this upload to prevent duplicates
             \Cache::put($cacheKey, true, now()->addMinutes(5));
 
-            // Record upload history
+            // Record upload history with hotel_id
             \App\Models\UploadHistory::createRecord(
                 'rooms',
                 $originalFileName,
@@ -3523,7 +3526,8 @@ class HotelController extends Controller
                 $successCount,
                 $errorCount,
                 $errorMessages,
-                $user->userId
+                $user->userId,
+                $hotelId
             );
 
             // Return appropriate response

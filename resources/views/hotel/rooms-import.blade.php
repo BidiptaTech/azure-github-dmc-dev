@@ -621,6 +621,94 @@
         font-size: 0.95rem;
         line-height: 1.6;
     }
+
+    /* Compact Hotel Image Styles */
+    .hotel-image-container {
+        flex-shrink: 0;
+    }
+
+    .hotel-thumbnail {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 3px solid #f1f5f9;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .hotel-thumbnail:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        border-color: #667eea;
+    }
+
+    .hotel-thumbnail-placeholder {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Icon Badge */
+    .icon-badge {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    /* Info Badge */
+    .info-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #64748b;
+        transition: all 0.2s ease;
+    }
+
+    .info-badge:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    .info-badge i {
+        font-size: 0.9rem;
+        color: #667eea;
+    }
+
+    /* Responsive adjustments for hotel info */
+    @media (max-width: 768px) {
+        .hotel-thumbnail {
+            width: 90px;
+            height: 90px;
+        }
+
+        .icon-badge {
+            width: 32px;
+            height: 32px;
+        }
+
+        .info-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .hotel-thumbnail {
+            width: 80px;
+            height: 80px;
+        }
+    }
 </style>
 
 <div class="content-wrapper">
@@ -755,42 +843,78 @@
                         <!-- Hotel Information -->
                         <div class="mb-4">
                             <div class="card border-0 shadow-sm">
-                                <div class="card-body">
-                                    <h6 class="mb-3">
-                                        <i class="ri-building-line me-2"></i>Hotel Information
-                                    </h6>
-                                    <div class="row align-items-center">
-                                        <div class="col-md-8">
-                                            <div class="d-flex align-items-center">
-                                                <div class="icon-wrapper me-3" style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="ri-hotel-line text-white fs-4"></i>
-                                                </div>
-                                                <div>
-                                                    <h5 class="mb-1">{{ $hotel->name }}</h5>
-                                                    <p class="text-muted mb-0">
-                                                        <i class="ri-map-pin-line me-1"></i>{{ $hotel->city ?? 'N/A' }}
-                                                        @if($hotel->country)
-                                                            , {{ $hotel->country }}
-                                                        @endif
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            @if($hotel && $hotel->hotel_unique_id)
-                                                <a href="{{ route('rooms.import.template', ['hotel_id' => $hotel->hotel_unique_id]) }}" class="btn btn-primary w-100">
-                                                    <i class="ri-download-cloud-2-line me-2"></i>Download Template
-                                                </a>
+                                <div class="card-body p-3">
+                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <!-- Hotel Image Section -->
+                                        <div class="hotel-image-container">
+                                            @if($hotel->main_image)
+                                                <img src="{{ $hotel->main_image }}" 
+                                                     alt="{{ $hotel->name }}" 
+                                                     class="hotel-thumbnail">
                                             @else
-                                                <button type="button" class="btn btn-secondary w-100" disabled>
-                                                    <i class="ri-download-cloud-2-line me-2"></i>Hotel ID Missing
-                                                </button>
+                                                <div class="hotel-thumbnail hotel-thumbnail-placeholder">
+                                                    <i class="ri-hotel-line text-white" style="font-size: 2.5rem; opacity: 0.6;"></i>
+                                                </div>
                                             @endif
                                         </div>
+                                        
+                                        <!-- Hotel Details Section -->
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-start justify-content-between">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <div class="icon-badge me-2">
+                                                            <i class="ri-building-line text-white"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h5 class="mb-0 fw-bold">{{ $hotel->name }}</h5>
+                                                            <p class="text-muted mb-0 small">
+                                                                <i class="ri-map-pin-line me-1"></i>{{ $hotel->city ?? 'N/A' }}@if($hotel->country), {{ $hotel->country }}@endif
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Additional Hotel Info -->
+                                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                                        @if($hotel->hotel_unique_id)
+                                                            <div class="info-badge">
+                                                                <i class="ri-fingerprint-line me-1"></i>
+                                                                <span>{{ substr($hotel->hotel_unique_id, 0, 8) }}...</span>
+                                                            </div>
+                                                        @endif
+                                                        
+                                                        @if($hotel->address)
+                                                            <div class="info-badge">
+                                                                <i class="ri-map-2-line me-1"></i>
+                                                                <span>{{ Str::limit($hotel->address, 35) }}</span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Download Button -->
+                                                <div class="ms-3">
+                                                    @if($hotel && $hotel->hotel_unique_id)
+                                                        <a href="{{ route('rooms.import.template', ['hotel_id' => $hotel->hotel_unique_id]) }}" 
+                                                           class="btn btn-primary btn-sm">
+                                                            <i class="ri-download-cloud-2-line me-1"></i>Download Template
+                                                        </a>
+                                                    @else
+                                                        <button type="button" class="btn btn-secondary btn-sm" disabled>
+                                                            <i class="ri-download-cloud-2-line me-1"></i>Template
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="alert alert-info mb-0 mt-2 py-2 px-3" style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px;">
+                                                <small class="mb-0 d-flex align-items-center">
+                                                    <i class="ri-information-line me-1"></i>
+                                                    <span>Download template with admin base rooms for this hotel</span>
+                                                </small>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <small class="text-muted mt-3 d-block">
-                                        <i class="ri-information-line me-1"></i>Download template with admin base rooms for this hotel
-                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -819,10 +943,8 @@
                                         </h6>
                                         <ul class="instruction-list">
                                             <li><strong>Template shows admin base rooms only</strong></li>
-                                            <li><strong>NEW rows will be created</strong> - admin rooms stay unchanged</li>
                                             <li>Update prices, meal options, and number of rooms in CSV</li>
-                                            <li><strong>DO NOT change: hotel_name, room_type, or dimension</strong></li>
-                                            <li>You CAN modify no_of_room to your requirements</li>
+                                            <li><strong>DO NOT change: Hotel name, Room type, or Dimension</strong></li>
                                             <li>System will reject any changes to protected fields</li>
                                             <li>If breakfast/lunch/dinner = 1, type and price are mandatory</li>
                                             <li>Meal types must be exactly "Buffet" or "Set Menu"</li>
@@ -969,7 +1091,7 @@
                                     <p class="mb-2">When you upload your CSV with custom prices, the system will:</p>
                                     <ul class="mb-0">
                                         <li><strong>First Upload:</strong> Creates NEW room rows with your custom prices</li>
-                                        <li><strong>Subsequent Uploads:</strong> Updates your existing rooms (no new rows)</li>
+                                        <li><strong>Subsequent Uploads:</strong> Updates your existing rooms</li>
                                         <li>Admin base rooms remain unchanged</li>
                                         <li>You can set your own custom prices independent from admin pricing</li>
                                         <li>Your rooms will appear in the listing showing only <strong>YOUR customized rooms</strong></li>
@@ -988,8 +1110,8 @@
                                         <li><strong>Hotel Name:</strong> Must exactly match - any changes will be rejected</li>
                                         <li><strong>Room Type:</strong> Must exactly match the admin base room - any changes will be rejected</li>
                                         <li><strong>Dimension:</strong> Must exactly match the admin base room - any changes will be rejected</li>
-                                        <li>If you modify any protected field (<code>hotel_name</code>, <code>room_type</code>, <code>dimension</code>), the system will show an error</li>
-                                        <li>You CAN update: <strong>no_of_room, prices, and meal options</strong></li>
+                                        <li>If you modify any protected field (<code>Hotel name</code>, <code>Room type</code>, <code>Dimension</code>), the system will show an error</li>
+                                        <li>You CAN update: <strong>Number of rooms, prices, and meal options</strong></li>
                                     </ul>
                                 </div>
                             </div>
@@ -1004,12 +1126,12 @@
                                     <ul class="mb-0 mt-2">
                                         <li>Always download the latest template before uploading</li>
                                         <li>Template shows admin base rooms - you'll create your own copies</li>
-                                        <li><strong>Do NOT modify: hotel_name, room_type, or dimension</strong></li>
-                                        <li><strong>You CAN modify: no_of_room, prices, and meal options</strong></li>
+                                        <li><strong>Do NOT modify: Hotel name, Room type, or Dimension</strong></li>
+                                        <li><strong>You CAN modify: Number of rooms, prices, and meal options</strong></li>
                                         <li>First upload creates new rooms, subsequent uploads update your existing rooms</li>
                                         <li>Keep the file format as CSV (Comma delimited)</li>
                                         <li>Check for errors in the upload history after importing</li>
-                                    </ul>
+                                    </ul>  
                                 </div>
                             </div>
                         </div>
@@ -1069,14 +1191,20 @@
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-gradient-primary text-white border-0">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <h5 class="card-title mb-0 text-white">
-                                <i class="ri-history-line me-2"></i>Recent Upload History
-                                <small class="d-block text-white-50 fs-6 mt-1">Room Prices Import</small>
-                            </h5>
-                            <span class="badge bg-light bg-opacity-20 text-white">
-                                {{ $uploadHistory ? $uploadHistory->count() : 0 }} uploads
-                            </span>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <h5 class="card-title mb-0 text-white">
+                                    <i class="ri-history-line me-2"></i>Upload History
+                                    <small class="d-block text-white-50 fs-6 mt-1">
+                                        <i class="ri-hotel-line me-1"></i>For {{ $hotel->name }}
+                                    </small>
+                                </h5>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light bg-opacity-20 text-white">
+                                    <i class="ri-file-list-line me-1"></i>{{ $uploadHistory ? $uploadHistory->count() : 0 }} records
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -1349,8 +1477,11 @@
                                     <div class="mb-3">
                                         <i class="ri-inbox-line text-muted" style="font-size: 4rem;"></i>
                                     </div>
-                                    <h6 class="text-muted mb-2">No Upload History</h6>
-                                    <p class="text-muted small mb-0">Your room price upload history will appear here once you start importing rooms.</p>
+                                    <h6 class="text-muted mb-2">No Upload History for This Hotel</h6>
+                                    <p class="text-muted small mb-0">
+                                        You haven't uploaded any room data for <strong>{{ $hotel->name }}</strong> yet.<br>
+                                        Upload history will appear here once you import rooms for this hotel.
+                                    </p>
                                 </div>
                             </div>
                         @endif
