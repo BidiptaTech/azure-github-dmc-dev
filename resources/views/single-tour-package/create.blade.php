@@ -1386,57 +1386,24 @@
                                 }]
                             }],
                             
-                            // Calculate total price: room price × number of rooms × nights + meal costs
+                            // Calculate total price: stored room price (already includes all nights) × number of rooms + meal costs
                             totalPrice: (() => {
                                 // Use the stored price from when the hotel was added
-                                let roomPrice = parseFloat(hotel.price) || 0;
+                                // This price already includes the correct weekday/weekend calculation for all nights
+                                let totalRoomPrice = parseFloat(hotel.price) || 0;
                                 
-                                // If no stored price, try to get from room type selection as fallback
-                                if (roomPrice === 0) {
-                                    const roomTypeSelect = document.getElementById('roomTypeSelect');
-                                    if (roomTypeSelect && roomTypeSelect.value === hotel.roomType) {
-                                        const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
-                                        if (selectedOption && selectedOption.dataset) {
-                                            // Get guest count to determine single vs double occupancy
-                                            const adults = parseInt(document.getElementById('selectedPersons').value) || 1;
-                                            const children = 0; // Use selected persons as total occupancy
-                                            const totalGuests = adults + children;
-                                            
-                                            // Determine if single or double occupancy
-                                            const isSingleOccupancy = totalGuests <= 1;
-                                            
-                                            // Determine if it's weekend based on the hotel's check-in date
-                                            let isWeekend = false;
-                                            if (hotel.checkInDate) {
-                                                const checkInDate = moment(hotel.checkInDate, 'MMM DD');
-                                                const dayOfWeek = checkInDate.day(); // 0 = Sunday, 6 = Saturday
-                                                isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                                            }
-                                            
-                                            if (isSingleOccupancy) {
-                                                if (isWeekend) {
-                                                    roomPrice = parseFloat(selectedOption.dataset.weekendPrice) || 0;
-                                                } else {
-                                                    roomPrice = parseFloat(selectedOption.dataset.weekdayPrice) || 0;
-                                                }
-                                            } else {
-                                                if (isWeekend) {
-                                                    roomPrice = parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
-                                                } else {
-                                                    roomPrice = parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
-                                                }
-                                            }
-                                            
-                                            console.log(`Using fallback price from room type selection: $${roomPrice} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
-                                        }
-                                    }
+                                // If no stored price, calculate from scratch using per-night breakdown
+                                if (totalRoomPrice === 0 && hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
+                                    // Sum up the per-night prices
+                                    totalRoomPrice = hotel.priceBreakdown.reduce((sum, night) => sum + night.price, 0);
+                                    console.log(`Calculated room price from breakdown: $${totalRoomPrice}`);
                                 }
                                 
                                 const numRooms = parseInt(hotel.numberOfRooms) || 1;
                                 const numNights = parseInt(hotel.totalNights) || 1;
                                 
-                                // Calculate room cost
-                                const roomCost = roomPrice * numRooms * numNights;
+                                // Calculate room cost (price already includes all nights, just multiply by rooms)
+                                const roomCost = totalRoomPrice * numRooms;
                                 
                                 // Calculate meal costs based on meal plan, guest count, and number of rooms
                                 // Use stored meal prices from when hotel was added
@@ -1453,7 +1420,13 @@
                                 }
                                 
                                 const total = roomCost + mealCost + extraBedCost;
-                                console.log(`Hotel pricing for ${hotel.name}: Room price: $${roomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Total: $${total}`);
+                                console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room cost: $${roomCost}, Meal cost: $${mealCost}, Extra bed cost: $${extraBedCost}, Total: $${total}`);
+                                
+                                // Log weekday/weekend breakdown if available
+                                if (hotel.weekdayNights || hotel.weekendNights) {
+                                    console.log(`  - Weekday nights: ${hotel.weekdayNights || 0}, Weekend nights: ${hotel.weekendNights || 0}`);
+                                }
+                                
                                 return total;
                             })(),
                             
@@ -7234,57 +7207,73 @@ document.addEventListener('DOMContentLoaded', function() {
          const checkInDate = moment(tourStartDate).add(startNight-1, 'days');
          const checkOutDate = moment(tourStartDate).add(endNight, 'days');
          
-         // Get bed information if available
-         const bedInfo = window.selectedBedInfo || {};
-         
-         // Get price information from the selected room type
-         const roomTypeSelect = document.getElementById('roomTypeSelect');
-         let roomPrice = 0;
-         let priceType = '';
-         
-         if (roomTypeSelect && roomTypeSelect.value === roomType) {
-             const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
-             if (selectedOption && selectedOption.dataset) {
-                 // Get guest count to determine single vs double occupancy
-                 const adults = parseInt(document.getElementById('adults').value) || 0;
-                 const children = parseInt(document.getElementById('children').value) || 0;
-                 const totalGuests = adults + children;
-                 
-                 // Determine if single or double occupancy
-                 const isSingleOccupancy = totalGuests <= 1;
-                 
-                 // Determine if it's weekend based on the check-in date
-                 const checkInDate = moment(tourStartDate).add(startNight-1, 'days');
-                 const dayOfWeek = checkInDate.day(); // 0 = Sunday, 6 = Saturday
-                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                 
-                 if (isSingleOccupancy) {
-                     if (isWeekend) {
-                         roomPrice = parseFloat(selectedOption.dataset.weekendPrice) || 0;
-                         priceType = 'Single Weekend';
-                     } else {
-                         roomPrice = parseFloat(selectedOption.dataset.weekdayPrice) || 0;
-                         priceType = 'Single Weekday';
-                     }
-                 } else {
-                     if (isWeekend) {
-                         roomPrice = parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
-                         priceType = 'Double Weekend';
-                     } else {
-                         roomPrice = parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
-                         priceType = 'Double Weekday';
-                     }
-                 }
-                 
-                 console.log(`Hotel ${roomType} price: $${roomPrice} (${priceType})`);
-             }
-         }
-         
-         // Validate that we have a valid price
-         if (roomPrice <= 0) {
-             showNotification('Warning: Room price is $0.00. Please check room type selection.', 'warning');
-             console.warn('Room price is 0 or invalid:', roomPrice);
-         }
+        // Get bed information if available
+        const bedInfo = window.selectedBedInfo || {};
+        
+        // Calculate price per night based on each night's day of the week
+        const roomTypeSelect = document.getElementById('roomTypeSelect');
+        let totalRoomPrice = 0;
+        let priceBreakdown = [];
+        let weekdayNights = 0;
+        let weekendNights = 0;
+        
+        if (roomTypeSelect && roomTypeSelect.value === roomType) {
+            const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+            if (selectedOption && selectedOption.dataset) {
+                // Get guest count to determine single vs double occupancy
+                const adults = parseInt(document.getElementById('adults').value) || 0;
+                const children = parseInt(document.getElementById('children').value) || 0;
+                const totalGuests = adults + children;
+                
+                // Determine if single or double occupancy
+                const isSingleOccupancy = totalGuests <= 1;
+                
+                // Get prices from dataset
+                const weekdayPrice = isSingleOccupancy 
+                    ? parseFloat(selectedOption.dataset.weekdayPrice) || 0
+                    : parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
+                const weekendPrice = isSingleOccupancy 
+                    ? parseFloat(selectedOption.dataset.weekendPrice) || 0
+                    : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
+                
+                // Calculate price for each selected night
+                nightNumbers.forEach(nightNum => {
+                    const nightDate = moment(tourStartDate).add(nightNum-1, 'days');
+                    const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    
+                    const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
+                    totalRoomPrice += nightPrice;
+                    
+                    if (isWeekend) {
+                        weekendNights++;
+                    } else {
+                        weekdayNights++;
+                    }
+                    
+                    priceBreakdown.push({
+                        night: nightNum,
+                        date: nightDate.format('MMM DD'),
+                        dayOfWeek: nightDate.format('ddd'),
+                        isWeekend: isWeekend,
+                        price: nightPrice
+                    });
+                });
+                
+                console.log(`=== PRICE BREAKDOWN FOR ${roomType} ===`);
+                console.log(`Total nights: ${nightNumbers.length}`);
+                console.log(`Weekday nights: ${weekdayNights} @ $${weekdayPrice} each`);
+                console.log(`Weekend nights: ${weekendNights} @ $${weekendPrice} each`);
+                console.log(`Total room price: $${totalRoomPrice}`);
+                console.log('Per-night breakdown:', priceBreakdown);
+            }
+        }
+        
+        // Validate that we have a valid price
+        if (totalRoomPrice <= 0) {
+            showNotification('Warning: Room price is $0.00. Please check room type selection.', 'warning');
+            console.warn('Room price is 0 or invalid:', totalRoomPrice);
+        }
          
          // Get meal price information from the selected room type
          let mealPrices = {
@@ -7332,37 +7321,42 @@ document.addEventListener('DOMContentLoaded', function() {
              console.warn('Room type select not found or value mismatch');
          }
          
-         const hotelData = {
-             id: hotelSelect.value,
-             name: hotelSelect.options[hotelSelect.selectedIndex].text,
-             roomType: roomType || 'Standard',
-             bedType: bedType || 'Standard',
-             bedId: bedInfo.bedId || null,
-             selectedPersons: parseInt(selectedPersons) || 1,
-             maxOccupancy: bedInfo.maxOccupancy || null,
-             availableRooms: bedInfo.noOfRooms || null,
-             extraBedPrice: bedInfo.extraBedPrice || 0,
-             babyCotPrice: bedInfo.babyCotPrice || 0,
-             price: roomPrice, // Store the correct room price
-             priceType: priceType, // Store the price type for reference
-             mealPlan: mealPlan || 'Not specified',
-             mealPrices: mealPrices, // Store meal prices for calculation
-             numberOfRooms: numberOfRooms,
-             nights: nightNumbers,
-             checkInDate: checkInDate.format('MMM DD'),
-             checkOutDate: checkOutDate.format('MMM DD'),
-             totalNights: nightNumbers.length
-         };
-         
-         console.log('=== ADDING HOTEL ===');
-         console.log('Hotel data being added:', hotelData);
-         console.log('Stored price:', hotelData.price);
-         console.log('Price type:', hotelData.priceType);
-         console.log('Room type:', hotelData.roomType);
-         console.log('Nights:', hotelData.totalNights);
-         console.log('Rooms:', hotelData.numberOfRooms);
-         console.log('Meal plan:', hotelData.mealPlan);
-         console.log('Meal prices:', hotelData.mealPrices);
+        const hotelData = {
+            id: hotelSelect.value,
+            name: hotelSelect.options[hotelSelect.selectedIndex].text,
+            roomType: roomType || 'Standard',
+            bedType: bedType || 'Standard',
+            bedId: bedInfo.bedId || null,
+            selectedPersons: parseInt(selectedPersons) || 1,
+            maxOccupancy: bedInfo.maxOccupancy || null,
+            availableRooms: bedInfo.noOfRooms || null,
+            extraBedPrice: bedInfo.extraBedPrice || 0,
+            babyCotPrice: bedInfo.babyCotPrice || 0,
+            price: totalRoomPrice, // Store the total calculated room price for all nights
+            pricePerNight: totalRoomPrice / nightNumbers.length, // Average price per night for reference
+            priceBreakdown: priceBreakdown, // Store detailed per-night pricing
+            weekdayNights: weekdayNights, // Number of weekday nights
+            weekendNights: weekendNights, // Number of weekend nights
+            mealPlan: mealPlan || 'Not specified',
+            mealPrices: mealPrices, // Store meal prices for calculation
+            numberOfRooms: numberOfRooms,
+            nights: nightNumbers,
+            checkInDate: checkInDate.format('MMM DD'),
+            checkOutDate: checkOutDate.format('MMM DD'),
+            totalNights: nightNumbers.length
+        };
+        
+        console.log('=== ADDING HOTEL ===');
+        console.log('Hotel data being added:', hotelData);
+        console.log('Total room price (all nights):', hotelData.price);
+        console.log('Weekday nights:', hotelData.weekdayNights);
+        console.log('Weekend nights:', hotelData.weekendNights);
+        console.log('Room type:', hotelData.roomType);
+        console.log('Total nights:', hotelData.totalNights);
+        console.log('Number of rooms:', hotelData.numberOfRooms);
+        console.log('Meal plan:', hotelData.mealPlan);
+        console.log('Meal prices:', hotelData.mealPrices);
+        console.log('Price breakdown:', hotelData.priceBreakdown);
          
          selectedHotels.push(hotelData);
          displaySelectedHotels();
@@ -7491,41 +7485,71 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      ` : ''}
                                      
-                                     <!-- Cost Summary -->
-                                     <div class="mt-2 p-2 bg-info text-white rounded">
-                                         <small class="d-block mb-1">
-                                             <i class="ri-calculator-line me-1"></i>Cost Summary:
-                                         </small>
-                                         <div class="small">
-                                             <div class="d-flex justify-content-between">
-                                                 <span>Room Cost:</span>
-                                                 <span>$${hotel.price || 0} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${(hotel.price || 0) * hotel.numberOfRooms * hotel.totalNights}</span>
-                                             </div>
-                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                                 <div class="d-flex justify-content-between">
-                                                     <span>Meal Cost:</span>
-                                                     <span>$${calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms)}</span>
-                                                 </div>
-                                             ` : ''}
-                                             ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
-                                                 <div class="d-flex justify-content-between">
-                                                     <span>Extra Bed Cost:</span>
-                                                     <span>$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
-                                                 </div>
-                                             ` : ''}
-                                             <hr class="my-1">
-                                             <div class="d-flex justify-content-between fw-bold">
-                                                 <span>Total:</span>
-                                                 <span>$${(() => {
-                                                     const roomCost = (hotel.price || 0) * hotel.numberOfRooms * hotel.totalNights;
-                                                     const mealCost = calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
-                                                     const extraBedCost = (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) ? 
-                                                         hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights : 0;
-                                                     return roomCost + mealCost + extraBedCost;
-                                                 })()}</span>
-                                             </div>
-                                         </div>
-                                     </div>
+                                    <!-- Cost Summary -->
+                                    <div class="mt-2 p-2 bg-info text-white rounded">
+                                        <small class="d-block mb-1">
+                                            <i class="ri-calculator-line me-1"></i>Cost Summary:
+                                        </small>
+                                        <div class="small">
+                                            <div class="d-flex justify-content-between">
+                                                <span>Room Cost:</span>
+                                                <span>
+                                                    ${hotel.weekdayNights || hotel.weekendNights ? (() => {
+                                                        // Calculate actual weekday and weekend prices from breakdown
+                                                        let weekdayPrice = 0;
+                                                        let weekendPrice = 0;
+                                                        
+                                                        if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
+                                                            // Get actual prices from breakdown
+                                                            const weekdayNight = hotel.priceBreakdown.find(n => !n.isWeekend);
+                                                            const weekendNight = hotel.priceBreakdown.find(n => n.isWeekend);
+                                                            weekdayPrice = weekdayNight ? weekdayNight.price : 0;
+                                                            weekendPrice = weekendNight ? weekendNight.price : 0;
+                                                        }
+                                                        
+                                                        let breakdown = '';
+                                                        if (hotel.weekdayNights && weekdayPrice > 0) {
+                                                            breakdown += `${hotel.weekdayNights} weekday @ $${weekdayPrice.toFixed(2)}/night`;
+                                                        }
+                                                        if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
+                                                            breakdown += ' + ';
+                                                        }
+                                                        if (hotel.weekendNights && weekendPrice > 0) {
+                                                            breakdown += `${hotel.weekendNights} weekend @ $${weekendPrice.toFixed(2)}/night`;
+                                                        }
+                                                        if (breakdown) {
+                                                            breakdown += ` × ${hotel.numberOfRooms} room(s) = `;
+                                                        }
+                                                        return breakdown;
+                                                    })() : ''}
+                                                    $${(hotel.price || 0) * hotel.numberOfRooms}
+                                                </span>
+                                            </div>
+                                            ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Meal Cost:</span>
+                                                    <span>$${calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms)}</span>
+                                                </div>
+                                            ` : ''}
+                                            ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Extra Bed Cost:</span>
+                                                    <span>$${hotel.extraBedPrice} × ${hotel.selectedPersons - hotel.maxOccupancy} × ${hotel.numberOfRooms} × ${hotel.totalNights} = $${hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights}</span>
+                                                </div>
+                                            ` : ''}
+                                            <hr class="my-1">
+                                            <div class="d-flex justify-content-between fw-bold">
+                                                <span>Total:</span>
+                                                <span>$${(() => {
+                                                    const roomCost = (hotel.price || 0) * hotel.numberOfRooms;
+                                                    const mealCost = calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
+                                                    const extraBedCost = (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) ? 
+                                                        hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights : 0;
+                                                    return roomCost + mealCost + extraBedCost;
+                                                })()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                  </div>
                              </div>
                          </div>
