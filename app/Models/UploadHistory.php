@@ -14,6 +14,7 @@ class UploadHistory extends Model
 
     protected $fillable = [
         'upload_type',
+        'hotel_id',
         'file_name',
         'original_file_name',
         'total_records',
@@ -99,7 +100,7 @@ class UploadHistory extends Model
     /**
      * Create upload history record
      */
-    public static function createRecord($uploadType, $fileName, $originalFileName, $totalRecords, $successCount, $errorCount, $errors, $uploadedBy)
+    public static function createRecord($uploadType, $fileName, $originalFileName, $totalRecords, $successCount, $errorCount, $errors, $uploadedBy, $hotelId = null)
     {
         $status = 'success';
         if ($errorCount > 0 && $successCount > 0) {
@@ -110,6 +111,7 @@ class UploadHistory extends Model
 
         return self::create([
             'upload_type' => $uploadType,
+            'hotel_id' => $hotelId,
             'file_name' => $fileName,
             'original_file_name' => $originalFileName,
             'total_records' => $totalRecords,
@@ -128,6 +130,19 @@ class UploadHistory extends Model
     {
         return self::where('upload_type', $uploadType)
                    ->where('uploaded_by', $userId)
+                   ->orderBy('created_at', 'desc')
+                   ->limit($limit)
+                   ->get();
+    }
+
+    /**
+     * Get recent upload history by type, user, and hotel
+     */
+    public static function getRecentHistoryByHotel($uploadType, $userId, $hotelId, $limit = 10)
+    {
+        return self::where('upload_type', $uploadType)
+                   ->where('uploaded_by', $userId)
+                   ->where('hotel_id', $hotelId)
                    ->orderBy('created_at', 'desc')
                    ->limit($limit)
                    ->get();
