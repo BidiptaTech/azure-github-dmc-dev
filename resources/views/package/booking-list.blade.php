@@ -237,9 +237,15 @@
                                 $childCount = $bookingDetails['child_count'] ?? 0;
                                 $totalPax = $adultCount + $childCount;
                                 
-                                // Get price info
+                                // Get price info (compute tax-inclusive total)
                                 $totalPrice = $bookingDetails['total_price'] ?? 0;
                                 $currency = $bookingDetails['currency'] ?? 'SGD';
+                                $personsForList = $totalPax;
+                                $daysForList = $duration ?: 1;
+                                $bookingTaxesForList = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
+                                $taxResultForList = \App\Helpers\TaxHelper::calculateTourTaxes($totalPrice, $bookingTaxesForList, $personsForList, $daysForList);
+                                $totalTaxForList = is_array($taxResultForList) ? ($taxResultForList['total_tax'] ?? 0) : 0;
+                                $totalPriceInclTaxForList = $totalPrice + $totalTaxForList;
                             @endphp
                             <tr>
                                 <td>{{ $key + 1 }}</td>
@@ -259,7 +265,7 @@
                                         <span class="badge bg-warning">{{ $childCount }} Children</span>
                                     @endif
                                 </td>
-                                <td> SGD {{ number_format($totalPrice, 2) }}</td>
+                                <td> SGD {{ number_format($totalPriceInclTaxForList, 2) }}</td>
                                 <td>
                                     @php
                                         $statusClass = '';
@@ -353,7 +359,7 @@
                                         
                                         // Calculate paid amount and check for pending payments
                                         if ($booking->payment_details) {
-                                            $paymentDetails = json_decode($booking->payment_details, true);
+                                            $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : (is_string($booking->payment_details) ? json_decode($booking->payment_details, true) : []);
                                             if ($paymentDetails) {
                                                 foreach ($paymentDetails as $payment) {
                                                     if (isset($payment['status']) && $payment['status'] == 1) {
@@ -594,7 +600,15 @@
                                         </tr>
                                         <tr>
                                             <th>Total Price</th>
-                                            <td>{{ $currency }} {{ number_format($totalPrice, 2) }}</td>
+                                            @php
+                                                $personsVB = $totalPax;
+                                                $daysVB = $duration ?: 1;
+                                                $taxesVB = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
+                                                $taxResVB = \App\Helpers\TaxHelper::calculateTourTaxes($totalPrice, $taxesVB, $personsVB, $daysVB);
+                                                $taxAmtVB = is_array($taxResVB) ? ($taxResVB['total_tax'] ?? 0) : 0;
+                                                $totalPriceInclVB = $totalPrice + $taxAmtVB;
+                                            @endphp
+                                            <td>{{ $currency }} {{ number_format($totalPriceInclVB, 2) }}</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -805,19 +819,25 @@
                         <!-- Payment Amount -->
                         <div class="mb-4">
                             @php
-                                // Calculate due amount
+                                // Calculate due amount (including taxes)
                                 $paidAmount = 0;
                                 $packageTotal = 0;
                                 
-                                // Get package total from booking_details
+                                // Get package total and counts from booking_details
                                 if ($booking->booking_details) {
                                     $bookingDetails = is_array($booking->booking_details) ? $booking->booking_details : json_decode($booking->booking_details, true);
                                     $packageTotal = $bookingDetails['total_price'] ?? 0;
+                                    $adultCount = $bookingDetails['adult_count'] ?? 0;
+                                    $childCount = $bookingDetails['child_count'] ?? 0;
+                                } else {
+                                    $bookingDetails = [];
+                                    $adultCount = 0;
+                                    $childCount = 0;
                                 }
                                 
                                 // Calculate paid amount
                                 if ($booking->payment_details) {
-                                    $paymentDetails = json_decode($booking->payment_details, true);
+                                    $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : (is_string($booking->payment_details) ? json_decode($booking->payment_details, true) : []);
                                     if ($paymentDetails) {
                                         foreach ($paymentDetails as $payment) {
                                             if (isset($payment['status']) && $payment['status'] == 1) {
@@ -827,7 +847,16 @@
                                     }
                                 }
                                 
-                                $dueAmount = $packageTotal - $paidAmount;
+                                // Compute tax using stored booking taxes
+                                $persons = (int) $adultCount + (int) $childCount;
+                                $days = (!empty($bookingDetails['itinerary']) && is_array($bookingDetails['itinerary'])) ? count($bookingDetails['itinerary']) : 1;
+                                $taxes = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
+                                $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($packageTotal, $taxes, $persons, $days);
+                                $taxAmount = is_array($taxResult) ? ($taxResult['total_tax'] ?? 0) : 0;
+                                $taxBreakdown = is_array($taxResult) ? ($taxResult['breakdown'] ?? []) : [];
+                                $finalTotal = $packageTotal + $taxAmount;
+                                
+                                $dueAmount = $finalTotal - $paidAmount;
                             @endphp
                             
                             <label for="payment_amount{{ $booking->booking_id }}" class="form-label fw-bold d-flex align-items-center">
@@ -850,10 +879,24 @@
                             </div>
                             <small class="text-info payment-info-text">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Total package price: {{ $currency ?? 'SGD' }} {{ number_format($packageTotal, 2) }} | 
-                                Paid amount: {{ $currency ?? 'SGD' }} {{ number_format($paidAmount, 2) }} | 
-                                Due amount: {{ $currency ?? 'SGD' }} {{ number_format($dueAmount, 2) }}
+                                Total (Excl. Tax): {{ $currency ?? 'SGD' }} {{ number_format($packageTotal, 2) }} |
+                                Tax: {{ $currency ?? 'SGD' }} {{ number_format($taxAmount, 2) }} |
+                                Total (Incl. Tax): {{ $currency ?? 'SGD' }} {{ number_format($finalTotal, 2) }} |
+                                Paid: {{ $currency ?? 'SGD' }} {{ number_format($paidAmount, 2) }} |
+                                Due: {{ $currency ?? 'SGD' }} {{ number_format(max($dueAmount, 0), 2) }}
                             </small>
+                            @if(!empty($taxBreakdown))
+                                <div class="mt-2">
+                                    <small class="text-muted d-block mb-1">Tax breakdown:</small>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        @foreach($taxBreakdown as $taxName => $amount)
+                                            <span class="badge bg-secondary">
+                                                {{ $taxName }}: {{ $currency ?? 'SGD' }} {{ number_format($amount, 2) }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                             <div id="amountWarning{{ $booking->booking_id }}" class="text-warning mt-1" style="display: none;">
                                 <small><i class="fas fa-exclamation-triangle me-1"></i>Amount adjusted to maximum allowed</small>
                             </div>
@@ -939,22 +982,30 @@
     @foreach($bookings as $booking)
         @if($booking->payment_details)
             @php
-                $paymentDetails = json_decode($booking->payment_details, true);
+                // Parse inputs
+                $paymentDetails = is_array($booking->payment_details) ? $booking->payment_details : (is_string($booking->payment_details) ? json_decode($booking->payment_details, true) : []);
                 $bookingDetails = is_array($booking->booking_details) ? $booking->booking_details : json_decode($booking->booking_details, true);
                 $TotalPrice = $bookingDetails['total_price'] ?? 0;
-                $totalAmount = 0;
+
+                // Compute tax-inclusive total using stored taxes
+                $persons = (int)($bookingDetails['adult_count'] ?? 0) + (int)($bookingDetails['child_count'] ?? 0);
+                $days = (!empty($bookingDetails['itinerary']) && is_array($bookingDetails['itinerary'])) ? count($bookingDetails['itinerary']) : 1;
+                $taxes = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
+                $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($TotalPrice, $taxes, $persons, $days);
+                $taxAmount = is_array($taxResult) ? ($taxResult['total_tax'] ?? 0) : 0;
+                $finalTotal = $TotalPrice + $taxAmount;
+
+                // Sum paid and compute remaining
                 $paidAmount = 0;
-                $remainingAmount = 0;
-                
                 if ($paymentDetails) {
                     foreach ($paymentDetails as $payment) {
-                        $totalAmount = $TotalPrice;
                         if (isset($payment['status']) && $payment['status'] == 1) {
                             $paidAmount += $payment['payment_amount'];
                         }
                     }
-                    $remainingAmount = $TotalPrice - $paidAmount;
                 }
+                $totalAmount = $finalTotal;
+                $remainingAmount = $finalTotal - $paidAmount;
             @endphp
             
             <div class="modal fade" id="paymentHistoryModal{{ $booking->id }}" tabindex="-1" aria-labelledby="paymentHistoryModalLabel{{ $booking->id }}" aria-hidden="true">
