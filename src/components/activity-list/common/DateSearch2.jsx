@@ -10,9 +10,9 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false }) => {
   // );
   const checkOut = useSelector(
     (state) =>
-      state.hotels.tourdetails.check_out_time ||
-      state.hotels.tourdetails.CheckOutTime ||
-      state.hotels.tourdetails.data.CheckOutTime
+      state.hotels?.tourdetails?.check_out_time ||
+      state.hotels?.tourdetails?.CheckOutTime ||
+      state.hotels?.tourdetails?.data?.CheckOutTime
   );
   console.log("checkOut (original):", checkOut);
 

@@ -7,12 +7,13 @@ import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useEffect } from "react";
 import {
   selectBookingResponse,
   clearUserInfo,
   selectUserInfo,
 } from "@/slice/common/customerInfo";
-import { selectIsNavigating } from "@/slice/common/commonSlice";
+import { selectIsNavigating, setIsNavigating } from "@/slice/common/commonSlice";
 const metadata = {
   title: "Hotel Booking Page || GoTrip - Travel & Tour ReactJs Template",
   description: "GoTrip - Travel & Tour ReactJs Template",
@@ -24,12 +25,22 @@ const BookingPage = () => {
 
   // Change this to use booking response instead of userInfo
   const bookingResponse = useSelector(selectUserInfo);
-  console.log("bookingResponse789", bookingResponse);
   const isNavigating = useSelector(selectIsNavigating);
-  console.log("isNavigating", isNavigating);
+
+  // Reset isNavigating on mount so second booking shows index2.jsx if userInfo exists
+  useEffect(() => {
+    dispatch(setIsNavigating(false));
+  }, [dispatch]);
 
   // Only show StepperBooking2 if we have a complete booking response
   const showBookingDetails = bookingResponse?.fullName && !isNavigating;
+  
+  console.log("🔍 PARENT RENDER:", {
+    bookingResponse_fullName: bookingResponse?.fullName,
+    isNavigating,
+    showBookingDetails,
+    willRender: showBookingDetails ? "index2.jsx" : "index.jsx"
+  });
 
   return (
     <>

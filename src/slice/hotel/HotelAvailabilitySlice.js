@@ -28,7 +28,7 @@ const extractPolicyData = (apiResponse) => {
 // Thunk for fetching room data
 export const fetchRoomData = createAsyncThunk(
   "rooms/fetchRoomData",
-  async ({ id, tour_id, priceMode,priceModeId,dmc_id }, { rejectWithValue, dispatch }) => {
+  async ({ id, tour_id, priceMode,priceModeId,dmc_id }, { rejectWithValue, dispatch, getState }) => {
     // console.log(tour_id,"tour ID");
     // console.log(priceModeId,"pricmodeID");
     
@@ -46,13 +46,33 @@ export const fetchRoomData = createAsyncThunk(
         throw new Error("Authorization, AgentId, dmc_id, or mode are missing.");
       }
 
+      // If no tour_id yet, include guest details so backend can compute availability
+      const hasTourId = tour_id && Number(tour_id) > 0;
+      const tourIdParam = hasTourId ? tour_id : '';
+
+      // Pull guest details from state as fallback
+      const root = getState();
+      const tourDetails = root?.hotels?.tourdetails || {};
+      const guests = root?.bookings?.guests || {};
+      const adult = tourDetails?.adult ?? guests?.adults ?? 1;
+      const child = tourDetails?.child ?? guests?.children ?? 0;
+      const infant = tourDetails?.infant ?? guests?.infant ?? 0;
+      const male = tourDetails?.male ?? guests?.maleCount ?? 0;
+      const female = tourDetails?.female ?? guests?.femaleCount ?? 0;
+      const tour_child_adult = 0; // default if not available in state
+      const all_pax = Number(adult) + Number(child);
+
+      const guestQuery = hasTourId
+        ? ''
+        : `&all_pax=${encodeURIComponent(all_pax)}&tour_adult=${encodeURIComponent(adult)}&tour_child=${encodeURIComponent(child)}&tour_infant=${encodeURIComponent(infant)}&tour_male=${encodeURIComponent(male)}&tour_female=${encodeURIComponent(female)}&tour_child_adult=${encodeURIComponent(tour_child_adult)}`;
+
       const response = await axios.get(
-        `${BASE_URL}/hotel-details?id=${id}&price-mode=${priceMode}&agent-id=${AgentId}&tour-id=${tour_id}&dmc_id=${dmc_id}`,
+        `${BASE_URL}/hotel-details?id=${id}&price-mode=${priceMode}&agent-id=${AgentId}&tour-id=${tourIdParam}&dmc_id=${dmc_id}${guestQuery}`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
             // "agent-id": AgentId,
-            // "tour-id": tour_id,
+            // "tour-id": tour_id, 
           },
         }
       );

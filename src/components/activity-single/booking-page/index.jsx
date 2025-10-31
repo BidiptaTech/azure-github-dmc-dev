@@ -110,7 +110,7 @@ const Index = () => {
   );
   console.log("travelpointzoneBookingDetails", travelpointzoneBookingDetails);
   //const tourDetails = useSelector((state) => state.hotels.tourdetails);
-  const bookingDetails =
+  const rawBookingDetails =
     type === "guide"
       ? guideBookingDetails
       : type === "entryport"
@@ -124,6 +124,14 @@ const Index = () => {
       : type === "travelpointzone"
       ? travelpointzoneBookingDetails
       : null;
+
+  const bookingDetails = Array.isArray(rawBookingDetails)
+    ? rawBookingDetails
+    : rawBookingDetails
+    ? [rawBookingDetails]
+    : [];
+
+  const enquiryAmount = bookingDetails[0]?.totalPrice;
 
   return (
     <>
@@ -146,24 +154,10 @@ const Index = () => {
         <div className="row x-gap-40 items-center">
           <CustomerInfo
             image={image}
-            bookingDetails={
-              type === "guide"
-                ? guideBookingDetails
-                : type === "entryport"
-                ? entryportBookingDetails
-                : type === "exitport"
-                ? exitportBookingDetails
-                : type === "travelpoint"
-                ? travelpointBookingDetails
-                : type === "travelhourly"
-                ? travelhourlyBookingDetails
-                : type === "travelpointzone"
-                ? travelpointzoneBookingDetails
-                : null
-            }
+            bookingDetails={bookingDetails}
             onFormChange={handleFormChange}
             setFormValid={setFormValid}
-            enquiryAmount={bookingDetails[0]?.totalPrice}
+          enquiryAmount={enquiryAmount}
             formData={formData}
             formValid={formValid}
             dispatch={dispatch}
