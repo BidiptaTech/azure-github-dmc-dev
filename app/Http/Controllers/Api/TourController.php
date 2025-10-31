@@ -2229,7 +2229,7 @@ class TourController extends Controller
                     'total_hours' => $selectedHours
                 ]);
                 
-                if($finalPrice == $travelHourlyPriceWithoutCommission){
+                if($finalPrice == $totalHourlyPrice){
                     $flag = 1;
                     $adminProfit = $finalPrice - $travelHourlyPriceWithoutCommission;
                 }
@@ -2241,7 +2241,8 @@ class TourController extends Controller
                         'hours_in_day' => $hoursInDay,
                         'hours_in_night' => $hoursInNight,
                         'entry_time_original' => $entry_time,
-                        'total_hours' => $selectedHours
+                        'total_hours' => $selectedHours,
+                        'travelHourlyPriceWithoutCommission' => $travelHourlyPriceWithoutCommission
                     ], 409);
                 }
             }
