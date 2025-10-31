@@ -103,7 +103,12 @@ class TaxController extends Controller
             'tax_name' => 'required|string|max:255',
             'tax_type' => 'required|in:percentage,fixed',
             'tax_value' => 'required|numeric|min:0',
-            'calculate_on' => 'required|in:subtotal,service_charge,total',
+            'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) {
+                // Allow 'total' or 'tax_{number}' format
+                if ($value !== 'total' && !preg_match('/^tax_\d+$/', $value)) {
+                    $fail('The selected calculate on is invalid.');
+                }
+            }],
             'description' => 'nullable|string|max:1000',
             'if_fixed' => 'nullable|string|max:1000',
         ]);
@@ -168,7 +173,12 @@ class TaxController extends Controller
             'tax_name' => 'required|string|max:255',
             'tax_type' => 'required|in:percentage,fixed',
             'tax_value' => 'required|numeric|min:0',
-            'calculate_on' => 'required|in:subtotal,service_charge,total',
+            'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) {
+                // Allow 'total' or 'tax_{number}' format
+                if ($value !== 'total' && !preg_match('/^tax_\d+$/', $value)) {
+                    $fail('The selected calculate on is invalid.');
+                }
+            }],
             'description' => 'nullable|string|max:1000',    
             'if_fixed' => 'nullable|string|max:1000',
         ]);

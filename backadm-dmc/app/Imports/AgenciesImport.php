@@ -23,7 +23,7 @@ class AgenciesImport
         // Determine DMC ID based on user role (same logic as AgencyController)
         if(in_array($authUser->role_id, [1, 2, 3, 4, 19, 20])){
             $this->dmc_id = [];
-        } elseif($authUser->role_id == 11){
+        } elseif($authUser->role_id == 11){  
             $this->dmc_id = $authUser->userId;
         } elseif($authUser->role_id == 35 || in_array($authUser->role_id, [33, 128, 129, 130, 134, 135, 136, 138])){
             $this->dmc_id = $authUser->created_by;
