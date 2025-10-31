@@ -23,14 +23,22 @@ export const statusUpdate = createAsyncThunk(
 
       const { id, stepStatus, type } = state;
 
+      // If we don't yet have a tour_id (id), or no stepStatus to update,
+      // skip the API call and return a safe no-op response.
       if (!id || !Object.keys(stepStatus).length) {
-        throw new Error("Tour ID or step status is missing.");
+        return {
+          data: {},
+          active_task: null,
+          active_task_status: 0,
+          skipped: true,
+        };
       }
 
       const [key, value] = Object.entries(stepStatus)[0];
 
       const formData = new FormData();
-      formData.append("tour_id", id);
+      // Allow null to be sent if required by upstream callers, but here id is ensured.
+      formData.append("tour_id", id ?? null);
       formData.append(key, 1);
       formData.append("status", value);
       formData.append("type", type);
@@ -70,7 +78,16 @@ const stepsSlice = createSlice({
       restaurent: 0,
       travel: 0,
     },
+    localStepStatus: {
+      hotel: 0,
+      port: 0,
+      attraction: 0,
+      guide: 0,
+      restaurent: 0,
+      travel: 0,
+    }, // Tracks step status before tour is created
     currentStep: 0, // Tracks the index of the current step
+    localCurrentStep: 0, // Tracks step progression before tour is created
     type: "",
     status: 0,
     active_status: 0,
@@ -91,11 +108,42 @@ const stepsSlice = createSlice({
     setType: (state, action) => {
       state.type = action.payload;
     },
+    // Set local current step (for navigation before tour exists)
+    setLocalCurrentStep: (state, action) => {
+      state.localCurrentStep = action.payload;
+    },
+    // Update local step status (for colors before tour exists)
+    updateLocalStepStatus: (state, action) => {
+      const { key, status } = action.payload;
+      state.localStepStatus[key] = status;
+    },
     // Reset all states
     resetSteps: (state) => {
       state.stepStatus = {};
       state.currentStep = 0;
+      state.localCurrentStep = 0;
+      state.localStepStatus = {
+        hotel: 0,
+        port: 0,
+        attraction: 0,
+        guide: 0,
+        restaurent: 0,
+        travel: 0,
+      };
       state.id = null;
+      state.stepStatus1 = {
+        hotel: 0,
+        port: 0,
+        attraction: 0,
+        guide: 0,
+        restaurent: 0,
+        travel: 0,
+      };
+      state.type = "";
+      state.status = 0;
+      state.active_status = 0;
+      state.loading = false;
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
@@ -106,12 +154,20 @@ const stepsSlice = createSlice({
       })
       .addCase(statusUpdate.fulfilled, (state, action) => {
         state.loading = false;
+        
+        // Handle skipped response (when no tour_id exists)
+        if (action.payload?.skipped) {
+          return;
+        }
+        
         const { data } = action.payload;
         const { active_task } = action.payload;
         const { active_task_status } = action.payload;
         //const { active_task_status } = action.payload;
         // Update stepStatus with API response
-        state.stepStatus1 = { ...state.stepStatus1, ...data };
+        if (data) {
+          state.stepStatus1 = { ...state.stepStatus1, ...data };
+        }
         const level = [
           "hotel",
           "port",
@@ -134,6 +190,6 @@ const stepsSlice = createSlice({
 });
 
 // Export actions and reducer
-export const { setTourId, updateStepStatus, resetSteps, setType } =
+export const { setTourId, updateStepStatus, resetSteps, setType, setLocalCurrentStep, updateLocalStepStatus } =
   stepsSlice.actions;
 export default stepsSlice.reducer;

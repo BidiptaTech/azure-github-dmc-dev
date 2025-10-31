@@ -17,6 +17,7 @@ const StyledTooltip = styled(({ className, ...props }) => (
   },
   '& .MuiTooltip-arrow': {
     display: 'none',
+    direction: 'bottom',
   },
 }));
 

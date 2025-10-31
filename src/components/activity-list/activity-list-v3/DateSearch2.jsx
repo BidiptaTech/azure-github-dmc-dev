@@ -10,15 +10,15 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1 }) => {
 
   const checkIn = useSelector(
     (state) =>
-      state.hotels.tourdetails.check_in_time ||
-      state.hotels.tourdetails.CheckInTime ||
-      state.hotels.tourdetails.data.CheckInTime
+      state.hotels?.tourdetails?.check_in_time ||
+      state.hotels?.tourdetails?.CheckInTime ||
+      state.hotels?.tourdetails?.data?.CheckInTime
   );
   const checkOut = useSelector(
     (state) =>
-      state.hotels.tourdetails.check_out_time ||
-      state.hotels.tourdetails.CheckOutTime ||
-      state.hotels.tourdetails.data.CheckOutTime
+      state.hotels?.tourdetails?.check_out_time ||
+      state.hotels?.tourdetails?.CheckOutTime ||
+      state.hotels?.tourdetails?.data?.CheckOutTime
   );
   const formatDateToDDMMYYYY = (dateString) => {
     if (!dateString) return null;

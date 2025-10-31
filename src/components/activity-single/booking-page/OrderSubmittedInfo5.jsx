@@ -44,11 +44,11 @@ const OrderSubmittedInfo5 = () => {
 
   const getPrice = (type, data) => {
     if (type === "guide") {
-      return parseFloat(data[0].totalPrice) || 0;
+      return parseFloat(data?.[0]?.totalPrice) || 0;
     } else if (type === "travelhourly") {
-      return parseFloat(data[0].totalPrice) || 0;
+      return parseFloat(data?.[0]?.totalPrice) || 0;
     } else {
-      return parseFloat(data[0].totalPrice) || 0;
+      return parseFloat(data?.[0]?.totalPrice) || 0;
     }
   };
 
@@ -69,6 +69,7 @@ const OrderSubmittedInfo5 = () => {
   );
 
   const formatMessage = (message) => {
+    if (!message) return "Booking Successful";
     if (message.startsWith("Entry_port"))
       return message.replace("Entry_port", "Entry Port");
     if (message.startsWith("Exit_port"))

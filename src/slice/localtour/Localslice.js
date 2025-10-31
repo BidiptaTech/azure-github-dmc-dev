@@ -7,6 +7,9 @@ import { selectDmcId } from "../dmc/dmcSlice";
 import PickUpLocation from "@/components/hero/hero-8/PickUpLocation";
 import DropOffLocation from "@/components/hero/hero-8/DropOffLocation";
 import { setHaveBooking } from "@/slice/common/commonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setId } from "@/slice/hotel/hotelSlice";
 // import { pick } from "lodash";
 // import state from "sweetalert/typings/modules/state";
 //import { format } from "date-fns";
@@ -277,6 +280,48 @@ export const Localtourslice = createAsyncThunk(
         throw new Error("Authorization and AgentId are missing.");
       }
 
+      // Check if we have an existing tour_id from local state or global auth state
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = tourid || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
+      // Build tour meta to let backend create tour during booking
+      const bookings = state.bookings || {};
+      const auth = state.auth || {};
+
+      const countryCodeToName = {};
+      if (auth.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+
+      const searchLocation = bookings.searchLocation || [];
+      const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+      const check_in = bookings.checkIn || "";
+      const check_out = bookings.checkOut || "";
+      const bGuests = bookings.guests || {};
+      const adultMeta = bGuests.adults ?? 1;
+      const childMeta = bGuests.children ?? 0;
+      const infantMeta = bGuests.infant ?? 0;
+      const maleMeta = bGuests.maleCount ?? 0;
+      const femaleMeta = bGuests.femaleCount ?? 0;
+      const children_ages = (bGuests.childrenAges || []).join(", ");
+
       // Create FormData instances
       let formData = {};
       let formData1 = {};
@@ -299,9 +344,22 @@ export const Localtourslice = createAsyncThunk(
           data: details.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: selectedType === "travelpointzone" ? type2 : type,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          formData.destination = destination;
+          formData.check_in = check_in;
+          formData.check_out = check_out;
+          formData.adult = adultMeta;
+          formData.child = childMeta;
+          formData.infant = infantMeta;
+          formData.male = maleMeta;
+          formData.female = femaleMeta;
+          formData.children_ages = children_ages;
+        }
       }
 
       if (
@@ -319,9 +377,22 @@ export const Localtourslice = createAsyncThunk(
           data: details1.map(item => ({ ...item, dmc_id: selectedDmcId })),
           type: type1,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          formData1.destination = destination;
+          formData1.check_in = check_in;
+          formData1.check_out = check_out;
+          formData1.adult = adultMeta;
+          formData1.child = childMeta;
+          formData1.infant = infantMeta;
+          formData1.male = maleMeta;
+          formData1.female = femaleMeta;
+          formData1.children_ages = children_ages;
+        }
       }
       
       let selectedFormData = null;
@@ -368,6 +439,20 @@ export const Localtourslice = createAsyncThunk(
       );
 
       console.log("API Response:", response.data);
+
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from local transport booking:", tourId);
+        
+        // Update step status to mark travel as completed
+        dispatch(updateStepStatus({ key: 'travel', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
 
       // Check if response has the expected structure
       if (!response.data || !response.data.service) {

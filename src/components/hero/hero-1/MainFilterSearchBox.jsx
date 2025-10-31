@@ -26,7 +26,9 @@ import {
   statusUpdate,
   updateStepStatus,
   setType,
+  resetSteps,
 } from "../../../slice/common/stepsSlice";
+import { setTourIdd } from "../../../slice/common/authSlices";
 import { setBookingType, setHaveBooking } from "../../../slice/common/commonSlice";
 import moment from "moment";
 import { clearUserInfo } from "../../../slice/common/customerInfo"; // Add this import
@@ -42,6 +44,7 @@ import { resetVehicles } from "../../../slice/port/pickupDropSlice";
 import { resetVehicles1 } from "../../../slice/localtour/Localslice";
 import {setSelectedCity} from "@/slice/common/commonSlice";
 import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSlice";
+import { setCity } from "../../../slice/common/citySlice";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -168,6 +171,7 @@ const MainFilterSearchBox = () => {
 
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
+    dispatch(setHaveBooking(false));
 
     // Format Dates - Handle different date formats safely
     let formattedCheckIn, formattedCheckOut;
@@ -224,6 +228,10 @@ const MainFilterSearchBox = () => {
 
     // Reset stepper button state for new search
     dispatch(resetAllServiceResponses());
+    
+    // Reset local step tracking for new search
+    dispatch(resetSteps());
+    dispatch(setTourIdd(null));
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
@@ -267,65 +275,49 @@ const MainFilterSearchBox = () => {
     //   })
     // );
 
-    // Step 4: Fetch Booking ID
-    dispatch(fetchBookingid({
-      destination: destinationName, // Use full country name in payload
-      check_in: formattedCheckIn,
-      check_out: formattedCheckOut,
-      adult: guestCounts.Adults,
-      child: guestCounts.Children,
-      infant: guestCounts.Infants,
-      male: guestCounts.maleCount || 0,
-      female: guestCounts.femaleCount || 0,
-      children_ages: guestCounts.ages.join(',')
-    }))
-      .unwrap()
-      .then((data) => {
-        const id = data?.tour_id || data?.data?.tour_id;
-        
-        // Ensure we're using the full country name for destination
-        const destination = destinationName; // Use the full country name from our mapping
-        console.log('destination destination', destination);
-
-        if (!id || !destination) {
-          console.error("Tour ID or destination not found in response:", data);
-          throw new Error("Invalid response data.");
-        }
-        dispatch(setHaveBooking(false));
-        // Step 5: Update state with API response
-        dispatch(updateSearchState({ location: destination })); // Update location with full name
-        dispatch(settourdetails({
-          ...data,
-          destination: destination // Override the destination with full name
-        }));
-        dispatch(setId(id));
-        dispatch(setTourId(id));
-        dispatch(setBookingType("null"));
-
-        // Step 6: Create search query params
-        const searchParams = new URLSearchParams({
-          location: selectedLocation, // Keep using code in URL
-          dates: [formattedCheckIn, formattedCheckOut].join(","),
-          guests: JSON.stringify(guestCounts),
-        });
-
-        dispatch(setType(" "));
-        dispatch(updateStepStatus({ key: "hotel", status: 2 }));
-        dispatch(statusUpdate()).unwrap();
-
-        // Step 7: Navigate to the hotel search results page
-        navigate(
-          `/dashboard/db-dashboard/view-hotel-search/${id}?${searchParams}`
-        );
+    // Update hotel search state so the hotel list has city and dates
+    const ucheckInYmd = moment(formattedCheckIn, "DD/MM/YYYY").format("YYYY-MM-DD");
+    const ucheckOutYmd = moment(formattedCheckOut, "DD/MM/YYYY").format("YYYY-MM-DD");
+    dispatch(
+      updateSearchState({
+        location: [destinationName],
+        ucheckIn: ucheckInYmd,
+        ucheckOut: ucheckOutYmd,
+        guests: {
+          adults: guestCounts.Adults,
+          children: guestCounts.Children,
+          infant: guestCounts.Infants,
+        },
       })
-      .catch((error) => {
-        console.error("Error fetching booking ID:", error);
-        setSnackbarMessage(
-          "Failed to fetch booking details. Please try again."
-        );
-        setSnackbarSeverity("error");
-        setOpenSnackbar(true);
-      });
+    );
+
+    // Provide basic tour details for hotel UI that previously relied on API response
+    dispatch(
+      settourdetails({
+        destination: destinationName,
+        adult: guestCounts.Adults,
+        child: guestCounts.Children,
+        infant: guestCounts.Infants,
+        CheckInTime: formattedCheckIn,
+        CheckOutTime: formattedCheckOut,
+        tour_id: null,
+      })
+    );
+    dispatch(setId(0));
+
+    // Populate city list and selected city for hotel listing UI
+    dispatch(setCity([destinationName]));
+    dispatch(setSelectedCity(destinationName));
+
+    // Step 4: Navigate to the hotel search results page without creating a tour
+    const searchParams = new URLSearchParams({
+      location: selectedLocation, // Keep using code in URL
+      dates: [formattedCheckIn, formattedCheckOut].join(","),
+      guests: JSON.stringify(guestCounts),
+    });
+
+    // Use placeholder id since router expects an :id param; actual tour will be created on booking/enquiry
+    navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`);
   };
 
   return (

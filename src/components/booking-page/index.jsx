@@ -19,7 +19,7 @@ import { ToastContainer, toast } from "react-toastify";
 import dayjs from "dayjs";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
 //import { setHotelService } from "@/slice/common/BookingSlice";
-import { setUserInfo, setBookingResponse } from "@/slice/common/customerInfo";
+import { setUserInfo, setBookingResponse, clearUserInfo } from "@/slice/common/customerInfo";
 import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
 
 const Index = () => {
@@ -91,8 +91,13 @@ const Index = () => {
       return;
     }
     
+    console.log("📝 Starting booking submission from index.jsx");
     setIsSubmitting(true);
+    
+    // Set isNavigating to prevent parent from switching to index2.jsx
+    // Don't clear userInfo here - we want to keep it for next booking
     dispatch(setIsNavigating(true));
+    console.log("✅ Set isNavigating to TRUE");
     const payload = {
       ...formData,
       rooms: rooms || [],
@@ -121,10 +126,11 @@ const Index = () => {
     )
       .unwrap()
       .then((response) => {
+        console.log("🎉 Booking API SUCCESS from index.jsx");
         setResponseData(response);
         dispatch(setBookingType(response.order?.bookingType));
         dispatch(setHaveBooking(true));
-        dispatch(setIsNavigating(false));
+        
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
           dispatch(setHotelService(response?.service?.data));
@@ -134,11 +140,20 @@ const Index = () => {
             autoClose: 3000,
           });
         }
-        dispatch(setUserInfo(response?.service?.data));
+        
+        console.log("📦 Setting booking response");
         dispatch(setBookingResponse(response));
         dispatch(setPriceMode("both"));
-
-        navigate("/dashboard/db-dashboard/thank-you", { replace: true });
+        
+        // Store user info for next booking (don't clear it)
+        dispatch(setUserInfo(formData));
+        
+        console.log("🚀 Navigating to thank-you page NOW");
+        navigate("/dashboard/db-dashboard/thank-you", { 
+          replace: true,
+          state: { bookingResponse: response }
+        });
+        console.log("✅ Navigate function called");
       })
       .catch((error) => {
         console.error("API call failed:", error);
@@ -177,6 +192,9 @@ const Index = () => {
     // }
     
     setIsEnquirySubmitting(true);
+    
+    // Set isNavigating to prevent parent from switching to index2.jsx
+    // Don't clear userInfo here - we want to keep it for next booking
     dispatch(setIsNavigating(true));
     // Create a payload with enquiry-specific data
     const payload = {
@@ -222,7 +240,7 @@ const Index = () => {
         setResponseData(response);
         dispatch(setBookingType(response.order?.bookingType));
         dispatch(setHaveBooking(true));
-        dispatch(setIsNavigating(false));
+        
         if (response?.service?.date_service) {
           dispatch(setDateService(response.service.date_service));
           dispatch(setHotelService(response?.service?.data));
@@ -232,11 +250,17 @@ const Index = () => {
             autoClose: 3000,
           });
         }
-        dispatch(setUserInfo(response?.service?.data));
+        
         dispatch(setBookingResponse(response));
         dispatch(setPriceMode("both"));
+        
+        // Store user info for next booking (don't clear it)
+        dispatch(setUserInfo(formData));
 
-        navigate("/dashboard/db-dashboard/thank-you", { replace: true });
+        navigate("/dashboard/db-dashboard/thank-you", { 
+          replace: true,
+          state: { bookingResponse: response }
+        });
       })
       .catch((error) => {
         console.error("API call failed:", error);

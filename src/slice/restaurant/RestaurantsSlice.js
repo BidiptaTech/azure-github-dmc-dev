@@ -4,11 +4,15 @@ import Cookies from "js-cookie";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
 import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setId } from "@/slice/hotel/hotelSlice";
+// We no longer pre-create tours; include tour meta in booking payload
 
 export const fetchRestaurants = createAsyncThunk(
   "restaurants/fetchRestaurants",
   async (
-    { city, date, adults, children, tour_id, fromMainSearch, start, limit },
+    { city, country, date, adults, children, tour_id, fromMainSearch, start, limit },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
@@ -27,7 +31,26 @@ export const fetchRestaurants = createAsyncThunk(
 
       const queryParams = new URLSearchParams();
 
-      if (city) queryParams.append("city", city);
+      // Parse city if it contains both city and country in format "City, (Country)"
+      let cityName = city;
+      let countryName = country;
+      
+      if (city && city.includes(",")) {
+        // Split "Singapore, (Singapore)" into city and country
+        const parts = city.split(",").map(p => p.trim());
+        cityName = parts[0]; // "Singapore"
+        if (parts[1]) {
+          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
+        }
+      }
+      
+      // If country is still not set, use cityName as country
+      if (!countryName && cityName) {
+        countryName = cityName;
+      }
+
+      if (cityName) queryParams.append("city", cityName);
+      if (countryName) queryParams.append("country", countryName);
 
       // Format date as expected by the backend
       if (date && date !== "") {
@@ -37,7 +60,9 @@ export const fetchRestaurants = createAsyncThunk(
 
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
-      if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Always send tour_id field (empty string if not available)
+      queryParams.append("tour_id", tour_id || "");
       
       // Add pagination parameters
       if (start) queryParams.append("start", start);
@@ -126,14 +151,71 @@ export const createBooking = createAsyncThunk(
       const selectedDmcId = selectDmcId(state);
       // console.log('🎯 RestaurantsSlice - Selected DMC ID from Redux:', selectedDmcId);
 
+      // Build tour meta to let backend create tour during booking
+      const bookings = state.bookings || {};
+      const auth = state.auth || {};
+
+      const countryCodeToName = {};
+      if (auth.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+
+      const searchLocation = bookings.searchLocation || [];
+      const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+      const check_in = bookings.checkIn || "";
+      const check_out = bookings.checkOut || "";
+      const bGuests = bookings.guests || {};
+      const adult = bGuests.adults ?? 1;
+      const child = bGuests.children ?? 0;
+      const infant = bGuests.infant ?? 0;
+      const male = bGuests.maleCount ?? 0;
+      const female = bGuests.femaleCount ?? 0;
+      const children_ages = (bGuests.childrenAges || []).join(", ");
+
+      // Check if we have an existing tour_id from booking details or global auth state
+      const localTourId = bookingDetails?.tour_id;
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = localTourId || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
       // Add selected DMC ID to booking details
       const updatedBookingDetails = {
         ...bookingDetails,
+        tour_id: hasTourId ? Number(numericTourId) : "",
         data: bookingDetails.data.map(item => ({
           ...item,
           dmc_id: selectedDmcId // Use selected DMC ID from Redux store
         }))
       };
+
+      // Only add tour meta if no tour_id exists
+      if (!hasTourId) {
+        updatedBookingDetails.destination = destination;
+        updatedBookingDetails.check_in = check_in;
+        updatedBookingDetails.check_out = check_out;
+        updatedBookingDetails.adult = adult;
+        updatedBookingDetails.child = child;
+        updatedBookingDetails.infant = infant;
+        updatedBookingDetails.male = male;
+        updatedBookingDetails.female = female;
+        updatedBookingDetails.children_ages = children_ages;
+      }
 
       // console.log('🚀 RestaurantsSlice - Booking with DMC ID:', selectedDmcId);
 
@@ -179,6 +261,20 @@ export const createBooking = createAsyncThunk(
         };
 
         dispatch(storeUserInfo(userInfo));
+      }
+
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from restaurant booking:", tourId);
+        
+        // Update step status to mark restaurant as completed
+        dispatch(updateStepStatus({ key: 'restaurent', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
       }
 
       // Update stepper button visibility based on booking response

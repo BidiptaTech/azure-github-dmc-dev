@@ -1,11 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { logoutUser } from "../common/authSlices";
+import { logoutUser, setTourIdd } from "../common/authSlices";
 import { setPriceMode1 } from "../localtour/Localslice";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
 import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setId } from "@/slice/hotel/hotelSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
 
 export const fetchGuides = createAsyncThunk(
   "tourguide/fetchGuides",
@@ -18,9 +20,28 @@ export const fetchGuides = createAsyncThunk(
       // Use the passed parameters or fallback to state values
       const city = params?.city || state.tourguide.entrypickup;
       const date = params?.date || state.tourguide.pickupdate;
+      const tour_id = params?.tour_id;
 
       if (!city) {
         return rejectWithValue({ message: "City is required" });
+      }
+
+      // Parse city if it contains both city and country in format "City, (Country)"
+      let cityName = city;
+      let countryName = params?.country;
+      
+      if (city && city.includes(",")) {
+        // Split "Singapore, (Singapore)" into city and country
+        const parts = city.split(",").map(p => p.trim());
+        cityName = parts[0]; // "Singapore"
+        if (parts[1]) {
+          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
+        }
+      }
+      
+      // If country is still not set, use cityName as country
+      if (!countryName && cityName) {
+        countryName = cityName;
       }
 
       const response = await axios.get(`${BASE_URL}/guide`, {
@@ -29,8 +50,10 @@ export const fetchGuides = createAsyncThunk(
           "agent-id": AgentId,
         },
         params: {
-          city: city,
+          city: cityName,
+          country: countryName,
           date: JSON.stringify({ 0: date }),
+          tour_id: tour_id || "",
           dmc_id: dmcId,
           start: (params && params.start) || undefined,
           limit: (params && params.limit) || undefined,
@@ -194,6 +217,57 @@ export const guideslice = createAsyncThunk(
       // let json0 = {};
       // let json1 = {};
 
+      // Check if we have an existing tour_id from guide state or global auth state
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = tourid || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
+      // Build tour meta from Redux when no tour exists
+      let tourMeta = {};
+      if (!hasTourId) {
+        const bookings = state.bookings || {};
+        const auth = state.auth || {};
+
+        const countryCodeToName = {};
+        if (auth.user_country && Array.isArray(auth.user_country)) {
+          auth.user_country.forEach((country) => {
+            if (country && country.name && country.code) {
+              countryCodeToName[country.code] = country.name;
+              countryCodeToName[country.code.toLowerCase()] = country.name;
+            }
+          });
+        }
+
+        const searchLocation = bookings.searchLocation || [];
+        const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+          .map((loc) => countryCodeToName[loc] || loc)
+          .join(", ");
+        const check_in = bookings.checkIn || "";
+        const check_out = bookings.checkOut || "";
+        const bGuests = bookings.guests || {};
+        
+        tourMeta = {
+          destination,
+          check_in,
+          check_out,
+          adult: bGuests.adults ?? 1,
+          child: bGuests.children ?? 0,
+          infant: bGuests.infant ?? 0,
+          male: bGuests.maleCount ?? 0,
+          female: bGuests.femaleCount ?? 0,
+          children_ages: (bGuests.childrenAges || []).join(", "),
+        };
+      }
+
       // Populate FormData if entrypickup and related fields exist
       if (
         entrypickup &&
@@ -209,9 +283,14 @@ export const guideslice = createAsyncThunk(
           data: details.map(item => ({ ...item, dmc_id: dmcId })),
           type: type1,
           agent_id: AgentId,
-          tour_id: tourid,
+          tour_id: hasTourId ? Number(numericTourId) : "",
           bookingType: bookingtype,
         };
+        
+        // Only add tour meta if no tour_id exists
+        if (!hasTourId) {
+          Object.assign(formData, tourMeta);
+        }
       }
       console.log("form", formData);
 
@@ -287,6 +366,20 @@ export const guideslice = createAsyncThunk(
       );
 
       console.log("API Response:", response.data);
+
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from guide booking:", tourId);
+        
+        // Update step status to mark guide as completed
+        dispatch(updateStepStatus({ key: 'guide', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
 
       let guide = response.data?.service?.data || [];
       dispatch(setbookedGuide(guide));

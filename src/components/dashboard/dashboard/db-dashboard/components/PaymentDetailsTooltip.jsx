@@ -52,8 +52,9 @@ const PaymentRow = styled(Box)(({ theme, variant = 'default' }) => ({
   ...(variant === 'tax' && {
     backgroundColor: 'rgba(156, 39, 176, 0.06)',
     borderColor: 'rgba(156, 39, 176, 0.15)',
-    marginLeft: '8px',
-    padding: '4px 6px',
+    marginLeft: '4px',
+    padding: '2px 4px',
+    marginBottom: '2px',
   }),
   ...(variant === 'totalWithTax' && {
     backgroundColor: 'rgba(76, 175, 80, 0.12)',
@@ -299,7 +300,7 @@ const PaymentDetailsTooltip = ({ list }) => {
   return (
     <StyledTooltipContent>
       {/* Header */}
-      <Box sx={{ mb: 1.5, textAlign: 'center' }}>
+      <Box sx={{ mb: 0.5, textAlign: 'center' }}>
         <Typography variant="subtitle2" fontWeight={600} color="#1976d2" gutterBottom sx={{ fontSize: '0.875rem' }}>
           Payment Details
         </Typography>
@@ -308,7 +309,7 @@ const PaymentDetailsTooltip = ({ list }) => {
         </Typography>
       </Box>
 
-      <Divider sx={{ mb: 1.5 }} />
+      <Divider sx={{ mb: 0.5 }} />
 
       {PriceHide === '0' ? (
         <>
@@ -367,50 +368,44 @@ const PaymentDetailsTooltip = ({ list }) => {
           {/* Tax Breakdown Section */}
           {taxBreakdown.hasValidTaxes && (
             <>
-              <Divider sx={{ my: 1 }} />
+              <Divider sx={{ my: 0.5 }} />
               
-              <Box sx={{ mb: 1 }}>
+              <Box sx={{ mb: 0.5 }}>
                 <Typography 
                   variant="caption" 
                   fontWeight={600} 
                   color="#9c27b0" 
-                  sx={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}
+                  sx={{ fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}
                 >
                   <i className="icon-info" style={{ fontSize: '10px' }}></i>
                   Tax Breakdown
                 </Typography>
                 
-                {taxBreakdown.taxes.map((tax, index) => (
-                  <PaymentRow key={index} variant="tax">
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" fontWeight={600} color="#9c27b0" sx={{ fontSize: '0.65rem' }}>
+                <PaymentRow variant="tax" sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 0.25 }}>
+                  {taxBreakdown.taxes.map((tax, index) => (
+                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="caption" fontWeight={600} color="#9c27b0" sx={{ fontSize: '0.6rem' }}>
                         {tax.name}
+                        {tax.isPercentage ? ` (${tax.value}%)` : (tax.if_fixed ? ` (fixed ${tax.if_fixed.replace('_', ' ')})` : '')}
+                        {tax.calculatedOn ? ` on ${tax.calculatedOn}` : ''}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block' }}>
-                        {tax.isPercentage ? (
-                          `${tax.value}%`
-                        ) : (
-                          `Fixed: ${tax.if_fixed ? tax.if_fixed.replace('_', ' ') : 'per tour'}`
-                        )}
-                        {tax.calculatedOn && ` (on ${tax.calculatedOn})`}
+                      <Typography variant="caption" fontWeight={700} color="#9c27b0" sx={{ fontSize: '0.6rem' }}>
+                        +SGD {tax.amount}
                       </Typography>
                     </Box>
-                    <Typography variant="caption" fontWeight={700} color="#9c27b0" sx={{ fontSize: '0.65rem' }}>
-                      +SGD {tax.amount}
-                    </Typography>
-                  </PaymentRow>
-                ))}
+                  ))}
+                </PaymentRow>
               </Box>
 
               {/* Total with Tax */}
-              <PaymentRow variant="totalWithTax">
+              <PaymentRow variant="totalWithTax" sx={{ py: 0.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <i className="icon-wallet" style={{ fontSize: '11px', color: '#4caf50' }}></i>
-                  <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.75rem' }}>
+                  <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
                     Total (with Tax)
                   </Typography>
                 </Box>
-                <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.75rem' }}>
+                <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
                   SGD {taxBreakdown.totalWithTax}
                 </Typography>
               </PaymentRow>
@@ -464,7 +459,13 @@ const PaymentDetailsTooltip = ({ list }) => {
       </PaymentRow>
 
       {/* Due Amount Warning (with tax) */}
-      {list.dueAmount > 0 && (
+      {(() => {
+        const safeNumber = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+        const totalWithTax = Number(taxBreakdown.totalWithTax || 0);
+        const paid = safeNumber(list.paidAmount);
+        const dueNow = Math.max(totalWithTax - paid, 0);
+        return dueNow > 0;
+      })() && (
         <PaymentRow variant="due">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <i className="icon-alert-circle" style={{ fontSize: '11px', color: '#ff9800' }}></i>
@@ -474,9 +475,11 @@ const PaymentDetailsTooltip = ({ list }) => {
           </Box>
           <Typography variant="caption" fontWeight={700} color="#ff9800" sx={{ fontSize: '0.7rem' }}>
             {(() => {
-              const baseDue = Number(list.dueAmount || 0);
-              const withTax = Math.ceil(baseDue);
-              return `SGD ${withTax}`;
+              const safeNumber = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+              const totalWithTax = Number(taxBreakdown.totalWithTax || 0);
+              const paid = safeNumber(list.paidAmount);
+              const dueNow = Math.max(totalWithTax - paid, 0);
+              return `SGD ${Math.ceil(dueNow)}`;
             })()}
           </Typography>
         </PaymentRow>

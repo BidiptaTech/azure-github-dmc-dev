@@ -67,6 +67,17 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
   const currentMode = useSelector((state) => state.common.bookingMode) || 'dmc';
   const agentId = useSelector((state) => state.editing?.agentId);
   const tourId = useSelector((state) => state.hotels.id);
+  const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
+  
+  // Extract numeric part from tour_id
+  const numericTourId = React.useMemo(() => {
+    const effectiveTourId = globalTourId || tourId;
+    if (!effectiveTourId) return null;
+    const tourIdStr = String(effectiveTourId);
+    const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+    return match ? Number(match[0]) : null;
+  }, [globalTourId, tourId]);
+  
   console.log('Guide update', guidespack);
   
   // Get existing services from Redux state
@@ -1241,7 +1252,7 @@ export default function GuideComponent({ date, dayIndex, guidespack, tourDates =
       setIsGuideListingEnabled(false);
       
       // Dispatch fetchGuides API call
-      dispatch(fetchGuides({ city: `${city.name}, (${country})`, date: bookingDate }))
+      dispatch(fetchGuides({ city: `${city.name}, (${country})`, date: bookingDate, tour_id: numericTourId }))
         .then((result) => {
           console.log("fetchGuides API result:", result);
           if (result.error) {
