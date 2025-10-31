@@ -8,21 +8,39 @@
             <div class="col-lg-12">
                 <div class="card gradient-header">
                     <div class="card-header border-0 pb-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="header-content">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="icon-wrapper me-3">
-                                        <i class="ri-calendar-2-line"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="card-title mb-1 text-white">Bulk Upload Hotel Seasons</h4>
-                                        <h6 class="text-white-50 mb-0">{{ $hotel->name }}</h6>
-                                    </div>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                            <div class="header-content d-flex align-items-center gap-3">
+                                <!-- Hotel Image -->
+                                <div class="hotel-image-container-header">
+                                    @if($hotel->main_image)
+                                        <img src="{{ $hotel->main_image }}" 
+                                             alt="{{ $hotel->name }}" 
+                                             class="hotel-thumbnail-header">
+                                    @else
+                                        <div class="hotel-thumbnail-header hotel-thumbnail-placeholder">
+                                            <i class="ri-hotel-line text-white" style="font-size: 2.5rem; opacity: 0.6;"></i>
+                                        </div>
+                                    @endif
                                 </div>
-                                <p class="text-white-75 mb-0">
-                                    <i class="ri-map-pin-line me-1"></i>{{ $hotel->city ?? 'N/A' }}, {{ $hotel->country ?? 'N/A' }}
-                                </p>
+                                
+                                <!-- Hotel Info -->
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="icon-wrapper me-3">
+                                            <i class="ri-calendar-2-line"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="card-title mb-1 text-white">Bulk Upload Hotel Seasons</h4>
+                                            <h6 class="text-white-50 mb-0">{{ $hotel->name }}</h6>
+                                        </div>
+                                    </div>
+                                    <p class="text-white-75 mb-0">
+                                        <i class="ri-map-pin-line me-1"></i>{{ $hotel->city ?? 'N/A' }}, {{ $hotel->country ?? 'N/A' }}
+                                    </p>
+                                </div>
                             </div>
+                            
+                            <!-- Action Buttons -->
                             <div class="d-flex gap-2 flex-wrap">
                                 <a href="{{ route('seasons.template_for_hotel', $hotel->hotel_unique_id) }}" 
                                    class="btn btn-light btn-sm shadow-sm">
@@ -1184,6 +1202,35 @@
     }
 }
 
+/* Hotel Image in Header */
+.hotel-image-container-header {
+    flex-shrink: 0;
+}
+
+.hotel-thumbnail-header {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.hotel-thumbnail-header:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.hotel-thumbnail-placeholder {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .page-content {
@@ -1198,6 +1245,11 @@
         width: 50px;
         height: 50px;
         font-size: 1.2rem;
+    }
+    
+    .hotel-thumbnail-header {
+        width: 80px;
+        height: 80px;
     }
     
     .upload-section {
@@ -1231,6 +1283,16 @@
 @media (max-width: 576px) {
     .gradient-header .card-header {
         padding: 1rem;
+    }
+    
+    .hotel-thumbnail-header {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start !important;
     }
     
     .d-flex.gap-2.flex-wrap {
