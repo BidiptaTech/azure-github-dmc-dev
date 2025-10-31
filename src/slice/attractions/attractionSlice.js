@@ -6,12 +6,15 @@ import { setDateService } from "../common/dateServicesSlice";
 import { BASE_URL } from "@/services/api";
 import { selectDmcId } from "../dmc/dmcSlice";
 import { updateServiceResponse } from "../common/stepperButtonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType as setStepType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+import { setId } from "@/slice/hotel/hotelSlice";
 
 // Async thunk to fetch attractions
 export const fetchAttractions = createAsyncThunk(
   "attractions/fetchAttractions",
   async (
-    { city, date, adults, children, tour_id, selectedDate, fromMainSearch, start , limit  },
+    { city, country, date, adults, children, tour_id, selectedDate, fromMainSearch, start , limit  },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
@@ -45,11 +48,34 @@ export const fetchAttractions = createAsyncThunk(
         queryParams.append("date", "{}");
       }
 
+      // Parse city if it contains both city and country in format "City, (Country)"
+      let cityName = city;
+      let countryName = country;
+      
+      if (city && city.includes(",")) {
+        // Split "Singapore, (Singapore)" into city and country
+        const parts = city.split(",").map(p => p.trim());
+        cityName = parts[0]; // "Singapore"
+        if (parts[1]) {
+          countryName = parts[1].replace(/[()]/g, "").trim(); // Remove parentheses
+        }
+      }
+      
+      // If country is still not set, use cityName as country (common for city-states like Singapore)
+      if (!countryName && cityName) {
+        countryName = cityName;
+      }
+
+      console.log("🌍 Attraction API params:", { cityName, countryName, date, tour_id });
+
       // Append other query parameters as usual
-      if (city) queryParams.append("city", city);
+      if (cityName) queryParams.append("city", cityName);
+      if (countryName) queryParams.append("country", countryName);
       if (adults) queryParams.append("adults", adults);
       if (children) queryParams.append("children", children);
-      if (tour_id) queryParams.append("tour_id", tour_id);
+      
+      // Always send tour_id field (empty string if not available)
+      queryParams.append("tour_id", tour_id || "");
       
       // Add pagination parameters
       if (start) queryParams.append("start", start);
@@ -140,14 +166,73 @@ export const createBooking = createAsyncThunk(
       const selectedDmcId = selectDmcId(state);
       // console.log('🎯 AttractionsSlice - Selected DMC ID from Redux:', selectedDmcId);
 
+      // Check if we have an existing tour_id from booking details or global auth state
+      const localTourId = bookingDetails?.tour_id;
+      const globalTourId = state.auth?.tourId || state.steps?.id;
+      const effectiveTourId = localTourId || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
+      // Build tour meta from Redux when no tour exists
+      let tourMeta = {};
+      if (!hasTourId) {
+        const bookings = state.bookings || {};
+        const auth = state.auth || {};
+
+        const countryCodeToName = {};
+        if (auth.user_country && Array.isArray(auth.user_country)) {
+          auth.user_country.forEach((country) => {
+            if (country && country.name && country.code) {
+              countryCodeToName[country.code] = country.name;
+              countryCodeToName[country.code.toLowerCase()] = country.name;
+            }
+          });
+        }
+
+        const searchLocation = bookings.searchLocation || [];
+        const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+          .map((loc) => countryCodeToName[loc] || loc)
+          .join(", ");
+        const check_in = bookings.checkIn || "";
+        const check_out = bookings.checkOut || "";
+        const bGuests = bookings.guests || {};
+        
+        tourMeta = {
+          tour_id: "",
+          destination,
+          check_in,
+          check_out,
+          adult: bGuests.adults ?? 1,
+          child: bGuests.children ?? 0,
+          infant: bGuests.infant ?? 0,
+          male: bGuests.maleCount ?? 0,
+          female: bGuests.femaleCount ?? 0,
+          children_ages: (bGuests.childrenAges || []).join(", "),
+        };
+      }
+
       // Add selected DMC ID to booking details
       const updatedBookingDetails = {
         ...bookingDetails,
+        tour_id: hasTourId ? Number(numericTourId) : "",
         data: bookingDetails.data.map(item => ({
           ...item,
           dmc_id: selectedDmcId // Use selected DMC ID from Redux store
         }))
       };
+
+      // Only add tour meta if no tour_id exists
+      if (!hasTourId) {
+        Object.assign(updatedBookingDetails, tourMeta);
+      }
 
       // console.log('🚀 AttractionsSlice - Booking with DMC ID:', selectedDmcId);
 
@@ -179,6 +264,20 @@ export const createBooking = createAsyncThunk(
 
       // Store the response in customerInfo slice
       dispatch(setBookingResponse(response.data));
+
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored from attraction booking:", tourId);
+        
+        // Update step status to mark attraction as completed
+        dispatch(updateStepStatus({ key: 'attraction', status: 3 }));
+        dispatch(setStepType(null));
+        dispatch(statusUpdate());
+      }
 
       if (response?.data?.service?.date_service) {
         dispatch(setDateService(response.data.service.date_service));

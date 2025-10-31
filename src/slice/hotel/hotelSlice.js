@@ -9,6 +9,9 @@ import { BASE_URL } from "@/services/api";
 import { useSelector } from "react-redux";
 import { updateServiceResponse } from "@/slice/common/stepperButtonSlice";
 import { setHaveBooking } from "@/slice/common/commonSlice";
+import { setTourId, updateStepStatus, statusUpdate, setType } from "@/slice/common/stepsSlice";
+import { setTourIdd } from "@/slice/common/authSlices";
+// Note: We no longer ensure/create tour here; tour is created during booking
 
 // Selector to get DMC ID from dmc slice
 const selectDmcId = (state) => state.dmc?.dmcId;
@@ -126,15 +129,72 @@ export const hottelBookingDataSubmit = createAsyncThunk(
         ? [...submitHotels]
         : [{ ...submitHotels }];
 
+      // Check if we have an existing tour_id from hotel state or global auth state
+      const globalTourId = getState().auth?.tourId || getState().steps?.id;
+      const effectiveTourId = id || globalTourId;
+      
+      // Extract numeric part from tour_id (e.g., "DMC-ORD2904" -> "2904")
+      let numericTourId = "";
+      if (effectiveTourId) {
+        const tourIdStr = String(effectiveTourId);
+        const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+        numericTourId = match ? match[0] : tourIdStr;
+      }
+      
+      const hasTourId = numericTourId && Number(numericTourId) > 0;
+
       // Create the base formData object
       let formData = {
         data: hotelData,
         type: type,
         bookingType: bookingType,
         agent_id: AgentId,
-        tour_id: id,
-        dmc_id: selectedDmcId, // Add DMC ID to booking request
+        tour_id: hasTourId ? Number(numericTourId) : "",
+        dmc_id: selectedDmcId,
       };
+
+      // Only include tour meta if we don't have a tour_id yet
+      if (!hasTourId) {
+        const root = getState();
+        const bookings = root.bookings || {};
+        const auth = root.auth || {};
+
+        // Create dynamic country mapping from auth state
+        const countryCodeToName = {};
+        if (auth.user_country && Array.isArray(auth.user_country)) {
+          auth.user_country.forEach((country) => {
+            if (country && country.name && country.code) {
+              countryCodeToName[country.code] = country.name;
+              countryCodeToName[country.code.toLowerCase()] = country.name;
+            }
+          });
+        }
+
+        const searchLocation = bookings.searchLocation || [];
+        const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+          .map((loc) => countryCodeToName[loc] || loc)
+          .join(", ");
+        const check_in = bookings.checkIn || "";
+        const check_out = bookings.checkOut || "";
+        const bGuests = bookings.guests || {};
+        const adult = bGuests.adults ?? 1;
+        const child = bGuests.children ?? 0;
+        const infant = bGuests.infant ?? 0;
+        const male = bGuests.maleCount ?? 0;
+        const female = bGuests.femaleCount ?? 0;
+        const children_ages = (bGuests.childrenAges || []).join(", ");
+
+        // Add tour meta to formData
+        formData.destination = destination;
+        formData.check_in = check_in;
+        formData.check_out = check_out;
+        formData.adult = adult;
+        formData.child = child;
+        formData.infant = infant;
+        formData.male = male;
+        formData.female = female;
+        formData.children_ages = children_ages;
+      }
 
       // If this is an enquiry, add the enquiry data to the root level of formData
       if (bookingType === "enquiry") {
@@ -165,6 +225,20 @@ export const hottelBookingDataSubmit = createAsyncThunk(
       );
 
       // console.log("API Response:", response.data);
+      
+      // Extract and dispatch tour_id if this was the first booking (tour created)
+      const tourId = response.data?.order?.tour_id || response.data?.tour_id;
+      if (tourId) {
+        dispatch(setId(tourId));
+        dispatch(setTourId(tourId));
+        dispatch(setTourIdd(tourId));
+        console.log("Tour ID created and stored:", tourId);
+        
+        // Update step status to mark hotel as completed
+        dispatch(updateStepStatus({ key: 'hotel', status: 3 }));
+        dispatch(setType(null));
+        dispatch(statusUpdate());
+      }
       
       // Update stepper button visibility based on booking response
       dispatch(updateServiceResponse({ 
@@ -320,6 +394,13 @@ const hotelSlice = createSlice({
       .addCase(hottelBookingDataSubmit.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.bookingResponse = action.payload;
+        
+        // Extract and store tour_id from booking response
+        const tourId = action.payload?.order?.tour_id || action.payload?.tour_id;
+        if (tourId) {
+          state.id = tourId;
+          // console.log("Tour ID captured from booking response:", tourId);
+        }
         // console.log("Hotel booking success:", action.payload);
       })
       .addCase(hottelBookingDataSubmit.rejected, (state, action) => {

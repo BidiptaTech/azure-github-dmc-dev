@@ -19,20 +19,13 @@ export const fetchBookingid = createAsyncThunk(
     const authState = getState().auth; // Access the auth slice
 
     try {
-      const authToken = Cookies.get("authToken");
-      const AgentId = Cookies.get("AgentId");
-
-      if (!authToken && !AgentId) {
-        throw new Error("Authorization and AgentId are missing.");
-      }
-
+      // No longer creating a tour here. Return a safe payload with tour_id null
       const { searchLocation, checkIn, checkOut, guests } = state;
       const { maleCount, femaleCount } = guests;
 
-      // Create dynamic country mapping from auth state
       const countryCodeToName = {};
       if (authState.user_country && Array.isArray(authState.user_country)) {
-        authState.user_country.forEach(country => {
+        authState.user_country.forEach((country) => {
           if (country && country.name && country.code) {
             countryCodeToName[country.code] = country.name;
             countryCodeToName[country.code.toLowerCase()] = country.name;
@@ -40,106 +33,27 @@ export const fetchBookingid = createAsyncThunk(
         });
       }
 
-      // // Get selected DMC ID from Redux state
-      // const selectedDmcId = selectDmcId(getState());
-      // console.log('🎯 BookingSlice - Creating tour with DMC ID:', selectedDmcId);
-
-      // Prepare request body
-      const requestBody = {
-        destination: searchLocation
+      const data = {
+        tour_id: null,
+        destination: (searchLocation || [])
           .map((location) => countryCodeToName[location] || location)
           .join(", "),
         check_in: checkIn,
         check_out: checkOut,
-        adult: guests.adults,
-        child: guests.children,
-        infant: guests.infant,
-        male: maleCount,
-        female: femaleCount,
-        children_ages: guests.childrenAges.join(", "),
-        enquiry_id: null,
-       
+        random_dmc_id: null,
+        service: {},
+        city: null,
+        meta: {
+          adult: guests.adults,
+          child: guests.children,
+          infant: guests.infant,
+          male: maleCount,
+          female: femaleCount,
+          children_ages: guests.childrenAges.join(", "),
+        },
       };
 
-      console.log("Request Body:", requestBody);
-
-      const response = await axios.post(
-        `${BASE_URL}/create-tour`,
-        requestBody,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-            "agent-id": AgentId,
-          },
-        }
-      );
-      // console.log("Tour create", response);
-
-      const { tour_id, data } = response.data;
-
-      // Dispatch setTourIdd if needed
-      if (tour_id) {
-        dispatch(setTourIdd(data.tour_id));
-      }
-      if (data?.service?.date_service) {
-        // console.log("Date Service Data:", data.service?.date_service);
-        dispatch(setDateService(data.service?.date_service));
-      }
-
-      if (data?.city) {
-        // console.log("City Data:", data.city);
-        dispatch(setCity(data.city));
-        // console.log("City Data:", data.city);
-        dispatch(setCity(data.city));
-      }
-      if (data) {
-        // console.log("Service Data:", data);
-        //dispatch(setDateService(data.service));
-      }
-
-      // Dispatch the date_service data from nested service object to Redux
-      if (data?.service) {
-        // console.log("Service Data:", data.service);
-        //dispatch(setDateService(data.service));
-      }
-      // Dispatch the date_service data from nested service object to Redux
-      if (data?.service?.attraction || data?.service?.attraction_package) {
-        // Combine both attraction and attraction_package data
-        const attractionData = data.service.attraction || [];
-        const attractionPackageData = data.service.attraction_package || [];
-        const combinedAttractionData = [...attractionData, ...attractionPackageData];
-        
-        // console.log("Combined Attraction Data:", combinedAttractionData);
-        dispatch(setAttractionService(combinedAttractionData));
-      }
-
-      if (data?.service?.restaurant) {
-        // console.log("Service Data:", data?.service?.restaurant);
-        dispatch(setRestaurantsService(data.service.restaurant));
-      }
-      if (data?.service?.entry_port) {
-        // console.log("entry port Data:", data?.service?.entry_port);
-        dispatch(setEntryport(data.service.entry_port));
-      }
-      if (data?.service?.exit_port) {
-        // console.log("exit port Data:", data?.service?.exit_port);
-        dispatch(setExitport(data.service.exit_port));
-      }
-      if (data?.service?.travel_point) {
-        // console.log("pointtopoint Data:", data?.service?.travel_point);
-        dispatch(setPointToPoint(data.service.travel_point));
-      }
-      if (data?.service?.travel_hourly) {
-        // console.log("hourly Data:", data?.service?.travel_hourly);
-        dispatch(setHourly(data.service.travel_hourly));
-      }
-      // if (data?.service?.guide) {
-      //   console.log("guide Data:", data?.service?.guide); // Print to console
-      //   dispatch(setbookedGuide(data.service.guide));
-      // }
-
-      return data; // Pass the `data` object to the fulfilled case
+      return data;
     } catch (error) {
       console.error("API Error:", error);
       return rejectWithValue(error.response?.data || error.message);

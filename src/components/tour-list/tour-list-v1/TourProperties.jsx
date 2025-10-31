@@ -468,6 +468,22 @@ const TourProperties = () => {
   
   // Get search parameters from Redux state for API calls
   const searchParamsFromRedux = useSelector((state) => state.attractions.searchParams);
+  
+  // Get tour_id from global auth state and extract numeric part
+  const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
+  const numericTourId = React.useMemo(() => {
+    if (!globalTourId) {
+      console.log("⚠️ No globalTourId found in Redux state");
+      return null;
+    }
+    const tourIdStr = String(globalTourId);
+    const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+    const extracted = match ? Number(match[0]) : null;
+    console.log("✅ Extracted numericTourId:", extracted, "from", globalTourId);
+    return extracted;
+  }, [globalTourId]);
+  
+  console.log("🔍 TourProperties - globalTourId:", globalTourId, "numericTourId:", numericTourId);
 
   // Add status selector to detect when attraction data is loading
   const attractionStatus = useSelector((state) => state.attractions.status);
@@ -514,7 +530,7 @@ const TourProperties = () => {
         date: searchParamsFromRedux?.date,
         adults: searchParamsFromRedux?.adults,
         children: searchParamsFromRedux?.children,
-        tour_id: searchParamsFromRedux?.tour_id,
+        tour_id: numericTourId || searchParamsFromRedux?.tour_id, // Use numeric tour_id
         selectedDate: searchParamsFromRedux?.selectedDate ? moment(searchParamsFromRedux.selectedDate) : null,
         start: start,
         limit: itemsPerPage,

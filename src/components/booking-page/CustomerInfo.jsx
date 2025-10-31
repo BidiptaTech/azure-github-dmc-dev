@@ -316,13 +316,14 @@ const CustomerInfo = forwardRef(
       }
 
       try {
-        // First dispatch user info to Redux
-        dispatch(
-          setUserInfo({
-            ...form,
-            phone: `${form.countryCode}${form.phone}`,
-          })
-        );
+        // Don't dispatch userInfo to prevent parent from switching to index2.jsx
+        // The parent component (index.jsx) already has all the necessary data via formData
+        // dispatch(
+        //   setUserInfo({
+        //     ...form,
+        //     phone: `${form.countryCode}${form.phone}`,
+        //   })
+        // );
 
         // Simply call the parent's handleSubmit function
         // The parent component (index.jsx) already has all the necessary data

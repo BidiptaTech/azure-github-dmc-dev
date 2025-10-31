@@ -285,21 +285,62 @@ console.log("zone_on5", zone_on);
   const showAddTransferButton = shouldShowAddTransferButton();
 
   console.log("viewDetails", viewDetails);
-  const [showBookingTable, setShowBookingTable] = useState(true);
+
+  const bookingCount = useMemo(() => {
+    if (!viewDetails) return 0;
+
+    const serviceKeys = [
+      "hotel",
+      "attraction",
+      "attraction_package",
+      "restaurant",
+      "guide",
+      "travel_point",
+      "travel_hourly",
+      "local_transport",
+      "entry_port",
+      "exit_port",
+    ];
+
+    return serviceKeys.reduce((total, key) => {
+      const items = viewDetails[key];
+      if (Array.isArray(items)) {
+        return total + items.length;
+      }
+      return total;
+    }, 0);
+  }, [viewDetails]);
+
+  const hasBookings = bookingCount > 0;
+
+  const [showBookingTable, setShowBookingTable] = useState(hasBookings);
+  const [lastBookingCount, setLastBookingCount] = useState(bookingCount);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const zoneType = useSelector((state) => state.localtour.zonetype);
 
   useEffect(() => {
     dispatch(fetchViewDetails({ tour_id: id }));
   }, [id]);
+
+  useEffect(() => {
+    if (!hasBookings) {
+      setShowBookingTable(false);
+      setLastBookingCount(0);
+      return;
+    }
+
+    if (bookingCount !== lastBookingCount) {
+      setShowBookingTable(true);
+      setLastBookingCount(bookingCount);
+    }
+  }, [hasBookings, bookingCount, lastBookingCount]);
+
   useEffect(() => {
     if (
       viewDetails === null ||
       (Array.isArray(viewDetails) && viewDetails.length === 0)
     ) {
       setShowBookingTable(false);
-    } else {
-      setShowBookingTable(true);
     }
   }, [viewDetails]);
 
@@ -721,7 +762,7 @@ console.log("zone_on5", zone_on);
         <TourStatus />
       </div>
 
-      {showBookingTable && (  viewDetails?.attraction?.length > 0 || viewDetails?.attraction_package?.length > 0 || viewDetails?.restaurant?.length > 0 || viewDetails?.hotel?.length > 0 || viewDetails?.guide?.length > 0 || viewDetails?.travel_point?.length > 0 || viewDetails?.travel_hourly?.length > 0 || viewDetails?.entry_port?.length > 0 || viewDetails?.exit_port?.length > 0) ? (
+      {showBookingTable && hasBookings ? (
         <section className="layout-pt-md layout-pb-md">
           <div className="container-xxl">
             {/* Add debug panel */}

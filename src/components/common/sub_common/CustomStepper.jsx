@@ -20,7 +20,7 @@ import guideIcon from "../../../../public/icons/tour-guide.png";
 import MuiAlert from "@mui/material/Alert";
 import { ToastContainer } from "react-toastify";
 import swal from "sweetalert";
-import { statusUpdate, updateStepStatus, setType } from "@/slice/common/stepsSlice";
+import { statusUpdate, updateStepStatus, setType, setLocalCurrentStep, updateLocalStepStatus } from "@/slice/common/stepsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -107,9 +107,15 @@ const LoadingDots = () => {
 export default function CustomStepper() {
   const id = useSelector((state) => state.hotels.id);
   const tourId = useSelector((state) => state.steps.id);
-  const { currentStep, stepStatus1 } = useSelector(
+  const { currentStep, stepStatus1, localCurrentStep, localStepStatus } = useSelector(
     (state) => state.steps
   );
+  
+  // Use tourId-based step if available, otherwise use local tracking from Redux
+  const effectiveCurrentStep = (tourId && tourId > 0) ? currentStep : localCurrentStep;
+  
+  // Use backend step status if tour exists, otherwise use local status
+  const effectiveStepStatus = (tourId && tourId > 0) ? stepStatus1 : localStepStatus;
 
   // Get stepper button visibility state
   const { buttonVisibility } = useSelector((state) => state.stepperButton);
@@ -118,7 +124,7 @@ export default function CustomStepper() {
     () => [
       {
         label: "Hotels",
-        path: `/dashboard/db-dashboard/view-hotel-search/${id}`,
+        path: `/dashboard/db-dashboard/view-hotel-search/${id || 0}`,
         key: "hotel",
       },
       {
@@ -234,15 +240,16 @@ export default function CustomStepper() {
   const [isGoingBack, setIsGoingBack] = useState(false);
 
   const handleNext = async () => {
-    const currentStepKey = steps[currentStep].key;
+    const currentStepIdx = effectiveCurrentStep;
+    const currentStepKey = steps[currentStepIdx].key;
 
     let shouldProceed = true;
 
     if (currentStepKey) {
-      const isLastStep = currentStep === steps.length - 1;
+      const isLastStep = effectiveCurrentStep === steps.length - 1;
       const confirmationTitle = isLastStep 
         ? `Are you sure all of your services are completed for this tour DMC-ORD${tourId}  ?`
-        : `Are you sure all of your ${steps[currentStep].label} booking is completed?`;
+        : `Are you sure all of your ${steps[effectiveCurrentStep].label} booking is completed?`;
       
       const willDelete = await swal({
         title: confirmationTitle,
@@ -253,105 +260,178 @@ export default function CustomStepper() {
       if (!willDelete) return;
 
       setIsProgressing(true); // Start loading animation
-      dispatch(updateStepStatus({ key: currentStepKey, status: 3 }));
+      
+      // If we have a tour_id, update backend
+      if (tourId && tourId > 0) {
+        dispatch(updateStepStatus({ key: currentStepKey, status: 3 }));
+      }
     }
 
     if (!shouldProceed) return;
 
-    dispatch(setType(null));
-    dispatch(statusUpdate())
-      .then(() => {
-        const nextStepIndex = currentStep + 1;
-        if (nextStepIndex < steps.length) {
-          dispatch(
-            updateStepStatus({ key: steps[nextStepIndex].key, status: 2 })
-          );
-          dispatch(setType(null));
-          dispatch(statusUpdate())
-            .then(() => {
-              navigate(steps[nextStepIndex].path);
-              setSnackbarMessage(`Step ${steps[currentStep].label} completed!`);
-              setOpenSnackbar(true);
-              setIsProgressing(false); // Stop loading animation on success
-            })
-            .catch(() => {
-              setIsProgressing(false); // Stop loading animation on error
-            });
-        } else {
-          // If last step, navigate to the dashboard
-          dispatch(setType(null));
-          dispatch(statusUpdate())
-            .then(() => {
-              navigate("/dashboard/db-dashboard");
-              setIsTourCompleted(true);
-              setSnackbarMessage("Tour completed!");
-              setOpenSnackbar(true);
-              setIsProgressing(false); // Stop loading animation on success
-            })
-            .catch(() => {
-              setIsProgressing(false); // Stop loading animation on error
-            });
-        }
-      })
-      .catch(() => {
-        setIsProgressing(false); // Stop loading animation on error
-      });
+    // If we have a tour_id, update the backend
+    if (tourId && tourId > 0) {
+      dispatch(setType(null));
+      dispatch(statusUpdate())
+        .then(() => {
+          const nextStepIndex = currentStepIdx + 1;
+          if (nextStepIndex < steps.length) {
+            dispatch(
+              updateStepStatus({ key: steps[nextStepIndex].key, status: 2 })
+            );
+            dispatch(setType(null));
+            dispatch(statusUpdate())
+              .then(() => {
+                navigate(steps[nextStepIndex].path);
+                setSnackbarMessage(`Step ${steps[currentStepIdx].label} completed!`);
+                setOpenSnackbar(true);
+                setIsProgressing(false); // Stop loading animation on success
+              })
+              .catch(() => {
+                setIsProgressing(false); // Stop loading animation on error
+              });
+          } else {
+            // If last step, navigate to the dashboard
+            dispatch(setType(null));
+            dispatch(statusUpdate())
+              .then(() => {
+                navigate("/dashboard/db-dashboard");
+                setIsTourCompleted(true);
+                setSnackbarMessage("Tour completed!");
+                setOpenSnackbar(true);
+                setIsProgressing(false); // Stop loading animation on success
+              })
+              .catch(() => {
+                setIsProgressing(false); // Stop loading animation on error
+              });
+          }
+        })
+        .catch(() => {
+          setIsProgressing(false); // Stop loading animation on error
+        });
+    } else {
+      // No tour_id yet, just navigate and update local step in Redux
+      const nextStepIndex = currentStepIdx + 1;
+
+      // Mark current step as completed (green)
+      dispatch(
+        updateLocalStepStatus({ key: steps[currentStepIdx].key, status: 3 })
+      );
+
+      if (nextStepIndex < steps.length) {
+        // Activate next step (orange)
+        dispatch(
+          updateLocalStepStatus({ key: steps[nextStepIndex].key, status: 2 })
+        );
+        dispatch(setLocalCurrentStep(nextStepIndex));
+        navigate(steps[nextStepIndex].path);
+        setSnackbarMessage(`Step ${steps[currentStepIdx].label} completed!`);
+        setOpenSnackbar(true);
+        setIsProgressing(false);
+      } else {
+        // Last step without tour - mark as completed and finish
+        dispatch(setLocalCurrentStep(currentStepIdx));
+        setSnackbarMessage("Tour completed!");
+        setOpenSnackbar(true);
+        setIsTourCompleted(true);
+        setIsProgressing(false);
+        navigate("/dashboard/db-dashboard");
+      }
+    }
   };
 
   const handleSkip = () => {
     //if (currentStep) {
     setIsSkipping(true); // Set loading state to true
-    dispatch(updateStepStatus({ key: steps[currentStep].key, status: 1 })); // Mark current step as skipped (1)
-    dispatch(setType(null));
-    dispatch(statusUpdate())
-      .then(() => {
-        // Once statusUpdate is complete, proceed to next step
-        const stepnext = currentStep + 1;
-        const nextStep = steps[currentStep + 1];
-        if (nextStep) {
-          dispatch(updateStepStatus({ key: steps[stepnext].key, status: 2 })); // Activate next step (2)
-          dispatch(setType(null));
-          dispatch(statusUpdate())
-            .then(() => {
-              navigate(steps[stepnext].path);
-              setIsSkipping(false); // Reset loading state
-            })
-            .catch(() => {
-              setIsSkipping(false); // Reset loading state on error
-            });
-        } else {
-          setIsSkipping(false); // Reset loading state if no next step
-        }
-      })
-      .catch(() => {
-        setIsSkipping(false); // Reset loading state on error
-      });
+    
+    const currentStepIdx = effectiveCurrentStep;
+    const stepnext = currentStepIdx + 1;
+    const nextStep = steps[stepnext];
+    
+    console.log('Skip clicked:', { 
+      currentStepIdx, 
+      stepnext, 
+      nextStep, 
+      tourId,
+      localCurrentStep,
+      effectiveCurrentStep 
+    });
+    
+    // If we have a tour_id, update the backend
+    if (tourId && tourId > 0) {
+      dispatch(updateStepStatus({ key: steps[currentStepIdx].key, status: 1 })); // Mark current step as skipped (1)
+      dispatch(setType(null));
+      dispatch(statusUpdate())
+        .then(() => {
+          // Once statusUpdate is complete, proceed to next step
+          if (nextStep) {
+            dispatch(updateStepStatus({ key: steps[stepnext].key, status: 2 })); // Activate next step (2)
+            dispatch(setType(null));
+            dispatch(statusUpdate())
+              .then(() => {
+                navigate(steps[stepnext].path);
+                setIsSkipping(false); // Reset loading state
+              })
+              .catch(() => {
+                setIsSkipping(false); // Reset loading state on error
+              });
+          } else {
+            setIsSkipping(false); // Reset loading state if no next step
+          }
+        })
+        .catch(() => {
+          setIsSkipping(false); // Reset loading state on error
+        });
+    } else {
+      // No tour_id yet, mark as skipped locally and navigate
+      console.log('Navigating without tour_id to:', nextStep?.path);
+      if (nextStep) {
+        // Mark current step as skipped (status 1 = red)
+        dispatch(updateLocalStepStatus({ key: steps[currentStepIdx].key, status: 1 }));
+        // Update step counter
+        dispatch(setLocalCurrentStep(stepnext));
+        navigate(nextStep.path);
+        setIsSkipping(false);
+      } else {
+        setIsSkipping(false);
+      }
+    }
   };
 
   const handleBack = () => {
-
-    const prevStep = currentStep - 1;
+    const currentStepIdx = effectiveCurrentStep;
+    const prevStep = currentStepIdx - 1;
     if (prevStep < 0) return; // Prevent going before first step
 
     const previousStep = steps[prevStep];
     if (previousStep) {
-      // Get the previous step's status from stepStatus1
-      const prevStatus = stepStatus1[previousStep.key] ?? null;
-
       // Set loading state
       setIsGoingBack(true);
 
-      // Dispatch with the same status as before
-      dispatch(updateStepStatus({ key: previousStep.key, status: prevStatus }));
-      dispatch(setType("back"));
-      dispatch(statusUpdate())
-        .then(() => {
-          navigate(previousStep.path);
-          setIsGoingBack(false); // Stop loading animation on success
-        })
-        .catch(() => {
-          setIsGoingBack(false); // Stop loading animation on error
-        });
+      // If we have a tour_id, update backend
+      if (tourId && tourId > 0) {
+        // Get the previous step's status from stepStatus1
+        const prevStatus = stepStatus1[previousStep.key] ?? null;
+        
+        // Dispatch with the same status as before
+        dispatch(updateStepStatus({ key: previousStep.key, status: prevStatus }));
+        dispatch(setType("back"));
+        dispatch(statusUpdate())
+          .then(() => {
+            navigate(previousStep.path);
+            setIsGoingBack(false); // Stop loading animation on success
+          })
+          .catch(() => {
+            setIsGoingBack(false); // Stop loading animation on error
+          });
+      } else {
+        // No tour_id yet, reset the previous step status to 0 (gray) and navigate
+        const prevStepKey = previousStep.key;
+        dispatch(updateLocalStepStatus({ key: prevStepKey, status: 0 }));
+        dispatch(setLocalCurrentStep(prevStep));
+        navigate(previousStep.path);
+        setIsGoingBack(false);
+      }
     }
   };
 
@@ -361,22 +441,36 @@ export default function CustomStepper() {
 
   // Determine which buttons to show based on current step and booking responses
   const getCurrentStepKey = () => {
-    if (currentStep >= 0 && currentStep < steps.length) {
-      return steps[currentStep].key;
+    if (effectiveCurrentStep >= 0 && effectiveCurrentStep < steps.length) {
+      return steps[effectiveCurrentStep].key;
     }
     return null;
   };
 
   const currentStepKey = getCurrentStepKey();
   const currentStepButtonVisibility = buttonVisibility[currentStepKey] || { showSkip: true, showNext: false };
+  const { showSkip = true, showNext = false } = currentStepButtonVisibility;
 
   // Special handling for the last step (Local Transfer) - show only Finish button
-  const isLastStep = currentStep === steps.length - 1;
+  const isLastStep = effectiveCurrentStep === steps.length - 1;
 
-  // For the last step, show only the Finish button (which uses the Next button logic)
-  // For other steps, use the normal logic
-  const shouldShowSkip = isLastStep ? false : (currentStepButtonVisibility.showSkip || (!currentStepButtonVisibility.showSkip && !currentStepButtonVisibility.showNext));
-  const shouldShowNext = isLastStep ? true : currentStepButtonVisibility.showNext;
+  const getDerivedStatus = (key, index) => {
+    const rawStatus = parseInt(effectiveStepStatus[key] ?? 0, 10);
+    if (rawStatus === 0 && index === effectiveCurrentStep) {
+      return 2; // Treat current step as active (orange) when no explicit status
+    }
+    return rawStatus;
+  };
+
+  const currentStepStatus = currentStepKey
+    ? getDerivedStatus(currentStepKey, effectiveCurrentStep)
+    : 0;
+
+  // Determine button visibility based on current step state
+  const shouldShowSkip = !isLastStep && showSkip && !showNext;
+  const shouldShowNext =
+    showNext ||
+    (isLastStep && (currentStepStatus >= 2 || !showSkip));
 
   return (
     <>
@@ -425,13 +519,13 @@ export default function CustomStepper() {
             sx={{ position: "relative" }}
           >
             {steps.map(({ label, path, key }, index) => {
-              const status = parseInt(stepStatus1[key] || 0, 10);
+              const status = getDerivedStatus(key, index);
               const isCompleted = status === 3;
               const isActive = status >= 2;
 
               const lastActiveStepIndex = steps.reduce(
                 (lastIndex, step, stepIndex) => {
-                  const stepStatus = parseInt(stepStatus1[step.key] || 0, 10);
+                  const stepStatus = getDerivedStatus(step.key, stepIndex);
                   return stepStatus >= 2 ? stepIndex : lastIndex;
                 },
                 -1
@@ -452,17 +546,17 @@ export default function CustomStepper() {
                       left: 'calc(-50% + 28px)',
                       right: 'calc(50% + 28px)',
                       height: '4px',
-                      background: parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 1
+                      background: getDerivedStatus(steps[index - 1].key, index - 1) === 1
                         ? 'linear-gradient(90deg, #ff5252 0%, #ff1744 100%)'
-                        : parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 3
+                        : getDerivedStatus(steps[index - 1].key, index - 1) === 3
                           ? 'linear-gradient(90deg, #4caf50 0%, #2e7d32 100%)'
                           : '#e0e0e0',
                       borderRadius: '4px',
                       zIndex: 1,
                       transition: 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
-                      boxShadow: parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 1
+                      boxShadow: getDerivedStatus(steps[index - 1].key, index - 1) === 1
                         ? '0 2px 8px rgba(255, 82, 82, 0.3)'
-                        : parseInt(stepStatus1[steps[index - 1].key] || 0, 10) === 3
+                        : getDerivedStatus(steps[index - 1].key, index - 1) === 3
                           ? '0 2px 8px rgba(76, 175, 80, 0.3)'
                           : 'none',
                       // Add animation for color changes
@@ -505,37 +599,37 @@ export default function CustomStepper() {
                 }} />
               }
               onClick={handleBack}
-              disabled={currentStep === 0 || isGoingBack}
+              disabled={effectiveCurrentStep === 0 || isGoingBack}
               sx={{
                 width: "auto",
                 minWidth: isGoingBack ? "220px" : "120px",
                 height: "50px",
                 background:
-                  currentStep === 0 || isGoingBack
+                  effectiveCurrentStep === 0 || isGoingBack
                     ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
                     : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 color: "#fff",
                 boxShadow:
-                  currentStep === 0 || isGoingBack
+                  effectiveCurrentStep === 0 || isGoingBack
                     ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                     : "0 8px 32px rgba(102, 126, 234, 0.4), 0 4px 16px rgba(118, 75, 162, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
                 "&:hover": {
                   background:
-                    currentStep === 0 || isGoingBack
+                    effectiveCurrentStep === 0 || isGoingBack
                       ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
                       : "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
-                  boxShadow: currentStep === 0 || isGoingBack
+                  boxShadow: effectiveCurrentStep === 0 || isGoingBack
                     ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                     : "0 12px 40px rgba(102, 126, 234, 0.5), 0 8px 24px rgba(118, 75, 162, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
-                  transform: currentStep === 0 || isGoingBack ? "none" : "translateY(-4px) scale(1.02)",
+                  transform: effectiveCurrentStep === 0 || isGoingBack ? "none" : "translateY(-4px) scale(1.02)",
                 },
                 "&:active": {
-                  transform: currentStep === 0 || isGoingBack ? "none" : "translateY(-2px) scale(1.01)",
-                  boxShadow: currentStep === 0 || isGoingBack
+                  transform: effectiveCurrentStep === 0 || isGoingBack ? "none" : "translateY(-2px) scale(1.01)",
+                  boxShadow: effectiveCurrentStep === 0 || isGoingBack
                     ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                     : "0 6px 20px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(118, 75, 162, 0.3)",
                 },
-                visibility: currentStep === 0 ? "hidden" : "visible",
+                visibility: effectiveCurrentStep === 0 ? "hidden" : "visible",
                 textTransform: "none",
                 fontWeight: 700,
                 px: 3,
@@ -629,33 +723,33 @@ export default function CustomStepper() {
                     }} />
                   }
                   onClick={handleSkip}
-                  disabled={currentStep === steps.length - 1 || isSkipping}
+                  disabled={effectiveCurrentStep === steps.length - 1 || isSkipping}
                   sx={{
                     width: "auto",
                     minWidth: isSkipping ? "260px" : "120px",
                     height: "50px",
                     background:
-                      currentStep === steps.length - 1 || isSkipping
+                      effectiveCurrentStep === steps.length - 1 || isSkipping
                         ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
                         : "linear-gradient(135deg, #ff9500 0%, #ff6b35 100%)",
                     color: "#fff",
                     boxShadow:
-                      currentStep === steps.length - 1 || isSkipping
+                      effectiveCurrentStep === steps.length - 1 || isSkipping
                         ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                         : "0 8px 32px rgba(255, 149, 0, 0.4), 0 4px 16px rgba(255, 107, 53, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
                     "&:hover": {
                       background:
-                        currentStep === steps.length - 1 || isSkipping
+                        effectiveCurrentStep === steps.length - 1 || isSkipping
                           ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
                           : "linear-gradient(135deg, #e68900 0%, #e55a2b 100%)",
-                      boxShadow: currentStep === steps.length - 1 || isSkipping
+                      boxShadow: effectiveCurrentStep === steps.length - 1 || isSkipping
                         ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                         : "0 12px 40px rgba(255, 149, 0, 0.5), 0 8px 24px rgba(255, 107, 53, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
-                      transform: currentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-4px) scale(1.02)",
+                      transform: effectiveCurrentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-4px) scale(1.02)",
                     },
                     "&:active": {
-                      transform: currentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-2px) scale(1.01)",
-                      boxShadow: currentStep === steps.length - 1 || isSkipping
+                      transform: effectiveCurrentStep === steps.length - 1 || isSkipping ? "none" : "translateY(-2px) scale(1.01)",
+                      boxShadow: effectiveCurrentStep === steps.length - 1 || isSkipping
                         ? "inset 0 2px 4px rgba(0,0,0,0.1)"
                         : "0 6px 20px rgba(255, 149, 0, 0.4), 0 4px 12px rgba(255, 107, 53, 0.3)",
                     },
@@ -746,29 +840,29 @@ export default function CustomStepper() {
                     width: "auto",
                     minWidth: isProgressing ? "220px" : "130px",
                     height: "50px",
-                    background:
-                      isTourCompleted || isProgressing
-                        ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
-                        : currentStep === steps.length - 1
+                  background:
+                    isTourCompleted || isProgressing
+                      ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
+                      : effectiveCurrentStep === steps.length - 1
                           ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)"
                           : "linear-gradient(135deg, #2196f3 0%, #1565c0 100%)",
                     color: "#fff",
                     boxShadow:
                       isTourCompleted || isProgressing
                         ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                        : currentStep === steps.length - 1
+                        : effectiveCurrentStep === steps.length - 1
                           ? "0 8px 32px rgba(76, 175, 80, 0.4), 0 4px 16px rgba(46, 125, 50, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)"
                           : "0 8px 32px rgba(33, 150, 243, 0.4), 0 4px 16px rgba(21, 101, 192, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
                     "&:hover": {
                       background:
                         isTourCompleted || isProgressing
                           ? "linear-gradient(135deg, #e0e0e0 0%, #d5d5d5 100%)"
-                          : currentStep === steps.length - 1
+                          : effectiveCurrentStep === steps.length - 1
                             ? "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)"
                             : "linear-gradient(135deg, #1976d2 0%, #0d47a1 100%)",
                       boxShadow: isTourCompleted || isProgressing
                         ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                        : currentStep === steps.length - 1
+                        : effectiveCurrentStep === steps.length - 1
                           ? "0 12px 40px rgba(76, 175, 80, 0.5), 0 8px 24px rgba(46, 125, 50, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)"
                           : "0 12px 40px rgba(33, 150, 243, 0.5), 0 8px 24px rgba(21, 101, 192, 0.4), inset 0 1px 0 rgba(255,255,255,0.3)",
                       transform: isTourCompleted || isProgressing ? "none" : "translateY(-4px) scale(1.02)",
@@ -777,7 +871,7 @@ export default function CustomStepper() {
                       transform: isTourCompleted || isProgressing ? "none" : "translateY(-2px) scale(1.01)",
                       boxShadow: isTourCompleted || isProgressing
                         ? "inset 0 2px 4px rgba(0,0,0,0.1)"
-                        : currentStep === steps.length - 1
+                        : effectiveCurrentStep === steps.length - 1
                           ? "0 6px 20px rgba(76, 175, 80, 0.4), 0 4px 12px rgba(46, 125, 50, 0.3)"
                           : "0 6px 20px rgba(33, 150, 243, 0.4), 0 4px 12px rgba(21, 101, 192, 0.3)",
                     },
@@ -836,7 +930,7 @@ export default function CustomStepper() {
                       }} />
                       Done
                     </>
-                  ) : currentStep === steps.length - 1 ? (
+                  ) : effectiveCurrentStep === steps.length - 1 ? (
                     <>
                       <AutoAwesomeIcon sx={{
                         fontSize: "1.1rem",

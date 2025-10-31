@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { selectUserInfo } from "@/slice/common/customerInfo";
+import { selectUserInfo, clearUserInfo } from "@/slice/common/customerInfo";
 import {
   setHotelBooking,
   hottelBookingDataSubmit,
@@ -39,7 +39,7 @@ import BabyChangingStationIcon from "@mui/icons-material/BabyChangingStation";
 import dayjs from "dayjs";
 import { setHotelDetails } from "@/slice/hotel/HotelDetailsSlice";
 import { setPriceMode } from "@/slice/hotel/CategorySlice";
-import { setBookingType, setHaveBooking } from "@/slice/common/commonSlice";
+import { setBookingType, setHaveBooking, setIsNavigating } from "@/slice/common/commonSlice";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
@@ -237,25 +237,35 @@ export default function Index2() {
         hottelBookingDataSubmit("booking")
       ).unwrap();
 
+      console.log("✅ Booking response received:", response);
+
       setResponseData(response);
       dispatch(setHaveBooking(true));
       dispatch(setBookingType(response.order?.bookingType));
+      
       if (response?.service?.date_service) {
         dispatch(setDateService(response.service.date_service));
         dispatch(setHotelService(response?.service?.data));
-
-        toast.success("Booking successful!", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-
-        dispatch(setPriceMode("both"));
-
-        navigate("/dashboard/db-dashboard/thank-you", {
-          state: { bookingResponse: response },
-          replace: true,
-        });
       }
+
+      toast.success("Booking successful!", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+
+      dispatch(setPriceMode("both"));
+      
+      // Keep userInfo for next booking, just set isNavigating
+      dispatch(setIsNavigating(true));
+      
+      console.log("🚀 About to navigate to thank-you page...");
+
+      navigate("/dashboard/db-dashboard/thank-you", {
+        state: { bookingResponse: response },
+        replace: true,
+      });
+      
+      console.log("✨ Navigate called successfully");
     } catch (error) {
       console.error("Error during submission:", error);
       toast.error("Something went wrong. Please try again later.", {
@@ -337,23 +347,26 @@ export default function Index2() {
       if (response?.service?.date_service) {
         dispatch(setDateService(response.service.date_service));
         dispatch(setHotelService(response?.service?.data));
-
-        toast.success("Enquiry submitted successfully!", {
-          position: "top-center",
-          autoClose: 3000,
-        });
-
-        // Clear form and close enquiry section
-        // setShowEnquiry(false);
-        // setEnquiryComment("");
-
-        dispatch(setPriceMode("both"));
-
-        navigate("/dashboard/db-dashboard/thank-you", {
-          state: { bookingResponse: response },
-          replace: true,
-        });
       }
+
+      toast.success("Enquiry submitted successfully!", {
+        position: "top-center",
+        autoClose: 3000,
+      });
+
+      // Clear form and close enquiry section
+      // setShowEnquiry(false);
+      // setEnquiryComment("");
+
+      dispatch(setPriceMode("both"));
+      
+      // Keep userInfo for next booking, just set isNavigating
+      dispatch(setIsNavigating(true));
+
+      navigate("/dashboard/db-dashboard/thank-you", {
+        state: { bookingResponse: response },
+        replace: true,
+      });
     } catch (error) {
       console.error("Error during enquiry submission:", error);
       toast.error("Something went wrong. Please try again later.", {

@@ -16,16 +16,23 @@ export const fetchViewDetails = createAsyncThunk(
         throw new Error("Authorization and AgentId are missing.");
       }
 
+      const sanitizedTourId = String(tour_id ?? "")
+        .trim()
+        .replace(/\D/g, "");
+
+      if (!sanitizedTourId) {
+        throw new Error("Invalid tour_id provided. Only numeric values are allowed.");
+      }
+
       const response = await axios.get(
-              `${BASE_URL}/tour-details?tour_id=${tour_id}`,
+        `${BASE_URL}/tour-details?tour_id=${sanitizedTourId}`,
         {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              "Content-Type": "application/json",
-              "agent-id": AgentId,
-             
-            },
-          }
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+            "agent-id": AgentId,
+          },
+        }
       );
       //  console.log("201Fetched Data:", response.data);
       return response.data; // Adjust based on the actual API response structure

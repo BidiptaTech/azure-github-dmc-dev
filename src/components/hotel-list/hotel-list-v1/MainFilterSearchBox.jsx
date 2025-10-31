@@ -11,7 +11,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { DateObject } from "react-multi-date-picker";
-import { setSelectedCity } from "@/slice/common/commonSlice";
+import { setSelectedCity, setHaveBooking } from "@/slice/common/commonSlice";
 
 const MainFilterSearchBox = () => {
   const dispatch = useDispatch();
@@ -103,6 +103,7 @@ const MainFilterSearchBox = () => {
   const defaultChildren = tourDetails?.child || 0;
 
   const handleSearch = () => {
+    dispatch(setHaveBooking(false));
     dispatch(setSelectedCity(selectedLocation));
     dispatch(resetHotels());
 

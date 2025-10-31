@@ -361,6 +361,15 @@ const TourProperties = () => {
   // Get search parameters from Redux for infinite scroll
   const searchParamsFromRedux = useSelector((state) => state.restaurants.searchParams);
   
+  // Get tour_id from global auth state and extract numeric part
+  const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
+  const numericTourId = React.useMemo(() => {
+    if (!globalTourId) return null;
+    const tourIdStr = String(globalTourId);
+    const match = tourIdStr.match(/\d+$/); // Extract trailing digits
+    return match ? Number(match[0]) : null;
+  }, [globalTourId]);
+  
   // Add currency information selectors
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
   const currencyCode = useSelector((state) => state.auth.currencyCode);
@@ -482,7 +491,7 @@ const TourProperties = () => {
         date: searchParamsFromRedux.date,
         adults: searchParamsFromRedux.adults,
         children: searchParamsFromRedux.children,
-        tour_id: searchParamsFromRedux.tour_id,
+        tour_id: numericTourId || searchParamsFromRedux.tour_id, // Use numeric tour_id
         start: start,
         limit: itemsPerPage,
       })).then((response) => {
