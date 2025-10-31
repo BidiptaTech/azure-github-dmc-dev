@@ -3,6 +3,8 @@
 
 @section('css')
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
     .nav-pills .nav-link {
         border-radius: 10px;
@@ -266,23 +268,16 @@
                                                 ×
                                             </button>
                                             <div class="row">
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Type</label>
-                                                    <select class="form-select" name="attraction_type[]">
-                                                        <option value="">Select Type</option>
-                                                        <option value="Museum" {{ ($attraction['type'] ?? '') == 'Museum' ? 'selected' : '' }}>Museum</option>
-                                                        <option value="Park" {{ ($attraction['type'] ?? '') == 'Park' ? 'selected' : '' }}>Park</option>
-                                                        <option value="Temple" {{ ($attraction['type'] ?? '') == 'Temple' ? 'selected' : '' }}>Temple</option>
-                                                        <option value="Monument" {{ ($attraction['type'] ?? '') == 'Monument' ? 'selected' : '' }}>Monument</option>
-                                                        <option value="Beach" {{ ($attraction['type'] ?? '') == 'Beach' ? 'selected' : '' }}>Beach</option>
-                                                        <option value="Fort" {{ ($attraction['type'] ?? '') == 'Fort' ? 'selected' : '' }}>Fort</option>
-                                                        <option value="Other" {{ ($attraction['type'] ?? '') == 'Other' ? 'selected' : '' }}>Other</option>
+                                                <div class="col-md-8 mb-3">
+                                                    <label class="form-label">Attraction Name</label>
+                                                    <select class="form-select attraction-select select2" name="attraction_name[]" data-placeholder="Select or search attraction">
+                                                        <option value="">Select attraction</option>
+                                                        @foreach($attractions as $attr)
+                                                            <option value="{{ $attr->name }}" {{ ($attraction['name'] ?? '') == $attr->name ? 'selected' : '' }}>
+                                                                {{ $attr->name }}
+                                                            </option>
+                                                        @endforeach
                                                     </select>
-                                                </div>
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Name</label>
-                                                    <input type="text" class="form-control" name="attraction_name[]" 
-                                                        value="{{ $attraction['name'] ?? '' }}" placeholder="Attraction name">
                                                 </div>
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Image</label>
@@ -298,22 +293,14 @@
                                 @else
                                     <div class="dynamic-item attraction-item">
                                         <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label">Type</label>
-                                                <select class="form-select" name="attraction_type[]">
-                                                    <option value="">Select Type</option>
-                                                    <option value="Museum">Museum</option>
-                                                    <option value="Park">Park</option>
-                                                    <option value="Temple">Temple</option>
-                                                    <option value="Monument">Monument</option>
-                                                    <option value="Beach">Beach</option>
-                                                    <option value="Fort">Fort</option>
-                                                    <option value="Other">Other</option>
+                                            <div class="col-md-8 mb-3">
+                                                <label class="form-label">Attraction Name</label>
+                                                <select class="form-select attraction-select select2" name="attraction_name[]" data-placeholder="Select or search attraction">
+                                                    <option value="">Select attraction</option>
+                                                    @foreach($attractions as $attr)
+                                                        <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                                                    @endforeach
                                                 </select>
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label">Name</label>
-                                                <input type="text" class="form-control" name="attraction_name[]" placeholder="Attraction name">
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">Image</label>
@@ -382,23 +369,30 @@
                                 <h6 class="mb-3"><i class="mdi mdi-silverware-fork-knife me-2"></i>Top Restaurants</h6>
                                 <div id="restaurants-container">
                                     @if($exploration && isset($exploration->food_cuisine['top_restaurants']) && count($exploration->food_cuisine['top_restaurants']) > 0)
-                                        @foreach($exploration->food_cuisine['top_restaurants'] as $restaurant)
+                                        @foreach($exploration->food_cuisine['top_restaurants'] as $index => $restaurant)
                                             <div class="dynamic-item restaurant-item">
                                                 <button type="button" class="btn btn-danger btn-sm remove-btn remove-restaurant" title="Remove">
                                                     ×
                                                 </button>
                                                 <div class="row">
-                                                    <div class="col-md-4 mb-3">
-                                                        <label class="form-label">Name</label>
-                                                        <input type="text" class="form-control" name="restaurant_name[]" value="{{ $restaurant['name'] ?? '' }}">
+                                                    <div class="col-md-8 mb-3">
+                                                        <label class="form-label">Restaurant Name</label>
+                                                        <select class="form-select restaurant-select select2" name="restaurant_name[]" data-placeholder="Select or search restaurant">
+                                                            <option value="">Select restaurant</option>
+                                                            @foreach($restaurants as $restaurantOption)
+                                                                <option value="{{ $restaurantOption->name }}" {{ ($restaurant['name'] ?? '') == $restaurantOption->name ? 'selected' : '' }}>
+                                                                    {{ $restaurantOption->name }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
                                                     </div>
                                                     <div class="col-md-4 mb-3">
-                                                        <label class="form-label">Cuisine Type</label>
-                                                        <input type="text" class="form-control" name="restaurant_cuisine[]" value="{{ $restaurant['cuisine_type'] ?? '' }}">
-                                                    </div>
-                                                    <div class="col-md-4 mb-3">
-                                                        <label class="form-label">Address</label>
-                                                        <input type="text" class="form-control" name="restaurant_address[]" value="{{ $restaurant['address'] ?? '' }}">
+                                                        <label class="form-label">Image</label>
+                                                        <input type="file" class="form-control" name="restaurant_image[{{ $index }}]" accept="image/*">
+                                                        @if(isset($restaurant['image']))
+                                                            <input type="hidden" name="existing_restaurant_image[{{ $index }}]" value="{{ $restaurant['image'] }}">
+                                                            <img src="{{ $restaurant['image'] }}" class="image-preview mt-2" style="max-width: 100px;">
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </div>
@@ -406,17 +400,18 @@
                                     @else
                                         <div class="dynamic-item restaurant-item">
                                             <div class="row">
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Name</label>
-                                                    <input type="text" class="form-control" name="restaurant_name[]" placeholder="Restaurant name">
+                                                <div class="col-md-8 mb-3">
+                                                    <label class="form-label">Restaurant Name</label>
+                                                    <select class="form-select restaurant-select select2" name="restaurant_name[]" data-placeholder="Select or search restaurant">
+                                                        <option value="">Select restaurant</option>
+                                                        @foreach($restaurants as $restaurantOption)
+                                                            <option value="{{ $restaurantOption->name }}">{{ $restaurantOption->name }}</option>
+                                                        @endforeach
+                                                    </select>
                                                 </div>
                                                 <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Cuisine Type</label>
-                                                    <input type="text" class="form-control" name="restaurant_cuisine[]" placeholder="e.g., Italian, Chinese">
-                                                </div>
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Address</label>
-                                                    <input type="text" class="form-control" name="restaurant_address[]" placeholder="Location">
+                                                    <label class="form-label">Image</label>
+                                                    <input type="file" class="form-control" name="restaurant_image[0]" accept="image/*">
                                                 </div>
                                             </div>
                                         </div>
@@ -496,24 +491,18 @@
                                                 ×
                                             </button>
                                             <div class="row">
-                                                <div class="col-md-4 mb-3">
+                                                <div class="col-md-8 mb-3">
                                                     <label class="form-label">Hotel Name</label>
-                                                    <input type="text" class="form-control" name="hotel_name[]" value="{{ $hotel['name'] ?? '' }}">
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <label class="form-label">Category</label>
-                                                    <select class="form-select" name="hotel_category[]">
-                                                        <option value="">Select</option>
-                                                        <option value="Luxury" {{ ($hotel['category'] ?? '') == 'Luxury' ? 'selected' : '' }}>Luxury</option>
-                                                        <option value="Mid-Range" {{ ($hotel['category'] ?? '') == 'Mid-Range' ? 'selected' : '' }}>Mid-Range</option>
-                                                        <option value="Budget" {{ ($hotel['category'] ?? '') == 'Budget' ? 'selected' : '' }}>Budget</option>
+                                                    <select class="form-select hotel-select select2" name="hotel_name[]" data-placeholder="Select or search hotel">
+                                                        <option value="">Select hotel</option>
+                                                        @foreach($hotels as $hotelOption)
+                                                            <option value="{{ $hotelOption->name }}" {{ ($hotel['name'] ?? '') == $hotelOption->name ? 'selected' : '' }}>
+                                                                {{ $hotelOption->name }}
+                                                            </option>
+                                                        @endforeach
                                                     </select>
                                                 </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <label class="form-label">Location</label>
-                                                    <input type="text" class="form-control" name="hotel_location[]" value="{{ $hotel['location'] ?? '' }}">
-                                                </div>
-                                                <div class="col-md-2 mb-3">
+                                                <div class="col-md-4 mb-3">
                                                     <label class="form-label">Image</label>
                                                     <input type="file" class="form-control" name="hotel_image[{{ $index }}]" accept="image/*">
                                                     @if(isset($hotel['image']))
@@ -527,24 +516,16 @@
                                 @else
                                     <div class="dynamic-item hotel-item">
                                         <div class="row">
-                                            <div class="col-md-4 mb-3">
+                                            <div class="col-md-8 mb-3">
                                                 <label class="form-label">Hotel Name</label>
-                                                <input type="text" class="form-control" name="hotel_name[]" placeholder="Hotel name">
-                                            </div>
-                                            <div class="col-md-3 mb-3">
-                                                <label class="form-label">Category</label>
-                                                <select class="form-select" name="hotel_category[]">
-                                                    <option value="">Select</option>
-                                                    <option value="Luxury">Luxury</option>
-                                                    <option value="Mid-Range">Mid-Range</option>
-                                                    <option value="Budget">Budget</option>
+                                                <select class="form-select hotel-select select2" name="hotel_name[]" data-placeholder="Select or search hotel">
+                                                    <option value="">Select hotel</option>
+                                                    @foreach($hotels as $hotelOption)
+                                                        <option value="{{ $hotelOption->name }}">{{ $hotelOption->name }}</option>
+                                                    @endforeach
                                                 </select>
                                             </div>
-                                            <div class="col-md-3 mb-3">
-                                                <label class="form-label">Location</label>
-                                                <input type="text" class="form-control" name="hotel_location[]" placeholder="Area">
-                                            </div>
-                                            <div class="col-md-2 mb-3">
+                                            <div class="col-md-4 mb-3">
                                                 <label class="form-label">Image</label>
                                                 <input type="file" class="form-control" name="hotel_image[0]" accept="image/*">
                                             </div>
@@ -820,7 +801,7 @@
 
                             <div id="shopping-container">
                                 @if($exploration && isset($exploration->shopping) && count($exploration->shopping) > 0)
-                                    @foreach($exploration->shopping as $shop)
+                                    @foreach($exploration->shopping as $index => $shop)
                                         <div class="dynamic-item shopping-item">
                                             <button type="button" class="btn btn-danger btn-sm remove-btn remove-shopping" title="Remove">
                                                 ×
@@ -840,9 +821,17 @@
                                                         <option value="Shopping Street" {{ ($shop['type'] ?? '') == 'Shopping Street' ? 'selected' : '' }}>Shopping Street</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-5 mb-3">
+                                                <div class="col-md-3 mb-3">
                                                     <label class="form-label">Description</label>
                                                     <input type="text" class="form-control" name="shopping_description[]" value="{{ $shop['description'] ?? '' }}" placeholder="What to buy here">
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Image</label>
+                                                    <input type="file" class="form-control" name="shopping_image[{{ $index }}]" accept="image/*">
+                                                    @if(isset($shop['image']))
+                                                        <input type="hidden" name="existing_shopping_image[{{ $index }}]" value="{{ $shop['image'] }}">
+                                                        <img src="{{ $shop['image'] }}" class="image-preview mt-2" style="max-width: 100px;">
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -864,9 +853,13 @@
                                                     <option value="Shopping Street">Shopping Street</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-5 mb-3">
+                                            <div class="col-md-3 mb-3">
                                                 <label class="form-label">Description</label>
                                                 <input type="text" class="form-control" name="shopping_description[]" placeholder="What to buy here">
+                                            </div>
+                                            <div class="col-md-2 mb-3">
+                                                <label class="form-label">Image</label>
+                                                <input type="file" class="form-control" name="shopping_image[0]" accept="image/*">
                                             </div>
                                         </div>
                                     </div>
@@ -1040,11 +1033,34 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Counter for dynamic field indexing
 let attractionIndex = {{ $exploration && isset($exploration->attractions) ? count($exploration->attractions) : 1 }};
 let hotelIndex = {{ $exploration && isset($exploration->accommodation) ? count($exploration->accommodation) : 1 }};
+
+// Initialize Select2 on page load
+$(document).ready(function() {
+    $('.attraction-select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search attraction'
+    });
+    
+    $('.hotel-select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search hotel'
+    });
+    
+    $('.restaurant-select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search restaurant'
+    });
+});
 
 // Image Preview Function
 function previewImage(input, previewId) {
@@ -1145,22 +1161,14 @@ function addAttraction() {
                 ×
             </button>
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Type</label>
-                    <select class="form-select" name="attraction_type[]">
-                        <option value="">Select Type</option>
-                        <option value="Museum">Museum</option>
-                        <option value="Park">Park</option>
-                        <option value="Temple">Temple</option>
-                        <option value="Monument">Monument</option>
-                        <option value="Beach">Beach</option>
-                        <option value="Fort">Fort</option>
-                        <option value="Other">Other</option>
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Attraction Name</label>
+                    <select class="form-select attraction-select select2" name="attraction_name[]" data-placeholder="Select or search attraction">
+                        <option value="">Select attraction</option>
+                        @foreach($attractions as $attr)
+                            <option value="{{ $attr->name }}">{{ $attr->name }}</option>
+                        @endforeach
                     </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Name</label>
-                    <input type="text" class="form-control" name="attraction_name[]" placeholder="Attraction name">
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Image</label>
@@ -1170,6 +1178,14 @@ function addAttraction() {
         </div>
     `;
     document.getElementById('attractions-container').insertAdjacentHTML('beforeend', html);
+    
+    // Initialize Select2 for the newly added select element
+    $('.attraction-select').last().select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search attraction'
+    });
+    
     attractionIndex++;
 }
 
@@ -1194,6 +1210,8 @@ function addDish() {
     document.getElementById('dishes-container').insertAdjacentHTML('beforeend', html);
 }
 
+let restaurantIndex = {{ $exploration && isset($exploration->food_cuisine['top_restaurants']) ? count($exploration->food_cuisine['top_restaurants']) : 1 }};
+
 function addRestaurant() {
     const html = `
         <div class="dynamic-item restaurant-item">
@@ -1201,22 +1219,32 @@ function addRestaurant() {
                 ×
             </button>
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Name</label>
-                    <input type="text" class="form-control" name="restaurant_name[]" placeholder="Restaurant name">
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Restaurant Name</label>
+                    <select class="form-select restaurant-select select2" name="restaurant_name[]" data-placeholder="Select or search restaurant">
+                        <option value="">Select restaurant</option>
+                        @foreach($restaurants as $restaurantOption)
+                            <option value="{{ $restaurantOption->name }}">{{ $restaurantOption->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Cuisine Type</label>
-                    <input type="text" class="form-control" name="restaurant_cuisine[]" placeholder="e.g., Italian, Chinese">
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Address</label>
-                    <input type="text" class="form-control" name="restaurant_address[]" placeholder="Location">
+                    <label class="form-label">Image</label>
+                    <input type="file" class="form-control" name="restaurant_image[${restaurantIndex}]" accept="image/*">
                 </div>
             </div>
         </div>
     `;
     document.getElementById('restaurants-container').insertAdjacentHTML('beforeend', html);
+    
+    // Initialize Select2 for the newly added select element
+    $('.restaurant-select').last().select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search restaurant'
+    });
+    
+    restaurantIndex++;
 }
 
 function addStreetSpot() {
@@ -1247,24 +1275,16 @@ function addHotel() {
                 ×
             </button>
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-8 mb-3">
                     <label class="form-label">Hotel Name</label>
-                    <input type="text" class="form-control" name="hotel_name[]" placeholder="Hotel name">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Category</label>
-                    <select class="form-select" name="hotel_category[]">
-                        <option value="">Select</option>
-                        <option value="Luxury">Luxury</option>
-                        <option value="Mid-Range">Mid-Range</option>
-                        <option value="Budget">Budget</option>
+                    <select class="form-select hotel-select select2" name="hotel_name[]" data-placeholder="Select or search hotel">
+                        <option value="">Select hotel</option>
+                        @foreach($hotels as $hotelOption)
+                            <option value="{{ $hotelOption->name }}">{{ $hotelOption->name }}</option>
+                        @endforeach
                     </select>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Location</label>
-                    <input type="text" class="form-control" name="hotel_location[]" placeholder="Area">
-                </div>
-                <div class="col-md-2 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Image</label>
                     <input type="file" class="form-control" name="hotel_image[${hotelIndex}]" accept="image/*">
                 </div>
@@ -1272,6 +1292,14 @@ function addHotel() {
         </div>
     `;
     document.getElementById('hotels-container').insertAdjacentHTML('beforeend', html);
+    
+    // Initialize Select2 for the newly added select element
+    $('.hotel-select').last().select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search hotel'
+    });
+    
     hotelIndex++;
 }
 
@@ -1395,6 +1423,8 @@ function addFestival() {
     document.getElementById('festivals-container').insertAdjacentHTML('beforeend', html);
 }
 
+let shoppingIndex = {{ $exploration && isset($exploration->shopping) ? count($exploration->shopping) : 1 }};
+
 function addShopping() {
     const html = `
         <div class="dynamic-item shopping-item">
@@ -1416,14 +1446,19 @@ function addShopping() {
                         <option value="Shopping Street">Shopping Street</option>
                     </select>
                 </div>
-                <div class="col-md-5 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label">Description</label>
                     <input type="text" class="form-control" name="shopping_description[]" placeholder="What to buy here">
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Image</label>
+                    <input type="file" class="form-control" name="shopping_image[${shoppingIndex}]" accept="image/*">
                 </div>
             </div>
         </div>
     `;
     document.getElementById('shopping-container').insertAdjacentHTML('beforeend', html);
+    shoppingIndex++;
 }
 
 function addHospital() {
