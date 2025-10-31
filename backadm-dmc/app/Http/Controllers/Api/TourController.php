@@ -715,7 +715,7 @@ class TourController extends Controller
                 'booking_type' => $booking_type,
                 'customer_name' => $customer_name,
                 'tour_total_price' => $tourTotalPrice,
-                'dueAmount' => $remainingAmount,
+                'paidAmount' => $totalPaid,
                 'discountAmount' => $discount,
                 'finalAmount' => $settlementAmount,
                 // 'taxPercentage' => $taxPercentage,

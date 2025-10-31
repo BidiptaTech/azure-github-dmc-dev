@@ -195,7 +195,7 @@
                                 <option value="">Select Base</option>
                                 <option value="person">Per person</option>
                                 <option value="tour">Per tour</option>
-                                <option value="per_tour_per_day">Per tour per tour</option>
+                                <option value="per_tour_per_day">Per tour per day</option>
                                 <option value="per_person_per_day">Per person per day</option>
                             </select>
                         </div>
