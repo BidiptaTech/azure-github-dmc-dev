@@ -620,16 +620,20 @@ const PreDefinePackages = () => {
 
             // Preserve original data for modal
             booking_id: booking.booking_id || booking.id,
-            booking_details: booking.booking_details,
-            travel_dates: booking.travel_dates,
-            package: booking.package,
-            user_info: booking.user_info,
+            booking_details: bookingDetails || booking.booking_details,
+            travel_dates: travelDates || booking.travel_dates,
+            package: packageInfo || booking.package,
+            user_info: userInfo || booking.user_info,
 
             // Include other important fields from API
             hotels: booking.hotels || [],
             attractions: booking.attractions || [],
             guides: booking.guides || [],
-            restaurants: booking.restaurants || []
+            restaurants: booking.restaurants || [],
+            
+            // Include fields needed for tax calculation
+            total_amount: booking.total_amount || bookingDetails.total_price || 0,
+            taxes: booking.taxes || []
         };
 
        
