@@ -933,6 +933,7 @@
                                     }
                                 }
                                 
+                                
                                 // Compute tax using stored booking taxes
                                 $persons = (int) $adultCount + (int) $childCount;
                                 $days = (!empty($bookingDetails['itinerary']) && is_array($bookingDetails['itinerary'])) ? count($bookingDetails['itinerary']) : 1;
