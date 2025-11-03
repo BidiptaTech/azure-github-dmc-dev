@@ -18,13 +18,14 @@ class PortController extends Controller
      */
     public function port_list(Request $request)
     {
-        $tour_id = $request->query('tour_id');
+        // $tour_id = $request->query('tour_id');
         $cityName = $request->query('city');
+        $country = $request->query('country');
         $type = $request->query('type');
-        if (!$tour_id) {
+        if (!$country) {
             return response()->json([
                 'status' => false,
-                'message' => 'Tour Id is required.',
+                'message' => 'Country is required.',
             ], 422);
         }
         if (!$cityName) {
@@ -33,7 +34,7 @@ class PortController extends Controller
                 'message' => 'City is required.',
             ], 422);
         }
-        $country = Tour::where('tour_id', $tour_id)->value('destination');
+        // $country = Tour::where('tour_id', $tour_id)->value('destination');
         $countryExists = Port::where('country', $country)->exists();
         if (!$countryExists) {
             return response()->json([
