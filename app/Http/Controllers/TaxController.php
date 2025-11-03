@@ -106,7 +106,7 @@ class TaxController extends Controller
             'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) {
                 // Allow 'total' or 'tax_{number}' format
                 if ($value !== 'total' && !preg_match('/^tax_\d+$/', $value)) {
-                    $fail('The selected calculate on is invalid.');
+                    $fail('The selected calculate on is invalid.');    
                 }
             }],
             'description' => 'nullable|string|max:1000',
