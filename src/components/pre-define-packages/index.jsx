@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import MuiAlert from "@mui/material/Alert";
 import LocationSearch from '../hero/hero-2/LocationSearch';
+// import CitySearch from '../hero/hero-3/CitySearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
 import SelectAgent from '../hero/hero-3/SelectAgent';
 import DateSelect from './common/DateSelect';
@@ -468,6 +469,13 @@ const PreDefinePackages = () => {
               }}>
                 <LocationSearch onLocationSelect={handleLocationSelect} />
               </div>
+              {/* <div style={{ 
+                flex: isMobile ? '1 1 100%' : showAgentSelector ? '1.5' : '2', 
+                minWidth: '0',
+                marginBottom: isMobile ? '8px' : '0'
+              }}>
+                <CitySearch onLocationSelect={handleLocationSelect} />
+              </div> */}
 
               {showAgentSelector && (
                 <div style={{ 
