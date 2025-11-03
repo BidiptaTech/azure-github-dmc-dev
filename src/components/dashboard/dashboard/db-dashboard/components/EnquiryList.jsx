@@ -45,7 +45,6 @@ import {
   Hotel as HotelIcon,
   LocalTaxi as LocalTaxiIcon,
   Attractions as AttractionsIcon,
-  Park as ParkIcon,
   Restaurant as RestaurantIcon,
   Person as PersonIcon,
   Close as CloseIcon,
@@ -70,8 +69,7 @@ import {
   RenderRestaurantDetails,
   RenderGuideDetails,
   RenderLocalTransferDetails,
-  RenderPortDetails,
-  RenderPackagedAttractionsDetails
+  RenderPortDetails
 } from './renderServices';
 import { clearPackages, setPackageData } from "@/slice/tour-packages/tourPackageSlice";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
@@ -782,55 +780,6 @@ useEffect(() => {
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
                 🎡 Attractions
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} sm={4} md={1.5}>
-          <Card sx={{ 
-            background: 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
-            height: { xs: 100, sm: 110, md: 120 },
-            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-            cursor: 'pointer',
-            borderRadius: { xs: 2, sm: 2.5, md: 3 },
-            overflow: 'hidden',
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-              opacity: 0,
-              transition: 'opacity 0.3s ease',
-            },
-            '&:hover': {
-              transform: 'translateY(-6px) scale(1.02)',
-              boxShadow: '0 15px 30px rgba(162, 155, 254, 0.4)',
-              '&::before': {
-                opacity: 1,
-              }
-            }
-          }}>
-            <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1, position: 'relative', zIndex: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                <Avatar sx={{ 
-                  bgcolor: 'rgba(255,255,255,0.2)', 
-                  width: 35, 
-                  height: 35,
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255,255,255,0.3)'
-                }}>
-                  <ParkIcon sx={{ color: 'white', fontSize: 20 }} />
-                </Avatar>
-              </Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', mb: 0.5, textShadow: '0 2px 4px rgba(0,0,0,0.3)', lineHeight: 1 }}>
-                {stats.withPackagedAttractions}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: '0.7rem', lineHeight: 1.2 }}>
-                🎢 Packages
               </Typography>
             </CardContent>
           </Card>
@@ -1588,34 +1537,6 @@ useEffect(() => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={enquiry.packaged_attractions ? "🎢 View Packaged Attractions Details" : "🎢 Packaged Attractions Not Selected"} placement="top" arrow>
-                          <span>
-                            <IconButton 
-                              size="small" 
-                              disabled={!enquiry.packaged_attractions}
-                              onClick={() => enquiry.packaged_attractions && handleServiceClick(enquiry, "packaged_attractions")}
-                              sx={{
-                                background: enquiry.packaged_attractions
-                                  ? 'linear-gradient(45deg, #a29bfe, #6c5ce7)'
-                                  : 'linear-gradient(45deg, #e2e8f0, #cbd5e0)',
-                                color: enquiry.packaged_attractions ? 'white' : '#a0aec0',
-                                width: 32,
-                                height: 32,
-                                transition: 'all 0.3s ease',
-                                boxShadow: enquiry.packaged_attractions ? '0 4px 15px rgba(162, 155, 254, 0.4)' : 'none',
-                                "&:hover": {
-                                  background: enquiry.packaged_attractions
-                                    ? 'linear-gradient(45deg, #6c5ce7, #5f3dc4)'
-                                    : 'linear-gradient(45deg, #cbd5e0, #a0aec0)',
-                                  transform: enquiry.packaged_attractions ? 'scale(1.1) rotate(5deg)' : 'none',
-                                  boxShadow: enquiry.packaged_attractions ? '0 6px 20px rgba(162, 155, 254, 0.6)' : 'none',
-                                },
-                              }}
-                            >
-                              <ParkIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
                         <Tooltip title={enquiry.restaurant ? "🍽️ View Restaurant Details" : "🍽️ Restaurants Not Selected"} placement="top" arrow>
                           <span>
                             <IconButton
@@ -1962,10 +1883,6 @@ useEffect(() => {
             {selectedEnquiry &&
               selectedService === "attraction" &&
               <RenderAttractionDetails details={selectedEnquiry.attraction_details} tabValue={tabValue} />}
-
-            {selectedEnquiry &&
-              selectedService === "packaged_attractions" &&
-              <RenderPackagedAttractionsDetails details={selectedEnquiry.packaged_attraction_details} tabValue={tabValue} />}
 
             {selectedEnquiry &&
               selectedService === "restaurant" &&
