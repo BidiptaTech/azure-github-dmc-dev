@@ -282,12 +282,10 @@ class EnquiryController extends Controller
                 'message' => 'Please enter both country and city.',
             ]);
         }
-
-        if (empty($request_dmc_ids)) {
-            $dmc = User::where('country', $country)->first();
-            $request_dmc_ids = [$dmc->userId];
-        }
-
+        // if (empty($request_dmc_ids)) {
+        //     $dmc = User::where('country', $country)->where('role_id', 11)->where('status', 1)->first();
+        //     $request_dmc_ids = [$dmc->userId];
+        // }
         $country_id = Country::where('name', $country)->first();
         // Fetch all services for the given city and DMCs
         // For tables with JSON dmc_id field, we'll use a more complex query
@@ -417,39 +415,39 @@ class EnquiryController extends Controller
         });
         
         // Create list for packaged attractions
-        $packaged_attractions = $packagedAttractions->map(function($package) {
-            $attractionIds = json_decode($package->attractions, true) ?? [];
-            $attractionDetails = [];
+        // $packaged_attractions = $packagedAttractions->map(function($package) {
+        //     $attractionIds = json_decode($package->attractions, true) ?? [];
+        //     $attractionDetails = [];
             
-            if (!empty($attractionIds)) {
-                $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
-                    ->select('attraction_id', 'name', 'location', 'country', 'master_image')
-                    ->get()
-                    ->map(function($attraction) {
-                        return [
-                            'attraction_id' => $attraction->attraction_id,
-                            'name' => $attraction->name,
-                            'location' => $attraction->location,
-                            'country' => $attraction->country,
-                            'master_image' => $attraction->master_image,
-                        ];
-                    });
-            }
+        //     if (!empty($attractionIds)) {
+        //         $attractionDetails = Attraction::whereIn('attraction_id', $attractionIds)
+        //             ->select('attraction_id', 'name', 'location', 'country', 'master_image')
+        //             ->get()
+        //             ->map(function($attraction) {
+        //                 return [
+        //                     'attraction_id' => $attraction->attraction_id,
+        //                     'name' => $attraction->name,
+        //                     'location' => $attraction->location,
+        //                     'country' => $attraction->country,
+        //                     'master_image' => $attraction->master_image,
+        //                 ];
+        //             });
+        //     }
             
-            return [
-                'id' => $package->id,
-                'attraction_id' => $package->package_attraction_id,
-                'name' => $package->name . ' (Package)',
-                'master_image' => $package->image ? json_decode($package->image, true)[0] ?? null : null,
-                'base_price' => $package->adult_price,
-                'type' => 'package',
-                'child_price' => $package->child_price,
-                'senior_citizen_price' => $package->senior_citizen_price,
-                'description' => $package->description,
-                'attractions' => $attractionDetails,
-                'created_at' => $package->created_at,
-            ];
-        });
+        //     return [
+        //         'id' => $package->id,
+        //         'attraction_id' => $package->package_attraction_id,
+        //         'name' => $package->name . ' (Package)',
+        //         'master_image' => $package->image ? json_decode($package->image, true)[0] ?? null : null,
+        //         'base_price' => $package->adult_price,
+        //         'type' => 'package',
+        //         'child_price' => $package->child_price,
+        //         'senior_citizen_price' => $package->senior_citizen_price,
+        //         'description' => $package->description,
+        //         'attractions' => $attractionDetails,
+        //         'created_at' => $package->created_at,
+        //     ];
+        // });
         
         $restaurant_list = $restaurants->map(function($restaurant) {
             $base_price = $restaurant->meals->min('price');
@@ -517,7 +515,7 @@ class EnquiryController extends Controller
             'guides' => $guide_list,
             'vehicles' => $vehicle_list,
             'ports' => $port_list,
-            'packaged_attractions' => $packaged_attractions,
+            // 'packaged_attractions' => $packaged_attractions,
         ];
 
         return response()->json([
@@ -1029,7 +1027,7 @@ class EnquiryController extends Controller
                 'guide' => $enquiry->guide,
                 'guide_remarks' => $enquiry->guide_remarks,
                 'guide_details' => $guides,
-                'packaged_attractions' => $enquiry->packaged_attractions,
+                // 'packaged_attractions' => $enquiry->packaged_attractions,
                 'packaged_attraction_details' => $packagedAttractions,
                 'entry_port' => $enquiry->entry_port,
                 'entry_port_address' => $enquiry->entry_port_address,
