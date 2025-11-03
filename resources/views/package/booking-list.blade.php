@@ -243,7 +243,50 @@
                                 $personsForList = $totalPax;
                                 $daysForList = $duration ?: 1;
                                 $bookingTaxesForList = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
-                                $taxResultForList = \App\Helpers\TaxHelper::calculateTourTaxes($totalPrice, $bookingTaxesForList, $personsForList, $daysForList);
+                                $calcTaxes = function($baseAmount, $taxesArr, $persons, $days) {
+                                    $taxesArr = is_array($taxesArr) ? $taxesArr : [];
+                                    $computedById = [];
+                                    $breakdown = [];
+                                    $totalTax = 0.0;
+                                    foreach ($taxesArr as $tax) {
+                                        $taxId = $tax['tax_id'] ?? null;
+                                        $taxName = $tax['tax_name'] ?? 'Tax';
+                                        $taxType = strtolower($tax['tax_type'] ?? 'percentage');
+                                        $taxValue = (float) ($tax['tax_value'] ?? 0);
+                                        $calculateOn = $tax['calculate_on'] ?? 'total';
+                                        $ifFixed = $tax['if_fixed'] ?? null;
+                                        $baseForThis = $baseAmount;
+                                        if (is_numeric($calculateOn)) {
+                                            $refId = (int) $calculateOn;
+                                            $refAmount = $computedById[$refId] ?? 0;
+                                            $baseForThis = $baseAmount + $refAmount;
+                                        } elseif (strtolower($calculateOn) === 'total') {
+                                            $baseForThis = $baseAmount;
+                                        }
+                                        $amount = 0.0;
+                                        if ($taxType === 'percentage') {
+                                            $amount = ($baseForThis * $taxValue) / 100;
+                                        } else {
+                                            if ($ifFixed === 'person' || $ifFixed === 'per_person') {
+                                                $amount = $taxValue * max(0, (int) $persons);
+                                            } elseif ($ifFixed === 'per_tour_per_day') {
+                                                $amount = $taxValue * max(1, (int) $days);
+                                            } elseif ($ifFixed === 'per_person_per_day') {
+                                                $amount = $taxValue * max(0, (int) $persons) * max(1, (int) $days);
+                                            } else {
+                                                $amount = $taxValue;
+                                            }
+                                        }
+                                        $amount = ceil($amount);
+                                        $breakdown[$taxName] = ($breakdown[$taxName] ?? 0) + $amount;
+                                        if ($taxId !== null) {
+                                            $computedById[$taxId] = ($computedById[$taxId] ?? 0) + $amount;
+                                        }
+                                        $totalTax += $amount;
+                                    }
+                                    return ['breakdown' => $breakdown, 'total_tax' => $totalTax];
+                                };
+                                $taxResultForList = $calcTaxes($totalPrice, $bookingTaxesForList, $personsForList, $daysForList);
                                 $totalTaxForList = is_array($taxResultForList) ? ($taxResultForList['total_tax'] ?? 0) : 0;
                                 $totalPriceInclTaxForList = $totalPrice + $totalTaxForList;
                             @endphp
@@ -604,7 +647,50 @@
                                                 $personsVB = $totalPax;
                                                 $daysVB = $duration ?: 1;
                                                 $taxesVB = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
-                                                $taxResVB = \App\Helpers\TaxHelper::calculateTourTaxes($totalPrice, $taxesVB, $personsVB, $daysVB);
+                                                $calcTaxes = function($baseAmount, $taxesArr, $persons, $days) {
+                                                    $taxesArr = is_array($taxesArr) ? $taxesArr : [];
+                                                    $computedById = [];
+                                                    $breakdown = [];
+                                                    $totalTax = 0.0;
+                                                    foreach ($taxesArr as $tax) {
+                                                        $taxId = $tax['tax_id'] ?? null;
+                                                        $taxName = $tax['tax_name'] ?? 'Tax';
+                                                        $taxType = strtolower($tax['tax_type'] ?? 'percentage');
+                                                        $taxValue = (float) ($tax['tax_value'] ?? 0);
+                                                        $calculateOn = $tax['calculate_on'] ?? 'total';
+                                                        $ifFixed = $tax['if_fixed'] ?? null;
+                                                        $baseForThis = $baseAmount;
+                                                        if (is_numeric($calculateOn)) {
+                                                            $refId = (int) $calculateOn;
+                                                            $refAmount = $computedById[$refId] ?? 0;
+                                                            $baseForThis = $baseAmount + $refAmount;
+                                                        } elseif (strtolower($calculateOn) === 'total') {
+                                                            $baseForThis = $baseAmount;
+                                                        }
+                                                        $amount = 0.0;
+                                                        if ($taxType === 'percentage') {
+                                                            $amount = ($baseForThis * $taxValue) / 100;
+                                                        } else {
+                                                            if ($ifFixed === 'person' || $ifFixed === 'per_person') {
+                                                                $amount = $taxValue * max(0, (int) $persons);
+                                                            } elseif ($ifFixed === 'per_tour_per_day') {
+                                                                $amount = $taxValue * max(1, (int) $days);
+                                                            } elseif ($ifFixed === 'per_person_per_day') {
+                                                                $amount = $taxValue * max(0, (int) $persons) * max(1, (int) $days);
+                                                            } else {
+                                                                $amount = $taxValue;
+                                                            }
+                                                        }
+                                                        $amount = ceil($amount);
+                                                        $breakdown[$taxName] = ($breakdown[$taxName] ?? 0) + $amount;
+                                                        if ($taxId !== null) {
+                                                            $computedById[$taxId] = ($computedById[$taxId] ?? 0) + $amount;
+                                                        }
+                                                        $totalTax += $amount;
+                                                    }
+                                                    return ['breakdown' => $breakdown, 'total_tax' => $totalTax];
+                                                };
+                                                $taxResVB = $calcTaxes($totalPrice, $taxesVB, $personsVB, $daysVB);
                                                 $taxAmtVB = is_array($taxResVB) ? ($taxResVB['total_tax'] ?? 0) : 0;
                                                 $totalPriceInclVB = $totalPrice + $taxAmtVB;
                                             @endphp
@@ -847,11 +933,55 @@
                                     }
                                 }
                                 
+                                
                                 // Compute tax using stored booking taxes
                                 $persons = (int) $adultCount + (int) $childCount;
                                 $days = (!empty($bookingDetails['itinerary']) && is_array($bookingDetails['itinerary'])) ? count($bookingDetails['itinerary']) : 1;
                                 $taxes = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
-                                $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($packageTotal, $taxes, $persons, $days);
+                                $calcTaxes = function($baseAmount, $taxesArr, $persons, $days) {
+                                    $taxesArr = is_array($taxesArr) ? $taxesArr : [];
+                                    $computedById = [];
+                                    $breakdown = [];
+                                    $totalTax = 0.0;
+                                    foreach ($taxesArr as $tax) {
+                                        $taxId = $tax['tax_id'] ?? null;
+                                        $taxName = $tax['tax_name'] ?? 'Tax';
+                                        $taxType = strtolower($tax['tax_type'] ?? 'percentage');
+                                        $taxValue = (float) ($tax['tax_value'] ?? 0);
+                                        $calculateOn = $tax['calculate_on'] ?? 'total';
+                                        $ifFixed = $tax['if_fixed'] ?? null;
+                                        $baseForThis = $baseAmount;
+                                        if (is_numeric($calculateOn)) {
+                                            $refId = (int) $calculateOn;
+                                            $refAmount = $computedById[$refId] ?? 0;
+                                            $baseForThis = $baseAmount + $refAmount;
+                                        } elseif (strtolower($calculateOn) === 'total') {
+                                            $baseForThis = $baseAmount;
+                                        }
+                                        $amount = 0.0;
+                                        if ($taxType === 'percentage') {
+                                            $amount = ($baseForThis * $taxValue) / 100;
+                                        } else {
+                                            if ($ifFixed === 'person' || $ifFixed === 'per_person') {
+                                                $amount = $taxValue * max(0, (int) $persons);
+                                            } elseif ($ifFixed === 'per_tour_per_day') {
+                                                $amount = $taxValue * max(1, (int) $days);
+                                            } elseif ($ifFixed === 'per_person_per_day') {
+                                                $amount = $taxValue * max(0, (int) $persons) * max(1, (int) $days);
+                                            } else {
+                                                $amount = $taxValue;
+                                            }
+                                        }
+                                        $amount = ceil($amount);
+                                        $breakdown[$taxName] = ($breakdown[$taxName] ?? 0) + $amount;
+                                        if ($taxId !== null) {
+                                            $computedById[$taxId] = ($computedById[$taxId] ?? 0) + $amount;
+                                        }
+                                        $totalTax += $amount;
+                                    }
+                                    return ['breakdown' => $breakdown, 'total_tax' => $totalTax];
+                                };
+                                $taxResult = $calcTaxes($packageTotal, $taxes, $persons, $days);
                                 $taxAmount = is_array($taxResult) ? ($taxResult['total_tax'] ?? 0) : 0;
                                 $taxBreakdown = is_array($taxResult) ? ($taxResult['breakdown'] ?? []) : [];
                                 $finalTotal = $packageTotal + $taxAmount;
@@ -991,7 +1121,50 @@
                 $persons = (int)($bookingDetails['adult_count'] ?? 0) + (int)($bookingDetails['child_count'] ?? 0);
                 $days = (!empty($bookingDetails['itinerary']) && is_array($bookingDetails['itinerary'])) ? count($bookingDetails['itinerary']) : 1;
                 $taxes = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
-                $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($TotalPrice, $taxes, $persons, $days);
+                $calcTaxes = function($baseAmount, $taxesArr, $persons, $days) {
+                    $taxesArr = is_array($taxesArr) ? $taxesArr : [];
+                    $computedById = [];
+                    $breakdown = [];
+                    $totalTax = 0.0;
+                    foreach ($taxesArr as $tax) {
+                        $taxId = $tax['tax_id'] ?? null;
+                        $taxName = $tax['tax_name'] ?? 'Tax';
+                        $taxType = strtolower($tax['tax_type'] ?? 'percentage');
+                        $taxValue = (float) ($tax['tax_value'] ?? 0);
+                        $calculateOn = $tax['calculate_on'] ?? 'total';
+                        $ifFixed = $tax['if_fixed'] ?? null;
+                        $baseForThis = $baseAmount;
+                        if (is_numeric($calculateOn)) {
+                            $refId = (int) $calculateOn;
+                            $refAmount = $computedById[$refId] ?? 0;
+                            $baseForThis = $baseAmount + $refAmount;
+                        } elseif (strtolower($calculateOn) === 'total') {
+                            $baseForThis = $baseAmount;
+                        }
+                        $amount = 0.0;
+                        if ($taxType === 'percentage') {
+                            $amount = ($baseForThis * $taxValue) / 100;
+                        } else {
+                            if ($ifFixed === 'person' || $ifFixed === 'per_person') {
+                                $amount = $taxValue * max(0, (int) $persons);
+                            } elseif ($ifFixed === 'per_tour_per_day') {
+                                $amount = $taxValue * max(1, (int) $days);
+                            } elseif ($ifFixed === 'per_person_per_day') {
+                                $amount = $taxValue * max(0, (int) $persons) * max(1, (int) $days);
+                            } else {
+                                $amount = $taxValue;
+                            }
+                        }
+                        $amount = ceil($amount);
+                        $breakdown[$taxName] = ($breakdown[$taxName] ?? 0) + $amount;
+                        if ($taxId !== null) {
+                            $computedById[$taxId] = ($computedById[$taxId] ?? 0) + $amount;
+                        }
+                        $totalTax += $amount;
+                    }
+                    return ['breakdown' => $breakdown, 'total_tax' => $totalTax];
+                };
+                $taxResult = $calcTaxes($TotalPrice, $taxes, $persons, $days);
                 $taxAmount = is_array($taxResult) ? ($taxResult['total_tax'] ?? 0) : 0;
                 $finalTotal = $TotalPrice + $taxAmount;
 

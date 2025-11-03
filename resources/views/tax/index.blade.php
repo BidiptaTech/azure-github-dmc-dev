@@ -205,7 +205,7 @@
                                 <option value="">Select Option</option>
                                 <option value="total">Total Amount</option>
                                 @foreach($allTaxes as $index => $existingTax)
-                                    <option value="tax_{{ $existingTax->tax_id }}">{{ $existingTax->tax_name }}</option>
+                                    <option value="{{ $existingTax->tax_id }}">{{ $existingTax->tax_name }}</option>
                                 @endforeach
                             </select>
                         </div>
