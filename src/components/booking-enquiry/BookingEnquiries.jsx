@@ -23,6 +23,8 @@ import {
   useTheme,
   Avatar,
   Badge,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { styled } from "@mui/material/styles";
@@ -39,7 +41,6 @@ import {
   Clear as ClearIcon,
   Help as HelpIcon,
   CheckCircle as CheckCircleIcon,
-  ConfirmationNumber as ConfirmationNumberIcon,
   Business as BusinessIcon,
   TravelExplore as TravelIcon,
   Search as SearchIcon,
@@ -75,7 +76,8 @@ import RestaurantSearch from "./RestaurantSearch";
 import PreferredGuidesSearch from "./PreferredGuidesSearch";
 import AttractionDropOffSearch from "./AttractionDropOffSearch";
 import RestaurantDropOffSearch from "./RestaurantDropOffSearch";
-import PackageAttractionSearch from "./PackageAttractionSearch";
+import DMCSelectionComponent from "./DMCSelectionComponent";
+import TripDetailsComponent from "./TripDetailsComponent";
 
 // Service category colors
 const serviceColors = {
@@ -120,13 +122,6 @@ const serviceColors = {
     dark: "#01579b",
     contrastText: "#fff",
     bg: "rgba(2, 136, 209, 0.08)",
-  },
-  packagedAttractions: {
-    main: "#009688",
-    light: "#4db6ac",
-    dark: "#00695c",
-    contrastText: "#fff",
-    bg: "rgba(0, 150, 136, 0.08)",
   },
 };
 
@@ -313,48 +308,6 @@ const HelpIconButton = styled(HelpIcon)(({ theme, serviceType }) => {
   };
 });
 
-// DMC Selection Panel Components
-const DMCSelectionPanel = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  height: 'fit-content',
-  maxHeight: '80vh',
-  overflowY: 'auto',
-  position: 'sticky',
-  top: theme.spacing(2),
-  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-  border: '1px solid rgba(102, 126, 234, 0.1)',
-  borderRadius: theme.spacing(2),
-  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
-  '&::-webkit-scrollbar': {
-    width: '6px',
-  },
-  '&::-webkit-scrollbar-track': {
-    background: 'rgba(0,0,0,0.05)',
-    borderRadius: '3px',
-  },
-  '&::-webkit-scrollbar-thumb': {
-    background: 'rgba(102, 126, 234, 0.3)',
-    borderRadius: '3px',
-    '&:hover': {
-      background: 'rgba(102, 126, 234, 0.5)',
-    },
-  },
-}));
-
-const DMCCard = styled(Card)(({ theme, selected }) => ({
-  marginBottom: theme.spacing(1.5),
-  border: selected ? '2px solid #667eea' : '1px solid #e0e3e8',
-  backgroundColor: selected ? 'rgba(102, 126, 234, 0.05)' : 'white',
-  cursor: 'pointer',
-  transition: 'all 0.3s ease',
-  borderRadius: theme.spacing(1.5),
-  '&:hover': {
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
-    transform: 'translateY(-2px)',
-    border: '2px solid #667eea',
-  },
-}));
-
 // Get service descriptions for tooltips
 const getServiceDescription = (option) => {
   switch (option) {
@@ -364,8 +317,6 @@ const getServiceDescription = (option) => {
       return "Choose your transportation for arrival and departure, including car type and locations.";
     case "attraction":
       return "Add attractions to your itinerary with optional transportation services.";
-    case "packagedAttractions":
-      return "Select from available packaged attraction deals, which include multiple attractions bundled together.";
     case "localTour":
       return "Arrange for local tours with transportation in your destination city.";
     case "tourGuide":
@@ -420,9 +371,18 @@ const BookingEnquiries = ({
     (selectedCountryFromNavigation ? { country: selectedCountryFromNavigation.name } : null);
   
   // Component state
-  const [dmcOptions, setDmcOptions] = useState([]);
-  const [filterText, setFilterText] = useState('');
-  const [hasDMCsAvailable, setHasDMCsAvailable] = useState(false);
+  const [validationError, setValidationError] = useState(null);
+  const [showValidationError, setShowValidationError] = useState(false);
+  const [dmcChangeNotification, setDmcChangeNotification] = useState(false);
+  
+  // Ref to track previous DMC IDs
+  const prevDmcIdsRef = React.useRef(selectedDmcIds);
+
+  // Handle closing validation error
+  const handleCloseValidationError = () => {
+    setShowValidationError(false);
+    setValidationError(null);
+  };
 
   // Auto-fetch DMCs when location is selected in LocationSearch component
   useEffect(() => {
@@ -448,27 +408,6 @@ const BookingEnquiries = ({
       dispatch(fetchDMCsByCountry([countryName]));
     }
   }, [locationFromRedux, selectedLocationFromNavigation, selectedCountryFromNavigation, dispatch]);
-
-  // Process DMC data for sidebar options
-  useEffect(() => {
-    if (apiDMCs && apiDMCs.data && Array.isArray(apiDMCs.data)) {
-      const processedDMCs = apiDMCs.data.map((dmc, index) => ({
-        id: `dmc-${index}`,
-        dmcId: dmc.userId || null,
-        name: dmc.company_name || `DMC ${index + 1}`,
-        location: dmc.country || 'Unknown Location',
-        logo: dmc.logo || '',
-        description: 'Professional destination management services',
-        originalData: dmc,
-      }));
-      
-      setDmcOptions(processedDMCs);
-      setHasDMCsAvailable(processedDMCs.length > 0);
-    } else {
-      setDmcOptions([]);
-      setHasDMCsAvailable(false);
-    }
-  }, [apiDMCs]);
 
 
   // Fetch enquiry list when component mounts or when city data changes
@@ -552,6 +491,66 @@ const BookingEnquiries = ({
     }
   }, [selectedDmcIds, selectedDmcsData, activeLocation, selectedCity, dispatch]);
 
+  // Clear selected service data when DMCs are changed/deselected
+  useEffect(() => {
+    // Check if DMCs have changed
+    const dmcsChanged = JSON.stringify(prevDmcIdsRef.current) !== JSON.stringify(selectedDmcIds);
+    
+    if (dmcsChanged && prevDmcIdsRef.current.length > 0) {
+      console.log("🔄 DMCs changed - clearing selected service data");
+      console.log("Previous DMCs:", prevDmcIdsRef.current);
+      console.log("Current DMCs:", selectedDmcIds);
+      
+      // Clear all selected items from services
+      setSelectedPreferredHotels([]);
+      setSelectedAttractions([]);
+      setSelectedGuides([]);
+      setSelectedRestaurants([]);
+      setSelectedEntryExitCars([]);
+      setSelectedLocalTourCars([]);
+      setSelectedAttractionCars([]);
+      setSelectedRestaurantCars([]);
+      setSelectedEntryPort(null);
+      setSelectedExitPort(null);
+      setSelectedHotelDropOff(null);
+      setSelectedAttractionDropOff(null);
+      setSelectedRestaurantDropOff(null);
+      setSelectedExitAttractionPickup(null);
+      setSelectedExitRestaurantPickup(null);
+      setSelectedDestinations([]);
+      
+      // Clear remarks and other text fields
+      setHotelRemarks("");
+      setEntryExitPortRemarks("");
+      setAttractionRemarks("");
+      setLocalTourRemarks("");
+      setRestaurantRemarks("");
+      setTourGuideSpecialRequirements("");
+      
+      // Clear other service-specific fields
+      setStarCategory("");
+      setCompareHotels("no");
+      setNeedTransport(false);
+      setNeedTransportType(false);
+      setDestinationType("hotel");
+      
+      // Clear from Redux as well
+      Object.keys(bookingOptions).forEach((service) => {
+        if (bookingOptions[service]) {
+          dispatch(clearSpecificService(service));
+        }
+      });
+      
+      // Show notification to user
+      setDmcChangeNotification(true);
+      
+      console.log("✅ Service data cleared due to DMC change");
+    }
+    
+    // Update the ref for next comparison
+    prevDmcIdsRef.current = selectedDmcIds;
+  }, [selectedDmcIds, dispatch, bookingOptions]);
+
   // Initialize expandedSections separately from bookingOptions
   const [expandedSections, setExpandedSections] = useState({
     hotel: false,
@@ -560,7 +559,6 @@ const BookingEnquiries = ({
     localTour: false,
     tourGuide: false,
     restaurant: false,
-    packagedAttractions: false,
   });
 
   // We need to make sure bookingOptions is properly initialized
@@ -573,7 +571,6 @@ const BookingEnquiries = ({
       "localTour",
       "tourGuide",
       "restaurant",
-      "packagedAttractions",
     ].every((key) => typeof bookingOptions[key] === "boolean");
 
     if (!hasAllOptions) {
@@ -585,7 +582,6 @@ const BookingEnquiries = ({
         localTour: false,
         tourGuide: false,
         restaurant: false,
-        packagedAttractions: false,
         // Don't spread prev to avoid retaining any true values from previous state
       }));
     }
@@ -647,16 +643,11 @@ const BookingEnquiries = ({
                  setSelectedAttractionCars(enquiryData.serviceDetails.attraction.preferredCars || []);
                }
                
-               // Sync restaurant data (including cars)
-               if (enquiryData.serviceDetails.restaurant) {
-                 setNeedTransportType(enquiryData.serviceDetails.restaurant.needTransport || false);
-                 setSelectedRestaurants(enquiryData.serviceDetails.restaurant.selectedRestaurants || []);
-                 setSelectedRestaurantCars(enquiryData.serviceDetails.restaurant.preferredCars || []);
-               }
-      
-      // Sync packaged attractions data
-      if (enquiryData.serviceDetails.packagedAttractions) {
-        setSelectedPackagedAttractions(enquiryData.serviceDetails.packagedAttractions.selectedPackagedAttractions || []);
+      // Sync restaurant data (including cars)
+      if (enquiryData.serviceDetails.restaurant) {
+        setNeedTransportType(enquiryData.serviceDetails.restaurant.needTransport || false);
+        setSelectedRestaurants(enquiryData.serviceDetails.restaurant.selectedRestaurants || []);
+        setSelectedRestaurantCars(enquiryData.serviceDetails.restaurant.preferredCars || []);
       }
       
       // Sync remarks and special requirements
@@ -665,7 +656,6 @@ const BookingEnquiries = ({
       setAttractionRemarks(enquiryData.serviceDetails?.attraction?.remarks || "");
       setLocalTourRemarks(enquiryData.serviceDetails?.localTour?.remarks || "");
       setRestaurantRemarks(enquiryData.serviceDetails?.restaurant?.remarks || "");
-      setPackagedAttractionsRemarks(enquiryData.serviceDetails?.packagedAttractions?.remarks || "");
       setTourGuideSpecialRequirements(enquiryData.serviceDetails?.tourGuide?.specialRequirements || "");
     }
   }, [enquiryData.serviceDetails]);
@@ -722,10 +712,6 @@ const BookingEnquiries = ({
           setNeedTransport(false);
           setDestinationType("hotel");
           setAttractionRemarks("");
-          break;
-        case "packagedAttractions":
-          setSelectedPackagedAttractions([]);
-          setPackagedAttractionsRemarks("");
           break;
         case "localTour":
           setSelectedLocalTourCars([]);
@@ -854,9 +840,6 @@ const BookingEnquiries = ({
   );
   const [restaurantRemarks, setRestaurantRemarks] = useState(
     enquiryData.serviceDetails?.restaurant?.remarks || ""
-  );
-  const [packagedAttractionsRemarks, setPackagedAttractionsRemarks] = useState(
-    enquiryData.serviceDetails?.packagedAttractions?.remarks || ""
   );
   const [tourGuideSpecialRequirements, setTourGuideSpecialRequirements] = useState(
     enquiryData.serviceDetails?.tourGuide?.specialRequirements || ""
@@ -1176,35 +1159,27 @@ const BookingEnquiries = ({
     );
   };
 
-  // Handle packaged attractions selection - initialize with Redux data
-  const [selectedPackagedAttractions, setSelectedPackagedAttractions] = useState(
-    enquiryData.serviceDetails?.packagedAttractions?.selectedPackagedAttractions || []
-  );
-  const handlePackagedAttractionsSelect = (packages) => {
-    setSelectedPackagedAttractions(packages);
-    dispatch(
-      updateServiceDetails({
-        service: "packagedAttractions",
-        data: { selectedPackagedAttractions: packages },
-      })
-    );
-  };
-
-  // Handle packaged attractions remarks change
-  const handlePackagedAttractionsRemarksChange = (e) => {
-    const value = e.target.value;
-    setPackagedAttractionsRemarks(value);
-    dispatch(
-      updateServiceDetails({
-        service: "packagedAttractions",
-        data: { remarks: value },
-      })
-    );
-  };
 
   // Handle form submission to go to next step
   const handleSubmitForm = () => {
     console.log("Form submitted - saving all data to Redux");
+    
+    // Validation: Check if at least one DMC is selected
+    if (selectedDmcsData.length === 0) {
+      setValidationError("Please select at least one DMC partner before continuing.");
+      setShowValidationError(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    
+    // Validation: Check if at least one service is selected
+    const hasSelectedService = Object.values(bookingOptions).some(value => value === true);
+    if (!hasSelectedService) {
+      setValidationError("Please select at least one service before continuing.");
+      setShowValidationError(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     
     // Ensure all selected services are saved to Redux
     dispatch(setSelectedServices(
@@ -1255,15 +1230,6 @@ const BookingEnquiries = ({
               }
             }));
             break;
-            case 'packagedAttractions':
-              dispatch(updateServiceDetails({
-                service: 'packagedAttractions',
-                data: {
-                  selectedPackagedAttractions: selectedPackagedAttractions || [],
-                  remarks: enquiryData.serviceDetails?.packagedAttractions?.remarks || ""
-                }
-              }));
-              break;
             
           case 'localTour':
             dispatch(updateServiceDetails({
@@ -1324,7 +1290,6 @@ const BookingEnquiries = ({
     setSelectedLocalTourCars([]);
     setSelectedAttractionCars([]);
     setSelectedRestaurantCars([]);
-    setSelectedPackagedAttractions([]);
     setSelectedRestaurants([]);
     setSelectedEntryPort(null);
     setSelectedExitPort(null);
@@ -1338,7 +1303,6 @@ const BookingEnquiries = ({
     setAttractionRemarks("");
     setLocalTourRemarks("");
     setRestaurantRemarks("");
-    setPackagedAttractionsRemarks("");
     setTourGuideSpecialRequirements("");
     
     // Reset form fields by clearing the form input elements
@@ -1354,8 +1318,7 @@ const BookingEnquiries = ({
       attraction: false,
       localTour: false,
       tourGuide: false,
-      restaurant: false,
-      packagedAttractions: false
+      restaurant: false
     });
     
     // Continue to next step
@@ -1372,8 +1335,6 @@ const BookingEnquiries = ({
         return <LocationIcon />;
       case "attraction":
         return <TicketIcon />;
-        case "packagedAttractions":
-          return <ConfirmationNumberIcon />;
       case "localTour":
         return <PlaceIcon />;
       case "tourGuide":
@@ -1394,8 +1355,6 @@ const BookingEnquiries = ({
         return "Transport Services";
       case "attraction":
         return "Attraction Services";
-      case "packagedAttractions":
-        return "Packaged Attraction Services";
       case "localTour":
         return "Local Tour Services";
       case "tourGuide":
@@ -1416,8 +1375,6 @@ const BookingEnquiries = ({
         return "Entry/Exit Port";
       case "attraction":
         return "Attraction";
-        case "packagedAttractions":
-          return "Packaged Attractions";
       case "localTour":
         return "Local Tour";
       case "tourGuide":
@@ -1607,255 +1564,6 @@ const BookingEnquiries = ({
     );
   };
 
-  // === DMC Selection Handlers ===
-  const handleDMCCardClick = (dmc) => {
-    console.log('🏢 DMC card clicked:', dmc);
-    
-    // Check if DMC is already selected
-    const isSelected = selectedDmcIds.includes(dmc.dmcId);
-    
-    if (isSelected) {
-      // Remove from selection
-      dispatch(removeDmcFromSelection({ dmcId: dmc.dmcId }));
-    } else {
-      // Add to selection
-      dispatch(addDmcToSelection({ dmcId: dmc.dmcId, dmcData: dmc }));
-    }
-  };
-
-  const handleFilterChange = (event) => {
-    setFilterText(event.target.value);
-  };
-
-  // Filter DMCs based on search text
-  const filteredDMCs = dmcOptions.filter(dmc => 
-    dmc.name.toLowerCase().includes(filterText.toLowerCase()) ||
-    dmc.location.toLowerCase().includes(filterText.toLowerCase())
-  );
-
-  // Check if a DMC is selected
-  const isDMCSelected = (dmc) => {
-    return selectedDmcIds.includes(dmc.dmcId);
-  };
-
-  // Render DMC Selection Component
-  const renderDMCSelectionPanel = () => (
-    <DMCSelectionPanel elevation={3}>
-      {/* Header */}
-
-
-      {/* Location Section - Auto-populated from LocationSearch */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
-          📍 Destination
-        </Typography>
-        
-        {activeLocation ? (
-          <Box sx={{ 
-            p: 2, 
-            bgcolor: 'rgba(102, 126, 234, 0.08)', 
-            borderRadius: 2, 
-            border: '1px solid rgba(102, 126, 234, 0.2)',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <LocationIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 500, color: '#333' }}>
-                {activeLocation.country || activeLocation.countryName || 'Location Selected'}
-              </Typography>
-         
-            </Box>
-          </Box>
-        ) : (
-          <Box sx={{ 
-            p: 2, 
-            bgcolor: 'rgba(255, 152, 0, 0.08)', 
-            borderRadius: 2, 
-            border: '1px solid rgba(255, 152, 0, 0.2)',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <InfoIcon sx={{ fontSize: 18, color: '#ff9800', mr: 1 }} />
-            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>
-              Please select a location from the search form first
-            </Typography>
-          </Box>
-        )}
-      </Box>
-
-      {/* DMC Filter & Selection */}
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
-            🏢 DMC Partners
-          </Typography>
-          {selectedDmcsData.length > 0 && (
-            <Badge badgeContent={selectedDmcsData.length} color="primary" />
-          )}
-        </Box>
-        
-        {activeLocation && (
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search DMCs..."
-            value={filterText}
-            onChange={handleFilterChange}
-            InputProps={{
-              startAdornment: <SearchIcon sx={{ color: '#999', mr: 0.5, fontSize: '1.2rem' }} />
-            }}
-            sx={{ 
-              mb: 2,
-              '& .MuiOutlinedInput-input': {
-                fontSize: '0.875rem'
-              }
-            }}
-          />
-        )}
-      </Box>
-
-      {/* DMC List */}
-      <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
-        {dmcLoading && (
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={20} sx={{ mr: 1 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-              Loading DMCs...
-            </Typography>
-          </Box>
-        )}
-
-        {dmcError && (
-          <Box sx={{ p: 2, bgcolor: '#fff3e0', borderRadius: 1, mb: 2, border: '1px solid #ffb74d' }}>
-            <Typography variant="body2" color="error" sx={{ fontSize: '0.875rem' }}>
-              Error: {dmcError}
-            </Typography>
-          </Box>
-        )}
-
-        {!activeLocation && !dmcLoading && (
-          <Box sx={{ textAlign: 'center', py: 3 }}>
-            <TravelIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-              Select a destination first
-            </Typography>
-          </Box>
-        )}
-
-        {activeLocation && !dmcLoading && filteredDMCs.length === 0 && dmcOptions.length === 0 && (
-          <Box sx={{ textAlign: 'center', py: 3 }}>
-            <InfoIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-              No DMCs available
-            </Typography>
-          </Box>
-        )}
-
-        {filteredDMCs.length === 0 && dmcOptions.length > 0 && (
-          <Box sx={{ textAlign: 'center', py: 3 }}>
-            <SearchIcon sx={{ fontSize: 36, color: '#ddd', mb: 1 }} />
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-              No matches found
-            </Typography>
-          </Box>
-        )}
-
-        {filteredDMCs.map((dmc) => (
-          <DMCCard
-            key={dmc.id}
-            selected={isDMCSelected(dmc)}
-            onClick={() => handleDMCCardClick(dmc)}
-          >
-            <CardContent sx={{ p: 1.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                {dmc.logo ? (
-                  <Avatar
-                    src={dmc.logo}
-                    alt={dmc.name}
-                    sx={{ width: 32, height: 32, mr: 1.5 }}
-                  >
-                    <BusinessIcon fontSize="small" />
-                  </Avatar>
-                ) : (
-                  <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#667eea' }}>
-                    <BusinessIcon fontSize="small" />
-                  </Avatar>
-                )}
-                
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    fontWeight: 600, 
-                    color: isDMCSelected(dmc) ? '#667eea' : '#333',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    fontSize: '0.875rem',
-                    lineHeight: 1.2
-                  }}>
-                    {dmc.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ 
-                    fontSize: '0.75rem',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    lineHeight: 1.2
-                  }}>
-                    📍 {dmc.location}
-                  </Typography>
-                </Box>
-                
-                {isDMCSelected(dmc) && (
-                  <CheckCircleIcon sx={{ color: '#4caf50', fontSize: 18 }} />
-                )}
-              </Box>
-            </CardContent>
-          </DMCCard>
-        ))}
-      </Box>
-
-      {/* Selected Summary */}
-      {selectedDmcsData.length > 0 && (
-        <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #e0e3e8' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
-              ✅ Selected ({selectedDmcsData.length})
-            </Typography>
-            {enquiryListLoading && (
-              <CircularProgress size={12} sx={{ color: '#667eea' }} />
-            )}
-          </Box>
-          {enquiryListLoading && (
-            <Typography variant="caption" sx={{ color: '#667eea', fontSize: '0.7rem', mb: 1, display: 'block' }}>
-              Updating data...
-            </Typography>
-          )}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {selectedDmcsData.slice(0, 3).map((dmc) => (
-              <Chip
-                key={dmc.id}
-                label={dmc.name}
-                size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ fontSize: '0.75rem' }}
-              />
-            ))}
-            {selectedDmcsData.length > 3 && (
-              <Chip
-                label={`+${selectedDmcsData.length - 3} more`}
-                size="small"
-                color="primary"
-                sx={{ fontSize: '0.75rem' }}
-              />
-            )}
-          </Box>
-        </Box>
-      )}
-    </DMCSelectionPanel>
-  );
-
   return (
     <Box sx={{ 
       maxWidth: "1400px", 
@@ -1893,11 +1601,24 @@ const BookingEnquiries = ({
         <HeadingLine />
       </Box>
 
+      {/* Trip Details Section */}
+      <TripDetailsComponent mode="view" />
+
       {/* Main Grid Layout */}
       <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
         {/* Left Column - DMC Selection */}
         <Grid item xs={12} md={4} lg={3}>
-          {renderDMCSelectionPanel()}
+          {/* Required indicator for DMC selection */}
+          {selectedDmcsData.length === 0 && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Please select at least one DMC partner
+            </Alert>
+          )}
+          <DMCSelectionComponent 
+            mode="full"
+            activeLocation={activeLocation}
+            showLocationSection={true}
+          />
         </Grid>
 
         {/* Right Column - Booking Form */}
@@ -1951,6 +1672,13 @@ const BookingEnquiries = ({
                 ))}
               </Box>
             </Paper>
+          )}
+
+          {/* Required indicator for service selection */}
+          {!Object.values(bookingOptions).some(value => value === true) && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Please select at least one service below
+            </Alert>
           )}
 
           <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} alignItems="flex-start">
@@ -2670,38 +2398,6 @@ const BookingEnquiries = ({
                             </Grid>
                           </>
                         )}
-                        {option === "packagedAttractions" && (
-                          <>
-                            <Grid item xs={12}>
-                              <PackageAttractionSearch 
-                                onSelect={handlePackagedAttractionsSelect}
-                                value={selectedPackagedAttractions}
-                              />
-                            </Grid>
-                            <Grid item xs={12}>
-                              <TextField
-                                fullWidth
-                                multiline
-                                rows={3}
-                                label="Remarks"
-                                variant="outlined"
-                                value={packagedAttractionsRemarks}
-                                placeholder="Add any special requests for packaged attractions"
-                                onChange={handlePackagedAttractionsRemarksChange}
-                                sx={{
-                                  '& .MuiOutlinedInput-root': {
-                                    '&.Mui-focused fieldset': {
-                                      borderColor: serviceColors[option]?.main
-                                    }
-                                  },
-                                  '& .MuiInputLabel-root.Mui-focused': {
-                                    color: serviceColors[option]?.main
-                                  }
-                                }}
-                              />
-                            </Grid>
-                          </>
-                        )}
                         {option === "localTour" && (
                           <>
                             <Grid item xs={12}>
@@ -3003,6 +2699,53 @@ const BookingEnquiries = ({
           </Box>
         </Grid>
       </Grid>
+      
+      {/* Validation Error Snackbar */}
+      <Snackbar
+        open={showValidationError}
+        autoHideDuration={6000}
+        onClose={handleCloseValidationError}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ mt: 8 }}
+      >
+        <Alert 
+          onClose={handleCloseValidationError} 
+          severity="error" 
+          sx={{ 
+            width: '100%',
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+            fontSize: '1rem',
+            '& .MuiAlert-icon': {
+              fontSize: '1.5rem'
+            }
+          }}
+        >
+          {validationError}
+        </Alert>
+      </Snackbar>
+      
+      {/* DMC Change Notification Snackbar */}
+      <Snackbar
+        open={dmcChangeNotification}
+        autoHideDuration={5000}
+        onClose={() => setDmcChangeNotification(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setDmcChangeNotification(false)} 
+          severity="info" 
+          sx={{ 
+            width: '100%',
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+            fontSize: '0.95rem',
+            '& .MuiAlert-icon': {
+              fontSize: '1.3rem'
+            }
+          }}
+        >
+          Your previous selections have been cleared due to DMC change. Please reselect services from the new DMC.
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -48,7 +48,6 @@ import {
   LocalTaxi as TaxiIcon,
   DirectionsBus as BusIcon,
   Explore as ExploreIcon,
-  Map as MapIcon,
   Tour as TourIcon
 } from "@mui/icons-material";
 import { 
@@ -68,6 +67,8 @@ import { setBookingType } from "@/slice/common/commonSlice";
 import axios from "axios";
 import Cookies from "js-cookie";  
 import { BASE_URL } from '@/services/api';
+import DMCSelectionComponent from "./DMCSelectionComponent";
+import TripDetailsComponent from "./TripDetailsComponent";
 
 
 // Styled components
@@ -212,7 +213,6 @@ const getServiceIcon = (service) => {
     case "localTour": return <TourIcon />;
     case "tourGuide": return <PersonIcon />;
     case "restaurant": return <RestaurantIcon />;
-    case "packagedAttractions": return <MapIcon />;
     default: return <CheckCircleIcon />;
   }
 };
@@ -227,8 +227,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [localEnquiryId, setLocalEnquiryId] = useState(null);
-  const [countryValue, setCountryValue] = useState("");
-  const [cityValue, setCityValue] = useState("");
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   
   const bookingDetails = useSelector((state) => state.enquiry);
@@ -519,41 +517,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       console.log("No hotel details found in state");
     }
   }, []);
-  
-  // Initialize country and city values from Redux state
-  useEffect(() => {
-    if (bookingDetails.searchLocation) {
-      setCountryValue(bookingDetails.searchLocation.country || "");
-      setCityValue(bookingDetails.searchLocation.city || "");
-    }
-  }, [bookingDetails.searchLocation]);
-
-  // Handle country and city change
-  const handleCountryChange = (e) => {
-    setCountryValue(e.target.value);
-    if (bookingDetails.searchLocation) {
-      dispatch(updateServiceDetails({
-        service: 'searchLocation',
-        data: { 
-          ...bookingDetails.searchLocation,
-          country: e.target.value 
-        }
-      }));
-    }
-  };
-
-  const handleCityChange = (e) => {
-    setCityValue(e.target.value);
-    if (bookingDetails.searchLocation) {
-      dispatch(updateServiceDetails({
-        service: 'searchLocation',
-        data: { 
-          ...bookingDetails.searchLocation,
-          city: e.target.value 
-        }
-      }));
-    }
-  };
   
   // Update the renderServiceDetails function for "hotel" case
   const renderServiceDetails = (service) => {
@@ -1173,54 +1136,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           </>
         );
         
-      case "packagedAttractions":
-        return (
-          <>
-            {details.selectedPackagedAttractions && (
-              <Box sx={{ mt: 1 }}>
-                <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>Selected Packages:</Typography>
-                <List dense disablePadding>
-                  {Array.isArray(details.selectedPackagedAttractions) && details.selectedPackagedAttractions.length > 0 ?
-                    details.selectedPackagedAttractions.map((pkg, idx) => (
-                      <ListItem key={idx} dense disableGutters alignItems="flex-start">
-                        <ListItemIcon sx={{ minWidth: 30 }}>
-                          <MapIcon fontSize="small" color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={pkg.name || pkg}
-                          secondary={pkg.attractions && pkg.attractions.length > 0 ? (
-                            <>
-                              <Typography variant="caption" color="text.secondary">Includes:</Typography>
-                              <ul style={{ margin: 0, paddingLeft: 16 }}>
-                                {pkg.attractions.map((att) => (
-                                  <li key={att.attraction_id} style={{ fontSize: 12 }}>{att.name}</li>
-                                ))}
-                              </ul>
-                            </>
-                          ) : null}
-                        />
-                      </ListItem>
-                    )) : (
-                      <ListItem dense disableGutters>
-                        <ListItemIcon sx={{ minWidth: 30 }}>
-                          <MapIcon fontSize="small" color="primary" />
-                        </ListItemIcon>
-                        <ListItemText primary={details.selectedPackagedAttractions?.name || "Selected Package"} />
-                      </ListItem>
-                    )}
-                </List>
-              </Box>
-            )}
-            {details.remarks && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" fontWeight={500}>Remarks:</Typography>
-                <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
-                  "{details.remarks}"
-                </Typography>
-              </Box>
-            )}
-          </>
-        );
       default:
         return (
           <Alert severity="info" sx={{ mt: 2 }}>
@@ -1268,10 +1183,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         attraction_transport: false,
         attraction_transport_type: "sharable",
         attraction_remarks: "",
-        // Packaged attractions service
-        packaged_attractions: selectedServices.includes("packagedAttractions"),
-        packaged_attraction_ids: [],
-        packaged_attractions_remarks: "",
         // Local transfer service
         local_transfer: selectedServices.includes("localTour"),
         local_transport_vehicle_ids: [],
@@ -1369,18 +1280,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         if (attractionDetails.selectedAttractions && Array.isArray(attractionDetails.selectedAttractions)) {
           payload.attraction_ids = attractionDetails.selectedAttractions.map(attraction => 
             attraction.id || attraction.attraction_id || attraction
-          );
-        }
-      }
-
-      // Populate packaged attractions data
-      if (selectedServices.includes("packagedAttractions") && serviceDetails.packagedAttractions) {
-        const packagedDetails = serviceDetails.packagedAttractions;
-        payload.packaged_attractions_remarks = packagedDetails.remarks || "";
-        
-        if (packagedDetails.selectedPackagedAttractions && Array.isArray(packagedDetails.selectedPackagedAttractions)) {
-          payload.packaged_attraction_ids = packagedDetails.selectedPackagedAttractions.map(pkg => 
-            pkg.id || pkg.package_id || pkg
           );
         }
       }
@@ -1583,9 +1482,11 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
 
 
   return (
-    <Container maxWidth="lg" sx={{ 
-      py: { xs: 1, sm: 1.5, md: 4 },
-      px: { xs: 0.5, sm: 1, md: 3 }
+    <Box sx={{ 
+      maxWidth: "1400px", 
+      margin: "0 auto", 
+      px: { xs: 1, sm: 2, md: 3 },
+      py: { xs: 1, sm: 2, md: 3 }
     }}>
       <Typography 
         variant="h4" 
@@ -1618,102 +1519,21 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         Please review all your selected services and confirm your booking details
       </Typography>
       
-     
+      {/* Trip Details Section */}
+      <TripDetailsComponent mode="view" />
       
-      {/* Trip details section */}
-      <SectionPaper>
-        <SectionHeader>
-          <SectionIcon>
-            <CalendarIcon />
-          </SectionIcon>
-          <Typography variant="h6" component="h2" fontWeight={600}>
-            Trip Details
-          </Typography>
-        </SectionHeader>
-        
-        <Divider sx={{ mb: 3 }} />
-        
-        <Grid container spacing={{ xs: 1, sm: 1.5, md: 3 }}>
-          <Grid item xs={12} md={6}>
-              <Box display="flex" alignItems="center" sx={{ mb: 1, width: '100%' }}>
-              </Box>
-              <Grid container spacing={{ xs: 0.5, sm: 1, md: 2 }}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Country"
-                    value={countryValue}
-                    readOnly
-                    size="small"
-                    variant="outlined"
-                    InputProps={{
-                      sx: { 
-                        borderRadius: 2,
-                        fontSize: { xs: '0.875rem', sm: '1rem' }
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="City"
-                    value={cityValue}
-                    readOnly
-                    size="small"
-                    variant="outlined"
-                    InputProps={{
-                      sx: { 
-                        borderRadius: 2,
-                        fontSize: { xs: '0.875rem', sm: '1rem' }
-                      }
-                    }}
-                  />
-                </Grid>
-              </Grid>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <DetailItem>
-              <Box display="flex" alignItems="center">
-                <CalendarIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="body2" fontWeight={500}>Check-in</Typography>
-              </Box>
-              <Typography variant="body2">
-                {formatDate(bookingDetails.checkIn)}
-              </Typography>
-            </DetailItem>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <DetailItem>
-              <Box display="flex" alignItems="center">
-                <CalendarIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="body2" fontWeight={500}>Check-out</Typography>
-              </Box>
-              <Typography variant="body2">
-                {formatDate(bookingDetails.checkOut)}
-              </Typography>
-            </DetailItem>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <DetailItem>
-              <Box display="flex" alignItems="center">
-                <PeopleIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="body2" fontWeight={500}>Guests</Typography>
-              </Box>
-              <Typography variant="body2">
-                {bookingDetails.guests
-                  ? `${bookingDetails.guests.adults || 0} Adults, ${
-                      bookingDetails.guests.children || 0
-                    } Children`
-                  : "Not specified"}
-              </Typography>
-            </DetailItem>
-          </Grid>
+      {/* Main Grid Layout */}
+      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
+        {/* Left Column - Selected DMCs Display */}
+        <Grid item xs={12} md={4} lg={3}>
+          <DMCSelectionComponent 
+            mode="summary"
+            showLocationSection={false}
+          />
         </Grid>
-      </SectionPaper>
+
+        {/* Right Column - Booking Details */}
+        <Grid item xs={12} md={8} lg={9}>
             
       {/* Selected services section */}
       <SectionPaper>
@@ -1968,7 +1788,9 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           Your booking has been successfully submitted!
         </Alert>
       </Snackbar>
-    </Container>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 
