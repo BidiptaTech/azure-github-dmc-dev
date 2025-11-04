@@ -59,7 +59,6 @@ const initialState = {
     withPickup: 0,
     withPort: 0,
     withAttractions: 0,
-    withPackagedAttractions: 0,
     withRestaurants: 0,
     withGuides: 0,
   }
@@ -102,7 +101,6 @@ const enquiryListSlice = createSlice({
   state.stats.withPickup = state.enquiries.filter(e => e.local_transfer).length;
   state.stats.withPort = state.enquiries.filter(e => e.port).length;
   state.stats.withAttractions = state.enquiries.filter(e => e.attraction).length;
-  state.stats.withPackagedAttractions = state.enquiries.filter(e => e.packaged_attractions).length;
   state.stats.withRestaurants = state.enquiries.filter(e => e.restaurant).length;
   state.stats.withGuides = state.enquiries.filter(e => e.guide).length;
 })

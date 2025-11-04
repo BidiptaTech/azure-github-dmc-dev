@@ -23,7 +23,6 @@ const Index = () => {
     hotel: false,
     entryExitPort: false,
     attraction: false,
-    packagedAttractions: false,
     localTour: false,
     tourGuide: false,
     restaurant: false,
@@ -97,8 +96,7 @@ const Index = () => {
       attraction: false,
       localTour: false,
       tourGuide: false,
-      restaurant: false,
-      packagedAttractions: false
+      restaurant: false
     });
   };
   
