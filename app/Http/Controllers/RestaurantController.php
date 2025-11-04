@@ -439,6 +439,7 @@ class RestaurantController extends Controller
         // Validate the incoming request data
         $request->validate([
             'name' => 'required|string|max:255',
+            'phone' => 'nullable|numeric',
             'cuisine' => 'required|string|max:255',
             'breakfast_available' => 'nullable|integer|in:0,1',
             'opening_time_bf' => 'nullable|date_format:H:i',
@@ -563,6 +564,7 @@ class RestaurantController extends Controller
         //Create a new restaurant record
         $restaurant = new Restaurant();
         $restaurant->name = $request->input('name');
+        $restaurant->phone = $request->input('phone');
         $restaurant->city = ucfirst($request->input('city'));
         $restaurant->country = ucfirst($request->input('country'));
         $restaurant->latitude = $request->input('latitude');
@@ -711,6 +713,7 @@ class RestaurantController extends Controller
         }
 
         $restaurant->name = $request->input('name');
+        $restaurant->phone = $request->input('phone');
         $restaurant->city = $request->input('city');
         $restaurant->latitude = $request->input('latitude');
         $restaurant->longitude = $request->input('longitude');
@@ -753,39 +756,56 @@ class RestaurantController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $id = Crypt::decrypt($id);
+        
+        // Get restaurant first
+        $restaurant = Restaurant::where('restaurant_id', $id)->first();
+        
+        if(!$restaurant) {
+            return redirect()->route('restaurant.index')
+                ->with('error', 'Restaurant not found.');
+        }
+        
+        // Check if restaurant is used in any hotel rooms
         $isUsedInRooms = Room::where('breakfast_restaurant', $id)
-        ->orWhere('lunch_restaurant', $id)
-        ->orWhere('dinner_restaurant', $id)
-        ->exists();
+            ->orWhere('lunch_restaurant', $id)
+            ->orWhere('dinner_restaurant', $id)
+            ->exists();
         if ($isUsedInRooms) {
             // The restaurant is being used in the rooms table, so do not delete it
             return redirect()->route('restaurant.index')
-            ->with('error', 'This Restaurant is in use, cannot be deleted!');
+                ->with('error', 'This Restaurant is in use in hotel rooms, cannot be deleted!');
         }
-
-        // Get restaurant and delete images from Azure
-        $restaurant = Restaurant::where('restaurant_id', $id)->first();
-        if($restaurant) {
-            // Delete master image
-            if($restaurant->master_image) {
-                CommonHelper::deleteAzureImage($restaurant->master_image);
-            }
-            
-            // Delete additional images
-            if($restaurant->images) {
-                $images = json_decode($restaurant->images, true);
-                if(is_array($images)) {
-                    foreach($images as $image) {
-                        CommonHelper::deleteAzureImage($image);
-                    }
+        
+        // Check if restaurant has any DMC assignments
+        $dmcIds = $restaurant->getSelectedDmcIds();
+        
+        if(!empty($dmcIds) && count($dmcIds) > 0) {
+            // Restaurant has DMC assignments, prevent deletion
+            return redirect()->route('restaurant.index')
+                ->with('error', 'Cannot delete this restaurant! It is currently assigned to ' . count($dmcIds) . ' DMC(s). Please remove all DMC assignments before deleting.');
+        }
+        
+        // Restaurant has no DMC assignments and not used in rooms, proceed with deletion
+        // Delete master image
+        if($restaurant->master_image) {
+            CommonHelper::deleteAzureImage($restaurant->master_image);
+        }
+        
+        // Delete additional images
+        if($restaurant->images) {
+            $images = json_decode($restaurant->images, true);
+            if(is_array($images)) {
+                foreach($images as $image) {
+                    CommonHelper::deleteAzureImage($image);
                 }
             }
         }
-
+        
+        // Delete restaurant
         Restaurant::where('restaurant_id', $id)->delete();
+        
         return redirect()->route('restaurant.index')
-        ->with('success', 'Restaurant deleted successfully');
-    
+            ->with('success', 'Restaurant deleted successfully');
     }
 
     public function restaurantCalendar($restaurant_id)

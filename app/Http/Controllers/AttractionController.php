@@ -300,6 +300,7 @@ class AttractionController extends Controller
         // try {
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
+                'phone' => 'nullable|numeric',
                 // 'adult_price' => 'required|numeric|min:0',
                 // 'child_price' => 'required|numeric|min:0',
                 'description' => 'required|string',
@@ -421,6 +422,7 @@ class AttractionController extends Controller
         //Create a new attraction record
         $attraction = new Attraction();
         $attraction->name = $request->input('name');
+        $attraction->phone = $request->input('phone');
         $attraction->adult_price = 0;
         $attraction->child_price = 0;
         $attraction->price_shared = $request->input('price_shared');
@@ -492,6 +494,7 @@ class AttractionController extends Controller
         // dd($request->all());
         $request->validate([
             'name' => 'required|string|max:255',
+            'phone' => 'nullable|numeric',
             // 'adult_price' => 'required|numeric|min:0',
             // 'child_price' => 'required|numeric|min:0',
             'description' => 'required|string',
@@ -544,6 +547,7 @@ class AttractionController extends Controller
         }
 
         $attraction->name = $request->input('name');
+        $attraction->phone = $request->input('phone');
         $attraction->adult_price = 0;
         $attraction->child_price = 0;
         $attraction->price_shared = 0;
@@ -582,28 +586,45 @@ class AttractionController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $id = Crypt::decrypt($id);
-        // Get attraction and delete images from Azure
+        
+        // Get attraction and check DMC assignments
         $attraction = Attraction::where('attraction_id', $id)->first();
-        if($attraction) {
-            // Delete master image
-            if($attraction->master_image) {
-                CommonHelper::deleteAzureImage($attraction->master_image);
-            }
-            
-            // Delete additional images
-            if($attraction->additional_image) {
-                $images = json_decode($attraction->additional_image, true);
-                if(is_array($images)) {
-                    foreach($images as $image) {
-                        CommonHelper::deleteAzureImage($image);
-                    }
+        
+        if(!$attraction) {
+            return redirect()->route('attraction.index')
+                ->with('error', 'Attraction not found.');
+        }
+        
+        // Check if attraction has any DMC assignments
+        $dmcIds = $attraction->getSelectedDmcIds();
+        
+        if(!empty($dmcIds) && count($dmcIds) > 0) {
+            // Attraction has DMC assignments, prevent deletion
+            return redirect()->route('attraction.index')
+                ->with('error', 'Cannot delete this attraction! It is currently assigned to ' . count($dmcIds) . ' DMC(s). Please remove all DMC assignments before deleting.');
+        }
+        
+        // Attraction has no DMC assignments (empty array), proceed with deletion
+        // Delete master image
+        if($attraction->master_image) {
+            CommonHelper::deleteAzureImage($attraction->master_image);
+        }
+        
+        // Delete additional images
+        if($attraction->additional_image) {
+            $images = json_decode($attraction->additional_image, true);
+            if(is_array($images)) {
+                foreach($images as $image) {
+                    CommonHelper::deleteAzureImage($image);
                 }
             }
         }
         
+        // Delete attraction
         Attraction::where('attraction_id', $id)->delete();
+        
         return redirect()->route('attraction.index')
-        ->with('success', 'Attraction deleted successfully');
+            ->with('success', 'Attraction deleted successfully');
     }
 
     /*

@@ -113,7 +113,7 @@
                                 @if($tax->tax_type == 'percentage')
                                     {{ $tax->tax_value }}%
                                 @else
-                                    ${{ number_format($tax->tax_value, 2) }}
+                                    SGD {{ number_format($tax->tax_value, 2) }}
                                 @endif
                             </td>
                             <td>
@@ -276,12 +276,9 @@
                         <div class="col-md-6">
                             <label class="form-label">Calculate On <span class="text-danger">*</span></label>
                             <select name="calculate_on" id="edit_calculate_on" class="form-select" required>
-                                <option value="">Select Option</option>
-                                <option value="total">Total Amount</option>
-                                @foreach($allTaxes as $index => $existingTax)
-                                    <option value="tax_{{ $existingTax->tax_id }}" data-tax-id="{{ $existingTax->tax_id }}">{{ $existingTax->tax_name }}</option>
-                                @endforeach
+                            <!-- Options will be dynamically populated based on taxes created before this one -->
                             </select>
+                            <small class="text-muted">Only taxes created before this one are shown to prevent circular dependencies</small>
                         </div>
                         
                         <div class="col-12">
@@ -440,21 +437,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Get tax object from response
                     const tax = data.tax || data;
+                    const previousTaxes = data.previousTaxes || [];
                     
                     // Populate the form fields
                     document.getElementById('edit_tax_id').value = tax.tax_id;
                     document.getElementById('edit_tax_name').value = tax.tax_name;
                     document.getElementById('edit_tax_type').value = tax.tax_type;
                     document.getElementById('edit_tax_value').value = tax.tax_value;
-                    
-                    // Convert calculate_on value to match dropdown options format
-                    let calculateOnValue = tax.calculate_on;
-                    if (calculateOnValue !== 'total' && !isNaN(calculateOnValue)) {
-                        // If it's a numeric tax_id, convert to 'tax_X' format
-                        calculateOnValue = 'tax_' + calculateOnValue;
-                    }
-                    document.getElementById('edit_calculate_on').value = calculateOnValue;
-                    
                     document.getElementById('edit_description').value = tax.description || '';
                     
                     // Handle if_fixed section visibility based on tax type
@@ -467,19 +456,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         editIfFixed.removeAttribute('required');
                     }
                     
-                    // Hide current tax from calculate_on dropdown to prevent circular dependency
+                    // Rebuild calculate_on dropdown with only taxes created before this one
                     const calculateOnSelect = document.getElementById('edit_calculate_on');
-                    const options = calculateOnSelect.querySelectorAll('option');
-                    options.forEach(option => {
-                        const optionTaxId = option.getAttribute('data-tax-id');
-                        if (optionTaxId && optionTaxId == tax.tax_id) {
-                            option.style.display = 'none';
-                            option.disabled = true;
-                        } else if (optionTaxId) {
-                            option.style.display = 'block';
-                            option.disabled = false;
-                        }
+                    calculateOnSelect.innerHTML = ''; // Clear all options
+                    
+                    // Add default options
+                    const selectOption = document.createElement('option');
+                    selectOption.value = '';
+                    selectOption.textContent = 'Select Option';
+                    calculateOnSelect.appendChild(selectOption);
+                    
+                    const totalOption = document.createElement('option');
+                    totalOption.value = 'total';
+                    totalOption.textContent = 'Total Amount';
+                    calculateOnSelect.appendChild(totalOption);
+                    
+                    // Add only previous taxes (created before current tax)
+                    previousTaxes.forEach(prevTax => {
+                        const option = document.createElement('option');
+                        option.value = 'tax_' + prevTax.tax_id;
+                        option.setAttribute('data-tax-id', prevTax.tax_id);
+                        option.textContent = prevTax.tax_name;
+                        calculateOnSelect.appendChild(option);
                     });
+                    
+                    // Set the selected value
+                    let calculateOnValue = tax.calculate_on;
+                    if (calculateOnValue !== 'total' && !isNaN(calculateOnValue)) {
+                        // If it's a numeric tax_id, convert to 'tax_X' format
+                        calculateOnValue = 'tax_' + calculateOnValue;
+                    }
+                    calculateOnSelect.value = calculateOnValue;
                     
                     // Update form action
                     document.getElementById('editTaxForm').action = `{{ url('tax') }}/${taxId}`;

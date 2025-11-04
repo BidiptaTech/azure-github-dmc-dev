@@ -308,24 +308,31 @@
                                     @enderror
                                 </div>
 
-                            
+                                <!-- WP Number -->
+                                <div class="col-md-3 mb-3">
+                                    <label for="wp_number" class="form-label"><strong>Whatsapp Number</strong><span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="wp_number" placeholder="Enter Whatsapp Number" value="{{ old('wp_number') }}" required>
+                                    @error('wp_number')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
-                            <!-- Guide image -->
-                            <div class="col-md-3">
-                                <div>
-                                    <label for="master_image" class="form-label"><strong>Profile
-                                            Image</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                    <div id="master-drop-area" class="form-control"
-                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                        Drag & Drop your files here or click to upload.
-                                        <input type="file" id="master_image" name="master_image" style="display: none;"
-                                            required>
+                                <!-- Guide image -->
+                                <div class="col-md-3">
+                                    <div>
+                                        <label for="master_image" class="form-label"><strong>Profile
+                                                Image</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                        <div id="master-drop-area" class="form-control"
+                                            style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
+                                            Drag & Drop your files here or click to upload.
+                                            <input type="file" id="master_image" name="master_image" style="display: none;"
+                                                required>
+                                        </div>
+                                    </div>
+                                    <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
+                                        style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
                                     </div>
                                 </div>
-                                <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
-                                    style="max-width: 30%; overflow-x: auto; white-space: nowrap;">
-                                </div>
-                            </div>
 
                             <div id="guide_language" class="col-md-12 mb-3">
                                 <fieldset>
