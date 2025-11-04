@@ -98,6 +98,23 @@
                 </div>
             </div>
         </div>
+        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-1" id="statInfantsCount">{{ $tours->where('created_at', '>=', now()->startOfMonth())->where('created_at', '<=', now()->endOfMonth())->where('infant', '>', 0)->sum('infant') }}</h5>
+                            <p class="text-muted mb-0" id="statInfantsLabel">{{ date('F') }} Infants</p>
+                        </div>
+                        <div class="avatar">
+                            <div class="avatar-initial bg-secondary rounded">
+                                <i class="ri-user-heart-line ri-24px"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Filters -->
@@ -203,6 +220,7 @@
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ (int)($tour->adult ?? 0) }}"
                             data-child="{{ (int)($tour->child ?? 0) }}"
+                            data-infant="{{ (int)($tour->infant ?? 0) }}"
                             data-tour-status="{{ $tour->tour_status ?? '' }}"
                         >
                             {{-- <td>
@@ -226,16 +244,19 @@
                             </td>
 
                             <td>
-                                <div class="d-flex gap-2">
-                                    @if($tour->adult > 0)
-                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
-                                    @endif
-                                    @if($tour->child > 0)
-                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
-                                    @endif
-                                    @if($tour->adult == 0 && $tour->child == 0)
-                                        <span class="text-muted">No guests specified</span>
-                                    @endif
+                                <div class="d-flex gap-3 align-items-center">
+                                    <div class="d-flex align-items-center gap-1" title="Adults">
+                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1" title="Children">
+                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1" title="Infants">
+                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td>
@@ -3485,6 +3506,7 @@ function filterTable() {
     const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
+    const infants = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-infant') || '0', 10), 0);
     
     // Count today's enquiries from visible rows
     const today = new Date().toISOString().split('T')[0];
@@ -3503,12 +3525,15 @@ function filterTable() {
     const statAdultsLabel = document.getElementById('statAdultsLabel');
     const statChildren = document.getElementById('statChildrenCount');
     const statChildrenLabel = document.getElementById('statChildrenLabel');
+    const statInfants = document.getElementById('statInfantsCount');
+    const statInfantsLabel = document.getElementById('statInfantsLabel');
 
     if (countEl) countEl.textContent = rangeCount;
     if (statEnquiries) statEnquiries.textContent = rangeCount;
     if (statToday) statToday.textContent = todayCount;
     if (statAdults) statAdults.textContent = adults;
     if (statChildren) statChildren.textContent = children;
+    if (statInfants) statInfants.textContent = infants;
 
     // Update filter results badge
     updateFilterResults(visibleCount, rows.length - 1); // -1 to exclude empty state row if present

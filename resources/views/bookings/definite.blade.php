@@ -412,13 +412,19 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex gap-2">
-                                    @if($tour->adult > 0)
-                                        <span class="badge bg-primary">{{ $tour->adult }} Adults</span>
-                                    @endif
-                                    @if($tour->child > 0)
-                                        <span class="badge bg-warning">{{ $tour->child }} Children</span>
-                                    @endif
+                                <div class="d-flex gap-3 align-items-center">
+                                    <div class="d-flex align-items-center gap-1" title="Adults">
+                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1" title="Children">
+                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1" title="Infants">
+                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
+                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td>

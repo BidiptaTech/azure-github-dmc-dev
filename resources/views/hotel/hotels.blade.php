@@ -228,7 +228,7 @@
                                             </svg>
                                         </a>
                                         @endif
-                                        @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
+                                        @if( Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
                                         <button type="button"
                                             class="btn btn-danger btn-sm rounded-circle"
                                             style="min-width: 28px; min-height: 28px; padding: 0;" 

@@ -19,10 +19,6 @@ class PackagedAttractionController extends Controller
      */
     public function index()
     {
-        if (!hasPermission('view attraction')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
-
         $user = auth()->user();
         $packagedAttractions = [];
         
@@ -85,9 +81,6 @@ class PackagedAttractionController extends Controller
      */
     public function create()
     {
-        if (!hasPermission('create attraction')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
         $user = auth()->user();
         $dmc_id = null;
         if($user->role_id == 11 || $user->role_id == 20){
@@ -124,10 +117,6 @@ class PackagedAttractionController extends Controller
      */
     public function store(Request $request)
     {
-        if (!hasPermission('create attraction')) {
-            abort(403, 'You do not have permission to perform this action.');
-        }
-        
         try {
             // $validator = Validator::make($request->all(), [
             //     'package_attraction_name' => 'required|string|max:255',
@@ -225,9 +214,6 @@ class PackagedAttractionController extends Controller
      */
     public function show(string $id)
     {
-        if (!hasPermission('view attraction')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
         $packageAttractionId = Crypt::decrypt($id);
         
         $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
@@ -239,9 +225,6 @@ class PackagedAttractionController extends Controller
      */
     public function edit(string $id)
     {
-        if (!hasPermission('edit attraction')) {
-            abort(403, 'You do not have permission to access this page.');
-        }
         $packageAttractionId = Crypt::decrypt($id);
         $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
         $attractions = Attraction::where('status', 1)->get();
@@ -253,9 +236,6 @@ class PackagedAttractionController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        if (!hasPermission('edit attraction')) {
-            abort(403, 'You do not have permission to perform this action.');
-        }
         try {
             $validator = Validator::make($request->all(), [
                 'package_attraction_name' => 'required|string|max:255',
@@ -328,9 +308,6 @@ class PackagedAttractionController extends Controller
      */
     public function destroy(string $id)
     {
-        if (!hasPermission('delete attraction')) {
-            abort(403, 'You do not have permission to perform this action.');
-        }
         try {
             $packageAttractionId = Crypt::decrypt($id);
             $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
@@ -354,9 +331,6 @@ class PackagedAttractionController extends Controller
      */
     public function getAttractions(Request $request)
     {
-        if (!hasPermission('view attraction')) {
-            abort(403, 'You do not have permission to access this data.');
-        }
         
         $attractions = Attraction::where('status', 1);
         
@@ -374,9 +348,6 @@ class PackagedAttractionController extends Controller
      */
     public function uploadImages(Request $request)
     {
-        if (!hasPermission('create attraction')) {
-            abort(403, 'You do not have permission to perform this action.');
-        }
         
         $validator = Validator::make($request->all(), [
             'images' => 'required|array',
@@ -405,9 +376,6 @@ class PackagedAttractionController extends Controller
      */
     public function removeImage($id)
     {
-        if (!hasPermission('edit attraction')) {
-            abort(403, 'You do not have permission to perform this action.');
-        }
         
         $packageAttractionId = Crypt::decrypt($id);
         $packagedAttraction = PackagedAttraction::where('package_attraction_id', $packageAttractionId)->first();
