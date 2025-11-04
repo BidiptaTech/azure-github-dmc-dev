@@ -11,6 +11,7 @@ use App\Models\Hotel;
 use App\Models\Attraction;
 use App\Models\PackagedAttraction;
 use App\Models\Restaurant;
+use App\Models\Meal;
 use App\Models\Port;
 use App\Models\Country;
 use App\Models\Vehicle;
@@ -952,7 +953,29 @@ class EnquiryController extends Controller
         foreach($enquiries as $enquiry){
             // Decode and normalize all IDs to arrays of integers
             $hotelIds = is_array($decoded = json_decode($enquiry->hotel_ids, true)) ? $decoded : [];
-            $restaurantIds = is_array($decoded = json_decode($enquiry->restaurant_ids, true)) ? array_map('intval', $decoded) : [];
+            
+            // Parse new restaurant structure with dates and meal_ids
+            $restaurantData = json_decode($enquiry->restaurant_ids, true);
+            $restaurantIds = [];
+            $allMealIds = [];
+            
+            if (is_array($restaurantData)) {
+                foreach ($restaurantData as $dateEntry) {
+                    if (isset($dateEntry['restaurants']) && is_array($dateEntry['restaurants'])) {
+                        foreach ($dateEntry['restaurants'] as $restaurant) {
+                            if (isset($restaurant['restaurant_id'])) {
+                                $restaurantIds[] = intval($restaurant['restaurant_id']);
+                            }
+                            if (isset($restaurant['meal_ids']) && is_array($restaurant['meal_ids'])) {
+                                $allMealIds = array_merge($allMealIds, array_map('intval', $restaurant['meal_ids']));
+                            }
+                        }
+                    }
+                }
+            }
+            $restaurantIds = array_unique($restaurantIds);
+            $allMealIds = array_unique($allMealIds);
+            
             $attractionIds = is_array($decoded = json_decode($enquiry->attraction_ids, true)) ? array_map('intval', $decoded) : [];
             $guideIds = is_array($decoded = json_decode($enquiry->guide_ids, true)) ? array_map('intval', $decoded) : [];
             $localTransportVehicleIds = is_array($decoded = json_decode($enquiry->local_transport_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
@@ -962,7 +985,66 @@ class EnquiryController extends Controller
             $packagedAttractionIds = is_array($decoded = json_decode($enquiry->packaged_attraction_ids, true)) ? array_map('intval', $decoded) : [];
 
             // Fetch related models
-            $restaurants = Restaurant::whereIn('restaurant_id', $restaurantIds)->get(); 
+            $restaurants = Restaurant::with(['meals' => function($query) use ($allMealIds) {
+                if (!empty($allMealIds)) {
+                    $query->whereIn('meal_id', $allMealIds);
+                }
+            }])->whereIn('restaurant_id', $restaurantIds)->get();
+            
+            // Map data by dates first, then restaurants within each date
+            $restaurantDetails = [];
+            
+            if (is_array($restaurantData)) {
+                foreach ($restaurantData as $dateEntry) {
+                    if (isset($dateEntry['date']) && isset($dateEntry['restaurants'])) {
+                        $dateRestaurants = [];
+                        
+                        foreach ($dateEntry['restaurants'] as $restData) {
+                            $restaurantId = $restData['restaurant_id'];
+                            $mealIds = $restData['meal_ids'] ?? [];
+                            
+                            // Find the restaurant from the fetched collection
+                            $restaurant = $restaurants->firstWhere('restaurant_id', $restaurantId);
+                            
+                            if ($restaurant) {
+                                $meals = $restaurant->meals->whereIn('meal_id', $mealIds)->map(function($meal) {
+                                    return [
+                                        'meal_id' => $meal->meal_id,
+                                        'adult_price' => $meal->adult_price,
+                                        'child_price' => $meal->child_price,
+                                        'set_menu_price' => $meal->price,
+                                        'item_description' => $meal->item_description,
+                                        'item_type' => $meal->item_type == 1 ? 'Vegetarian' : 'Non Vegetarian',
+                                        'category' => $meal->category == 1 ? 'Alcoholic' : 'Non Alcoholic',
+                                        'meal_type' => $meal->type == 1 ? 'Buffet' : 'Set Menu',
+                                        'meal_period' => match($meal->meal_period ?? 1) {
+                                            1 => 'Breakfast',
+                                            2 => 'Lunch',
+                                            3 => 'Dinner',
+                                            default => 'Breakfast'
+                                        },
+                                    ];
+                                })->values();
+                                
+                                $dateRestaurants[] = [
+                                    'restaurant_id' => $restaurant->restaurant_id,
+                                    'name' => $restaurant->name,
+                                    'master_image' => $restaurant->master_image,
+                                    'city' => $restaurant->city,
+                                    'country' => $restaurant->country,
+                                    'meals' => $meals
+                                ];
+                            }
+                        }
+                        
+                        $restaurantDetails[] = [
+                            'date' => $dateEntry['date'],
+                            'restaurants' => $dateRestaurants
+                        ];
+                    }
+                }
+            }
+            
             $attractions = Attraction::whereIn('attraction_id', $attractionIds)->get();
             $hotels = Hotel::whereIn('hotel_unique_id', $hotelIds)->get();
             $guides = Guide::whereIn('guide_id', $guideIds)->get();
@@ -1042,7 +1124,7 @@ class EnquiryController extends Controller
                 'attraction_details' => $attractions,
                 'restaurant' => $enquiry->restaurant,
                 'restaurant_remarks' => $enquiry->restaurant_remarks,
-                'restaurant_details' => $restaurants,
+                'restaurant_details' => $restaurantDetails,
                 'guide' => $enquiry->guide,
                 'guide_remarks' => $enquiry->guide_remarks,
                 'guide_details' => $guides,
