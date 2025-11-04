@@ -56,8 +56,8 @@ const MainFilterSearchBox = ({ Location }) => {
   const [entryytime, setentryytime] = useState("");
   const [entryytime1, setentryytime1] = useState("");
   const [entryytimezone, setentryytimezone] = useState("");
-  const zone_on = useSelector((state) => state.auth.zone_on);
-
+  const rawZoneOn = useSelector((state) => state.auth.zone_on);
+  const zone_on = rawZoneOn !== null ? Number(rawZoneOn) : null;
   // Add state for validation
   const [validationTriggered, setValidationTriggered] = useState(false);
 

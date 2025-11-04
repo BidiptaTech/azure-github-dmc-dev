@@ -246,7 +246,7 @@ export const fetchVehicleDetails = createAsyncThunk(
 
 export const fetchPortCity = createAsyncThunk(
   "pickupDrop/fetchPortCity",
-  async ({ city, tourId, type }, { rejectWithValue, dispatch }) => {
+  async ({ city, type, country }, { rejectWithValue, dispatch }) => {
     try {
      
       const authToken = Cookies.get("authToken");
@@ -258,25 +258,12 @@ export const fetchPortCity = createAsyncThunk(
       }
 
       // Ensure tourId is properly formatted
-      if (tourId === undefined || tourId === null || tourId === "") {
-       
-        throw new Error("Tour ID is required");
-      }
-
-      // Ensure tourId is a number for the API
-      const numericTourId =
-        typeof tourId === "string" ? parseInt(tourId, 10) : tourId;
-
-      if (isNaN(numericTourId)) {
-       
-        throw new Error("Tour ID must be a valid number");
-      }
-
+     
       // ✅ Build query parameters dynamically
       const params = {
         city: city,
-        tour_id: numericTourId, // Ensure it's a number
         type: type,
+        country: country,
       };
 
     
