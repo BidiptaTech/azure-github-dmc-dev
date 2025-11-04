@@ -1,26 +1,389 @@
 @extends('layouts.layout')
 @section('title', 'Guide Jobs')
+
+@section('styles')
+<style>
+    .guide-schedule-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 15px;
+        padding: 30px;
+        color: white;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3);
+    }
+    
+    .guide-schedule-header h4 {
+        font-weight: 600;
+        margin: 0;
+        font-size: 28px;
+    }
+    
+    .filter-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+    }
+    
+    .form-select, .form-control {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 12px 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .form-select:focus, .form-control:focus {
+        border-color: #f093fb;
+        box-shadow: 0 0 0 0.2rem rgba(240, 147, 251, 0.25);
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-export {
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-export-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    
+    .btn-export-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(17, 153, 142, 0.3);
+    }
+    
+    .btn-export-primary {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    
+    .btn-export-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(240, 147, 251, 0.3);
+    }
+    
+    .schedule-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+    
+    .nav-tabs {
+        border: none;
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 8px;
+        margin-bottom: 25px;
+    }
+    
+    .nav-tabs .nav-item {
+        flex: 1;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 8px;
+        color: #6c757d;
+        font-weight: 600;
+        padding: 12px 20px;
+        transition: all 0.3s ease;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background: rgba(240, 147, 251, 0.1);
+        color: #f093fb;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+    }
+    
+    .nav-tabs .nav-link i {
+        font-size: 16px;
+    }
+    
+    .table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .table {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .table thead th {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        padding: 15px 12px;
+        border: none;
+        white-space: nowrap;
+    }
+    
+    .table thead th:first-child {
+        border-top-left-radius: 10px;
+    }
+    
+    .table thead th:last-child {
+        border-top-right-radius: 10px;
+    }
+    
+    .table tbody tr {
+        transition: all 0.3s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #fef5ff;
+        transform: scale(1.01);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .table tbody td {
+        padding: 15px 12px;
+        vertical-align: middle;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 10px;
+    }
+    
+    .table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 10px;
+    }
+    
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #fef5ff;
+    }
+    
+    .dataTables_wrapper .dataTables_length {
+        float: left;
+    }
+    
+    .dataTables_wrapper .dataTables_info {
+        padding-top: 1em;
+        float: left;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate {
+        float: right;
+        padding-top: 1em;
+    }
+    
+    .dt-buttons {
+        margin-bottom: 15px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        float: left;
+    }
+    
+    .dt-button {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        border: none !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+        font-size: 13px !important;
+    }
+    
+    .dt-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3) !important;
+    }
+    
+    .dataTables_wrapper {
+        width: 100% !important;
+    }
+    
+    .dataTables_wrapper .dataTables_filter {
+        float: right;
+        text-align: right;
+    }
+    
+    .dataTables_wrapper .dataTables_filter input {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 8px 15px;
+        transition: all 0.3s ease;
+        width: 250px;
+    }
+    
+    .dataTables_wrapper .dataTables_filter input:focus {
+        border-color: #f093fb;
+        box-shadow: 0 0 0 0.2rem rgba(240, 147, 251, 0.25);
+        outline: none;
+    }
+    
+    .dataTables_wrapper .dataTables_length select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 6px 12px;
+        margin: 0 5px;
+    }
+    
+    .page-item.active .page-link {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-color: #f093fb;
+    }
+    
+    .page-link {
+        color: #f093fb;
+        border-radius: 8px;
+        margin: 0 3px;
+        transition: all 0.3s ease;
+    }
+    
+    .page-link:hover {
+        background-color: #fef5ff;
+        color: #f093fb;
+    }
+    
+    .badge {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 11px;
+    }
+    
+    .customer-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .customer-name {
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .customer-phone {
+        color: #718096;
+        font-size: 12px;
+        margin-top: 2px;
+    }
+    
+    .serial-number {
+        font-weight: 700;
+        color: #f093fb;
+        background: rgba(240, 147, 251, 0.1);
+        width: 35px;
+        height: 35px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+    
+    /* Ensure tables use full width */
+    .dataTables_wrapper .row {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .dataTables_wrapper .row > div {
+        padding: 0 12px;
+    }
+    
+    .table-responsive {
+        overflow-x: visible !important;
+    }
+    
+    /* Full width for table container */
+    #scheduleTabsContent {
+        width: 100%;
+    }
+    
+    .tab-pane {
+        width: 100%;
+    }
+    
+    @media (max-width: 768px) {
+        .guide-schedule-header {
+            padding: 20px;
+        }
+        
+        .guide-schedule-header h4 {
+            font-size: 22px;
+        }
+        
+        .export-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .btn-export {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="container-fluid h-100 pt-4 px-4">
     <div class="row g-4">
         <div class="col-12">
-            <div class="rounded h-100 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="mb-0">Guide Schedule</h5>
+            <!-- Header -->
+            <div class="guide-schedule-header">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
-                        <button id="exportScheduleBtn" class="btn btn-success me-2" style="display: none;">
-                            <i class="fas fa-file-excel"></i> Export List to Excel
+                        <h4 class="mb-1">
+                            <i class="ri-user-voice-fill me-2"></i>Guide Schedule Management
+                        </h4>
+                        <p class="mb-0 opacity-90">Manage and track guide assignments efficiently</p>
+                    </div>
+                    <div class="export-buttons" style="display: none;" id="exportButtonsContainer">
+                        <button id="exportScheduleBtn" class="btn btn-export btn-export-success">
+                            <i class="ri-file-excel-2-line"></i> Export to Excel
                         </button>
-                        <button id="exportCalendarBtn" class="btn btn-primary" style="display: none;">
-                            <i class="fas fa-calendar-alt"></i> Export Job Sheet
+                        <button id="exportCalendarBtn" class="btn btn-export btn-export-primary">
+                            <i class="ri-calendar-2-line"></i> Export Job Sheet
                         </button>
                     </div>
                 </div>
+            </div>
+            
+            <!-- Filter Card -->
+            <div class="filter-card">
                 <div class="row">
                     @if(in_array(Auth::user()->role_id, [1,7,14,97]))
                     <!-- Admin can see all fields -->
-                    <div class="col-md-4 mb-3">
-                        <label for="master_dmc_id" class="form-label">Master DMC</label>
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <label for="master_dmc_id" class="form-label"><i class="ri-admin-line me-1"></i>Master DMC</label>
                         <select class="form-select" id="master_dmc_id" name="master_dmc_id">
                             <option value="">Select Master DMC</option>
                             @foreach(\App\Models\User::where('role_id', 10)->get() as $masterDmc)
@@ -29,16 +392,16 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-4 mb-3">
-                        <label for="dmc_id" class="form-label">DMC</label>
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <label for="dmc_id" class="form-label"><i class="ri-building-2-line me-1"></i>DMC</label>
                         <select class="form-select" id="dmc_id" name="dmc_id">
                             <option value="">Select DMC</option>
                             <!-- Will be populated via AJAX -->
                         </select>
                     </div>
                     
-                    <div class="col-md-4 mb-3">
-                        <label for="guide_id" class="form-label">Guide</label>
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <label for="guide_id" class="form-label"><i class="ri-user-voice-line me-1"></i>Guide</label>
                         <select class="form-select" id="guide_id" name="guide_id">
                             <option value="">Select Guide</option>
                             <!-- Will be populated via AJAX -->
@@ -47,7 +410,7 @@
                     @elseif(Auth::user()->role_id == 10 || Auth::user()->role_id == 26 || Auth::user()->role_id == 50 || Auth::user()->role_id == 98)
                     <!-- Master DMC can only see DMC and guide fields -->
                     <div class="col-md-6 mb-3">
-                        <label for="dmc_id" class="form-label">DMC</label>
+                        <label for="dmc_id" class="form-label"><i class="ri-building-2-line me-1"></i>DMC</label>
                         <select class="form-select" id="dmc_id" name="dmc_id">
                             <option value="">Select DMC</option>
                             @foreach($dmcs as $dmc)
@@ -57,7 +420,7 @@
                     </div>
                     
                     <div class="col-md-6 mb-3">
-                        <label for="guide_id" class="form-label">Guide</label>
+                        <label for="guide_id" class="form-label"><i class="ri-user-voice-line me-1"></i>Guide</label>
                         <select class="form-select" id="guide_id" name="guide_id">
                             <option value="">Select Guide</option>
                             <!-- Will be populated via AJAX -->
@@ -66,7 +429,7 @@
                     @elseif(in_array(Auth::user()->role_id, [11, 34, 65, 99, 128, 131, 132, 134, 135, 137, 138]))
                     <!-- DMC can only see guide field -->
                     <div class="col-md-12 mb-3">
-                        <label for="guide_id" class="form-label">Guide</label>
+                        <label for="guide_id" class="form-label"><i class="ri-user-voice-line me-1"></i>Guide</label>
                         <select class="form-select" id="guide_id" name="guide_id">
                             <option value="">Select Guide</option>
                             @foreach($dmcGuides as $guide)
@@ -76,28 +439,95 @@
                     </div>
                     @endif
                 </div>
+            </div>
 
-                <!-- Guide Schedule Section -->
-                <div id="guideScheduleSection" class="mt-4" style="display: none;">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">Guide Schedule</h5>
-                        </div>
-                        <div class="card-body">
+            <!-- Guide Schedule Section -->
+            <div id="guideScheduleSection" style="display: none;">
+                <div class="schedule-card">
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs" id="scheduleTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab" aria-controls="past" aria-selected="false">
+                                <i class="ri-history-line"></i> Completed
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ongoing-tab" data-bs-toggle="tab" data-bs-target="#ongoing" type="button" role="tab" aria-controls="ongoing" aria-selected="false">
+                                <i class="ri-time-line"></i> Ongoing
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab" aria-controls="upcoming" aria-selected="true">
+                                <i class="ri-calendar-event-line"></i> Upcoming
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tabs Content -->
+                    <div class="tab-content" id="scheduleTabsContent">
+                        <!-- Past Tab -->
+                        <div class="tab-pane fade" id="past" role="tabpanel" aria-labelledby="past-tab">
                             <div class="table-responsive">
-                                <table class="table table-striped table-bordered table-responsive" id="scheduleTable">
+                                <table class="datatables-past table table-striped table-bordered" id="pastScheduleTable">
                                     <thead>
-                                        <tr>                                            
-                                            <th>Order ID</th>
+                                        <tr>
+                                            <th>#</th>
                                             <th>Type</th>
                                             <th>Pickup Date</th>
                                             <th>Pickup Time</th>
                                             <th>Pickup Location</th>
                                             <th>Customer</th>
                                             <th>Guide</th>
+                                            <th>Tour ID</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="scheduleTableBody">
+                                    <tbody id="pastScheduleTableBody">
+                                        <!-- Will be populated via AJAX -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Ongoing Tab -->
+                        <div class="tab-pane fade" id="ongoing" role="tabpanel" aria-labelledby="ongoing-tab">
+                            <div class="table-responsive">
+                                <table class="datatables-ongoing table table-striped table-bordered" id="ongoingScheduleTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Type</th>
+                                            <th>Pickup Date</th>
+                                            <th>Pickup Time</th>
+                                            <th>Pickup Location</th>
+                                            <th>Customer</th>
+                                            <th>Guide</th>
+                                            <th>Tour ID</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ongoingScheduleTableBody">
+                                        <!-- Will be populated via AJAX -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Upcoming Tab -->
+                        <div class="tab-pane fade show active" id="upcoming" role="tabpanel" aria-labelledby="upcoming-tab">
+                            <div class="table-responsive">
+                                <table class="datatables-upcoming table table-striped table-bordered" id="upcomingScheduleTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Type</th>
+                                            <th>Pickup Date</th>
+                                            <th>Pickup Time</th>
+                                            <th>Pickup Location</th>
+                                            <th>Customer</th>
+                                            <th>Guide</th>
+                                            <th>Tour ID</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="upcomingScheduleTableBody">
                                         <!-- Will be populated via AJAX -->
                                     </tbody>
                                 </table>
@@ -113,9 +543,25 @@
 @endsection
 
 @section('scripts')
+<!-- DataTable CSS & JS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap5.min.css">
+
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.colVis.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
 <script>
     $(document).ready(function() {
         // When Master DMC is selected (Admin view)
@@ -173,8 +619,7 @@
             
             if (guideId) {
                 $('#guideScheduleSection').hide();
-                $('#exportScheduleBtn').hide();
-                $('#exportCalendarBtn').hide();
+                $('#exportButtonsContainer').hide();
                 const url = "{{ route('get.guide.schedule', ':id') }}".replace(':id', guideId);
                 
                 $.ajax({
@@ -184,36 +629,66 @@
                         if (response.success) {
                             // Populate the schedule table
                             const scheduleData = response.schedule;
-                            let tableHTML = '';
                             
                             if (scheduleData.length > 0) {
+                                // Filter data by date
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                
+                                const pastData = [];
+                                const ongoingData = [];
+                                const upcomingData = [];
+                                
                                 scheduleData.forEach(function(item) {
-                                                                        tableHTML += `<tr>                                        <td>${item.order_id || 'N/A'}</td>                                        <td>${item.type || 'N/A'}</td>                                        <td>${item.pickup_date || 'N/A'}</td>                                        <td>${item.pickup_time || 'N/A'}</td>                                        <td>${item.pickup_location || 'N/A'}</td>                                        <td>${item.customer_name || 'N/A'}<br><small>${item.customer_phone || 'N/A'}</small></td>                                        <td>${item.guide_name || 'N/A'}</td>                                    </tr>`;
+                                    const pickupDate = parsePickupDate(item.pickup_date);
+                                    
+                                    if (pickupDate) {
+                                        if (pickupDate < today) {
+                                            pastData.push(item);
+                                        } else if (pickupDate.toDateString() === today.toDateString()) {
+                                            ongoingData.push(item);
+                                        } else {
+                                            upcomingData.push(item);
+                                        }
+                                    } else {
+                                        // If date can't be parsed, put in upcoming
+                                        upcomingData.push(item);
+                                    }
                                 });
                                 
-                                $('#scheduleTableBody').html(tableHTML);
+                                // Populate Past table
+                                populateTable('pastScheduleTableBody', pastData);
+                                
+                                // Populate Ongoing table
+                                populateTable('ongoingScheduleTableBody', ongoingData);
+                                
+                                // Populate Upcoming table
+                                populateTable('upcomingScheduleTableBody', upcomingData);
+                                
                                 $('#guideScheduleSection').show();
-                                $('#exportScheduleBtn').show();
-                                $('#exportCalendarBtn').show();
+                                $('#exportButtonsContainer').show();
                                 
                                 // Store schedule data for Excel export
                                 window.guideScheduleData = scheduleData;
                             } else {
-                                $('#scheduleTableBody').html('<tr><td colspan="7" class="text-center">No schedule found for this guide</td></tr>');
+                                $('#pastScheduleTableBody').html('<tr><td colspan="8" class="text-center">No schedule found</td></tr>');
+                                $('#ongoingScheduleTableBody').html('<tr><td colspan="8" class="text-center">No schedule found</td></tr>');
+                                $('#upcomingScheduleTableBody').html('<tr><td colspan="8" class="text-center">No schedule found</td></tr>');
                                 $('#guideScheduleSection').show();
                             }
                         }
                     },
                     error: function(error) {
                         console.error('Error fetching Guide Schedule:', error);
-                        $('#scheduleTableBody').html('<tr><td colspan="7" class="text-center">Error loading schedule</td></tr>');
+                        $('#pastScheduleTableBody').html('<tr><td colspan="8" class="text-center">Error loading schedule</td></tr>');
+                        $('#ongoingScheduleTableBody').html('<tr><td colspan="8" class="text-center">Error loading schedule</td></tr>');
+                        $('#upcomingScheduleTableBody').html('<tr><td colspan="8" class="text-center">Error loading schedule</td></tr>');
                         $('#guideScheduleSection').show();
                     }
                 });
             } else {
                 $('#guideScheduleSection').hide();
-                $('#exportScheduleBtn').hide();
-                $('#exportCalendarBtn').hide();
+                $('#exportButtonsContainer').hide();
             }
         });
 
@@ -222,7 +697,20 @@
             e.preventDefault();
             
             if (window.guideScheduleData && window.guideScheduleData.length > 0) {
-                                // Format data for Excel export                const excelData = window.guideScheduleData.map(item => ({                    'Order ID': item.order_id || 'N/A',                    'Type': item.type || 'N/A',                    'Pickup Date': item.pickup_date || 'N/A',                    'Pickup Time': item.pickup_time || 'N/A',                    'Pickup Location': item.pickup_location || 'N/A',                    'Customer Name': item.customer_name || 'N/A',                    'Customer Phone': item.customer_phone || 'N/A',                    'Customer Email': item.customer_email || 'N/A',                    'Guide': item.guide_name || 'N/A',                    'Booking Type': item.booking_type || 'N/A',                    'Price': item.total_price || 'N/A'                }));
+                // Format data for Excel export
+                const excelData = window.guideScheduleData.map(item => ({
+                    'Type': item.type,
+                    'Pickup Date': item.pickup_date,
+                    'Pickup Time': item.pickup_time,
+                    'Pickup Location': item.pickup_location,
+                    'Customer Name': item.customer_name,
+                    'Customer Phone': item.customer_phone,
+                    'Customer Email': item.customer_email,
+                    'Guide': item.guide_name,
+                    'Booking Type': item.booking_type,
+                    'Price': item.total_price,
+                    'Tour ID': item.tour_id
+                }));
                 
                 // Create a workbook and worksheet
                 const wb = XLSX.utils.book_new();
@@ -253,6 +741,135 @@
             }
         });
         
+        // Helper function to parse pickup date in various formats
+        function parsePickupDate(dateStr) {
+            if (!dateStr || dateStr === 'N/A') return null;
+            
+            try {
+                // Try format: Sep 28 - Sep 30, 2025 (take first date)
+                const rangeMatch = dateStr.match(/(\w{3})\s+(\d{1,2}).*?(\d{4})/);
+                if (rangeMatch) {
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const month = monthNames.indexOf(rangeMatch[1]);
+                    const day = parseInt(rangeMatch[2]);
+                    const year = parseInt(rangeMatch[3]);
+                    
+                    if (month !== -1) {
+                        return new Date(year, month, day);
+                    }
+                }
+                
+                // Try ISO format: 2025-09-10
+                const isoMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+                if (isoMatch) {
+                    return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+                }
+                
+                // Try standard date parsing
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            } catch (e) {
+                console.error('Error parsing date:', dateStr, e);
+            }
+            
+            return null;
+        }
+        
+        // DataTable instances
+        let pastDataTable = null;
+        let ongoingDataTable = null;
+        let upcomingDataTable = null;
+        
+        // Helper function to populate table with DataTables
+        function populateTable(tableBodyId, data) {
+            const tableId = tableBodyId.replace('TableBody', 'Table');
+            const tableClass = tableBodyId.replace('ScheduleTableBody', '');
+            
+            // Destroy existing DataTable if it exists
+            if (tableId === 'pastScheduleTable' && pastDataTable) {
+                pastDataTable.destroy();
+                pastDataTable = null;
+            } else if (tableId === 'ongoingScheduleTable' && ongoingDataTable) {
+                ongoingDataTable.destroy();
+                ongoingDataTable = null;
+            } else if (tableId === 'upcomingScheduleTable' && upcomingDataTable) {
+                upcomingDataTable.destroy();
+                upcomingDataTable = null;
+            }
+            
+            let tableHTML = '';
+            
+            if (data.length > 0) {
+                data.forEach(function(item, index) {
+                    tableHTML += `<tr>
+                        <td><span class="serial-number">${index + 1}</span></td>
+                        <td><span class="badge bg-primary">${item.type || 'N/A'}</span></td>
+                        <td><i class="ri-calendar-line me-1 text-primary"></i>${item.pickup_date || 'N/A'}</td>
+                        <td><i class="ri-time-line me-1 text-success"></i>${item.pickup_time || 'N/A'}</td>
+                        <td><i class="ri-map-pin-line me-1 text-danger"></i>${item.pickup_location || 'N/A'}</td>
+                        <td>
+                            <div class="customer-info">
+                                <span class="customer-name"><i class="ri-user-3-line me-1"></i>${item.customer_name || 'N/A'}</span>
+                                <span class="customer-phone"><i class="ri-phone-line me-1"></i>${item.customer_phone || ''}</span>
+                            </div>
+                        </td>
+                        <td><i class="ri-user-voice-line me-1 text-info"></i>${item.guide_name || 'N/A'}</td>
+                        <td><span class="badge bg-success"><i class="ri-route-line me-1"></i>${item.tour_id || 'N/A'}</span></td>
+                    </tr>`;
+                });
+            } else {
+                tableHTML = '<tr><td colspan="8" class="text-center">No schedule found</td></tr>';
+            }
+            
+            $('#' + tableBodyId).html(tableHTML);
+            
+            // Initialize DataTable after populating data
+            if (data.length > 0) {
+                const dataTableOptions = {
+                    responsive: true,
+                    autoWidth: false,
+                    scrollX: false,
+                    dom: '<"row"<"col-sm-12 col-md-6"B><"col-sm-12 col-md-6"f>>' +
+                         '<"row"<"col-sm-12"tr>>' +
+                         '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                    buttons: [
+                        'copy',
+                        'csv',
+                        'excel',
+                        'pdf',
+                        'print'
+                    ],
+                    language: {
+                        search: "_INPUT_",
+                        searchPlaceholder: "Search...",
+                    },
+                    lengthMenu: [10, 25, 50, 100],
+                    pageLength: 10,
+                    order: [[0, 'asc']],
+                    columnDefs: [
+                        { width: "5%", targets: 0 },    // Serial number
+                        { width: "10%", targets: 1 },   // Type
+                        { width: "13%", targets: 2 },   // Pickup Date
+                        { width: "10%", targets: 3 },   // Pickup Time
+                        { width: "17%", targets: 4 },   // Pickup Location
+                        { width: "18%", targets: 5 },   // Customer
+                        { width: "15%", targets: 6 },   // Guide
+                        { width: "12%", targets: 7 }    // Tour ID
+                    ]
+                };
+                
+                if (tableId === 'pastScheduleTable') {
+                    pastDataTable = $('.datatables-past').DataTable(dataTableOptions);
+                } else if (tableId === 'ongoingScheduleTable') {
+                    ongoingDataTable = $('.datatables-ongoing').DataTable(dataTableOptions);
+                } else if (tableId === 'upcomingScheduleTable') {
+                    upcomingDataTable = $('.datatables-upcoming').DataTable(dataTableOptions);
+                }
+            }
+        }
+        
         // Export all months in one file, one sheet per month using ExcelJS
         async function createAllMonthsCalendarExcel(scheduleData) {
             // Get today's date at midnight
@@ -263,13 +880,16 @@
             
             // 1. First build Booking Details sheet
             const detailsSheet = workbook.addWorksheet('Booking Details');
-                        const detailsHeaders = [                'Order ID', 'Type', 'Service', 'Date', 'Time', 'Customer', 'Phone', 'Email',                'Guide', 'Location', 'Price', 'Passengers'            ];
+            const detailsHeaders = [
+                'Type', 'Service', 'Date', 'Time', 'Customer', 'Phone', 'Email',
+                'Guide', 'Location', 'Price', 'Passengers', 'Tour ID'
+            ];
             detailsSheet.addRow(detailsHeaders);
             
             // Style header
             detailsSheet.getRow(1).eachCell((cell) => {
                 cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF093FB' } };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
             });
@@ -286,7 +906,20 @@
                 const dateTimeKey = `${dateKey}|${timeKey}`;
                 
                 // Add the booking details
-                                const row = detailsSheet.addRow([                    booking.order_id || `Booking #${index+1}`,                    booking.type || 'N/A',                    booking.service_type || 'N/A',                    dateKey,                    timeKey,                    booking.customer_name || 'N/A',                    booking.customer_phone || 'N/A',                    booking.customer_email || 'N/A',                    booking.guide_name || 'N/A',                    booking.pickup_location || 'N/A',                    booking.total_price || 'N/A',                    booking.pax || 'N/A'                ]);
+                const row = detailsSheet.addRow([
+                    booking.type || 'N/A',
+                    booking.service_type || 'N/A',
+                    dateKey,
+                    timeKey,
+                    booking.customer_name || 'N/A',
+                    booking.customer_phone || 'N/A',
+                    booking.customer_email || 'N/A',
+                    booking.guide_name || 'N/A',
+                    booking.pickup_location || 'N/A',
+                    booking.total_price || 'N/A',
+                    booking.pax || 'N/A',
+                    booking.tour_id || 'N/A'
+                ]);
                 
                 // Store the row number for this date+time combination
                 if (!dateTimeToRows[dateTimeKey]) {
@@ -361,7 +994,7 @@
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF305496' } };
                         } else {
                             cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 };
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF093FB' } };
                         }
                         cell.alignment = { horizontal: 'center', vertical: 'middle' };
                         cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
@@ -399,7 +1032,6 @@
                         
                         const day = bookingDate.getDate();
                         let hour = 0;
-                        let originalTime = booking.pickup_time; // Store original time string
                         try {
                             let timeStr = booking.pickup_time;
                             let isPM = timeStr.toLowerCase().includes('pm');
@@ -419,7 +1051,7 @@
                         // We set basic properties for all booked cells
                         cell.value = "Booked";
                         cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 8 };
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF0000' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF093FB' } };
                         cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                         cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
                         
@@ -432,7 +1064,6 @@
                             const firstRowNum = dateTimeToRows[dateTimeKey][0];
                             
                             // Use Excel's native HYPERLINK formula directly
-                            // This is the most reliable way to create internal links in Excel
                             cell.value = { formula: `HYPERLINK("#'Booking Details'!A${firstRowNum}","Booked")` };
                             
                             // Make it look like a hyperlink
@@ -457,9 +1088,10 @@
                         worksheet.getRow(rowIdx).height = Math.max(worksheet.getRow(rowIdx).height || 20, 25);
                     });
                     
-                    // Set column widths (double for day columns)
+                    // Set column widths
                     worksheet.getColumn(1).width = 8;
                     for (let i = 2; i <= daysInMonth + 1; i++) worksheet.getColumn(i).width = 6;
+                    
                     // Set row heights
                     worksheet.getRow(1).height = 25;
                     for (let i = 2; i <= 25; i++) worksheet.getRow(i).height = 20;

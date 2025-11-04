@@ -652,9 +652,19 @@ $(document).ready(function() {
     $(document).on('click', '.edit-guest', function() {
         const data = $(this).data();
         
+        // Parse tour_id (it's a JSON array)
+        let tourIdValue = '';
+        try {
+            const tourIdArray = typeof data.tourId === 'string' ? JSON.parse(data.tourId) : data.tourId;
+            // Display all tour IDs as comma-separated for editing
+            tourIdValue = Array.isArray(tourIdArray) ? tourIdArray.join(', ') : tourIdArray;
+        } catch (e) {
+            tourIdValue = data.tourId || '';
+        }
+        
         $('#guestId').val(data.guestId);
         $('#guest_name').val(data.guestName);
-        $('#tour_id').val(data.tourId);
+        $('#tour_id').val(tourIdValue);
         $('#email').val(data.email);
         $('#country_code').val(data.countryCode || '+91');
         $('#contact').val(data.contact);

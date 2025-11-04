@@ -61,7 +61,7 @@ class PortController extends Controller
                 ->get()
                 ->map(function ($hotel) {
                     return [
-                        'id' => (string) $hotel->hotel_unique_id, // force string cast
+                        'id' => (string) $hotel->hotel_unique_id,
                         'name' => $hotel->name,
                         'type' => 'hotel',
                     ];
