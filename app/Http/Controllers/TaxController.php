@@ -103,10 +103,32 @@ class TaxController extends Controller
             'tax_name' => 'required|string|max:255',
             'tax_type' => 'required|in:percentage,fixed',
             'tax_value' => 'required|numeric|min:0',
-            'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) {
-                // Allow 'total' or 'tax_{number}' format
-                if ($value !== 'total' && !preg_match('/^tax_\d+$/', $value)) {
-                    $fail('The selected calculate on is invalid.');    
+            'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) use ($dmcId) {
+                // Allow 'total' or numeric tax_id or 'tax_{number}' format
+                if ($value === 'total') {
+                    return; // Valid
+                }
+                
+                // Check if it's a numeric tax_id or tax_{number} format
+                if (is_numeric($value)) {
+                    // Verify the tax exists and belongs to this DMC
+                    $taxExists = Tax::where('tax_id', $value)
+                                   ->where('dmc_id', $dmcId)
+                                   ->exists();
+                    if (!$taxExists) {
+                        $fail('The selected tax does not exist.');
+                    }
+                } elseif (preg_match('/^tax_(\d+)$/', $value, $matches)) {
+                    // Extract tax_id from 'tax_{number}' format
+                    $taxId = $matches[1];
+                    $taxExists = Tax::where('tax_id', $taxId)
+                                   ->where('dmc_id', $dmcId)
+                                   ->exists();
+                    if (!$taxExists) {
+                        $fail('The selected tax does not exist.');
+                    }
+                } else {
+                    $fail('The selected calculate on is invalid.');
                 }
             }],
             'description' => 'nullable|string|max:1000',
@@ -115,6 +137,11 @@ class TaxController extends Controller
 
         $validated['dmc_id'] = $dmcId;
         $validated['is_active'] = 1;
+        
+        // Normalize calculate_on: convert 'tax_9' to '9' for consistent storage
+        if (isset($validated['calculate_on']) && preg_match('/^tax_(\d+)$/', $validated['calculate_on'], $matches)) {
+            $validated['calculate_on'] = $matches[1];
+        }
 
         $tax = Tax::create($validated);
 
@@ -173,15 +200,44 @@ class TaxController extends Controller
             'tax_name' => 'required|string|max:255',
             'tax_type' => 'required|in:percentage,fixed',
             'tax_value' => 'required|numeric|min:0',
-            'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) {
-                // Allow 'total' or 'tax_{number}' format
-                if ($value !== 'total' && !preg_match('/^tax_\d+$/', $value)) {
+            'calculate_on' => ['required', 'string', function ($attribute, $value, $fail) use ($dmcId, $id) {
+                // Allow 'total' or numeric tax_id or 'tax_{number}' format
+                if ($value === 'total') {
+                    return; // Valid
+                }
+                
+                // Check if it's a numeric tax_id or tax_{number} format
+                if (is_numeric($value)) {
+                    // Verify the tax exists and belongs to this DMC (and not the current tax being edited)
+                    $taxExists = Tax::where('tax_id', $value)
+                                   ->where('dmc_id', $dmcId)
+                                   ->where('tax_id', '!=', $id)
+                                   ->exists();
+                    if (!$taxExists) {
+                        $fail('The selected tax does not exist or is invalid.');
+                    }
+                } elseif (preg_match('/^tax_(\d+)$/', $value, $matches)) {
+                    // Extract tax_id from 'tax_{number}' format
+                    $taxId = $matches[1];
+                    $taxExists = Tax::where('tax_id', $taxId)
+                                   ->where('dmc_id', $dmcId)
+                                   ->where('tax_id', '!=', $id)
+                                   ->exists();
+                    if (!$taxExists) {
+                        $fail('The selected tax does not exist or is invalid.');
+                    }
+                } else {
                     $fail('The selected calculate on is invalid.');
                 }
             }],
             'description' => 'nullable|string|max:1000',    
             'if_fixed' => 'nullable|string|max:1000',
         ]);
+        
+        // Normalize calculate_on: convert 'tax_9' to '9' for consistent storage
+        if (isset($validated['calculate_on']) && preg_match('/^tax_(\d+)$/', $validated['calculate_on'], $matches)) {
+            $validated['calculate_on'] = $matches[1];
+        }
 
         $tax->update($validated);
 
