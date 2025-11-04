@@ -45,6 +45,7 @@ import { resetVehicles1 } from "../../../slice/localtour/Localslice";
 import {setSelectedCity} from "@/slice/common/commonSlice";
 import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSlice";
 import { setCity } from "../../../slice/common/citySlice";
+import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -172,7 +173,7 @@ const MainFilterSearchBox = () => {
     // Clear previous customer info when starting new search
     dispatch(clearUserInfo());
     dispatch(setHaveBooking(false));
-
+    dispatch(clearSelectedDmc());
     // Format Dates - Handle different date formats safely
     let formattedCheckIn, formattedCheckOut;
     
