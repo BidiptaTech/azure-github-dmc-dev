@@ -155,6 +155,9 @@
                                         <span class="badge bg-info bg-opacity-10 text-info" title="Children">
                                             <i class="fas fa-child me-1"></i>{{ $enquiry->child ?? 0 }}
                                         </span>
+                                        <span class="badge bg-warning bg-opacity-10 text-warning" title="Infants">
+                                            <i class="fas fa-baby me-1"></i>{{ $enquiry->infant ?? 0 }}
+                                        </span>
                                     </div>
                                 </div>
                             </td>
