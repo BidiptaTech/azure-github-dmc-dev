@@ -450,14 +450,33 @@ class EnquiryController extends Controller
         // });
         
         $restaurant_list = $restaurants->map(function($restaurant) {
-            $base_price = $restaurant->meals->min('price');
+            $base_price = $restaurant->meals->min('adult_price');
             return [
                 'restaurant_id' => $restaurant->restaurant_id,
                 'name' => $restaurant->name,
                 'master_image' => $restaurant->master_image,
                 'city' => $restaurant->city,
                 'country' => $restaurant->country,
-                'base-price' => $base_price ? $base_price : 0,
+                'base_price' => $base_price ? $base_price : 0,
+                'meals' => $restaurant->meals->map(function($meal) {
+                    return [
+                        'meal_id' => $meal->meal_id ?? $meal->id,
+                        // 'meal_name' => $meal->meal_name ?? $meal->name,
+                        'adult_price' => $meal->adult_price,
+                        'child_price' => $meal->child_price,
+                        'set_menu_price' => $meal->price,
+                        'item_description' => $meal->item_description ?? null,
+                        'item_type' => $meal->item_type == 1 ? 'Vegetarian' : 'Non Vegetarian',
+                        'category' => $meal->category == 1 ? 'Alcoholic' : 'Non Alcoholic',
+                        'meal_type' => $meal->type == 1 ? 'Buffet' : 'Set Menu',
+                        'meal_period' => match($meal->meal_period ?? 1) {
+                            1 => 'Breakfast',
+                            2 => 'Lunch', 
+                            3 => 'Dinner',
+                            default => 'Breakfast'
+                        },
+                    ];
+                }),
                 'created_at' => $restaurant->created_at,
             ];
         });
