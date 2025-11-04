@@ -28,18 +28,15 @@ import {
   Logout as LogoutIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
-// Modal components are now imported and used by the parent header component
 import Social from "../common/social/Social";
 
-const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, onOpenPackagesSearchModal }) => {
+const MobileMenu = ({ onMenuClose }) => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const { userRole } = useSelector((state) => state.auth);
   const dmcLogo = useSelector((state) => state.auth.DmcLogo);
-
-  // Modal states are now managed by the parent header component
 
   // Get DMC count and selected DMC from Redux state
   const dmcCount = useSelector((state) => state.dmc.dmcCount);
@@ -58,10 +55,6 @@ const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, 
     dispatch(fetchDMCCount());
   }, [dispatch]);
 
-  // Modal state tracking is now handled by the parent header component
-
-  // Auto-open functionality is now handled by the parent header component
-
   // Simple function to close mobile menu
   const closeMobileMenu = () => {
     console.log('🚪 Closing mobile menu');
@@ -79,57 +72,40 @@ const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, 
 
   const handleBookTourClick = () => {
     console.log('📱 Book Tour clicked');
-    if (dmcCountLoading) return;
     
-    // Close mobile menu first, then open modal with a small delay
+    // Close mobile menu and navigate directly (no modal)
     closeMobileMenu();
-    setTimeout(() => {
-      console.log('📱 Opening search modal via parent');
-      onOpenSearchModal();
-      console.log('✅ Book Tour search modal opened');
-    }, 150);
+    navigate("/dashboard/db-dashboard/home_1");
   };
-
-  // Modal handlers are now managed by the parent header component
 
   const handleBookEnquiryClick = () => {
     console.log('📱 Quick Enquiry clicked');
-    if (dmcCountLoading) return;
     
-    // Close mobile menu first, then open modal with a small delay
+    // Close mobile menu and navigate directly (no modal)
     closeMobileMenu();
-    setTimeout(() => {
-      console.log('📱 Opening enquiry search modal via parent');
-      onOpenEnquirySearchModal();
-      console.log('✅ Quick Enquiry search modal opened');
-    }, 150);
+    navigate("/dashboard/db-dashboard/home_2");
   };
 
   const handlePackagesClick = () => {
     console.log('📱 Packages clicked');
+    
+    // Clear packages listing when Packages button is clicked
     dispatch(resetPackages());
-    dispatch(commonActions.setGuestCounts({
-      Adults: 1, Children: 0, Infants: 0,
-      maleCount: 0, femaleCount: 0, ages: []
-    }));
     
-    if (dmcCountLoading) return;
+    // Reset guest search to default values immediately
+    const defaultGuestCounts = {
+      Adults: 1,
+      Children: 0,
+      Infants: 0,
+      maleCount: 0,
+      femaleCount: 0,
+      ages: []
+    };
+    dispatch(commonActions.setGuestCounts(defaultGuestCounts));
     
-    if (userRole !== "Agent") {
-      closeMobileMenu();
-      navigate(packagesPath, { 
-        state: { selectedDMC: null, searchCriteria: null } 
-      });
-      return;
-    }
-    
-    // Close mobile menu first, then open modal with a small delay
+    // Close mobile menu and navigate directly (no modal)
     closeMobileMenu();
-    setTimeout(() => {
-      console.log('📱 Opening packages search modal via parent');
-      onOpenPackagesSearchModal();
-      console.log('✅ Packages search modal opened');
-    }, 150);
+    navigate(packagesPath);
   };
 
   const handleLogout = async () => {
@@ -142,8 +118,6 @@ const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, 
       navigate("/login");
     }
   };
-
-  // All modal handlers are now managed by the parent header component
 
   // Check if the user is a manager or sales head
   const isManagerOrSalesHead = userRole === "Sales Head(DMC)" || userRole === "Sales Manager (DMC)" || userRole === "Assistant Manager (DMC)";
@@ -282,8 +256,6 @@ const MobileMenu = ({ onMenuClose, onOpenSearchModal, onOpenEnquirySearchModal, 
             <Social />
         </Box> */}
       </Box>
-
-      {/* Modals are now rendered by the parent header component */}
     </Box>
   );
 };

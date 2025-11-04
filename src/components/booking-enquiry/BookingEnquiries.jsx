@@ -51,6 +51,7 @@ import {
   setSelectedServices,
   clearServiceDetails,
   clearSpecificService,
+  updateCalculatedPrice,
 } from "@/slice/common/EnquirySlice";
 import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
 import {
@@ -78,6 +79,7 @@ import AttractionDropOffSearch from "./AttractionDropOffSearch";
 import RestaurantDropOffSearch from "./RestaurantDropOffSearch";
 import DMCSelectionComponent from "./DMCSelectionComponent";
 import TripDetailsComponent from "./TripDetailsComponent";
+import PricingSummaryComponent from "./PricingSummaryComponent";
 
 // Service category colors
 const serviceColors = {
@@ -595,6 +597,152 @@ const BookingEnquiries = ({
       )
     );
   }, [bookingOptions, dispatch]);
+
+  // Effect to calculate and update price whenever service selections change
+  useEffect(() => {
+    const calculateTotalPrice = () => {
+      let totalPrice = 0;
+      const serviceDetails = enquiryData.serviceDetails || {};
+      const selectedServicesList = Object.keys(bookingOptions).filter(key => bookingOptions[key]);
+      
+      // Get guest counts
+      const guestCounts = enquiryData?.guestCounts || enquiryData?.guests || {};
+      const adults = parseInt(guestCounts.Adults || guestCounts.adults || 1);
+      const children = parseInt(guestCounts.Children || guestCounts.children || 0);
+      const infants = parseInt(guestCounts.Infants || guestCounts.infant || 0);
+      const totalPersons = adults + children + infants;
+      
+      // Calculate days
+      const checkinDate = enquiryData?.checkinDate || enquiryData?.checkIn;
+      const checkoutDate = enquiryData?.checkoutDate || enquiryData?.checkOut;
+      const totalDays = checkinDate && checkoutDate 
+        ? Math.max(1, Math.ceil((new Date(checkoutDate) - new Date(checkinDate)) / (24 * 60 * 60 * 1000)))
+        : 1;
+
+      // Calculate hotel pricing
+      if (bookingOptions.hotel && serviceDetails.hotel) {
+        const selectedHotels = serviceDetails.hotel.preferredHotels || [];
+        selectedHotels.forEach(hotel => {
+          const actualPrice = parseFloat(hotel.single_base_price) || 120;
+          totalPrice += actualPrice * totalDays;
+        });
+      }
+
+      // Calculate port/transfer pricing
+      if (bookingOptions.entryExitPort && serviceDetails.entryExitPort) {
+        let transferCount = 0;
+        if (serviceDetails.entryExitPort.showEntryPort !== false) transferCount++;
+        if (serviceDetails.entryExitPort.showExitPort === true) transferCount++;
+        
+        const cars = serviceDetails.entryExitPort.preferredCars || [];
+        if (cars.length > 0) {
+          cars.forEach(car => {
+            const actualPrice = parseFloat(car.base_price) || 45;
+            totalPrice += actualPrice * transferCount;
+          });
+        } else {
+          totalPrice += transferCount * 45;
+        }
+      }
+
+      // Calculate attraction pricing
+      if (bookingOptions.attraction && serviceDetails.attraction) {
+        const attractions = serviceDetails.attraction.selectedAttractions || [];
+        attractions.forEach(attraction => {
+          const actualPrice = parseFloat(attraction.base_price) || 25;
+          totalPrice += actualPrice * totalPersons;
+        });
+      }
+
+      // Calculate local tour pricing
+      if (bookingOptions.localTour && serviceDetails.localTour) {
+        const localTourCars = serviceDetails.localTour.preferredCars || [];
+        if (localTourCars.length > 0) {
+          localTourCars.forEach(car => {
+            const actualPrice = parseFloat(car.base_price) || 85;
+            totalPrice += actualPrice * totalDays;
+          });
+        } else {
+          totalPrice += 85 * totalDays;
+        }
+      }
+
+      // Calculate tour guide pricing
+      if (bookingOptions.tourGuide && serviceDetails.tourGuide) {
+        const guides = serviceDetails.tourGuide.preferredGuides || [];
+        guides.forEach(guide => {
+          const actualPrice = parseFloat(guide.base_price) || 150;
+          totalPrice += actualPrice * totalDays;
+        });
+      }
+
+      // Calculate restaurant pricing
+      if (bookingOptions.restaurant && serviceDetails.restaurant) {
+        const restaurantData = serviceDetails.restaurant.selectedRestaurants || [];
+        
+        // Check if new format (with dates and meals)
+        if (restaurantData.length > 0 && restaurantData[0]?.date && restaurantData[0]?.restaurants) {
+          // New format: iterate through dates and meals
+          restaurantData.forEach(dateEntry => {
+            dateEntry.restaurants.forEach(entry => {
+              const meal = entry.meal;
+              let mealPrice = 0;
+              
+              if (meal) {
+                // Calculate based on meal type
+                if (meal.set_menu_price) {
+                  mealPrice = parseFloat(meal.set_menu_price) * totalPersons;
+                } else {
+                  // Calculate for adults and children separately
+                  const adultPrice = parseFloat(meal.adult_price) || 0;
+                  const childPrice = parseFloat(meal.child_price) || 0;
+                  mealPrice = (adultPrice * adults) + (childPrice * (children + infants));
+                }
+              } else {
+                // Fallback to base price
+                const restaurant = entry.restaurant;
+                mealPrice = (parseFloat(restaurant['base-price']) || 35) * totalPersons;
+              }
+              
+              totalPrice += mealPrice;
+            });
+          });
+        } else {
+          // Old format: flat array of restaurants
+          restaurantData.forEach(restaurant => {
+            const actualPrice = parseFloat(restaurant['base-price']) || 35;
+            totalPrice += actualPrice * totalPersons;
+          });
+        }
+      }
+
+      // Safety check for NaN
+      if (isNaN(totalPrice)) {
+        console.error("❌ totalPrice is NaN in BookingEnquiries! Setting to 0");
+        totalPrice = 0;
+      }
+      
+      const roundedPricePerPerson = Math.round(totalPrice);
+      const totalPriceForAllGuests = roundedPricePerPerson * totalPersons;
+      
+      // Final safety check
+      const safeTotalPrice = isNaN(totalPriceForAllGuests) ? 0 : totalPriceForAllGuests;
+      
+      console.log('💰 Price calculation in BookingEnquiries:', {
+        pricePerPerson: roundedPricePerPerson,
+        totalGuests: totalPersons,
+        totalPrice: safeTotalPrice
+      });
+      
+      // Dispatch total price to Redux
+      dispatch(updateCalculatedPrice(safeTotalPrice));
+    };
+
+    // Only calculate if we have selected services
+    if (Object.values(bookingOptions).some(value => value === true)) {
+      calculateTotalPrice();
+    }
+  }, [bookingOptions, enquiryData.serviceDetails, enquiryData.guestCounts, enquiryData.guests, enquiryData.checkinDate, enquiryData.checkoutDate, enquiryData.checkIn, enquiryData.checkOut, dispatch]);
 
   // Effect to sync local state with Redux data when enquiryData changes
   useEffect(() => {
@@ -1586,9 +1734,9 @@ const BookingEnquiries = ({
             mb: 1
           }}
         >
-          Booking Enquiries
+         Choose what you want
         </Typography>
-        <Typography 
+        {/* <Typography 
           variant="body1" 
           color="text.secondary" 
           sx={{ 
@@ -1597,7 +1745,7 @@ const BookingEnquiries = ({
           }}
         >
           Select your preferred services and customize your travel experience
-        </Typography>
+        </Typography> */}
         <HeadingLine />
       </Box>
 
@@ -2472,6 +2620,8 @@ const BookingEnquiries = ({
                               <RestaurantSearch
                                 onSelect={handleRestaurantSelect}
                                 value={selectedRestaurants}
+                                checkinDate={enquiryData?.checkIn}
+                                checkoutDate={enquiryData?.checkOut}
                               />
                             </Grid>
                             <Grid item xs={12}>
