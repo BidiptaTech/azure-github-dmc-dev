@@ -46,7 +46,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
   //const [selectedPort, setSelectedPort] = useState("Entry Port"); // Default selection
   const selectedPort = useSelector((state) => state.pickupDrop.selectedPort);
   const TourId = useSelector((state) => state.hotels.id);
- 
+  const country = useSelector((state) => state.hotels.tourdetails.destination);
+  console.log("country", country);
 
   // Check port city API status
   const portCityStatus = useSelector(
@@ -118,14 +119,13 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Effect to call fetchPortCity when a city is selected
   useEffect(() => {
-    if (selectedCity && TourId && listType) {
-     
+    if (selectedCity && listType) {
+      
 
-      // Ensure TourId is passed correctly as a number
       dispatch(
         fetchPortCity({
+          country: country,
           city: selectedCity.name,
-          tourId: parseInt(TourId),
           type: listType,
         })
       )
@@ -317,7 +317,6 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {
-   
     setSelectedCity(city);
     if (city) {
       setCityError(false);
