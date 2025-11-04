@@ -118,7 +118,14 @@
                             </td>
                             <td>
                                 <span class="badge bg-secondary">
-                                    {{ ucfirst(str_replace('_', ' ', $tax->calculate_on)) }}
+                                    @if($tax->calculate_on === 'total')
+                                        Total Amount
+                                    @else
+                                        @php
+                                            $calculatedTax = $allTaxes->firstWhere('tax_id', $tax->calculate_on);
+                                        @endphp
+                                        {{ $calculatedTax ? $calculatedTax->tax_name : 'Tax #' . $tax->calculate_on }}
+                                    @endif
                                 </span>
                             </td>
                             <td>
@@ -439,7 +446,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('edit_tax_name').value = tax.tax_name;
                     document.getElementById('edit_tax_type').value = tax.tax_type;
                     document.getElementById('edit_tax_value').value = tax.tax_value;
-                    document.getElementById('edit_calculate_on').value = tax.calculate_on;
+                    
+                    // Convert calculate_on value to match dropdown options format
+                    let calculateOnValue = tax.calculate_on;
+                    if (calculateOnValue !== 'total' && !isNaN(calculateOnValue)) {
+                        // If it's a numeric tax_id, convert to 'tax_X' format
+                        calculateOnValue = 'tax_' + calculateOnValue;
+                    }
+                    document.getElementById('edit_calculate_on').value = calculateOnValue;
+                    
                     document.getElementById('edit_description').value = tax.description || '';
                     
                     // Handle if_fixed section visibility based on tax type
