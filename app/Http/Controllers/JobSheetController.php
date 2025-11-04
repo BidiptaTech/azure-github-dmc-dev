@@ -280,10 +280,13 @@ class JobSheetController extends Controller
                 ]);
             }
             
-            // Get orders with the relevant types
-            $orders = DB::table('orders')
-                ->whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port'])
+            // Get orders with the relevant types and filter by tour_status
+            $orders = Order::whereIn('type', ['entry_port', 'travel_hourly', 'travel_point', 'exit_port', 'local_transport'])
                 ->whereNotNull('data')
+                ->whereNotNull('tour_id')
+                ->whereHas('tour', function($query) {
+                    $query->whereIn('tour_status', ['Confirmed', 'Definite', 'Actual']);
+                })
                 ->get();
             
             $schedule = [];
@@ -309,6 +312,7 @@ class JobSheetController extends Controller
                         if (isset($data['vehicles_id']) && in_array($data['vehicles_id'], $vehicles)) {
                             // Extract required information
                             $scheduleItem = [
+                                'tour_id' => $order->tour_id ?? 'N/A',
                                 'type' => $order->type,
                                 'pickup_date' => $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'),
                                 'pickup_time' => $data['entrytime'] ?? 'N/A',
@@ -341,6 +345,7 @@ class JobSheetController extends Controller
                     if (isset($data['vehicles_id']) && in_array($data['vehicles_id'], $vehicles)) {
                         // Extract required information
                         $scheduleItem = [
+                            'tour_id' => $order->tour_id ?? 'N/A',
                             'order_id' => $order->id,
                             'type' => $order->type,
                             'pickup_date' => $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'),
@@ -472,7 +477,7 @@ class JobSheetController extends Controller
     public function getGuideSchedule($guideId)
     {
         try {
-            // Find driver's vehicles
+            // Find guide
             $guide = Guide::where('guide_id', $guideId)->first();
             
             if (empty($guide)) {
@@ -481,9 +486,14 @@ class JobSheetController extends Controller
                     'schedule' => []
                 ]);
             }
-            // Get orders with the relevant types
+            
+            // Get orders with the relevant types and filter by tour_status
             $orders = Order::whereIn('type', ['guide'])
                 ->whereNotNull('data')
+                ->whereNotNull('tour_id')
+                ->whereHas('tour', function($query) {
+                    $query->whereIn('tour_status', ['Confirmed', 'Definite', 'Actual']);
+                })
                 ->get();
             
             $schedule = [];
@@ -511,6 +521,7 @@ class JobSheetController extends Controller
                         if (isset($data['guide_id']) && $data['guide_id'] == $guide->guide_id) {
                             // Extract required information
                             $scheduleItem = [
+                                'tour_id' => $order->tour_id ?? 'N/A',
                                 'order_id' => $order->id,
                                 'type' => $order->type,
                                 'pickup_date' => $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'),
@@ -541,6 +552,7 @@ class JobSheetController extends Controller
                     if (isset($data['guide_id']) && $data['guide_id'] == $guide->guide_id) {
                         // Extract required information
                         $scheduleItem = [
+                            'tour_id' => $order->tour_id ?? 'N/A',
                             'order_id' => $order->id,
                             'type' => $order->type,
                             'pickup_date' => $data['pickupdate'] ?? ($data['bookingDate'] ?? 'N/A'),
@@ -1877,12 +1889,18 @@ class JobSheetController extends Controller
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'dmc_Id' = ?", [$dmcId])
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
                 }
                 else{
                     $orders = Order::whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                    ->whereNotNull('tour_id')
+                    ->whereHas('tour', function($query) {
+                        $query->whereIn('tour_status', ['Confirmed', 'Definite', 'Actual']);
+                    })
                     ->get();
                 }
             } else {
@@ -1891,6 +1909,8 @@ class JobSheetController extends Controller
                     ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
                     ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
             }
             
@@ -1981,4 +2001,4 @@ class JobSheetController extends Controller
             ], 500);
         }
     }
-} 
+}

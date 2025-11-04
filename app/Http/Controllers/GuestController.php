@@ -24,13 +24,20 @@ class GuestController extends Controller
     {
         try {
             $tourId = Crypt::decrypt($request->query('tour_id'));
+            
+            // Convert to integer if numeric
+            $tourIdInt = is_numeric($tourId) ? (int)$tourId : $tourId;
+            
             $order = Order::where('tour_id', $tourId)->orderBy('booking_id', 'asc')->first();
             $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
             $fullName = $data[0]['fullName'] ?? '';
             $email = $data[0]['email'] ?? '';
             $phone = $data[0]['phone'] ?? '';
             $countryCode = $data[0]['countryCode'] ?? '';
-            $guests = Guest::where('tour_id', $tourId)->get();
+            
+            // Query guests using JSON contains for array field
+            $guests = Guest::whereJsonContains('tour_id', $tourIdInt)->get();
+            
             return view('single-tour-package.guests', compact('tourId', 'fullName', 'email', 'phone', 'guests', 'countryCode'));
         } catch (\Exception $e) {
             Log::error('Error loading guests page: ' . $e->getMessage());
@@ -44,21 +51,38 @@ class GuestController extends Controller
     public function getGuests(Request $request)
     {
         try {
-            $query = Guest::select('id', 'guest_id', 'tour_id', 'guest_name', 'email', 'contact', 'created_at', 'updated_at');
+            $query = Guest::select('id', 'guest_id', 'tour_id', 'guest_name', 'email', 'contact', 'country_code', 'created_at', 'updated_at');
             
-            // Filter by tour_id if provided
+            // Filter by tour_id if provided (using JSON contains for array field)
             if ($request->has('tour_id') && $request->tour_id) {
-                $query->where('tour_id', $request->tour_id);
+                $tourId = is_numeric($request->tour_id) ? (int)$request->tour_id : $request->tour_id;
+                $query->whereJsonContains('tour_id', $tourId);
             }
             
             $guests = $query->orderBy('created_at', 'desc');
 
             return DataTables::of($guests)
                 ->addIndexColumn()
+                ->addColumn('tour_id', function ($row) {
+                    // Format tour_id array as comma-separated string or badges
+                    $tourIds = $row->tour_id ?? [];
+                    if (empty($tourIds)) {
+                        return '<span class="text-muted">N/A</span>';
+                    }
+                    
+                    $badges = array_map(function($id) {
+                        return '<span class="badge bg-success me-1">' . htmlspecialchars($id) . '</span>';
+                    }, $tourIds);
+                    
+                    return implode('', $badges);
+                })
                 ->addColumn('action', function ($row) {
+                    // Convert tour_id array to JSON string for data attribute
+                    $tourIdJson = json_encode($row->tour_id ?? []);
+                    
                     $editBtn = '<button type="button" class="btn btn-sm btn-icon btn-primary edit-guest" 
                         data-guest-id="' . $row->guest_id . '" 
-                        data-tour-id="' . ($row->tour_id ?? '') . '" 
+                        data-tour-id=\'' . htmlspecialchars($tourIdJson, ENT_QUOTES) . '\' 
                         data-guest-name="' . htmlspecialchars($row->guest_name) . '" 
                         data-email="' . ($row->email ?? '') . '" 
                         data-country-code="' . ($row->country_code ?? '+91') . '" 
@@ -79,7 +103,7 @@ class GuestController extends Controller
                 ->addColumn('created_at_formatted', function ($row) {
                     return $row->created_at ? $row->created_at->format('M d, Y H:i A') : 'N/A';
                 })
-                ->rawColumns(['action'])
+                ->rawColumns(['action', 'tour_id'])
                 ->make(true);
         } catch (\Exception $e) {
             Log::error('Error fetching guests: ' . $e->getMessage());
@@ -117,7 +141,39 @@ class GuestController extends Controller
                 ], 422);
             }
 
-            // Generate unique guest_id
+            // Check if email already exists
+            $existingGuest = null;
+            if ($request->email) {
+                $existingGuest = Guest::where('email', $request->email)->first();
+            }
+            
+            // If guest exists with this email
+            if ($existingGuest) {
+                // If tour_id is provided and different, add it to the array
+                if ($request->tour_id) {
+                    $tourId = is_numeric($request->tour_id) ? (int)$request->tour_id : $request->tour_id;
+                    
+                    if (!$existingGuest->hasTourId($tourId)) {
+                        $existingGuest->addTourId($tourId);
+                        
+                        Log::info('Tour ID added to existing guest', [
+                            'guest_id' => $existingGuest->guest_id,
+                            'email' => $existingGuest->email,
+                            'new_tour_id' => $tourId,
+                            'all_tour_ids' => $existingGuest->tour_id
+                        ]);
+                    }
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Guest already exists. Tour ID added to existing guest.',
+                    'data' => $existingGuest,
+                    'existing_guest' => true
+                ], 200);
+            }
+
+            // Generate unique guest_id for new guest
             $lastGuest = Guest::withTrashed()->orderBy('created_at', 'desc')->first();
             $lastGuestId = $lastGuest->guest_id ?? 0;
             $guestId = CommonHelper::createId($lastGuestId);
@@ -130,14 +186,53 @@ class GuestController extends Controller
             // Store plain password for email before hashing
             $plainPassword = $request->app_password;
 
+            // Use default avatar image from project root (deployed with code)
+            $defaultAvatarPath = base_path('avatar-1577909_1280.png');
+            $imagePath = null;
+            
+            if (file_exists($defaultAvatarPath)) {
+                try {
+                    // Create a file object from the default avatar
+                    $imageFile = new \Illuminate\Http\UploadedFile(
+                        $defaultAvatarPath,
+                        'avatar-1577909_1280.png',
+                        'image/png',
+                        null,
+                        true
+                    );
+                    
+                    // Upload to Azure Storage using CommonHelper
+                    $uploadResult = CommonHelper::image_path('file_storage', $imageFile, 'guests');
+                    if (!empty($uploadResult['master_value'])) {
+                        $imagePath = $uploadResult['master_value'];
+                        Log::info('Guest default avatar uploaded to Azure successfully', ['path' => $imagePath]);
+                    } else {
+                        Log::warning('Default avatar upload returned empty result');
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error uploading guest default avatar: ' . $e->getMessage());
+                    // Continue with guest creation even if image upload fails
+                }
+            } else {
+                Log::warning('Default avatar file not found at: ' . $defaultAvatarPath);
+            }
+
+            // Prepare tour_id as integer array
+            $tourIds = [];
+            if ($request->tour_id) {
+                $tourId = is_numeric($request->tour_id) ? (int)$request->tour_id : $request->tour_id;
+                $tourIds = [$tourId];
+            }
+
             $guest = Guest::create([
                 'guest_id' => $guestId,
-                'tour_id' => $request->tour_id,
+                'tour_id' => $tourIds,
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
                 'country_code' => $request->country_code ?? '+91',
                 'contact' => $request->contact,
                 'app_password' => $plainPassword ? Hash::make($plainPassword) : null,
+                'image' => $imagePath,
             ]);
 
             // Send credentials email if email is provided
@@ -153,7 +248,8 @@ class GuestController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Guest created successfully',
-                'data' => $guest
+                'data' => $guest,
+                'existing_guest' => false
             ], 201);
         } catch (\Exception $e) {
             Log::error('Error creating guest: ' . $e->getMessage());
@@ -196,9 +292,8 @@ class GuestController extends Controller
                 ], 404);
             }
             
-            // Prepare update data
+            // Prepare update data (excluding tour_id for now)
             $updateData = [
-                'tour_id' => $request->tour_id,
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
                 'country_code' => $request->country_code ?? '+91',
@@ -208,6 +303,33 @@ class GuestController extends Controller
             // Hash password if provided
             if ($request->app_password) {
                 $updateData['app_password'] = Hash::make($request->app_password);
+            }
+            
+            // Handle tour_id separately - it could be comma-separated or single value
+            if ($request->has('tour_id') && $request->tour_id) {
+                // Split by comma if multiple tour IDs are provided
+                $tourIdInput = $request->tour_id;
+                $tourIdArray = [];
+                
+                // Check if it contains commas (multiple tour IDs)
+                if (strpos($tourIdInput, ',') !== false) {
+                    // Split and trim
+                    $tourIdParts = explode(',', $tourIdInput);
+                    foreach ($tourIdParts as $part) {
+                        $part = trim($part);
+                        if (!empty($part)) {
+                            $tourIdArray[] = is_numeric($part) ? (int)$part : $part;
+                        }
+                    }
+                } else {
+                    // Single tour ID
+                    $tourIdInput = trim($tourIdInput);
+                    if (!empty($tourIdInput)) {
+                        $tourIdArray[] = is_numeric($tourIdInput) ? (int)$tourIdInput : $tourIdInput;
+                    }
+                }
+                
+                $updateData['tour_id'] = $tourIdArray;
             }
             
             $guest->update($updateData);
