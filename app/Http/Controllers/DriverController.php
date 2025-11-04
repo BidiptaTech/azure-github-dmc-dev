@@ -362,6 +362,7 @@ class DriverController extends Controller
             'license_no' => 'required',
             'license_exp_date' => 'required',
             'driver_age' => 'required',
+            'wp_number' => 'required|numeric',
             // Bank details
             'bank_account_holder_name' => 'nullable|string',
             'account_number' => 'nullable|string|max:50',
@@ -459,6 +460,7 @@ class DriverController extends Controller
                     'license_no' => $request->license_no,
                     'license_exp_date' => $request->license_exp_date,
                     'driver_age' => $request->driver_age,
+                    'wp_number' => $request->wp_number,
                     'operational_city' => $request->operational_city,
                     'bank_account_holder_name' => $request->bank_account_holder_name,
                     'account_number' => $request->account_number,
@@ -507,6 +509,7 @@ class DriverController extends Controller
             $driver->license_no = $request->license_no;
             $driver->license_exp_date = $request->license_exp_date;
             $driver->driver_age = $request->driver_age;
+            $driver->wp_number = $request->wp_number;
             $driver->operational_city = $request->operational_city;
             $driver->bank_account_holder_name = $request->bank_account_holder_name;
             $driver->account_number = $request->account_number;
@@ -618,6 +621,7 @@ class DriverController extends Controller
             //                 ],
             'license_no' => $licenseRule,
             'driver_age' => 'required',
+            'wp_number' => 'required|numeric',
             'bank_account_holder_name' => 'nullable|string',
             'account_number' => 'nullable|string|max:50',
             'bank_name' => 'nullable|string|max:255',
@@ -653,7 +657,7 @@ class DriverController extends Controller
         $driver->license_no = $request->license_no;
         $driver->license_exp_date = $request->license_exp_date;
         $driver->driver_age = $request->driver_age;
-
+        $driver->wp_number = $request->wp_number;
         $driver->is_active = $request->input('driver_status') == 1 ? 1 : 0;
         $driver->bank_account_holder_name = $request->input('bank_account_holder_name');
         $driver->account_number = $request->input('account_number');

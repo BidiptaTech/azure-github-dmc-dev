@@ -180,7 +180,7 @@
                                                     @endif
 
                                                     <!-- Delete Button -->
-                                                    @if( Auth::user()->role_id == 1 && Auth::user()->role_id == 2)
+                                                    @if( Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
                                                     <button type="button" 
                                                             class="btn btn-danger btn-sm rounded-circle waves-effect waves-light" 
                                                             style="min-width: 28px; min-height: 28px; padding: 0;" 

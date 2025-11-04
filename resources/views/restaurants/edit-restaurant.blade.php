@@ -122,6 +122,26 @@
                 <div id="restaurantDetailsContainer">
                     <div class="restaurant-form">
                         <div class="row">
+                            <!-- Restaurant Name -->
+                            <div class="col-md-3 mb-3">
+                                <label for="name" class="form-label"><strong>Restaurant Name</strong><span class="text-danger">*</span></label>
+                                <input value="{{$restaurant->name}}" type="text" class="form-control" name="name" placeholder="Enter Restaurant Name" required 
+                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
+                                @error('name')
+                                    <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <!-- Phone Number -->
+
+                            <div class="col-md-3 mb-3">
+                                <label for="phone" class="form-label"><strong>Phone Number</strong><span class="text-danger">*</span></label>
+                                <input value="{{$restaurant->phone}}" type="text" class="form-control" name="phone" placeholder="Enter Phone Number" required 
+                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
+                                @error('phone')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                             <!-- Restaurant Country -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>
@@ -149,16 +169,6 @@
                                     <input type="hidden" name="city" value="{{ $restaurant->city }}">
                                 @endif
                                 @error('city')
-                                    <div class="text-danger mt-1">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Restaurant Name -->
-                            <div class="col-md-3 mb-3">
-                                <label for="name" class="form-label"><strong>Restaurant Name</strong><span class="text-danger">*</span></label>
-                                <input value="{{$restaurant->name}}" type="text" class="form-control" name="name" placeholder="Enter Restaurant Name" required 
-                                       @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) readonly @endif>
-                                @error('name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
