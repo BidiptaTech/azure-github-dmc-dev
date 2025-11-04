@@ -110,6 +110,29 @@
                         @enderror
                     </div>
 
+                    <!-- Country Image -->
+                    <div class="col-md-6 mb-3">
+                        <label for="country_image" class="form-label"><strong>Country Image</strong></label>
+                        <input type="file" class="form-control @error('country_image') is-invalid @enderror" name="country_image" accept="image/*">
+                        <input type="hidden" name="remove_country_image" id="remove_country_image" value="0">
+                        @error('country_image')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                        @if(!empty($country->country_image))
+                        <div class="mt-2 border rounded p-2" id="countryImagePreviewWrap">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ asset($country->country_image) }}" alt="Country Image" class="rounded me-2" style="width: 50px; height: 50px; object-fit: cover;">
+                                    <span class="small">{{ Str::afterLast($country->country_image, '/') }}</span>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ asset($country->country_image) }}" target="_blank" class="btn btn-outline-primary">View</a>
+                                    <button type="button" class="btn btn-outline-danger" id="removeCountryImageBtn">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
                 
                     <div class="col-md-6 mb-3">
                         <label for="header_pdf" class="form-label"><strong>Upload Header PDF</strong></label>
@@ -186,16 +209,20 @@
         });
     }
 
-    // Handle remove current PDFs and live preview on replace
+    // Handle remove current PDFs/Images and live preview on replace
     document.addEventListener('DOMContentLoaded', function() {
         const headerInput = document.querySelector('input[name="header_pdf"]');
         const footerInput = document.querySelector('input[name="footer_pdf"]');
+        const countryImageInput = document.querySelector('input[name="country_image"]');
         const removeHeader = document.getElementById('remove_header_pdf');
         const removeFooter = document.getElementById('remove_footer_pdf');
+        const removeCountryImage = document.getElementById('remove_country_image');
         const headerWrap = document.getElementById('headerPdfPreviewWrap');
         const footerWrap = document.getElementById('footerPdfPreviewWrap');
+        const countryImageWrap = document.getElementById('countryImagePreviewWrap');
         const removeHeaderBtn = document.getElementById('removeHeaderBtn');
         const removeFooterBtn = document.getElementById('removeFooterBtn');
+        const removeCountryImageBtn = document.getElementById('removeCountryImageBtn');
 
         if (removeHeaderBtn) {
             removeHeaderBtn.addEventListener('click', function() {
@@ -211,6 +238,14 @@
                 if (footerWrap) footerWrap.style.display = 'none';
                 // Clear the file input
                 if (footerInput) footerInput.value = '';
+            });
+        }
+        if (removeCountryImageBtn) {
+            removeCountryImageBtn.addEventListener('click', function() {
+                removeCountryImage.value = '1';
+                if (countryImageWrap) countryImageWrap.style.display = 'none';
+                // Clear the file input
+                if (countryImageInput) countryImageInput.value = '';
             });
         }
 
@@ -242,6 +277,48 @@
             openAnchor.href = url;
         }
 
+        function showImagePreview(file, targetWrapId) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const url = URL.createObjectURL(file);
+            let wrap = document.getElementById(targetWrapId);
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.id = targetWrapId;
+                wrap.className = 'mt-2 border rounded p-2';
+                const row = document.createElement('div');
+                row.className = 'd-flex justify-content-between align-items-center';
+                const left = document.createElement('div');
+                left.className = 'd-flex align-items-center';
+                const img = document.createElement('img');
+                img.className = 'rounded me-2';
+                img.style.width = '50px';
+                img.style.height = '50px';
+                img.style.objectFit = 'cover';
+                img.src = url;
+                const span = document.createElement('span');
+                span.className = 'small';
+                span.textContent = 'New image selected';
+                left.appendChild(img);
+                left.appendChild(span);
+                const right = document.createElement('div');
+                right.className = 'btn-group btn-group-sm';
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn btn-outline-primary';
+                openBtn.target = '_blank';
+                openBtn.textContent = 'View';
+                openBtn.href = url;
+                right.appendChild(openBtn);
+                row.appendChild(left); row.appendChild(right);
+                wrap.appendChild(row);
+                countryImageInput.parentElement.appendChild(wrap);
+            } else {
+                const img = wrap.querySelector('img');
+                const openAnchor = wrap.querySelector('a.btn');
+                if (img) img.src = url;
+                if (openAnchor) openAnchor.href = url;
+            }
+        }
+
         if (headerInput) {
             headerInput.addEventListener('change', function(e) {
                 if (removeHeader) removeHeader.value = '0';
@@ -254,6 +331,13 @@
                 if (removeFooter) removeFooter.value = '0';
                 const file = e.target.files && e.target.files[0];
                 showInlinePreview(file, 'newFooterPdfPreviewWrap');
+            });
+        }
+        if (countryImageInput) {
+            countryImageInput.addEventListener('change', function(e) {
+                if (removeCountryImage) removeCountryImage.value = '0';
+                const file = e.target.files && e.target.files[0];
+                showImagePreview(file, 'newCountryImagePreviewWrap');
             });
         }
     });

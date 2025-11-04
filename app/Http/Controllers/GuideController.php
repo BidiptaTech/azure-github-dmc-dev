@@ -368,6 +368,7 @@ class GuideController extends Controller
             'experience' => 'required|numeric',
             'service_type' => 'required|integer',
             'guide_age' => 'required',
+            'wp_number' => 'required|numeric',
             'about' => 'required|string',
             'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
             'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
@@ -480,6 +481,7 @@ class GuideController extends Controller
                 'license_image' => $licenseImage,
                 'service_type' => $validated['service_type'],
                 'guide_age' => $validated['guide_age'],
+                'wp_number' => $validated['wp_number'],
                 'description' => $validated['about'],
                 'city' => $request->city,
                 'country' => $request->country,
@@ -551,6 +553,7 @@ class GuideController extends Controller
         $guide->license_image = $licenseImage;
         $guide->service_type = $validated['service_type'];
         $guide->guide_age = $validated['guide_age'];
+        $guide->wp_number = $validated['wp_number'];
         $guide->description = $validated['about'];
         $guide->city = $request->city;
         $guide->country = $request->country;
@@ -706,6 +709,7 @@ class GuideController extends Controller
             'experience' => 'required|integer',
             'service_type' => 'required|integer',
             'guide_age' => 'required',
+            'wp_number' => 'required|numeric',
             'day_rate' => 'required|numeric',
             'night_surcharge' => 'required|numeric',
             'night_start_time' => 'required',
@@ -756,7 +760,7 @@ class GuideController extends Controller
         $guide->license_image = $licenseImage;
         $guide->service_type = $validated['service_type'];
         $guide->guide_age = $validated['guide_age'];
-
+        $guide->wp_number = $validated['wp_number'];
         $guide->day_rate = $validated['day_rate'];
         $guide->night_surcharge = $validated['night_surcharge'];
         $guide->night_start_time = $validated['night_start_time'];

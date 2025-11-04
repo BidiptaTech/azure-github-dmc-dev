@@ -16,6 +16,7 @@ class Country extends Model
         'country_code',
         'currency',
         'is_active',
+        'country_image',
         'tax_percentage',
         'gateway_percentage',
         'commission_percentage',

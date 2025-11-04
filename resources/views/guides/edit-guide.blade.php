@@ -359,36 +359,45 @@
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
-                                <!-- Guide image -->
-                                <div class="mt-3 mb-3 col-md-4">
-                                    <div>
-                                        <label for="master_image" class="form-label"><strong>Master
-                                                Image</strong></label>
-                                        <div id="master-drop-area" class="form-control"
-                                            style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
-                                            Drag & Drop your files here or click to upload.
-                                            <input type="file" id="master_image" name="master_image" multiple
-                                                style="display: none;">
-                                        </div>
-                                    </div>
-                                    <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
-                                        style="max-width: 30%; overflow-x: auto; white-space: nowrap;"></div>
 
-                                    @if($guide->image)
-                                    <div class="image-preview-container d-flex flex-wrap gap-2">
-                                        <div class="image-preview-wrapper position-relative">
-                                            <img src="{{$guide->image}}" alt="Room Master Image"
-                                                style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
-                                            <button
-                                                class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
-                                                data-image="{{ $guide->image }}"
-                                                style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
-                                                &times;
-                                            </button>
-                                        </div>
+                            <!-- WP Number -->
+                            <div class="col-md-3 mb-3">
+                                <label for="wp_number" class="form-label"><strong>Whatsapp Number</strong><span class="text-danger">*</span></label>
+                                <input value="{{$guide->wp_number}}" type="text" id="wp_number" class="form-control" name="wp_number" placeholder="Enter Whatsapp Number" required>
+                                @error('wp_number')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <!-- Guide image -->
+                            <div class="col-md-3 mb-3">
+                                <div>
+                                    <label for="master_image" class="form-label"><strong>Master
+                                            Image</strong><span class="text-danger">*</span></label>
+                                    <div id="master-drop-area" class="form-control"
+                                        style="padding: 20px; border: 2px dashed #007bff; text-align: center; height: 80px;">
+                                        Drag & Drop your files here or click to upload.
+                                        <input type="file" id="master_image" name="master_image" multiple
+                                            style="display: none;">
                                     </div>
-                                    @endif
                                 </div>
+                                <div id="master-preview-container" class="mb-3 mt-3 d-flex flex-wrap gap-2"
+                                    style="max-width: 30%; overflow-x: auto; white-space: nowrap;"></div>
+
+                                @if($guide->image)
+                                <div class="image-preview-container d-flex flex-wrap gap-2">
+                                    <div class="image-preview-wrapper position-relative">
+                                        <img src="{{$guide->image}}" alt="Room Master Image"
+                                            style="max-width: 100px; height: 100px; object-fit: cover; border: 1px solid #ddd; border-radius: 5px;">
+                                        <button
+                                            class="delete-image-btn position-absolute top-0 end-0 btn btn-sm btn-danger"
+                                            data-image="{{ $guide->image }}"
+                                            style="width: 20px; height: 20px; line-height: 18px; padding: 0; text-align: center; font-size: 14px; z-index: 1;">
+                                            &times;
+                                        </button>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
                                 <div id="guide_language" class="col-md-12 mb-3">
                                     <fieldset>
                                         <h5 class="card-title mb-3">Languages & Proficiency</h5>
@@ -516,7 +525,7 @@
                                         @enderror
                                     </div>
 
-                                        <!-- Guide license image -->
+                                    <!-- Guide license image -->
                                     <div class="mt-3 mb-3 col-md-4">
                                         <div>
                                             <label for="license_image" class="form-label"><strong>Upload Licence</strong></label>
