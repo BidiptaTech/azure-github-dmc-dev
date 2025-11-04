@@ -200,7 +200,7 @@ const Index = () => {
                 <h1 className="z-2 text-50 lg:text-40 md:text-30 sm:text-28 xs:text-24 fw-600">
                   <span className="booking-gradient-text">Customize Your Travel Experience</span>
                 </h1>
-                <p className="page-subtitle">Select your preferred services and customize your travel experience</p>
+                <p className="page-subtitle">Choose your preferred DMC or select multiple or all DMC before Selecting your preferred services and customize your travel experience</p>
               </div>
             </div>
           </div>

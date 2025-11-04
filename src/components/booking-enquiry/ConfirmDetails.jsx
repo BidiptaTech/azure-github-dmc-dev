@@ -69,6 +69,7 @@ import Cookies from "js-cookie";
 import { BASE_URL } from '@/services/api';
 import DMCSelectionComponent from "./DMCSelectionComponent";
 import TripDetailsComponent from "./TripDetailsComponent";
+import PricingSummaryComponent from "./PricingSummaryComponent";
 
 
 // Styled components
@@ -227,11 +228,20 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [localEnquiryId, setLocalEnquiryId] = useState(null);
-  const [calculatedPrice, setCalculatedPrice] = useState(0);
   
   const bookingDetails = useSelector((state) => state.enquiry);
   const serviceDetails = useSelector((state) => state.enquiry.serviceDetails || {});
   const selectedServices = useSelector((state) => state.enquiry.selectedServices || Object.keys(bookingOptions || {}).filter(key => bookingOptions[key]));
+  
+  // Get total price from Redux (already calculated in BookingEnquiries)
+  const totalPrice = bookingDetails.calculatedPrice || 0;
+  
+  // Debug: Log price on component mount and when it changes
+  useEffect(() => {
+    console.log("💰 ConfirmDetails - Total Price from Redux:", totalPrice);
+    console.log("💰 Full bookingDetails.calculatedPrice:", bookingDetails.calculatedPrice);
+    console.log("💰 Selected Services:", selectedServices);
+  }, [totalPrice, bookingDetails.calculatedPrice, selectedServices]);
   
   // Update how we get the ID - prioritizing multiEnqId for multi-DMC enquiries, then enquiryId over tourId
   const enquiryId = useSelector((state) => {
@@ -283,157 +293,176 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     console.log("Selected Services:", selectedServices);
   }, [serviceDetails, selectedServices]);
 
-  // Calculate and update price when service details change
+  // Calculate price on component mount
   useEffect(() => {
-    if (selectedServices && serviceDetails) {
-      const price = calculateApproximatePrice();
-      setCalculatedPrice(price);
-    }
-  }, [selectedServices, serviceDetails, bookingDetails?.guestCounts, bookingDetails?.checkinDate, bookingDetails?.checkoutDate]);
-
-  // Calculate and store price when component mounts
-  useEffect(() => {
-    if (selectedServices && serviceDetails) {
-      const price = calculateApproximatePrice();
-      setCalculatedPrice(price);
-    }
-  }, [selectedServices, serviceDetails, bookingDetails]);
-  
-  // Function to calculate approximate pricing using ACTUAL API prices
-  const calculateApproximatePrice = () => {
-    let totalPrice = 0;
+    console.log("ConfirmDetails - Component mounted, checking if price calculation needed...");
+    console.log("Selected Services:", selectedServices);
+    console.log("Current total price from Redux:", totalPrice);
     
-    // Get guest count from booking details for per-person calculations
-    const guestCounts = bookingDetails?.guestCounts || {};
-    const totalPersons = (guestCounts.Adults || 1) + (guestCounts.Children || 0) + (guestCounts.Infants || 0);
-    
-    // Calculate days between check-in and check-out
-    const checkinDate = bookingDetails?.checkinDate ? new Date(bookingDetails.checkinDate) : new Date();
-    const checkoutDate = bookingDetails?.checkoutDate ? new Date(bookingDetails.checkoutDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const totalDays = Math.max(1, Math.ceil((checkoutDate - checkinDate) / (24 * 60 * 60 * 1000)));
-
-    console.log("Pricing calculation details:", { totalPersons, totalDays, serviceDetails });
-
-    // Calculate hotel pricing using ACTUAL hotel prices
-    if (selectedServices.includes("hotel") && serviceDetails.hotel) {
-      const hotelDetails = serviceDetails["undefined"] || serviceDetails.hotel;
-      const selectedHotels = hotelDetails.preferredHotels || [];
+    if (selectedServices && selectedServices.length > 0) {
+      console.log("Calculating price in ConfirmDetails...");
       
-      let hotelPrice = 0;
-      selectedHotels.forEach(hotel => {
-        // Use actual single_base_price from API, fallback to default if 0 or missing
-        const actualPrice = parseFloat(hotel.single_base_price) || 120; // 120 as fallback
-        hotelPrice += actualPrice * totalDays;
-        console.log(`Hotel "${hotel.name}": $${actualPrice}/night × ${totalDays} days = $${actualPrice * totalDays}`);
-      });
+      // Recalculate price
+      let calculatedTotal = 0;
+      const guestCounts = bookingDetails?.guestCounts || bookingDetails?.guests || {};
+      const adults = parseInt(guestCounts.Adults || guestCounts.adults || 1) || 1;
+      const children = parseInt(guestCounts.Children || guestCounts.children || 0) || 0;
+      const infants = parseInt(guestCounts.Infants || guestCounts.infant || 0) || 0;
+      const totalPersons = adults + children + infants;
       
-      totalPrice += hotelPrice;
-      console.log(`Total hotel pricing: $${hotelPrice}`);
-    }
-
-    // Calculate port/transfer pricing using ACTUAL vehicle prices
-    if (selectedServices.includes("entryExitPort") && serviceDetails.entryExitPort) {
-      const entryExitDetails = serviceDetails.entryExitPort;
-      let transferCount = 0;
-      if (entryExitDetails.showEntryPort !== false) transferCount++; // Entry transfer
-      if (entryExitDetails.showExitPort === true) transferCount++; // Exit transfer
+      console.log("Guest counts:", { adults, children, infants, totalPersons });
       
-      const cars = entryExitDetails.preferredCars || [];
-      let transferPrice = 0;
+      const checkinDate = bookingDetails?.checkinDate || bookingDetails?.checkIn;
+      const checkoutDate = bookingDetails?.checkoutDate || bookingDetails?.checkOut;
       
-      if (cars.length > 0) {
-        cars.forEach(car => {
-          // Use actual base_price from API, fallback to default if missing
-          const actualPrice = parseFloat(car.base_price) || 45; // 45 as fallback
-          transferPrice += actualPrice * transferCount;
-          console.log(`Vehicle "${car.vehicle_name}": $${actualPrice} × ${transferCount} transfers = $${actualPrice * transferCount}`);
-        });
-      } else {
-        // If no specific cars selected, use default price
-        transferPrice = transferCount * 45; // Default port transfer price
+      console.log("Date data:", { checkinDate, checkoutDate });
+      
+      let totalDays = 1;
+      if (checkinDate && checkoutDate) {
+        const daysDiff = Math.ceil((new Date(checkoutDate) - new Date(checkinDate)) / (24 * 60 * 60 * 1000));
+        totalDays = Math.max(1, daysDiff);
       }
       
-      totalPrice += transferPrice;
-      console.log(`Total transfer pricing: $${transferPrice}`);
-    }
-
-    // Calculate attraction pricing using ACTUAL attraction prices
-    if (selectedServices.includes("attraction") && serviceDetails.attraction) {
-      const attractions = serviceDetails.attraction.selectedAttractions || [];
-      
-      let attractionPrice = 0;
-      attractions.forEach(attraction => {
-        // Use actual base_price from API, fallback to default if 0 or missing
-        const actualPrice = parseFloat(attraction.base_price) || 25; // 25 as fallback
-        attractionPrice += actualPrice * totalPersons;
-        console.log(`Attraction "${attraction.name}": $${actualPrice}/person × ${totalPersons} persons = $${actualPrice * totalPersons}`);
-      });
-      
-      totalPrice += attractionPrice;
-      console.log(`Total attraction pricing: $${attractionPrice}`);
-    }
-
-    // Calculate local tour pricing using ACTUAL vehicle prices
-    if (selectedServices.includes("localTour") && serviceDetails.localTour) {
-      const localTourCars = serviceDetails.localTour.preferredCars || [];
-      
-      let localTourPrice = 0;
-      if (localTourCars.length > 0) {
-        localTourCars.forEach(car => {
-          // Use actual base_price from API, fallback to default if missing
-          const actualPrice = parseFloat(car.base_price) || 85; // 85 as fallback
-          localTourPrice += actualPrice * totalDays;
-          console.log(`Local tour vehicle "${car.vehicle_name}": $${actualPrice}/day × ${totalDays} days = $${actualPrice * totalDays}`);
-        });
-      } else {
-        // If no specific cars selected, use default price
-        localTourPrice = 85 * totalDays; // Default local tour price
+      // Safety check for NaN
+      if (isNaN(totalDays)) {
+        console.warn("⚠️ totalDays is NaN, defaulting to 1");
+        totalDays = 1;
       }
       
-      totalPrice += localTourPrice;
-      console.log(`Total local tour pricing: $${localTourPrice}`);
-    }
+      console.log("Trip duration:", totalDays, "days");
 
-    // Calculate tour guide pricing using ACTUAL guide prices
-    if (selectedServices.includes("tourGuide") && serviceDetails.tourGuide) {
-      const guides = serviceDetails.tourGuide.preferredGuides || [];
+      // Calculate based on selected services
+      if (selectedServices.includes("hotel") && serviceDetails.hotel) {
+        const hotels = serviceDetails.hotel.preferredHotels || [];
+        console.log("Hotel calculation - hotels:", hotels.length);
+        hotels.forEach(hotel => {
+          const hotelPrice = (parseFloat(hotel.single_base_price) || 120) * totalDays;
+          calculatedTotal += hotelPrice;
+          console.log("  Hotel price added:", hotelPrice, "Total now:", calculatedTotal);
+        });
+      }
+
+      if (selectedServices.includes("entryExitPort") && serviceDetails.entryExitPort) {
+        let transferCount = 0;
+        if (serviceDetails.entryExitPort.showEntryPort !== false) transferCount++;
+        if (serviceDetails.entryExitPort.showExitPort === true) transferCount++;
+        const cars = serviceDetails.entryExitPort.preferredCars || [];
+        console.log("Port calculation - transfers:", transferCount, "cars:", cars.length);
+        if (cars.length > 0) {
+          cars.forEach(car => {
+            const carPrice = (parseFloat(car.base_price) || 45) * transferCount;
+            calculatedTotal += carPrice;
+            console.log("  Car price added:", carPrice, "Total now:", calculatedTotal);
+          });
+        } else if (transferCount > 0) {
+          calculatedTotal += transferCount * 45;
+          console.log("  Default transfer price added:", transferCount * 45, "Total now:", calculatedTotal);
+        }
+      }
+
+      if (selectedServices.includes("attraction") && serviceDetails.attraction) {
+        const attractions = serviceDetails.attraction.selectedAttractions || [];
+        console.log("Attraction calculation - attractions:", attractions.length);
+        attractions.forEach(attraction => {
+          const attractionPrice = (parseFloat(attraction.base_price) || 25) * totalPersons;
+          calculatedTotal += attractionPrice;
+          console.log("  Attraction price added:", attractionPrice, "Total now:", calculatedTotal);
+        });
+      }
+
+      if (selectedServices.includes("localTour") && serviceDetails.localTour) {
+        const cars = serviceDetails.localTour.preferredCars || [];
+        console.log("Local tour calculation - cars:", cars.length);
+        if (cars.length > 0) {
+          cars.forEach(car => {
+            const carPrice = (parseFloat(car.base_price) || 85) * totalDays;
+            calculatedTotal += carPrice;
+            console.log("  Local tour car price added:", carPrice, "Total now:", calculatedTotal);
+          });
+        } else {
+          calculatedTotal += 85 * totalDays;
+          console.log("  Default local tour price added:", 85 * totalDays, "Total now:", calculatedTotal);
+        }
+      }
+
+      if (selectedServices.includes("tourGuide") && serviceDetails.tourGuide) {
+        const guides = serviceDetails.tourGuide.preferredGuides || [];
+        console.log("Tour guide calculation - guides:", guides.length, guides);
+        guides.forEach(guide => {
+          const guidePrice = (parseFloat(guide.base_price) || 150) * totalDays;
+          calculatedTotal += guidePrice;
+          console.log("  Guide price added:", guidePrice, "Total now:", calculatedTotal);
+        });
+      }
+
+      if (selectedServices.includes("restaurant") && serviceDetails.restaurant) {
+        const restaurantData = serviceDetails.restaurant.selectedRestaurants || [];
+        console.log("Restaurant calculation - restaurantData:", restaurantData.length, restaurantData);
+        
+        // Check if new format (with dates and meals)
+        if (restaurantData.length > 0 && restaurantData[0]?.date && restaurantData[0]?.restaurants) {
+          // New format: iterate through dates and meals
+          restaurantData.forEach(dateEntry => {
+            dateEntry.restaurants.forEach(entry => {
+              const meal = entry.meal;
+              let mealPrice = 0;
+              
+              if (meal) {
+                // Calculate based on meal type
+                if (meal.set_menu_price) {
+                  mealPrice = parseFloat(meal.set_menu_price) * totalPersons;
+                } else {
+                  // Calculate for adults and children separately
+                  const adultPrice = parseFloat(meal.adult_price) || 0;
+                  const childPrice = parseFloat(meal.child_price) || 0;
+                  mealPrice = (adultPrice * adults) + (childPrice * (children + infants));
+                }
+              } else {
+                // Fallback to base price
+                const restaurant = entry.restaurant;
+                mealPrice = (parseFloat(restaurant['base-price']) || 35) * totalPersons;
+              }
+              
+              calculatedTotal += mealPrice;
+              console.log("  Meal price added:", mealPrice, "Total now:", calculatedTotal);
+            });
+          });
+        } else {
+          // Old format: flat array of restaurants
+          restaurantData.forEach(restaurant => {
+            const restaurantPrice = (parseFloat(restaurant['base-price']) || 35) * totalPersons;
+            calculatedTotal += restaurantPrice;
+            console.log("  Restaurant price added:", restaurantPrice, "Total now:", calculatedTotal);
+          });
+        }
+      }
       
-      let guidePrice = 0;
-      guides.forEach(guide => {
-        // Use actual base_price from API, fallback to default if missing
-        const actualPrice = parseFloat(guide.base_price) || 150; // 150 as fallback
-        guidePrice += actualPrice * totalDays;
-        console.log(`Guide "${guide.name}": $${actualPrice}/day × ${totalDays} days = $${actualPrice * totalDays}`);
+      console.log("Final calculatedTotal before rounding:", calculatedTotal);
+      
+      // Safety check for NaN
+      if (isNaN(calculatedTotal)) {
+        console.error("❌ calculatedTotal is NaN! Setting to 0");
+        calculatedTotal = 0;
+      }
+
+      const roundedPricePerPerson = Math.round(calculatedTotal);
+      const totalPriceForAllGuests = roundedPricePerPerson * totalPersons;
+      
+      // Final safety check
+      const safeTotalPrice = isNaN(totalPriceForAllGuests) ? 0 : totalPriceForAllGuests;
+      
+      console.log("✅ Calculated price in ConfirmDetails:", {
+        pricePerPerson: roundedPricePerPerson,
+        totalGuests: totalPersons,
+        totalPrice: safeTotalPrice
       });
       
-      totalPrice += guidePrice;
-      console.log(`Total guide pricing: $${guidePrice}`);
+      dispatch(updateCalculatedPrice(safeTotalPrice));
+    } else {
+      console.log("⚠️ No selected services, skipping price calculation");
     }
-
-    // Calculate restaurant pricing using ACTUAL restaurant prices
-    if (selectedServices.includes("restaurant") && serviceDetails.restaurant) {
-      const restaurants = serviceDetails.restaurant.selectedRestaurants || [];
-      
-      let restaurantPrice = 0;
-      restaurants.forEach(restaurant => {
-        // Use actual base-price from API, fallback to default if missing
-        const actualPrice = parseFloat(restaurant['base-price']) || 35; // 35 as fallback
-        restaurantPrice += actualPrice * totalPersons;
-        console.log(`Restaurant "${restaurant.name}": $${actualPrice}/person × ${totalPersons} persons = $${actualPrice * totalPersons}`);
-      });
-      
-      totalPrice += restaurantPrice;
-      console.log(`Total restaurant pricing: $${restaurantPrice}`);
-    }
-
-    console.log(`Total approximate price calculated: $${totalPrice}`);
-    const roundedPrice = Math.round(totalPrice);
-    
-    // Dispatch the calculated price to Redux so EnquirySlice can use it
-    dispatch(updateCalculatedPrice(roundedPrice));
-    
-    return roundedPrice; // Round to nearest dollar
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServices]); // Recalculate when selectedServices change
 
   // console.log("Selected Services:", selectedServices);
   // console.log("Service Details from Redux:", serviceDetails);
@@ -1061,25 +1090,114 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             {details.selectedRestaurants && (
               <Box sx={{ mt: 1 }}>
                 <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>Selected Restaurants:</Typography>
-                <List dense disablePadding>
-                  {Array.isArray(details.selectedRestaurants) ? 
-                    details.selectedRestaurants.map((restaurant, index) => (
-                    <ListItem key={index} dense disableGutters>
-                      <ListItemIcon sx={{ minWidth: 30 }}>
-                        <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
-                      </ListItemIcon>
-                      <ListItemText primary={restaurant.name || restaurant} />
-                    </ListItem>
-                    )) : 
-                    // Handle when it's an object
-                    <ListItem dense disableGutters>
-                      <ListItemIcon sx={{ minWidth: 30 }}>
-                        <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
-                      </ListItemIcon>
-                      <ListItemText primary={details.selectedRestaurants.name || details.selectedRestaurants.restaurant_name || "Selected Restaurant"} />
-                    </ListItem>
-                  }
-                </List>
+                {Array.isArray(details.selectedRestaurants) && details.selectedRestaurants.length > 0 ? (
+                  // Check if new format (with dates and meals)
+                  details.selectedRestaurants[0]?.date && details.selectedRestaurants[0]?.restaurants ? (
+                    // New format: grouped by date with meals
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {details.selectedRestaurants.map((dateEntry, dateIndex) => (
+                        <Box key={dateIndex} sx={{ 
+                          p: 1.5, 
+                          bgcolor: 'rgba(2, 136, 209, 0.05)',
+                          borderRadius: 1,
+                          border: '1px solid rgba(2, 136, 209, 0.2)'
+                        }}>
+                          <Typography variant="caption" fontWeight={600} color="primary" sx={{ mb: 1, display: 'block' }}>
+                            📅 {new Date(dateEntry.date).toLocaleDateString('en-US', { 
+                              weekday: 'short', 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Typography>
+                          <List dense disablePadding>
+                            {dateEntry.restaurants.map((entry, idx) => {
+                              const mealIcons = {
+                                Breakfast: '🌅',
+                                Lunch: '☀️',
+                                Dinner: '🌙'
+                              };
+                              const mealPeriod = entry.mealPeriod || entry.meal?.meal_period || 'Lunch';
+                              return (
+                                <ListItem key={idx} dense disableGutters sx={{ py: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 30 }}>
+                                    <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
+                                  </ListItemIcon>
+                                  <ListItemText 
+                                    primary={
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                        <Typography variant="body2">
+                                          {entry.restaurant?.name || entry.restaurant || 'Restaurant'}
+                                        </Typography>
+                                        <Chip 
+                                          size="small" 
+                                          label={`${mealIcons[mealPeriod] || ''} ${mealPeriod}`}
+                                          sx={{ 
+                                            height: 20,
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                            bgcolor: mealPeriod === 'Breakfast' ? '#FFE0B2' : 
+                                                     mealPeriod === 'Lunch' ? '#FFF9C4' : '#E1BEE7',
+                                            color: mealPeriod === 'Breakfast' ? '#E65100' : 
+                                                   mealPeriod === 'Lunch' ? '#F57F17' : '#6A1B9A',
+                                            border: mealPeriod === 'Breakfast' ? '1px solid #FFB74D' : 
+                                                    mealPeriod === 'Lunch' ? '1px solid #FFF59D' : '1px solid #CE93D8'
+                                          }}
+                                        />
+                                        {entry.meal && (
+                                          <>
+                                            <Chip 
+                                              size="small" 
+                                              label={entry.meal.meal_type}
+                                              sx={{ 
+                                                height: 18, 
+                                                fontSize: 9, 
+                                                fontWeight: 600,
+                                                bgcolor: '#BBDEFB',
+                                                color: '#0D47A1',
+                                                border: '1px solid #90CAF9'
+                                              }}
+                                            />
+                                            <Chip 
+                                              size="small" 
+                                              label={entry.meal.item_type}
+                                              sx={{ 
+                                                height: 18, 
+                                                fontSize: 9,
+                                                fontWeight: 600,
+                                                bgcolor: entry.meal.item_type === 'Vegetarian' ? '#C8E6C9' : '#FFCDD2',
+                                                color: entry.meal.item_type === 'Vegetarian' ? '#1B5E20' : '#B71C1C',
+                                                border: entry.meal.item_type === 'Vegetarian' ? '1px solid #81C784' : '1px solid #E57373'
+                                              }}
+                                            />
+                                          </>
+                                        )}
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              );
+                            })}
+                          </List>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    // Old format: simple list
+                    <List dense disablePadding>
+                      {details.selectedRestaurants.map((restaurant, index) => (
+                        <ListItem key={index} dense disableGutters>
+                          <ListItemIcon sx={{ minWidth: 30 }}>
+                            <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
+                          </ListItemIcon>
+                          <ListItemText primary={restaurant.name || restaurant} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No restaurants selected</Typography>
+                )}
               </Box>
             )}
             
@@ -1154,8 +1272,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     
     // Build the payload for create-enquiry API
     const buildEnquiryPayload = () => {
+      console.log("Sending total price to API:", totalPrice);
+      
       const payload = {
-        approx_price: calculatedPrice || 0,
+        approx_price: totalPrice,
         // Hotel service
         hotel: selectedServices.includes("hotel"),
         hotel_ids: [],
@@ -1316,13 +1436,89 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         payload.restaurant_remarks = restaurantDetails.remarks || "";
         
         if (restaurantDetails.selectedRestaurants && Array.isArray(restaurantDetails.selectedRestaurants)) {
-          payload.restaurant_ids = restaurantDetails.selectedRestaurants.map(restaurant => 
-            restaurant.id || restaurant.restaurant_id || restaurant
-          );
+          // Check if new format (with dates and meals)
+          if (restaurantDetails.selectedRestaurants[0]?.date && restaurantDetails.selectedRestaurants[0]?.restaurants) {
+            // New format: Minimal structure - only IDs in nested array format
+            const groupedByDate = [];
+            
+            restaurantDetails.selectedRestaurants.forEach(dateEntry => {
+              // Create an object to group restaurants for this date
+              const dateRestaurants = {};
+              
+              dateEntry.restaurants.forEach(entry => {
+                const restaurantId = entry.restaurant?.id || entry.restaurant?.restaurant_id;
+                const mealId = entry.meal?.meal_id;
+                
+                if (restaurantId && mealId) {
+                  // Initialize restaurant meal array if not exists
+                  if (!dateRestaurants[restaurantId]) {
+                    dateRestaurants[restaurantId] = [];
+                  }
+                  
+                  // Add only meal_id to this restaurant's array
+                  if (!dateRestaurants[restaurantId].includes(mealId)) {
+                    dateRestaurants[restaurantId].push(mealId);
+                  }
+                }
+              });
+              
+              // Convert to nested array format: {date, restaurants: [{restaurant_id, meal_ids}]}
+              if (Object.keys(dateRestaurants).length > 0) {
+                const restaurantsArray = Object.keys(dateRestaurants).map(restaurantId => ({
+                  restaurant_id: parseInt(restaurantId),
+                  meal_ids: dateRestaurants[restaurantId]
+                }));
+                
+                groupedByDate.push({
+                  date: dateEntry.date,
+                  restaurants: restaurantsArray
+                });
+              }
+            });
+            
+            // Send everything in restaurant_ids field
+            payload.restaurant_ids = groupedByDate;
+            
+            // Log to verify structure
+            console.log('🍽️ Restaurant Payload - Grouped Structure:', {
+              totalDates: groupedByDate.length,
+              groupedData: groupedByDate
+            });
+          } else {
+            // Old format: simple array
+            payload.restaurant_ids = restaurantDetails.selectedRestaurants.map(restaurant => 
+              restaurant.id || restaurant.restaurant_id || restaurant
+            );
+          }
         }
       }
 
-      console.log("Built enquiry payload:", payload);
+      // console.log("Built enquiry payload:", payload);
+      
+      // // Additional logging for restaurant data
+      // if (payload.restaurant_ids && Array.isArray(payload.restaurant_ids) && payload.restaurant_ids.length > 0 && payload.restaurant_ids[0]?.date) {
+      //   console.log('');
+      //   console.log('═══════════════════════════════════════════════════════');
+      //   console.log('📋 RESTAURANT DATA (In restaurant_ids field)');
+      //   console.log('═══════════════════════════════════════════════════════');
+      //   console.log('');
+      //   console.log('📅 Format: [{date, restaurants: [{restaurant_id, meal_ids}]}]');
+      //   console.log('');
+      //   console.log('📊 restaurant_ids Payload:');
+      //   console.log(JSON.stringify(payload.restaurant_ids, null, 2));
+      //   console.log('');
+      //   console.log('💡 Readable Format:');
+      //   payload.restaurant_ids.forEach((dateEntry, idx) => {
+      //     console.log(`  Date ${idx + 1}: ${dateEntry.date}`);
+      //     dateEntry.restaurants.forEach((restaurant) => {
+      //       console.log(`    → Restaurant ID: ${restaurant.restaurant_id}, Meal IDs: [${restaurant.meal_ids.join(', ')}]`);
+      //     });
+      //   });
+      //   console.log('');
+      //   console.log('═══════════════════════════════════════════════════════');
+      //   console.log('');
+      // }
+      
       return payload;
     };
     
@@ -1600,6 +1796,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       </SectionPaper>
       
       {/* Trust badges section */}
+     
+      
+      {/* Pricing Summary Section */}
+      <PricingSummaryComponent />
       <Grid container spacing={2} sx={{ mb: 5 }}>
         <Grid item xs={12} md={6}>
           <Paper 
@@ -1647,76 +1847,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           </Paper>
         </Grid>
       </Grid>
-      
-      {/* Pricing Summary Section */}
-      {calculatedPrice > 0 && (
-        <SectionPaper>
-          <SectionHeader>
-            <SectionIcon bgcolor="#4caf50">
-              <AttachMoneyIcon />
-            </SectionIcon>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              Package Pricing Summary
-            </Typography>
-          </SectionHeader>
-          
-          <Box 
-            sx={{ 
-              background: 'linear-gradient(135deg,rgb(76, 119, 175) 0%,rgb(69, 86, 160) 100%)',
-              color: 'white',
-              p: 3,
-              borderRadius: 2,
-              textAlign: 'center'
-            }}
-          >
-            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
-              SGD {calculatedPrice.toLocaleString()}/adult
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 1, color: 'white' }}>
-              Approximate Total Package Cost
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 1 }}>
-              *Final price may vary based on actual selections and seasonal rates
-            </Typography>
-          </Box>
-
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              <strong>Price includes:</strong>
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {selectedServices.map((service) => (
-                <Chip
-                  key={service}
-                  label={formatServiceName(service)}
-                  icon={getServiceIcon(service)}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          </Box>
-
-          {bookingDetails?.guestCounts && (
-            <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Based on:</strong> {' '}
-                {(bookingDetails.guestCounts.Adults || 1)} Adult(s)
-                {bookingDetails.guestCounts.Children > 0 && `, ${bookingDetails.guestCounts.Children} Child(ren)`}
-                {bookingDetails.guestCounts.Infants > 0 && `, ${bookingDetails.guestCounts.Infants} Infant(s)`}
-                {bookingDetails.checkinDate && bookingDetails.checkoutDate && (
-                  <span>
-                    {' • '} 
-                    {Math.max(1, Math.ceil((new Date(bookingDetails.checkoutDate) - new Date(bookingDetails.checkinDate)) / (24 * 60 * 60 * 1000)))} day(s)
-                  </span>
-                )}
-              </Typography>
-            </Box>
-          )}
-        </SectionPaper>
-      )}
-      
       {/* Action buttons */}
       <Box sx={{ 
         display: 'flex', 
@@ -1738,7 +1868,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         
         <ActionButton 
           variant="contained" 
-          color="primary" 
+          color="primary"  
           endIcon={submitting ? null : <SendIcon />}
           onClick={handleSubmit}
           disabled={submitting || enquiryStatus === "submitted"}
