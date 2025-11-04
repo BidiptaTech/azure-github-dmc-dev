@@ -62,6 +62,7 @@ class CountryController extends Controller
             'country_code' => 'required|string|unique:countries,country_code',
             'tax_percentage' => 'required|numeric|min:0',
             'currency' => 'required|string',
+            'country_image' => 'nullable',
             'gateway_percentage' => 'required|numeric|min:0',
             'commission_percentage' => 'required|numeric|min:0',
             'card_type' => 'required|string',
@@ -71,20 +72,17 @@ class CountryController extends Controller
         ]);
 
 
-        $existing_header_pdf = Country::where('name', $request->name)->first();
-        if($existing_header_pdf){
-            $header_pdf = $existing_header_pdf->header_pdf ?? ''; // Default to existing PDF if no new file
-        }
+        // Handle header PDF
+        $header_pdf = null;
         if ($request->hasFile('header_pdf')) {
             $header_pdfPath = CommonHelper::image_path('file_storage', $request->file('header_pdf'));
             if (!empty($header_pdfPath['master_value'])) {
                 $header_pdf = $header_pdfPath['master_value'];
             }
         }
-        $existing_footer_pdf = Country::where('name', $request->name)->first();
-        if($existing_footer_pdf){
-            $footer_pdf = $existing_footer_pdf->footer_pdf ?? ''; // Default to existing PDF if no new file
-        }
+        
+        // Handle footer PDF
+        $footer_pdf = null;
         if ($request->hasFile('footer_pdf')) {
             $footer_pdfPath = CommonHelper::image_path('file_storage', $request->file('footer_pdf'));
             if (!empty($footer_pdfPath['master_value'])) {
@@ -92,6 +90,15 @@ class CountryController extends Controller
             }
         }
 
+        // Handle country image
+        $country_image = null;
+        if ($request->hasFile('country_image')) {
+            $country_imagePath = CommonHelper::image_path('file_storage', $request->file('country_image'));
+            if (!empty($country_imagePath['master_value'])) {
+                $country_image = $country_imagePath['master_value'];
+            }
+        }
+        
         // Create and store the new country
         Country::create([
             'name' => $request->name,
@@ -104,8 +111,9 @@ class CountryController extends Controller
             'card_length' => $request->card_length,
             'min_length' => $request->min_length,
             'max_length' => $request->max_length,
-            'header_pdf' =>$request->header_pdf,
-            'footer_pdf' => $request->footer_pdf
+            'header_pdf' => $header_pdf,
+            'footer_pdf' => $footer_pdf,
+            'country_image' => $country_image,
         ]);
 
         // Redirect with success message
@@ -160,6 +168,7 @@ class CountryController extends Controller
             // 'country_code' => 'required|string|unique:countries,country_code,' . $id,
             'tax_percentage' => 'required|numeric|min:0',
             'gateway_percentage' => 'required|numeric|min:0',
+            'country_image' => 'nullable',
             'commission_percentage' => 'required|numeric|min:0',
             'card_type' => 'required|string',
             'card_length' => 'required|numeric|min:1',
@@ -218,6 +227,30 @@ class CountryController extends Controller
             }
         }
 
+        // Handle country image
+        $country_image = $country->country_image; // Keep existing image by default
+        
+        // Check if user wants to remove country image
+        if ($request->input('remove_country_image') == '1') {
+            // Delete the existing file if it exists
+            if ($country->country_image && file_exists(public_path($country->country_image))) {
+                unlink(public_path($country->country_image));
+            }
+            $country_image = null; // Set to null to remove from database
+        }
+        // Check if new country image is uploaded
+        elseif ($request->hasFile('country_image')) {
+            // Delete old file if exists
+            if ($country->country_image && file_exists(public_path($country->country_image))) {
+                unlink(public_path($country->country_image));
+            }
+            // Upload new file
+            $country_imagePath = CommonHelper::image_path('file_storage', $request->file('country_image'));
+            if (!empty($country_imagePath['master_value'])) {
+                $country_image = $country_imagePath['master_value'];
+            }
+        }
+
         // Update the country data
         $country->update([
             'name' => $request->name,
@@ -232,6 +265,7 @@ class CountryController extends Controller
             'max_length' => $request->max_length,
             'header_pdf' => $header_pdf,
             'footer_pdf' => $footer_pdf,
+            'country_image' => $country_image,
         ]);
 
         // Redirect with success message

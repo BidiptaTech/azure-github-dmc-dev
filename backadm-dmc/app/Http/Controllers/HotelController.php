@@ -770,29 +770,45 @@ class HotelController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         
-        // Get hotel and delete images from Azure
+        // Get hotel and check DMC assignments
         $hotel = Hotel::where('hotel_unique_id', $id)->first();
-        if($hotel) {
-            // Delete main image
-            if($hotel->main_image) {
-                CommonHelper::deleteAzureImage($hotel->main_image);
-            }
-            
-            // Delete additional images
-            if($hotel->images) {
-                $images = json_decode($hotel->images, true);
-                if(is_array($images)) {
-                    foreach($images as $image) {
-                        CommonHelper::deleteAzureImage($image);
-                    }
+        
+        if(!$hotel) {
+            return redirect()->route('hotels.index')
+                ->with('error', 'Hotel not found.');
+        }
+        
+        // Check if hotel has any DMC assignments
+        $dmcIds = $hotel->getSelectedDmcIds();
+        
+        if(!empty($dmcIds) && count($dmcIds) > 0) {
+            // Hotel has DMC assignments, prevent deletion
+            return redirect()->route('hotels.index')
+                ->with('error', 'Cannot delete this hotel! It is currently assigned to ' . count($dmcIds) . ' DMC(s). Please remove all DMC assignments before deleting.');
+        }
+        
+        // Hotel has no DMC assignments (empty array), proceed with deletion
+        // Delete main image
+        if($hotel->main_image) {
+            CommonHelper::deleteAzureImage($hotel->main_image);
+        }
+        
+        // Delete additional images
+        if($hotel->images) {
+            $images = json_decode($hotel->images, true);
+            if(is_array($images)) {
+                foreach($images as $image) {
+                    CommonHelper::deleteAzureImage($image);
                 }
             }
         }
         
-        $delete = Hotel::where('hotel_unique_id', $id)->delete();
-        $delete = Room::where('hotel_id', $id)->delete();
+        // Delete hotel and related rooms
+        Hotel::where('hotel_unique_id', $id)->delete();
+        Room::where('hotel_id', $id)->delete();
+        
         return redirect()->route('hotels.index')
-        ->with('success','Hotel deleted successfully');
+            ->with('success', 'Hotel deleted successfully');
     }
     
     /*

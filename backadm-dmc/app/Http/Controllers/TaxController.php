@@ -30,9 +30,7 @@ class TaxController extends Controller
         if ($request->has('search') && $request->search != '') {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('tax_name', 'like', '%' . $search . '%')
-                  ->orWhere('country', 'like', '%' . $search . '%')
-                  ->orWhere('city', 'like', '%' . $search . '%');
+                $q->where('tax_name', 'like', '%' . $search . '%');
             });
         }
 
@@ -170,16 +168,23 @@ class TaxController extends Controller
 
         $tax = Tax::where('tax_id', $id)->where('dmc_id', $dmcId)->firstOrFail();
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
+        
+        // Get only taxes created before this tax (to prevent circular dependencies)
+        $previousTaxes = Tax::where('dmc_id', $dmcId)
+            ->where('created_at', '<', $tax->created_at)
+            ->orderBy('created_at', 'asc')
+            ->get();
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'tax' => $tax,
-                'countries' => $countries
+                'countries' => $countries,
+                'previousTaxes' => $previousTaxes
             ]);
         }
 
-        return view('tax.edit', compact('tax', 'countries'));
+        return view('tax.edit', compact('tax', 'countries', 'previousTaxes'));
     }
 
     /**
