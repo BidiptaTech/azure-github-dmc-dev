@@ -33,15 +33,11 @@ const DmcFilter = () => {
     return null;
   });
   
-  // Get dmc_id with proper null checking
+  // Get dmc_id - default to first DMC's userId if dmcs array exists
   const dmc_id = useSelector((state) => {
-    // Try hotels.tourdetails first (single object, not array)
-    if (state.hotels?.tourdetails?.dmc_id) {
-      return state.hotels.tourdetails.dmc_id;
-    }
-    // Fallback to bookings.bookings
-    if (state.bookings?.bookings && state.bookings.bookings.length > 0 && state.bookings.bookings[0]?.dmc_id) {
-      return state.bookings.bookings[0].dmc_id;
+    // Default to first DMC's userId if dmcs array exists
+    if (state.dmc?.dmcs?.data && state.dmc.dmcs.data.length > 0) {
+      return state.dmc.dmcs.data[0].userId;
     }
     return null;
   });
@@ -53,11 +49,11 @@ const DmcFilter = () => {
   
   // Get DMC data from Redux
   const dmcs = useSelector((state) => state.dmc?.dmcs);
+  console.log(dmcs, "dmcs");
   const loading = useSelector((state) => state.dmc?.loading);
   const error = useSelector((state) => state.dmc?.error);
-  const selectedDmcId = useSelector((state) => state.dmc?.dmcId);
   
-  const [localSelectedDmc, setLocalSelectedDmc] = useState(selectedDmcId || '');
+  const [localSelectedDmc, setLocalSelectedDmc] = useState('');
 
   // Fetch DMCs when destination changes
   useEffect(() => {
@@ -76,50 +72,47 @@ const DmcFilter = () => {
     }
   }, [destination, dispatch]);
 
-  // Sync local state with Redux when dmc_id from bookings changes
+  // Auto-select first DMC when dmcs are loaded
   useEffect(() => {
-    if (dmc_id && dmcs?.data && dmcs.data.length > 0) {
-      setLocalSelectedDmc(dmc_id);
+    if (dmcs?.data && dmcs.data.length > 0 && dmc_id && !localSelectedDmc) {
+      const firstDmc = dmcs.data[0];
+      const firstDmcId = firstDmc.userId;
       
-      // Find the DMC data for this dmc_id
-      const selectedDmc = dmcs.data.find(dmc => dmc.userId === parseInt(dmc_id));
+      // Get the country from destination or from the DMC data
+      let selectedCountry = firstDmc.country || 'Unknown Location';
       
-      if (selectedDmc) {
-        // Get the country from destination or from the DMC data
-        let selectedCountry = selectedDmc.country || 'Unknown Location';
-        
-        // Handle destination (could be array or string)
-        if (destination) {
-          if (Array.isArray(destination) && destination.length > 0) {
-            selectedCountry = destination[0];
-          } else if (typeof destination === 'string') {
-            selectedCountry = destination;
-          }
+      // Handle destination (could be array or string)
+      if (destination) {
+        if (Array.isArray(destination) && destination.length > 0) {
+          selectedCountry = destination[0];
+        } else if (typeof destination === 'string') {
+          selectedCountry = destination;
         }
-        
-        // Create DMC data object with price_hide and zone_on
-        const dmcData = {
-          id: `dmc-${selectedDmc.userId}`,
-          dmcId: selectedDmc.userId,
-          name: selectedDmc.company_name || selectedDmc.name || `DMC ${selectedDmc.userId}`,
-          location: selectedCountry,
-          logo: selectedDmc.logo || '',
-          description: selectedDmc.description || 'Auto-selected DMC from booking',
-          originalData: {
-            ...selectedDmc,
-            price_hide: selectedDmc.price_hide || 0,
-            zone_on: selectedDmc.zone_on || 0
-          }
-        };
-        
-        console.log('🔄 DMC Filter - Auto-selecting DMC from booking:', dmcData);
-        console.log('🔄 DMC Filter - price_hide:', selectedDmc.price_hide, 'zone_on:', selectedDmc.zone_on);
-        
-        // Dispatch to Redux (will set Cookies for PriceHide and zone_on)
-        dispatch(setSelectedDmcId({ dmcId: parseInt(dmc_id), dmcData }));
       }
+      
+      // Create DMC data object with price_hide and zone_on
+      const dmcData = {
+        id: `dmc-${firstDmc.userId}`,
+        dmcId: firstDmc.userId,
+        name: firstDmc.company_name || firstDmc.name || `DMC ${firstDmc.userId}`,
+        location: selectedCountry,
+        logo: firstDmc.logo || '',
+        description: 'Default selected DMC',
+        originalData: {
+          ...firstDmc,
+          price_hide: firstDmc.price_hide || 0,
+          zone_on: firstDmc.zone_on || 0
+        }
+      };
+      
+      console.log('🔄 DMC Filter - Auto-selecting first DMC by default:', dmcData);
+      console.log('🔄 DMC Filter - price_hide:', firstDmc.price_hide, 'zone_on:', firstDmc.zone_on);
+      
+      // Dispatch to Redux (will set Cookies for PriceHide and zone_on)
+      setLocalSelectedDmc(firstDmcId);
+      dispatch(setSelectedDmcId({ dmcId: parseInt(firstDmcId), dmcData }));
     }
-  }, [dmc_id, dmcs, destination, dispatch]);
+  }, [dmcs, destination, dispatch, dmc_id, localSelectedDmc]);
 
   // Handle DMC selection change
   const handleDmcChange = (event) => {
@@ -218,7 +211,7 @@ const DmcFilter = () => {
             onChange={handleDmcChange}
           >
             {/* "All DMCs" option */}
-            <FormControlLabel
+            {/* <FormControlLabel
               value=""
               control={
                 <Radio 
@@ -236,7 +229,7 @@ const DmcFilter = () => {
                 </Typography>
               }
               onClick={handleClearSelection}
-            />
+            /> */}
             
             {/* Individual DMC options */}
             {dmcList.map((dmc) => (

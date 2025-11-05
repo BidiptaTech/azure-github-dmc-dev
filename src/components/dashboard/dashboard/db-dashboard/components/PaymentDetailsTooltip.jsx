@@ -157,12 +157,76 @@ const PaymentDetailsTooltip = ({ list }) => {
       } else if (tax.tax_type === 'fixed') {
         switch (tax.if_fixed) {
           case 'person':
+            case 'per_person':
             taxAmount = totalPax * taxValue;
             break;
-          case 'person_day':
+          case 'per_person_per_day':
             taxAmount = totalPax * nights * taxValue;
             break;
-          case 'per_day':
+          case 'per_tour_per_day':
+            taxAmount = nights * taxValue;
+            break;
+          case 'per_tour':
+            taxAmount = taxValue;
+              break;
+            default:
+              taxAmount = taxValue;
+        }
+      }
+
+      if (isNaN(taxAmount)) {
+        taxAmount = 0;
+      }
+
+      // Round the tax amount for consistency between display and calculation
+      const roundedTaxAmount = Math.ceil(taxAmount);
+      total += roundedTaxAmount;
+
+      taxCalculations[tax.tax_id] = {
+        amount: total,
+        taxAmount: roundedTaxAmount
+      };
+
+      taxDetails.push({
+        tax_id: tax.tax_id,
+        name: tax.tax_name,
+        type: tax.tax_type,
+        value: taxValue,
+        amount: roundedTaxAmount,
+        isPercentage: tax.tax_type === 'percentage',
+        if_fixed: tax.if_fixed
+      });
+    });
+
+    // Step 2: Process cascading taxes
+    const cascadingTaxes = taxes.filter(tax => 
+      tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
+    );
+
+    cascadingTaxes.forEach(tax => {
+      let taxAmount = 0;
+      const taxValue = safeNumber(tax.tax_value);
+
+      if (tax.tax_type === 'percentage') {
+        // For percentage taxes, calculate on the previous tax's total amount
+        // Convert calculate_on to number to match tax_id keys in taxCalculations
+        const calculateOnKey = typeof tax.calculate_on === 'string' && !isNaN(parseInt(tax.calculate_on)) 
+          ? parseInt(tax.calculate_on) 
+          : tax.calculate_on;
+        const baseCalc = taxCalculations[calculateOnKey];
+        const baseAmount = baseCalc ? baseCalc.amount : total;
+        taxAmount = (baseAmount * taxValue) / 100;
+      } else if (tax.tax_type === 'fixed') {
+        // For fixed taxes, use if_fixed rules (don't use previous tax's amount)
+        switch (tax.if_fixed) {
+          case 'person':
+          case 'per_person':
+            taxAmount = totalPax * taxValue;
+            break;
+          case 'per_person_per_day':
+            taxAmount = totalPax * nights * taxValue;
+            break;
+          case 'per_tour_per_day':
             taxAmount = nights * taxValue;
             break;
           case 'per_tour':
@@ -182,69 +246,13 @@ const PaymentDetailsTooltip = ({ list }) => {
       const roundedTaxAmount = Math.ceil(taxAmount);
       total += roundedTaxAmount;
 
-      taxCalculations[tax.tax_name] = {
+      taxCalculations[tax.tax_id] = {
         amount: total,
         taxAmount: roundedTaxAmount
       };
 
       taxDetails.push({
-        name: tax.tax_name,
-        type: tax.tax_type,
-        value: taxValue,
-        amount: roundedTaxAmount,
-        isPercentage: tax.tax_type === 'percentage',
-        if_fixed: tax.if_fixed
-      });
-    });
-
-    // Step 2: Process cascading taxes
-    const cascadingTaxes = taxes.filter(tax => 
-      tax.calculate_on && tax.calculate_on.toLowerCase() !== 'total'
-    );
-
-    cascadingTaxes.forEach(tax => {
-      let taxAmount = 0;
-      const taxValue = safeNumber(tax.tax_value);
-
-      const baseCalc = taxCalculations[tax.calculate_on];
-      const baseAmount = baseCalc ? baseCalc.amount : total;
-
-      if (tax.tax_type === 'percentage') {
-        taxAmount = (baseAmount * taxValue) / 100;
-      } else if (tax.tax_type === 'fixed') {
-        switch (tax.if_fixed) {
-          case 'person':
-          case 'per_person':
-          taxAmount = totalPax * taxValue;
-          break;
-        case 'per_person_per_day':
-          taxAmount = totalPax * nights * taxValue;
-          break;
-        case 'per_tour_per_day':
-          taxAmount = nights * taxValue;
-          break;
-        case 'per_tour':
-          taxAmount = taxValue;
-            break;
-          default:
-            taxAmount = taxValue;
-        }
-      }
-
-      if (isNaN(taxAmount)) {
-        taxAmount = 0;
-      }
-
-      // Round the tax amount for consistency between display and calculation
-      const roundedTaxAmount = Math.ceil(taxAmount);
-      total += roundedTaxAmount;
-
-      taxCalculations[tax.tax_name] = {
-        amount: total,
-        taxAmount: roundedTaxAmount
-      };
-
-      taxDetails.push({
+        tax_id: tax.tax_id,
         name: tax.tax_name,
         type: tax.tax_type,
         value: taxValue,
@@ -387,7 +395,13 @@ const PaymentDetailsTooltip = ({ list }) => {
                       <Typography variant="caption" fontWeight={600} color="#9c27b0" sx={{ fontSize: '0.6rem' }}>
                         {tax.name}
                         {tax.isPercentage ? ` (${tax.value}%)` : (tax.if_fixed ? ` (fixed ${tax.if_fixed.replace('_', ' ')})` : '')}
-                        {tax.calculatedOn ? ` on ${tax.calculatedOn}` : ''}
+                        {tax.calculatedOn ? (() => {
+                          const calculateOnId = typeof tax.calculatedOn === 'string' && !isNaN(parseInt(tax.calculatedOn)) 
+                            ? parseInt(tax.calculatedOn) 
+                            : tax.calculatedOn;
+                          const calculatedOnTax = taxBreakdown.taxes.find(t => t.tax_id === calculateOnId);
+                          return calculatedOnTax ? ` on ${calculatedOnTax.name}` : '';
+                        })() : ''}
                       </Typography>
                       <Typography variant="caption" fontWeight={700} color="#9c27b0" sx={{ fontSize: '0.6rem' }}>
                         +SGD {tax.amount}
