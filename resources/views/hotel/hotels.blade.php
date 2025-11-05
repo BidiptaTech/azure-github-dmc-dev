@@ -1,8 +1,15 @@
 @extends('layouts.layout')
 @section('title', 'Hotel Listing')
-@extends('layouts.datatablecss')
 
 @section('css')
+<!-- DataTable CSS -->
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables.bootstrap5.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-checkboxes-jquery/datatables.checkboxes.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.css' }}" />
+<link rel="stylesheet" href="{{ env('APP_URL') . '/assets/vendor/libs/datatables-rowgroup-bs5/rowgroup.bootstrap5.css' }}" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
 <style>
     /* Ensure user profile dropdown is visible on hotels page */
     .topbar-item {
@@ -46,9 +53,7 @@
     }
 </style>
 @endsection
-
 @section('content')
-
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -109,7 +114,7 @@
                             <th>Phone</th>
                             <th>Email</th>
                             <th>Image</th>
-                            <th>Calender</th>
+                            <th>Calendar</th>
                             @if(auth()->user()->role_id == 1 || auth()->user()->userId == 2 || auth()->user()->role_id == 23  || auth()->user()->role_id == 35 || auth()->user()->role_id == 47 || auth()->user()->role_id == 77 || auth()->user()->role_id ==82 || auth()->user()->role_id == 84 || auth()->user()->role_id == 139 || auth()->user()->role_id == 140 || hasPermission('edit hotel') || hasPermission('delete hotel'))
                             @if(hasPermission('edit hotel') || hasPermission('delete hotel'))
                             <th>Action</th>
