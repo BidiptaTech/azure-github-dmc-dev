@@ -195,8 +195,8 @@ class JobSheetController extends Controller
                                 if ($jobsheet) {
                                     $order->assigned_driver_id = $jobsheet->driver_id;
                                     $order->assigned_vehicle_id = $jobsheet->vehicle_id;
-                                    $order->driver = $jobsheet->driver_id ? Driver::find($jobsheet->driver_id) : null;
-                                    $order->vehicle = $jobsheet->vehicle_id ? Vehicle::find($jobsheet->vehicle_id) : null;
+                                    $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                                    $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                                 }
                             }
                             return $order;
@@ -903,7 +903,7 @@ class JobSheetController extends Controller
                     // Attach guide info from jobsheet
                     if ($jobsheet) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
-                        $order->guide = $jobsheet->guide_id ? Guide::find($jobsheet->guide_id) : null;
+                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->first() : null;
                     } else {
                         $order->assigned_guide_id = null;
                         $order->guide = null;
@@ -1050,7 +1050,6 @@ class JobSheetController extends Controller
                 'date' => 'required|date',
                 'assignments' => 'required|array',
             ]);
-            dd($request->assignments);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -1105,7 +1104,7 @@ class JobSheetController extends Controller
                         if (is_array($item)) {
                             // Assign driver and vehicle
                             if ($driverId) {
-                                $driver = Driver::find($driverId);
+                                $driver = Driver::where('driver_id', $driverId)->first();
                                 if ($driver) {
                                     $item['driver_id'] = $driver->driver_id;
                                     $item['driver_name'] = $driver->name;
@@ -1113,7 +1112,7 @@ class JobSheetController extends Controller
                             }
 
                             if ($vehicleId) {
-                                $vehicle = Vehicle::find($vehicleId);
+                                $vehicle = Vehicle::where('vehicle_id', $vehicleId)->first();
                                 if ($vehicle) {
                                     $item['vehicles_id'] = $vehicle->vehicle_id;
                                     $item['vehicles_name'] = $vehicle->vehicle_name;
@@ -1877,8 +1876,6 @@ class JobSheetController extends Controller
                 $drivers = Driver::where('dmc_id', $dmcId)->get();
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
             }
-            
-
             // Query orders for the specified date
             $orders = [];
             if (!is_null($dmcId)) {
@@ -1898,9 +1895,7 @@ class JobSheetController extends Controller
                     ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                     ->whereNotNull('tour_id')
-                    ->whereHas('tour', function($query) {
-                        $query->whereIn('tour_status', ['Confirmed', 'Definite', 'Actual']);
-                    })
+                    ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
                 }
             } else {
@@ -1931,7 +1926,7 @@ class JobSheetController extends Controller
                     // Attach guide info from jobsheet
                     if ($jobsheet) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
-                        $order->guide = $jobsheet->guide_id ? Guide::find($jobsheet->guide_id) : null;
+                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->first() : null;
                     } else {
                         $order->assigned_guide_id = null;
                         $order->guide = null;
@@ -1967,8 +1962,8 @@ class JobSheetController extends Controller
                     if ($jobsheet) {
                         $order->assigned_driver_id = $jobsheet->driver_id;
                         $order->assigned_vehicle_id = $jobsheet->vehicle_id;
-                        $order->driver = $jobsheet->driver_id ? Driver::find($jobsheet->driver_id) : null;
-                        $order->vehicle = $jobsheet->vehicle_id ? Vehicle::find($jobsheet->vehicle_id) : null;
+                        $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
+                        $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                     } else {
                         $order->assigned_driver_id = null;
                         $order->assigned_vehicle_id = null;
