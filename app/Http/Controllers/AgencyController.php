@@ -61,6 +61,7 @@ class AgencyController extends Controller
             'agency_name' => 'required|string|max:255',
             'email' => 'required|email|unique:agencies,email',
             'phone' => 'required|string|max:20',
+            'wp_number' => 'required|string|max:20',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'contact_person' => 'required|string|max:255',
@@ -115,6 +116,7 @@ class AgencyController extends Controller
                 'agency_name' => $request->input('agency_name'),
                 'email' => $request->input('email'),
                 'phone' => $request->input('phone'),
+                'wp_number' => $request->input('wp_number'),
                 'country' => $request->input('country'),
                 'city' => $request->input('city'),
                 'contact_person' => $request->input('contact_person'),
@@ -157,6 +159,7 @@ class AgencyController extends Controller
         $agency->agency_name = $request->input('agency_name');
         $agency->email = $request->input('email');
         $agency->phone = $request->input('phone');
+        $agency->wp_number = $request->input('wp_number');
         $agency->country = $request->input('country');
         $agency->city = $request->input('city');
         $agency->contact_person = $request->input('contact_person');
@@ -205,6 +208,7 @@ class AgencyController extends Controller
             'agency_name' => 'required|string|max:255',
             'email' => 'required|email|unique:agencies,email,' . $agency->id,
             'phone' => 'required|string|max:20',
+            'wp_number' => 'required|string|max:20',
             'country' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'contact_person' => 'required|string|max:255',
@@ -244,6 +248,7 @@ class AgencyController extends Controller
         $agency->agency_name = $request->input('agency_name');
         $agency->email = $request->input('email');
         $agency->phone = $request->input('phone');
+        $agency->wp_number = $request->input('wp_number');
         $agency->country = $request->input('country');
         $agency->city = $request->input('city');
         $agency->contact_person = $request->input('contact_person');

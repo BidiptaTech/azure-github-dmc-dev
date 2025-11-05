@@ -633,6 +633,42 @@ class SingleTourPackageController extends Controller
                 EnquiryForm::where('enquiry_id', $request->enquiry_id)->update(['unique_tour_id' => $thisTour->unique_tour_id]);
             }
             $cities = City::where('country', $request->user_country)->get();
+            
+            // Send tour proposal email to agent
+            try {
+                $tourData = [
+                    'destination' => $tour->destination,
+                    'city' => $tour->city,
+                    'check_in_time' => $tour->check_in_time,
+                    'check_out_time' => $tour->check_out_time,
+                    'adult' => $tour->adult,
+                    'child' => $tour->child,
+                    'infant' => $tour->infant,
+                ];
+                
+                $emailResult = CommonHelper::sendTourProposalEmail(
+                    $tour->agent_id,
+                    $tour->tour_id,
+                    $tour->display_id,
+                    $tourData
+                );
+                
+                if ($emailResult !== true) {
+                    \Log::warning("Tour proposal email not sent", [
+                        'tour_id' => $tour->tour_id,
+                        'agent_id' => $tour->agent_id,
+                        'reason' => $emailResult
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error("Exception while sending tour proposal email", [
+                    'tour_id' => $tour->tour_id,
+                    'agent_id' => $tour->agent_id,
+                    'error' => $e->getMessage()
+                ]);
+                // Don't fail the tour creation if email fails
+            }
+            
             // Return JSON response for AJAX
             if ($request->ajax()) {
                 return response()->json([

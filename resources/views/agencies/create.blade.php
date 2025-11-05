@@ -455,6 +455,24 @@
                             @enderror
                         </div>
 
+                        <!-- WP Number -->
+                        <div class="col-lg-6 col-md-6 mb-3">
+                            <label for="wp_number" class="form-label">
+                                <i class="ri-phone-line text-primary"></i>
+                                WP Number <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('wp_number') is-invalid @enderror" 
+                                   id="wp_number" 
+                                   name="wp_number" 
+                                   value="{{ old('wp_number') }}" 
+                                   placeholder="Enter WP number (e.g., 1234567890)"
+                                   required>
+                            @error('wp_number')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
                         <!-- Country -->
                         <div class="col-lg-6 col-md-6 mb-3">
                             <label for="country" class="form-label">

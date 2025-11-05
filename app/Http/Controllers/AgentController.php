@@ -358,6 +358,9 @@ class AgentController extends Controller
             try {
                 $dmc_user = User::where('userId', $dmc_id)->first();
 
+                // Generate activation link (login URL)
+                $activationLink = url('login');
+                
                 $emailData = [
                     'salutation' => $agent->salutation,
                     'name' => $agent->name,
@@ -371,6 +374,7 @@ class AgentController extends Controller
                     'dmc_company' => $dmc_user->company_name ?? config('app.name'),
                     'dmc_email' => $dmc_user->email ?? 'NA',
                     'dmc_phone' => $dmc_user->phone ?? 'NA',
+                    'activation_link' => $activationLink,
                     'mail_settings' => (object)[
                         'support_email' => $dmc_user->email ?? 'NA',
                         'support_phone' => $dmc_user->phone ?? 'NA',
@@ -381,11 +385,14 @@ class AgentController extends Controller
                     ]
                 ];
                 
+                // Subject: 🌏 Welcome to Travclicks — You're Now Connected with {{DMC_Name}}
+                $subject = "🌏 Welcome to Travclicks — You're Now Connected with " . ($dmc_user->company_name ?? config('app.name'));
+                
                 $result = \App\Helpers\CommonHelper::sendEmail(
                     $agent->email, 
                     'agent_creation', 
-                    'Your Agent Account Has Been Created', 
-                    'Welcome to our platform! Your agent account has been created successfully.', 
+                    $subject, 
+                    'Welcome to Travclicks! Your agent account has been created successfully.', 
                     $emailData
                 );
                 
