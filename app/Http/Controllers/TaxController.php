@@ -141,6 +141,11 @@ class TaxController extends Controller
             $validated['calculate_on'] = $matches[1];
         }
 
+        // Clear if_fixed when tax_type is percentage
+        if ($validated['tax_type'] === 'percentage') {
+            $validated['if_fixed'] = null;
+        }
+
         $tax = Tax::create($validated);
 
         if ($request->ajax()) {
@@ -242,6 +247,11 @@ class TaxController extends Controller
         // Normalize calculate_on: convert 'tax_9' to '9' for consistent storage
         if (isset($validated['calculate_on']) && preg_match('/^tax_(\d+)$/', $validated['calculate_on'], $matches)) {
             $validated['calculate_on'] = $matches[1];
+        }
+
+        // Clear if_fixed when tax_type is changed to percentage
+        if ($validated['tax_type'] === 'percentage') {
+            $validated['if_fixed'] = null;
         }
 
         $tax->update($validated);
