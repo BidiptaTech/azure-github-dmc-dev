@@ -677,8 +677,6 @@ class EnquiryController extends Controller
     {
         $user = auth()->user();
         $agent_id = $request->agent_id;
-        $request_dmc_id = $request->dmc_id; // Get DMC ID from request
-        
         // Pagination parameters with defaults
         $start = $request->input('start', 0);
         $limit = $request->input('limit', 10);
@@ -696,36 +694,55 @@ class EnquiryController extends Controller
         $enquiries = collect();
         $tour_enquiries_list = collect();
 
-        // For DMC roles (33, 37, 38), dmc_id is mandatory
-        if (in_array($user->role_id, [33, 37, 38]) && !$request_dmc_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'DMC ID not found in request.',
-            ], 400);
-        }
-
         if ($agent_id && $user->userId) {
-            // If user is DMC role (33, 37, 38), filter by dmc_id
+            // If user is DMC role (33, 37, 38), verify they have access to this agent
             if (in_array($user->role_id, [33, 37, 38])) {
-                $dmc_id = $request_dmc_id;
+                $hasAccess = false;
+                $dmc_id = null;
                 
-                // Check if the agent belongs to this DMC
-                $agent = Agent::where('agent_id', $agent_id)->first();
-                if ($agent) {
-                    $agency = Agency::where('agency_id', $agent->agency_id)->first();
-                    $agent_dmc_ids = $agency->dmc_id;
-                    if (is_string($agent_dmc_ids)) {
-                        $agent_dmc_ids = json_decode($agent_dmc_ids, true) ?? [];
-                    } elseif (!is_array($agent_dmc_ids)) {
-                        $agent_dmc_ids = [$agent_dmc_ids];
+                if ($user->role_id == 33) { // Sales Head
+                    $dmc_id = $user->created_by;
+                } elseif ($user->role_id == 37) { // Sales Manager
+                    // Get parent DMC ID by traversing up the hierarchy
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
                     }
-                    
-                    if (!in_array($dmc_id, $agent_dmc_ids)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'You do not have access to this agent\'s enquiries.',
-                        ], 403);
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
                     }
+                } elseif ($user->role_id == 38) { // Assistant Sales Manager
+                    // Get parent DMC ID by traversing up the hierarchy
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                }
+                
+                if ($dmc_id) {
+                    // Check if the agent belongs to this DMC using the dmc_id field
+                    $agent = Agent::where('agent_id', $agent_id)->first();
+                    if ($agent) {
+                        // Check if agent's dmc_id field contains this DMC ID
+                        $agency = Agency::where('agency_id', $agent->agency_id)->first();
+                        $agent_dmc_ids = $agency->dmc_id;
+                        if (is_string($agent_dmc_ids)) {
+                            $agent_dmc_ids = json_decode($agent_dmc_ids, true) ?? [];
+                        } elseif (!is_array($agent_dmc_ids)) {
+                            $agent_dmc_ids = [$agent_dmc_ids];
+                        }
+                        $hasAccess = in_array($dmc_id, $agent_dmc_ids);
+                    }
+                }
+                
+                if (!$hasAccess) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You do not have access to this agent\'s enquiries.',
+                    ], 403);
                 }
                 
                 // For DMC roles, filter enquiries by both agent_id AND dmc_id
@@ -737,7 +754,6 @@ class EnquiryController extends Controller
                     ->take($limit)
                     ->orderBy('created_at', 'desc')
                     ->get();
-                    
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->where('dmc_id', $dmc_id)
                     ->whereNotNull('unique_tour_id')
@@ -747,7 +763,7 @@ class EnquiryController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->get();
             } else {
-                // For non-DMC roles, show all enquiries for the agent
+                // For agents, show all their enquiries (no DMC filtering)
                 $enquiries = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNull('unique_tour_id')
                     ->where('status', null)
@@ -755,7 +771,6 @@ class EnquiryController extends Controller
                     ->take($limit)
                     ->orderBy('created_at', 'desc')
                     ->get();
-                    
                 $tour_enquiries_list = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNotNull('unique_tour_id')
                     ->where('status', null)
@@ -764,11 +779,42 @@ class EnquiryController extends Controller
                     ->orderBy('created_at', 'desc')
                     ->get();
             }
+            if (!$enquiries) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No Enquiry Found.',
+                ], 404);
+            }
         }
+
         elseif($user->userId && !$agent_id){
-            if(in_array($user->role_id, [33, 37, 38])){
-                // For DMC roles, get enquiries by dmc_id
-                $dmcId = $request_dmc_id;
+            $currentUser = null;
+            if(in_array($user->role_id, [33, 37, 38,])){
+                $currentUser = User::where('userId', $user->userId)->first();
+                if (!$currentUser) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found.',
+                    ], 404);
+                }
+            }
+            if($currentUser){
+                // For DMC roles (33, 37, 38), they must select an agent first
+                // No enquiries shown until an agent is selected
+                if($currentUser->role_id == 33){
+                    $dmcId = $currentUser->created_by;
+                }
+                elseif($currentUser->role_id == 37){
+                    $sales_head_id = $currentUser->created_by;
+                    $sales_head = User::where('userId', $sales_head_id)->first();
+                    $dmcId = $sales_head->created_by;
+                }
+                elseif($currentUser->role_id == 38){
+                    $sales_manager_id = $currentUser->created_by;
+                    $sales_manager_createdBy_id = User::where('userId', $sales_manager_id)->first()->value('created_by');
+                    $sales_head = User::where('userId', $sales_manager_createdBy_id)->first();
+                    $dmcId = $sales_head->created_by;
+                }
                 
                 $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agency_id');
                 $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
@@ -794,14 +840,12 @@ class EnquiryController extends Controller
                     ->get();
             }
             else{
-                // For non-DMC roles with userId
                 if (empty($user?->agent_id)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Unauthorized or Agent ID missing.',
                     ], 401);
                 }
-                
                 $enquiries = EnquiryForm::where('agent_id', $user->agent_id)
                     ->whereNull('unique_tour_id')
                     ->where('status', null)
@@ -825,13 +869,36 @@ class EnquiryController extends Controller
         if ($agent_id && $user->userId) {
             if (in_array($user->role_id, [33, 37, 38])) {
                 // For DMC roles, count enquiries by both agent_id AND dmc_id
-                $totalCount = EnquiryForm::where('agent_id', $agent_id)
-                    ->where('dmc_id', $request_dmc_id)
-                    ->whereNull('unique_tour_id')
-                    ->where('status', null)
-                    ->count();
+                $dmc_id = null;
+                if ($user->role_id == 33) {
+                    $dmc_id = $user->created_by;
+                } elseif ($user->role_id == 37) {
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                } elseif ($user->role_id == 38) {
+                    $parentUser = User::where('userId', $user->created_by)->first();
+                    while ($parentUser && !in_array($parentUser->role_id, [11])) {
+                        $parentUser = User::where('userId', $parentUser->created_by)->first();
+                    }
+                    if ($parentUser && $parentUser->role_id == 11) {
+                        $dmc_id = $parentUser->userId;
+                    }
+                }
+                
+                if ($dmc_id) {
+                    $totalCount = EnquiryForm::where('agent_id', $agent_id)
+                        ->where('dmc_id', $dmc_id)
+                        ->whereNull('unique_tour_id')
+                        ->where('status', null)
+                        ->count();
+                }
             } else {
-                // For non-DMC roles, count all enquiries for the agent
+                // For agents, count all their enquiries
                 $totalCount = EnquiryForm::where('agent_id', $agent_id)
                     ->whereNull('unique_tour_id')
                     ->where('status', null)
@@ -839,16 +906,35 @@ class EnquiryController extends Controller
             }
         } elseif ($user->userId && !$agent_id) {
             if (in_array($user->role_id, [33, 37, 38])) {
-                // For DMC roles, count by dmc_id
-                $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$request_dmc_id])])->pluck('agency_id');
-                $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
-               
-                $totalCount = EnquiryForm::whereIn('agent_id', $agent_ids)
-                    ->whereNull('unique_tour_id')
-                    ->where('status', null)
-                    ->whereMonth('check_in_time', now()->month)
-                    ->whereYear('check_in_time', now()->year)
-                    ->count();
+                $currentUser = User::where('userId', $user->userId)->first();
+                if ($currentUser) {
+                    $dmcId = null;
+                    if ($currentUser->role_id == 33) {
+                        $dmcId = $currentUser->created_by;
+                    } elseif ($currentUser->role_id == 37) {
+                        $sales_head_id = $currentUser->created_by;
+                        $sales_head = User::where('userId', $sales_head_id)->first();
+                        $dmcId = $sales_head->created_by;
+                    } elseif ($currentUser->role_id == 38) {
+                        $sales_manager_id = $currentUser->created_by;
+                        $sales_manager_createdBy_id = User::where('userId', $sales_manager_id)->first()->value('created_by');
+                        $sales_head = User::where('userId', $sales_manager_createdBy_id)->first();
+                        $dmcId = $sales_head->created_by;
+                    }
+                    
+                    if ($dmcId) {
+                        // $agent_ids = Agent::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agent_id');
+                        $agency_ids = Agency::whereRaw("dmc_id::jsonb @> ?", [json_encode([$dmcId])])->pluck('agency_id');
+                        $agent_ids = Agent::whereIn('agency_id', $agency_ids)->pluck('agent_id');
+                       
+                        $totalCount = EnquiryForm::whereIn('agent_id', $agent_ids)
+                            ->whereNull('unique_tour_id')
+                            ->where('status', null)
+                            ->whereMonth('check_in_time', now()->month)
+                            ->whereYear('check_in_time', now()->year)
+                            ->count();
+                    }
+                }
             } else {
                 if (!empty($user?->agent_id)) {
                     $totalCount = EnquiryForm::where('agent_id', $user->agent_id)
@@ -872,29 +958,7 @@ class EnquiryController extends Controller
         foreach($enquiries as $enquiry){
             // Decode and normalize all IDs to arrays of integers
             $hotelIds = is_array($decoded = json_decode($enquiry->hotel_ids, true)) ? $decoded : [];
-            
-            // Parse new restaurant structure with dates and meal_ids
-            $restaurantData = json_decode($enquiry->restaurant_ids, true);
-            $restaurantIds = [];
-            $allMealIds = [];
-            
-            if (is_array($restaurantData)) {
-                foreach ($restaurantData as $dateEntry) {
-                    if (isset($dateEntry['restaurants']) && is_array($dateEntry['restaurants'])) {
-                        foreach ($dateEntry['restaurants'] as $restaurant) {
-                            if (isset($restaurant['restaurant_id'])) {
-                                $restaurantIds[] = intval($restaurant['restaurant_id']);
-                            }
-                            if (isset($restaurant['meal_ids']) && is_array($restaurant['meal_ids'])) {
-                                $allMealIds = array_merge($allMealIds, array_map('intval', $restaurant['meal_ids']));
-                            }
-                        }
-                    }
-                }
-            }
-            $restaurantIds = array_unique($restaurantIds);
-            $allMealIds = array_unique($allMealIds);
-            
+            $restaurantIds = is_array($decoded = json_decode($enquiry->restaurant_ids, true)) ? array_map('intval', $decoded) : [];
             $attractionIds = is_array($decoded = json_decode($enquiry->attraction_ids, true)) ? array_map('intval', $decoded) : [];
             $guideIds = is_array($decoded = json_decode($enquiry->guide_ids, true)) ? array_map('intval', $decoded) : [];
             $localTransportVehicleIds = is_array($decoded = json_decode($enquiry->local_transport_vehicle_ids, true)) ? array_map('intval', $decoded) : [];
@@ -904,66 +968,7 @@ class EnquiryController extends Controller
             $packagedAttractionIds = is_array($decoded = json_decode($enquiry->packaged_attraction_ids, true)) ? array_map('intval', $decoded) : [];
 
             // Fetch related models
-            $restaurants = Restaurant::with(['meals' => function($query) use ($allMealIds) {
-                if (!empty($allMealIds)) {
-                    $query->whereIn('meal_id', $allMealIds);
-                }
-            }])->whereIn('restaurant_id', $restaurantIds)->get();
-            
-            // Map data by dates first, then restaurants within each date
-            $restaurantDetails = [];
-            
-            if (is_array($restaurantData)) {
-                foreach ($restaurantData as $dateEntry) {
-                    if (isset($dateEntry['date']) && isset($dateEntry['restaurants'])) {
-                        $dateRestaurants = [];
-                        
-                        foreach ($dateEntry['restaurants'] as $restData) {
-                            $restaurantId = $restData['restaurant_id'];
-                            $mealIds = $restData['meal_ids'] ?? [];
-                            
-                            // Find the restaurant from the fetched collection
-                            $restaurant = $restaurants->firstWhere('restaurant_id', $restaurantId);
-                            
-                            if ($restaurant) {
-                                $meals = $restaurant->meals->whereIn('meal_id', $mealIds)->map(function($meal) {
-                                    return [
-                                        'meal_id' => $meal->meal_id,
-                                        'adult_price' => $meal->adult_price,
-                                        'child_price' => $meal->child_price,
-                                        'set_menu_price' => $meal->price,
-                                        'item_description' => $meal->item_description,
-                                        'item_type' => $meal->item_type == 1 ? 'Vegetarian' : 'Non Vegetarian',
-                                        'category' => $meal->category == 1 ? 'Alcoholic' : 'Non Alcoholic',
-                                        'meal_type' => $meal->type == 1 ? 'Buffet' : 'Set Menu',
-                                        'meal_period' => match($meal->meal_period ?? 1) {
-                                            1 => 'Breakfast',
-                                            2 => 'Lunch',
-                                            3 => 'Dinner',
-                                            default => 'Breakfast'
-                                        },
-                                    ];
-                                })->values();
-                                
-                                $dateRestaurants[] = [
-                                    'restaurant_id' => $restaurant->restaurant_id,
-                                    'name' => $restaurant->name,
-                                    'master_image' => $restaurant->master_image,
-                                    'city' => $restaurant->city,
-                                    'country' => $restaurant->country,
-                                    'meals' => $meals
-                                ];
-                            }
-                        }
-                        
-                        $restaurantDetails[] = [
-                            'date' => $dateEntry['date'],
-                            'restaurants' => $dateRestaurants
-                        ];
-                    }
-                }
-            }
-            
+            $restaurants = Restaurant::whereIn('restaurant_id', $restaurantIds)->get(); 
             $attractions = Attraction::whereIn('attraction_id', $attractionIds)->get();
             $hotels = Hotel::whereIn('hotel_unique_id', $hotelIds)->get();
             $guides = Guide::whereIn('guide_id', $guideIds)->get();
@@ -1043,7 +1048,7 @@ class EnquiryController extends Controller
                 'attraction_details' => $attractions,
                 'restaurant' => $enquiry->restaurant,
                 'restaurant_remarks' => $enquiry->restaurant_remarks,
-                'restaurant_details' => $restaurantDetails,
+                'restaurant_details' => $restaurants,
                 'guide' => $enquiry->guide,
                 'guide_remarks' => $enquiry->guide_remarks,
                 'guide_details' => $guides,
