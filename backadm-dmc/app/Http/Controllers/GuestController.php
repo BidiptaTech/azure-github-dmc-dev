@@ -202,7 +202,7 @@ class GuestController extends Controller
                     );
                     
                     // Upload to Azure Storage using CommonHelper
-                    $uploadResult = CommonHelper::image_path('file_storage', $imageFile, 'guests');
+                    $uploadResult = CommonHelper::image_path('file_storage', $imageFile);
                     if (!empty($uploadResult['master_value'])) {
                         $imagePath = $uploadResult['master_value'];
                         Log::info('Guest default avatar uploaded to Azure successfully', ['path' => $imagePath]);
