@@ -62,6 +62,15 @@
                                 <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
+
+                            <!-- Phone Number -->
+                            <div class="col-md-3 mb-3">
+                                <label for="phone" class="form-label"><strong>Phone Number</strong><span class="text-danger">*</span></label>
+                                <input value="{{$attraction->phone}}" type="text" class="form-control" name="phone" placeholder="Enter Phone Number" required {{ in_array(auth()->user()->role_id, [11, 74, 35, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? 'readonly' : '' }}>
+                                @error('phone')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                             <!-- Country -->
                             <div class="mb-3 col-md-3">
                                 <label for="country" class="form-label"><strong>Country</strong>

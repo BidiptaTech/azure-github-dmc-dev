@@ -130,8 +130,39 @@ class SingleTourPackageController extends Controller
                     
                     // Get restaurants as meals
                     if($enquiry->restaurant_ids){
-                        $restaurant_ids = json_decode($enquiry->restaurant_ids, true);
-                        $meals = Restaurant::with('meals')->whereIn('restaurant_id', $restaurant_ids)->get();
+                        $restaurant_data = json_decode($enquiry->restaurant_ids, true);
+                        
+                        // Extract all unique restaurant IDs from the nested structure
+                        $restaurant_ids = [];
+                        $meals_by_date = [];
+                        
+                        if(is_array($restaurant_data)){
+                            foreach($restaurant_data as $date_entry){
+                                if(isset($date_entry['date']) && isset($date_entry['restaurants'])){
+                                    $date = $date_entry['date'];
+                                    
+                                    foreach($date_entry['restaurants'] as $restaurant){
+                                        if(isset($restaurant['restaurant_id'])){
+                                            $restaurant_ids[] = $restaurant['restaurant_id'];
+                                            
+                                            // Store meal IDs for each restaurant by date
+                                            if(!isset($meals_by_date[$date])){
+                                                $meals_by_date[$date] = [];
+                                            }
+                                            
+                                            $meals_by_date[$date][] = [
+                                                'restaurant_id' => $restaurant['restaurant_id'],
+                                                'meal_ids' => $restaurant['meal_ids'] ?? []
+                                            ];
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Get unique restaurant IDs and fetch restaurants with meals
+                            $restaurant_ids = array_unique($restaurant_ids);
+                            $meals = Restaurant::with('meals')->whereIn('restaurant_id', $restaurant_ids)->get();
+                        }
                     }
                 }
             }
@@ -141,7 +172,11 @@ class SingleTourPackageController extends Controller
 
         $UserDmc = User::select('userId','zone_on')->where('userId', $userDmcId)->first();
         $restaurants = Restaurant::with(['meals'])->whereJsonContains('dmc_id', $userDmcId)->get();
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc'));
+        
+        // Pass restaurant_data for detailed display
+        $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
+        
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data'));
     }
     
     /**
@@ -276,9 +311,12 @@ class SingleTourPackageController extends Controller
             'tour_id' => $existingTour->tour_id
         ];
 
+        // Initialize restaurant_data as empty array for addServices
+        $restaurant_data = [];
+        
         return view('single-tour-package.create', compact('countries', 'agents', 'enquiry', 'hotels', 
             'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'existingTour', 'tourData',
-            'restaurants', 'serviceData'));
+            'restaurants', 'serviceData', 'restaurant_data'));
     }
 
 

@@ -10,7 +10,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form action="{{ route('countries.store') }}" method="POST" class="card-body">
+            <form action="{{ route('countries.store') }}" method="POST" class="card-body" enctype="multipart/form-data">
                 @csrf
 
                 <div class="row">
@@ -113,6 +113,13 @@
                         <label for="commission_percentage" class="form-label"><strong>Commission Percentage (%)</strong><span class="text-danger">*</span></label>
                         <input type="number" step="0.01" class="form-control @error('commission_percentage') is-invalid @enderror" name="commission_percentage" placeholder="Enter Commission Percentage" required>
                         @error('commission_percentage')
+                            <div class="text-danger mt-1">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="country_image" class="form-label"><strong>Upload Country Image</strong></label>
+                        <input type="file" class="form-control @error('country_image') is-invalid @enderror" name="country_image" accept="image/*">
+                        @error('country_image')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror
                     </div>

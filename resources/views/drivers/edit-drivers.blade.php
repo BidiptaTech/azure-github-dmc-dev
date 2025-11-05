@@ -173,6 +173,15 @@
                                 @enderror
                             </div>
 
+                            <!-- WP Number -->
+                            <div class="col-md-3 mb-3">
+                                <label for="wp_number" class="form-label"><strong>Whatsapp Number</strong><span class="text-danger">*</span></label>
+                                <input value="{{$driver->wp_number}}" type="text" class="form-control" name="wp_number" placeholder="Enter Whatsapp Number" required>
+                                @error('wp_number')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- Address -->
                             <div class="col-md-3 mb-3">
                                 <label for="address" class="form-label"><strong>Address</strong><span class="text-danger">*</span></label>

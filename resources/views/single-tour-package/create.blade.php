@@ -3878,7 +3878,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body p-0" style="max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: hidden;">
                             <!-- Basic Info Section -->
                             <div class="border-bottom p-3">
                                 <h6 class="text-primary fw-bold mb-3">
@@ -4010,19 +4010,74 @@
                                 </div>
                                 @endif
 
-                                @if($meals->count() > 0)
+                                @if(isset($restaurant_data) && is_array($restaurant_data) && count($restaurant_data) > 0)
                                 <div class="service-item mb-3">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="bg-warning rounded-circle p-1 me-2">
                                             <i class="ri-restaurant-line text-white small"></i>
                                         </div>
-                                        <strong class="text-warning">Restaurants ({{ $meals->count() }})</strong>
+                                        <strong class="text-warning">Restaurants</strong>
                                     </div>
-                                    @foreach($meals as $meal)
-                                    <div class="bg-light rounded p-2 mb-1">
-                                        <div class="small fw-semibold text-dark">{{ $meal->name ?? 'Restaurant Name' }}</div>
-                                        <div class="text-muted small">{{ $meal->location ?? 'Location' }}</div>
-                                    </div>
+                                    @foreach($restaurant_data as $dateEntry)
+                                        @if(isset($dateEntry['date']) && isset($dateEntry['restaurants']))
+                                            <div class="mb-2">
+                                                <div class="small fw-bold text-primary mb-1">
+                                                    <i class="ri-calendar-line me-1"></i>{{ \Carbon\Carbon::parse($dateEntry['date'])->format('d M Y') }}
+                                                </div>
+                                                @foreach($dateEntry['restaurants'] as $restaurantEntry)
+                                                    @php
+                                                        $restaurant = $meals->firstWhere('restaurant_id', $restaurantEntry['restaurant_id']);
+                                                    @endphp
+                                                    @if($restaurant)
+                                                        <div class="bg-light rounded p-2 mb-1 ms-3">
+                                                            <div class="small fw-semibold text-dark">{{ $restaurant->name ?? 'Restaurant Name' }}</div>
+                                                            <div class="text-muted small">
+                                                                <i class="ri-map-pin-line me-1"></i>{{ $restaurant->location ?? 'Location' }}
+                                                            </div>
+                                                            @if(isset($restaurantEntry['meal_ids']) && is_array($restaurantEntry['meal_ids']) && count($restaurantEntry['meal_ids']) > 0)
+                                                                <div class="mt-2">
+                                                                    @foreach($restaurantEntry['meal_ids'] as $index => $mealId)
+                                                                        @php
+                                                                            $meal = $restaurant->meals->firstWhere('meal_id', $mealId);
+                                                                        @endphp
+                                                                        @if($meal)
+                                                                            <div class="d-flex align-items-start mb-2 ps-2 border-start border-warning border-2">
+                                                                                <i class="ri-restaurant-2-line me-2 mt-1 text-warning" style="font-size: 0.85rem;"></i>
+                                                                                <div class="flex-grow-1">
+                                                                                    <div class="d-flex align-items-center flex-wrap mb-1">
+                                                                                        <span class="text-dark small fw-semibold me-2">{{ $meal->name ?? 'Meal' }}</span>
+                                                                                        @php
+                                                                                            $mealPeriod = match($meal->meal_period ?? 1) {
+                                                                                                1 => 'Breakfast',
+                                                                                                2 => 'Lunch', 
+                                                                                                3 => 'Dinner',
+                                                                                                default => 'Breakfast'
+                                                                                            };
+                                                                                            $mealType = $meal->type == 1 ? 'Buffet' : 'Set Menu';
+                                                                                            $itemType = $meal->item_type == 1 ? 'Vegetarian' : 'Non Vegetarian';
+                                                                                            $category = $meal->category == 1 ? 'Alcoholic' : 'Non Alcoholic';
+                                                                                        @endphp
+                                                                                        <span class="badge bg-primary text-white me-1" style="font-size: 0.65rem;">{{ $mealPeriod }}</span>
+                                                                                        <span class="badge bg-info text-white me-1" style="font-size: 0.65rem;">{{ $mealType }}</span>
+                                                                                        @if($meal->item_type)
+                                                                                            <span class="badge bg-success text-white me-1" style="font-size: 0.65rem;">{{ $itemType }}</span>
+                                                                                        @endif
+                                                                                        @if($meal->category)
+                                                                                            <span class="badge bg-secondary text-white" style="font-size: 0.65rem;">{{ $category }}</span>
+                                                                                        @endif
+                                                                                    </div>
+                                                                                   
+                                                                                </div>
+                                                                            </div>
+                                                                        @endif
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     @endforeach
                                     @if($enquiry->restaurant_remarks)
                                     <div class="small text-muted mt-1">
@@ -4111,6 +4166,28 @@
     
     .enquiry-sidebar .card-body {
         background: #ffffff;
+        /* Firefox scrollbar */
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f1f1f1;
+    }
+    
+    /* Custom Scrollbar for Enquiry Sidebar */
+    .enquiry-sidebar .card-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .enquiry-sidebar .card-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .enquiry-sidebar .card-body::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+    }
+    
+    .enquiry-sidebar .card-body::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
     }
     
     .service-item {
