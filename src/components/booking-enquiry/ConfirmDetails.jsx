@@ -69,30 +69,55 @@ import Cookies from "js-cookie";
 import { BASE_URL } from '@/services/api';
 import DMCSelectionComponent from "./DMCSelectionComponent";
 import TripDetailsComponent from "./TripDetailsComponent";
+import PricingSummaryComponent from "./PricingSummaryComponent";
 
 
 // Styled components
 const SectionPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
   marginBottom: theme.spacing(3),
-  borderRadius: theme.spacing(2),
+  borderRadius: theme.spacing(2.5),
   boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-  transition: "all 0.3s ease",
+  transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
   overflow: "hidden",
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,1) 100%)',
+  border: '1px solid rgba(0,0,0,0.06)',
+  position: 'relative',
+  "&::before": {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '4px',
+    background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 50%, #1976d2 100%)',
+    backgroundSize: '200% 100%',
+    animation: 'gradient 3s ease infinite',
+    opacity: 0,
+    transition: 'opacity 0.3s ease'
+  },
+  "@keyframes gradient": {
+    "0%": { backgroundPosition: '0% 50%' },
+    "50%": { backgroundPosition: '100% 50%' },
+    "100%": { backgroundPosition: '0% 50%' }
+  },
   "&:hover": {
-    boxShadow: "0 8px 30px rgba(0, 0, 0, 0.12)",
-    transform: "translateY(-3px)"
+    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
+    transform: "translateY(-5px)",
+    "&::before": {
+      opacity: 1
+    }
   },
   // Mobile and tablet responsive styling
   [theme.breakpoints.down('md')]: {
+    padding: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+    borderRadius: theme.spacing(2),
+  },
+  [theme.breakpoints.down('sm')]: {
     padding: theme.spacing(1.5),
     marginBottom: theme.spacing(1.5),
     borderRadius: theme.spacing(1.5),
-  },
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(1),
-    marginBottom: theme.spacing(1),
-    borderRadius: theme.spacing(1),
   }
 }));
 
@@ -127,42 +152,83 @@ const DetailItem = styled(Box)(({ theme }) => ({
   justifyContent: "space-between",
   alignItems: "center",
   padding: theme.spacing(1.5),
-  borderRadius: theme.spacing(1),
+  borderRadius: theme.spacing(1.5),
   marginBottom: theme.spacing(1),
-  backgroundColor: theme.palette.background.paper,
+  backgroundColor: 'rgba(255, 255, 255, 0.6)',
   border: `1px solid ${theme.palette.divider}`,
-  transition: "all 0.2s ease",
+  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  position: 'relative',
+  overflow: 'hidden',
+  "&::before": {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '3px',
+    height: '100%',
+    background: 'linear-gradient(180deg, #1976d2 0%, #42a5f5 100%)',
+    opacity: 0,
+    transition: 'opacity 0.3s ease'
+  },
   "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-    transform: "translateX(5px)"
+    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+    transform: "translateX(8px)",
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    borderColor: 'rgba(25, 118, 210, 0.3)',
+    "&::before": {
+      opacity: 1
+    }
   },
   // Mobile responsive styling
   [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(0.75),
-    marginBottom: theme.spacing(0.25),
+    padding: theme.spacing(1),
+    marginBottom: theme.spacing(0.5),
     flexDirection: 'column',
     alignItems: 'flex-start',
-    gap: theme.spacing(0.25),
+    gap: theme.spacing(0.5),
     "&:hover": {
-      transform: "translateX(2px)"
+      transform: "translateX(4px)"
     }
   }
 }));
 
 const ServiceCard = styled(Card)(({ theme, servicecolor }) => ({
   marginBottom: theme.spacing(2),
-  transition: "all 0.3s ease",
-  borderLeft: `4px solid ${servicecolor || theme.palette.primary.main}`,
+  transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+  borderLeft: `5px solid ${servicecolor || theme.palette.primary.main}`,
+  borderRadius: theme.spacing(2),
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,1) 100%)',
+  backdropFilter: 'blur(10px)',
+  position: 'relative',
+  "&::after": {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: theme.spacing(2),
+    padding: '2px',
+    background: `linear-gradient(135deg, ${servicecolor}40 0%, transparent 100%)`,
+    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+    WebkitMaskComposite: 'xor',
+    maskComposite: 'exclude',
+    opacity: 0,
+    transition: 'opacity 0.3s ease'
+  },
   "&:hover": {
-    boxShadow: "0 6px 15px rgba(0, 0, 0, 0.1)",
-    transform: "translateY(-3px)"
+    boxShadow: `0 12px 28px ${servicecolor}25`,
+    transform: "translateY(-8px)",
+    "&::after": {
+      opacity: 1
+    }
   },
   // Mobile responsive styling
   [theme.breakpoints.down('sm')]: {
     marginBottom: theme.spacing(1),
-    borderLeft: `3px solid ${servicecolor || theme.palette.primary.main}`,
+    borderLeft: `4px solid ${servicecolor || theme.palette.primary.main}`,
     "&:hover": {
-      transform: "translateY(-2px)"
+      transform: "translateY(-4px)"
     }
   }
 }));
@@ -222,16 +288,48 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Handle scroll for floating price summary
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 400) {
+        setShowFloatingPrice(true);
+      } else {
+        setShowFloatingPrice(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   const dispatch = useDispatch();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [localEnquiryId, setLocalEnquiryId] = useState(null);
-  const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [servicePrices, setServicePrices] = useState({});
+  const [expandedService, setExpandedService] = useState(null);
+  const [showFloatingPrice, setShowFloatingPrice] = useState(false);
   
   const bookingDetails = useSelector((state) => state.enquiry);
   const serviceDetails = useSelector((state) => state.enquiry.serviceDetails || {});
   const selectedServices = useSelector((state) => state.enquiry.selectedServices || Object.keys(bookingOptions || {}).filter(key => bookingOptions[key]));
+  
+  // Get selected DMC IDs to watch for changes
+  const selectedDmcIds = useSelector((state) => state.dmc.selectedDmcIds || []);
+  
+  // Ref to track previous DMC IDs
+  const prevDmcIdsRef = React.useRef(selectedDmcIds);
+  
+  // Get total price from Redux (already calculated in BookingEnquiries)
+  const totalPrice = bookingDetails.calculatedPrice || 0;
+  
+  // // Debug: Log price on component mount and when it changes
+  // useEffect(() => {
+  //   console.log("💰 ConfirmDetails - Total Price from Redux:", totalPrice);
+  //   console.log("💰 Full bookingDetails.calculatedPrice:", bookingDetails.calculatedPrice);
+  //   console.log("💰 Selected Services:", selectedServices);
+  // }, [totalPrice, bookingDetails.calculatedPrice, selectedServices]);
   
   // Update how we get the ID - prioritizing multiEnqId for multi-DMC enquiries, then enquiryId over tourId
   const enquiryId = useSelector((state) => {
@@ -281,159 +379,295 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   useEffect(() => {
     console.log("Service Details changed:", serviceDetails);
     console.log("Selected Services:", selectedServices);
+    
+    // If serviceDetails is empty or all services are cleared, reset servicePrices
+    const hasAnyServiceData = serviceDetails && Object.keys(serviceDetails).some(key => {
+      const data = serviceDetails[key];
+      return data && Object.keys(data).length > 0;
+    });
+    
+    if (!hasAnyServiceData) {
+      console.log("⚠️ No service details found - clearing service prices");
+      setServicePrices({});
+    }
   }, [serviceDetails, selectedServices]);
 
-  // Calculate and update price when service details change
+  // Detect DMC changes and go back to service selection
   useEffect(() => {
-    if (selectedServices && serviceDetails) {
-      const price = calculateApproximatePrice();
-      setCalculatedPrice(price);
+    const dmcsChanged = JSON.stringify(prevDmcIdsRef.current) !== JSON.stringify(selectedDmcIds);
+    
+    if (dmcsChanged && prevDmcIdsRef.current.length > 0) {
+      console.log("🔄 DMCs changed in ConfirmDetails - navigating back to service selection");
+      console.log("Previous DMCs:", prevDmcIdsRef.current);
+      console.log("Current DMCs:", selectedDmcIds);
+      
+      // Clear local state
+      setServicePrices({});
+      setExpandedService(null);
+      
+      // Clear Redux calculated price
+      dispatch(updateCalculatedPrice(0));
+      
+      // Navigate back to BookingEnquiries page
+      if (onBack && typeof onBack === 'function') {
+        onBack();
+      }
     }
-  }, [selectedServices, serviceDetails, bookingDetails?.guestCounts, bookingDetails?.checkinDate, bookingDetails?.checkoutDate]);
+    
+    // Update the ref for next comparison
+    prevDmcIdsRef.current = selectedDmcIds;
+  }, [selectedDmcIds, onBack, dispatch]);
 
-  // Calculate and store price when component mounts
+  // Calculate price on component mount
   useEffect(() => {
-    if (selectedServices && serviceDetails) {
-      const price = calculateApproximatePrice();
-      setCalculatedPrice(price);
-    }
-  }, [selectedServices, serviceDetails, bookingDetails]);
-  
-  // Function to calculate approximate pricing using ACTUAL API prices
-  const calculateApproximatePrice = () => {
-    let totalPrice = 0;
+    console.log("ConfirmDetails - Component mounted, checking if price calculation needed...");
+    console.log("Selected Services:", selectedServices);
+    console.log("Current total price from Redux:", totalPrice);
     
-    // Get guest count from booking details for per-person calculations
-    const guestCounts = bookingDetails?.guestCounts || {};
-    const totalPersons = (guestCounts.Adults || 1) + (guestCounts.Children || 0) + (guestCounts.Infants || 0);
-    
-    // Calculate days between check-in and check-out
-    const checkinDate = bookingDetails?.checkinDate ? new Date(bookingDetails.checkinDate) : new Date();
-    const checkoutDate = bookingDetails?.checkoutDate ? new Date(bookingDetails.checkoutDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const totalDays = Math.max(1, Math.ceil((checkoutDate - checkinDate) / (24 * 60 * 60 * 1000)));
-
-    console.log("Pricing calculation details:", { totalPersons, totalDays, serviceDetails });
-
-    // Calculate hotel pricing using ACTUAL hotel prices
-    if (selectedServices.includes("hotel") && serviceDetails.hotel) {
-      const hotelDetails = serviceDetails["undefined"] || serviceDetails.hotel;
-      const selectedHotels = hotelDetails.preferredHotels || [];
+    if (selectedServices && selectedServices.length > 0) {
+      console.log("Calculating price in ConfirmDetails...");
       
-      let hotelPrice = 0;
-      selectedHotels.forEach(hotel => {
-        // Use actual single_base_price from API, fallback to default if 0 or missing
-        const actualPrice = parseFloat(hotel.single_base_price) || 120; // 120 as fallback
-        hotelPrice += actualPrice * totalDays;
-        console.log(`Hotel "${hotel.name}": $${actualPrice}/night × ${totalDays} days = $${actualPrice * totalDays}`);
-      });
+      // Recalculate price
+      let calculatedTotal = 0;
+      const individualPrices = {};
+      const guestCounts = bookingDetails?.guestCounts || bookingDetails?.guests || {};
+      const adults = parseInt(guestCounts.Adults || guestCounts.adults || 1) || 1;
+      const children = parseInt(guestCounts.Children || guestCounts.children || 0) || 0;
+      const infants = parseInt(guestCounts.Infants || guestCounts.infant || 0) || 0;
+      const totalPersons = adults + children + infants;
       
-      totalPrice += hotelPrice;
-      console.log(`Total hotel pricing: $${hotelPrice}`);
-    }
-
-    // Calculate port/transfer pricing using ACTUAL vehicle prices
-    if (selectedServices.includes("entryExitPort") && serviceDetails.entryExitPort) {
-      const entryExitDetails = serviceDetails.entryExitPort;
-      let transferCount = 0;
-      if (entryExitDetails.showEntryPort !== false) transferCount++; // Entry transfer
-      if (entryExitDetails.showExitPort === true) transferCount++; // Exit transfer
+      console.log("Guest counts:", { adults, children, infants, totalPersons });
       
-      const cars = entryExitDetails.preferredCars || [];
-      let transferPrice = 0;
+      const checkinDate = bookingDetails?.checkIn;
+      const checkoutDate = bookingDetails?.checkOut;
       
-      if (cars.length > 0) {
-        cars.forEach(car => {
-          // Use actual base_price from API, fallback to default if missing
-          const actualPrice = parseFloat(car.base_price) || 45; // 45 as fallback
-          transferPrice += actualPrice * transferCount;
-          console.log(`Vehicle "${car.vehicle_name}": $${actualPrice} × ${transferCount} transfers = $${actualPrice * transferCount}`);
-        });
-      } else {
-        // If no specific cars selected, use default price
-        transferPrice = transferCount * 45; // Default port transfer price
+      console.log("Date data:", { checkinDate, checkoutDate });
+      
+      let totalDays = 1;
+      if (checkinDate && checkoutDate) {
+        // Parse DD/MM/YYYY format correctly
+        const parseDate = (dateStr) => {
+          if (!dateStr) return null;
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            // Convert DD/MM/YYYY to YYYY-MM-DD for proper parsing
+            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          }
+          return new Date(dateStr);
+        };
+        
+        const checkIn = parseDate(checkinDate);
+        const checkOut = parseDate(checkoutDate);
+        
+        if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+          const daysDiff = Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000));
+          totalDays = Math.max(1, daysDiff);
+          console.log("✅ Parsed dates correctly:", {
+            checkIn: checkIn.toDateString(),
+            checkOut: checkOut.toDateString(),
+            daysDiff: totalDays
+          });
+        } else {
+          console.warn("⚠️ Failed to parse dates, using default 1 day");
+        }
       }
       
-      totalPrice += transferPrice;
-      console.log(`Total transfer pricing: $${transferPrice}`);
-    }
-
-    // Calculate attraction pricing using ACTUAL attraction prices
-    if (selectedServices.includes("attraction") && serviceDetails.attraction) {
-      const attractions = serviceDetails.attraction.selectedAttractions || [];
-      
-      let attractionPrice = 0;
-      attractions.forEach(attraction => {
-        // Use actual base_price from API, fallback to default if 0 or missing
-        const actualPrice = parseFloat(attraction.base_price) || 25; // 25 as fallback
-        attractionPrice += actualPrice * totalPersons;
-        console.log(`Attraction "${attraction.name}": $${actualPrice}/person × ${totalPersons} persons = $${actualPrice * totalPersons}`);
-      });
-      
-      totalPrice += attractionPrice;
-      console.log(`Total attraction pricing: $${attractionPrice}`);
-    }
-
-    // Calculate local tour pricing using ACTUAL vehicle prices
-    if (selectedServices.includes("localTour") && serviceDetails.localTour) {
-      const localTourCars = serviceDetails.localTour.preferredCars || [];
-      
-      let localTourPrice = 0;
-      if (localTourCars.length > 0) {
-        localTourCars.forEach(car => {
-          // Use actual base_price from API, fallback to default if missing
-          const actualPrice = parseFloat(car.base_price) || 85; // 85 as fallback
-          localTourPrice += actualPrice * totalDays;
-          console.log(`Local tour vehicle "${car.vehicle_name}": $${actualPrice}/day × ${totalDays} days = $${actualPrice * totalDays}`);
-        });
-      } else {
-        // If no specific cars selected, use default price
-        localTourPrice = 85 * totalDays; // Default local tour price
+      // Safety check for NaN
+      if (isNaN(totalDays)) {
+        console.warn("⚠️ totalDays is NaN, defaulting to 1");
+        totalDays = 1;
       }
       
-      totalPrice += localTourPrice;
-      console.log(`Total local tour pricing: $${localTourPrice}`);
-    }
+      console.log("Trip duration:", totalDays, "days");
 
-    // Calculate tour guide pricing using ACTUAL guide prices
-    if (selectedServices.includes("tourGuide") && serviceDetails.tourGuide) {
-      const guides = serviceDetails.tourGuide.preferredGuides || [];
+      // Calculate based on selected services
+      if (selectedServices.includes("hotel") && serviceDetails.hotel) {
+        const hotels = serviceDetails.hotel.preferredHotels || [];
+        console.log("Hotel calculation - hotels:", hotels.length);
+        let hotelTotal = 0;
+        hotels.forEach(hotel => {
+          const pricePerDay = parseFloat(hotel.single_base_price) || 0;
+          if (pricePerDay > 0) {
+            const hotelPrice = pricePerDay * totalDays;
+            hotelTotal += hotelPrice;
+            calculatedTotal += hotelPrice;
+            console.log("  Hotel price added:", hotelPrice, "Total now:", calculatedTotal);
+          }
+        });
+        if (hotelTotal > 0) {
+          individualPrices.hotel = hotelTotal;
+        }
+      }
+
+      if (selectedServices.includes("entryExitPort") && serviceDetails.entryExitPort) {
+        let transferCount = 0;
+        if (serviceDetails.entryExitPort.showEntryPort !== false) transferCount++;
+        if (serviceDetails.entryExitPort.showExitPort === true) transferCount++;
+        const cars = serviceDetails.entryExitPort.preferredCars || [];
+        console.log("Port calculation - transfers:", transferCount, "cars:", cars.length);
+        let portTotal = 0;
+        if (cars.length > 0) {
+          cars.forEach(car => {
+            const pricePerTransfer = parseFloat(car.base_price) || 0;
+            if (pricePerTransfer > 0 && transferCount > 0) {
+              const carPrice = pricePerTransfer * transferCount;
+              portTotal += carPrice;
+              calculatedTotal += carPrice;
+              console.log("  Car price added:", carPrice, "Total now:", calculatedTotal);
+            }
+          });
+        }
+        // Don't add default price if no cars selected
+        if (portTotal > 0) {
+          individualPrices.entryExitPort = portTotal;
+        }
+      }
+
+      if (selectedServices.includes("attraction") && serviceDetails.attraction) {
+        const attractions = serviceDetails.attraction.selectedAttractions || [];
+        console.log("Attraction calculation - attractions:", attractions.length);
+        let attractionTotal = 0;
+        attractions.forEach(attraction => {
+          const pricePerPerson = parseFloat(attraction.base_price) || 0;
+          if (pricePerPerson > 0) {
+            const attractionPrice = pricePerPerson * totalPersons;
+            attractionTotal += attractionPrice;
+            calculatedTotal += attractionPrice;
+            console.log("  Attraction price added:", attractionPrice, "Total now:", calculatedTotal);
+          }
+        });
+        if (attractionTotal > 0) {
+          individualPrices.attraction = attractionTotal;
+        }
+      }
+
+      if (selectedServices.includes("localTour") && serviceDetails.localTour) {
+        const cars = serviceDetails.localTour.preferredCars || [];
+        console.log("Local tour calculation - cars:", cars.length, cars);
+        let localTourTotal = 0;
+        if (cars.length > 0) {
+          cars.forEach(car => {
+            const carPrice = parseFloat(car.base_price) || 0;
+            if (carPrice > 0) {
+              localTourTotal += carPrice;
+              calculatedTotal += carPrice;
+              console.log("  Local tour car price added (flat rate):", carPrice, "Total now:", calculatedTotal);
+            }
+          });
+        }
+        // Only add to individualPrices if there's actually a price
+        if (localTourTotal > 0) {
+          individualPrices.localTour = localTourTotal;
+        }
+      }
+
+      if (selectedServices.includes("tourGuide") && serviceDetails.tourGuide) {
+        const guides = serviceDetails.tourGuide.preferredGuides || [];
+        console.log("Tour guide calculation - guides:", guides.length, guides);
+        let guideTotal = 0;
+        guides.forEach(guide => {
+          const guidePrice = parseFloat(guide.base_price) || 0;
+          if (guidePrice > 0) {
+            guideTotal += guidePrice;
+            calculatedTotal += guidePrice;
+            console.log("  Guide price added (flat rate):", guidePrice, "Total now:", calculatedTotal);
+          }
+        });
+        // Only add to individualPrices if there's actually a price
+        if (guideTotal > 0) {
+          individualPrices.tourGuide = guideTotal;
+        }
+      }
+
+      if (selectedServices.includes("restaurant") && serviceDetails.restaurant) {
+        const restaurantData = serviceDetails.restaurant.selectedRestaurants || [];
+        console.log("Restaurant calculation - restaurantData:", restaurantData.length, restaurantData);
+        let restaurantTotal = 0;
+        
+        // Check if new format (with dates and meals)
+        if (restaurantData.length > 0 && restaurantData[0]?.date && restaurantData[0]?.restaurants) {
+          // New format: iterate through dates and meals
+          restaurantData.forEach(dateEntry => {
+            dateEntry.restaurants.forEach(entry => {
+              const meal = entry.meal;
+              let mealPrice = 0;
+              
+              if (meal) {
+                // Calculate based on meal type
+                if (meal.set_menu_price) {
+                  mealPrice = parseFloat(meal.set_menu_price) * totalPersons;
+                } else {
+                  // Calculate for adults and children separately
+                  const adultPrice = parseFloat(meal.adult_price) || 0;
+                  const childPrice = parseFloat(meal.child_price) || 0;
+                  mealPrice = (adultPrice * adults) + (childPrice * (children + infants));
+                }
+              } else {
+                // Fallback to base price
+                const restaurant = entry.restaurant;
+                const basePrice = parseFloat(restaurant['base-price']) || 0;
+                if (basePrice > 0) {
+                  mealPrice = basePrice * totalPersons;
+                }
+              }
+              
+              restaurantTotal += mealPrice;
+              calculatedTotal += mealPrice;
+              console.log("  Meal price added:", mealPrice, "Total now:", calculatedTotal);
+            });
+          });
+        } else {
+          // Old format: flat array of restaurants
+          restaurantData.forEach(restaurant => {
+            const pricePerPerson = parseFloat(restaurant['base-price']) || 0;
+            if (pricePerPerson > 0) {
+              const restaurantPrice = pricePerPerson * totalPersons;
+              restaurantTotal += restaurantPrice;
+              calculatedTotal += restaurantPrice;
+              console.log("  Restaurant price added:", restaurantPrice, "Total now:", calculatedTotal);
+            }
+          });
+        }
+        if (restaurantTotal > 0) {
+          individualPrices.restaurant = restaurantTotal;
+        }
+      }
       
-      let guidePrice = 0;
-      guides.forEach(guide => {
-        // Use actual base_price from API, fallback to default if missing
-        const actualPrice = parseFloat(guide.base_price) || 150; // 150 as fallback
-        guidePrice += actualPrice * totalDays;
-        console.log(`Guide "${guide.name}": $${actualPrice}/day × ${totalDays} days = $${actualPrice * totalDays}`);
+      console.log("Final calculatedTotal before rounding:", calculatedTotal);
+      
+      // Safety check for NaN
+      if (isNaN(calculatedTotal)) {
+        console.error("❌ calculatedTotal is NaN! Setting to 0");
+        calculatedTotal = 0;
+      }
+
+      // calculatedTotal is already the total
+      // Hotels: price × days
+      // Guides & Local Tours: flat rate (not multiplied)
+      // Attractions & Restaurants: price × persons
+      // Transfers: price × transfers
+      const roundedTotalPrice = Math.round(calculatedTotal);
+      
+      // Final safety check
+      const safeTotalPrice = isNaN(roundedTotalPrice) ? 0 : roundedTotalPrice;
+      
+      console.log("✅ Calculated price in ConfirmDetails:", {
+        totalForAllServices: roundedTotalPrice,
+        totalGuests: totalPersons,
+        totalPrice: safeTotalPrice,
+        individualPrices
       });
       
-      totalPrice += guidePrice;
-      console.log(`Total guide pricing: $${guidePrice}`);
+      dispatch(updateCalculatedPrice(safeTotalPrice));
+      setServicePrices(individualPrices);
+    } else {
+      console.log("⚠️ No selected services, skipping price calculation");
+      // Clear prices when no services are selected
+      setServicePrices({});
+      dispatch(updateCalculatedPrice(0));
     }
-
-    // Calculate restaurant pricing using ACTUAL restaurant prices
-    if (selectedServices.includes("restaurant") && serviceDetails.restaurant) {
-      const restaurants = serviceDetails.restaurant.selectedRestaurants || [];
-      
-      let restaurantPrice = 0;
-      restaurants.forEach(restaurant => {
-        // Use actual base-price from API, fallback to default if missing
-        const actualPrice = parseFloat(restaurant['base-price']) || 35; // 35 as fallback
-        restaurantPrice += actualPrice * totalPersons;
-        console.log(`Restaurant "${restaurant.name}": $${actualPrice}/person × ${totalPersons} persons = $${actualPrice * totalPersons}`);
-      });
-      
-      totalPrice += restaurantPrice;
-      console.log(`Total restaurant pricing: $${restaurantPrice}`);
-    }
-
-    console.log(`Total approximate price calculated: $${totalPrice}`);
-    const roundedPrice = Math.round(totalPrice);
-    
-    // Dispatch the calculated price to Redux so EnquirySlice can use it
-    dispatch(updateCalculatedPrice(roundedPrice));
-    
-    return roundedPrice; // Round to nearest dollar
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServices, serviceDetails]); // Recalculate when selectedServices or serviceDetails change
 
   // console.log("Selected Services:", selectedServices);
   // console.log("Service Details from Redux:", serviceDetails);
@@ -487,6 +721,134 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     preferredHotels: [],
     remarks: ""
   });
+
+  // Helper function to render price breakdown for each service
+  const renderPriceBreakdown = (service) => {
+    const price = servicePrices[service];
+    if (!price) return null;
+
+    const guestCounts = bookingDetails?.guestCounts || bookingDetails?.guests || {};
+    const adults = parseInt(guestCounts.Adults || guestCounts.adults || 1) || 1;
+    const children = parseInt(guestCounts.Children || guestCounts.children || 0) || 0;
+    const infants = parseInt(guestCounts.Infants || guestCounts.infant || 0) || 0;
+    const totalPersons = adults + children + infants;
+    
+    const checkinDate = bookingDetails?.checkIn;
+    const checkoutDate = bookingDetails?.checkOut;
+    let totalDays = 1;
+    if (checkinDate && checkoutDate) {
+      // Parse DD/MM/YYYY format correctly
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          // Convert DD/MM/YYYY to YYYY-MM-DD for proper parsing
+          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+        return new Date(dateStr);
+      };
+      
+      const checkIn = parseDate(checkinDate);
+      const checkOut = parseDate(checkoutDate);
+      
+      if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+        const daysDiff = Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000));
+        totalDays = Math.max(1, daysDiff);
+      }
+    }
+
+    let breakdown = [];
+
+    switch(service) {
+      case "hotel":
+        const hotels = serviceDetails.hotel?.preferredHotels || [];
+        breakdown.push({
+          label: `${hotels.length} Hotel${hotels.length > 1 ? 's' : ''} × ${totalDays} day${totalDays > 1 ? 's' : ''}`,
+          value: `SGD ${price.toLocaleString()}`
+        });
+        break;
+      case "entryExitPort":
+        let transferCount = 0;
+        if (serviceDetails.entryExitPort?.showEntryPort !== false) transferCount++;
+        if (serviceDetails.entryExitPort?.showExitPort === true) transferCount++;
+        breakdown.push({
+          label: `${transferCount} Transfer${transferCount > 1 ? 's' : ''}`,
+          value: `SGD ${price.toLocaleString()}`
+        });
+        break;
+      case "attraction":
+        const attractions = serviceDetails.attraction?.selectedAttractions || [];
+        breakdown.push({
+          label: `${attractions.length} Attraction${attractions.length > 1 ? 's' : ''} × ${totalPersons} guest${totalPersons > 1 ? 's' : ''}`,
+          value: `SGD ${price.toLocaleString()}`
+        });
+        break;
+      case "localTour":
+        breakdown.push({
+          label: `Local Tour (Flat Rate)`,
+          value: `SGD ${price.toLocaleString()}`
+        });
+        break;
+      case "tourGuide":
+        const guides = serviceDetails.tourGuide?.preferredGuides || [];
+        breakdown.push({
+          label: `${guides.length} Guide${guides.length > 1 ? 's' : ''} (Flat Rate)`,
+          value: `SGD ${price.toLocaleString()}`
+        });
+        break;
+      case "restaurant":
+        const restaurantData = serviceDetails.restaurant?.selectedRestaurants || [];
+        let mealCount = 0;
+        if (restaurantData[0]?.date && restaurantData[0]?.restaurants) {
+          restaurantData.forEach(dateEntry => {
+            mealCount += dateEntry.restaurants.length;
+          });
+        } else {
+          mealCount = restaurantData.length;
+        }
+        breakdown.push({
+          label: `${mealCount} Meal${mealCount > 1 ? 's' : ''} × ${totalPersons} guest${totalPersons > 1 ? 's' : ''}`,
+          value: `SGD ${price.toLocaleString()}`
+        });
+        break;
+      default:
+        return null;
+    }
+
+    return (
+      <Box 
+        sx={{ 
+          mt: 2, 
+          p: 1.5, 
+          bgcolor: `${serviceColors[service]}10`,
+          borderRadius: 1.5,
+          border: `1px solid ${serviceColors[service]}30`
+        }}
+      >
+        <Typography variant="caption" fontWeight={600} color={serviceColors[service]} sx={{ display: 'block', mb: 1 }}>
+          💰 Price Breakdown
+        </Typography>
+        {breakdown.map((item, index) => (
+          <Box 
+            key={index}
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: index < breakdown.length - 1 ? 0.5 : 0
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {item.label}
+            </Typography>
+            <Typography variant="body2" fontWeight={700} color={serviceColors[service]}>
+              {item.value}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
+  };
 
   // Add useEffect to get hotel data from state once on mount
   useEffect(() => {
@@ -1061,25 +1423,114 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             {details.selectedRestaurants && (
               <Box sx={{ mt: 1 }}>
                 <Typography variant="body2" fontWeight={500} sx={{ mb: 1 }}>Selected Restaurants:</Typography>
-                <List dense disablePadding>
-                  {Array.isArray(details.selectedRestaurants) ? 
-                    details.selectedRestaurants.map((restaurant, index) => (
-                    <ListItem key={index} dense disableGutters>
-                      <ListItemIcon sx={{ minWidth: 30 }}>
-                        <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
-                      </ListItemIcon>
-                      <ListItemText primary={restaurant.name || restaurant} />
-                    </ListItem>
-                    )) : 
-                    // Handle when it's an object
-                    <ListItem dense disableGutters>
-                      <ListItemIcon sx={{ minWidth: 30 }}>
-                        <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
-                      </ListItemIcon>
-                      <ListItemText primary={details.selectedRestaurants.name || details.selectedRestaurants.restaurant_name || "Selected Restaurant"} />
-                    </ListItem>
-                  }
-                </List>
+                {Array.isArray(details.selectedRestaurants) && details.selectedRestaurants.length > 0 ? (
+                  // Check if new format (with dates and meals)
+                  details.selectedRestaurants[0]?.date && details.selectedRestaurants[0]?.restaurants ? (
+                    // New format: grouped by date with meals
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {details.selectedRestaurants.map((dateEntry, dateIndex) => (
+                        <Box key={dateIndex} sx={{ 
+                          p: 1.5, 
+                          bgcolor: 'rgba(2, 136, 209, 0.05)',
+                          borderRadius: 1,
+                          border: '1px solid rgba(2, 136, 209, 0.2)'
+                        }}>
+                          <Typography variant="caption" fontWeight={600} color="primary" sx={{ mb: 1, display: 'block' }}>
+                            📅 {new Date(dateEntry.date).toLocaleDateString('en-US', { 
+                              weekday: 'short', 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </Typography>
+                          <List dense disablePadding>
+                            {dateEntry.restaurants.map((entry, idx) => {
+                              const mealIcons = {
+                                Breakfast: '🌅',
+                                Lunch: '☀️',
+                                Dinner: '🌙'
+                              };
+                              const mealPeriod = entry.mealPeriod || entry.meal?.meal_period || 'Lunch';
+                              return (
+                                <ListItem key={idx} dense disableGutters sx={{ py: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 30 }}>
+                                    <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
+                                  </ListItemIcon>
+                                  <ListItemText 
+                                    primary={
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                        <Typography variant="body2">
+                                          {entry.restaurant?.name || entry.restaurant || 'Restaurant'}
+                                        </Typography>
+                                        <Chip 
+                                          size="small" 
+                                          label={`${mealIcons[mealPeriod] || ''} ${mealPeriod}`}
+                                          sx={{ 
+                                            height: 20,
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                            bgcolor: mealPeriod === 'Breakfast' ? '#FFE0B2' : 
+                                                     mealPeriod === 'Lunch' ? '#FFF9C4' : '#E1BEE7',
+                                            color: mealPeriod === 'Breakfast' ? '#E65100' : 
+                                                   mealPeriod === 'Lunch' ? '#F57F17' : '#6A1B9A',
+                                            border: mealPeriod === 'Breakfast' ? '1px solid #FFB74D' : 
+                                                    mealPeriod === 'Lunch' ? '1px solid #FFF59D' : '1px solid #CE93D8'
+                                          }}
+                                        />
+                                        {entry.meal && (
+                                          <>
+                                            <Chip 
+                                              size="small" 
+                                              label={entry.meal.meal_type}
+                                              sx={{ 
+                                                height: 18, 
+                                                fontSize: 9, 
+                                                fontWeight: 600,
+                                                bgcolor: '#BBDEFB',
+                                                color: '#0D47A1',
+                                                border: '1px solid #90CAF9'
+                                              }}
+                                            />
+                                            <Chip 
+                                              size="small" 
+                                              label={entry.meal.item_type}
+                                              sx={{ 
+                                                height: 18, 
+                                                fontSize: 9,
+                                                fontWeight: 600,
+                                                bgcolor: entry.meal.item_type === 'Vegetarian' ? '#C8E6C9' : '#FFCDD2',
+                                                color: entry.meal.item_type === 'Vegetarian' ? '#1B5E20' : '#B71C1C',
+                                                border: entry.meal.item_type === 'Vegetarian' ? '1px solid #81C784' : '1px solid #E57373'
+                                              }}
+                                            />
+                                          </>
+                                        )}
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              );
+                            })}
+                          </List>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    // Old format: simple list
+                    <List dense disablePadding>
+                      {details.selectedRestaurants.map((restaurant, index) => (
+                        <ListItem key={index} dense disableGutters>
+                          <ListItemIcon sx={{ minWidth: 30 }}>
+                            <RestaurantIcon fontSize="small" sx={{ color: serviceColors.restaurant }} />
+                          </ListItemIcon>
+                          <ListItemText primary={restaurant.name || restaurant} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No restaurants selected</Typography>
+                )}
               </Box>
             )}
             
@@ -1154,8 +1605,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     
     // Build the payload for create-enquiry API
     const buildEnquiryPayload = () => {
+      console.log("Sending total price to API:", totalPrice);
+      
       const payload = {
-        approx_price: calculatedPrice || 0,
+        approx_price: totalPrice,
         // Hotel service
         hotel: selectedServices.includes("hotel"),
         hotel_ids: [],
@@ -1316,13 +1769,89 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         payload.restaurant_remarks = restaurantDetails.remarks || "";
         
         if (restaurantDetails.selectedRestaurants && Array.isArray(restaurantDetails.selectedRestaurants)) {
-          payload.restaurant_ids = restaurantDetails.selectedRestaurants.map(restaurant => 
-            restaurant.id || restaurant.restaurant_id || restaurant
-          );
+          // Check if new format (with dates and meals)
+          if (restaurantDetails.selectedRestaurants[0]?.date && restaurantDetails.selectedRestaurants[0]?.restaurants) {
+            // New format: Minimal structure - only IDs in nested array format
+            const groupedByDate = [];
+            
+            restaurantDetails.selectedRestaurants.forEach(dateEntry => {
+              // Create an object to group restaurants for this date
+              const dateRestaurants = {};
+              
+              dateEntry.restaurants.forEach(entry => {
+                const restaurantId = entry.restaurant?.id || entry.restaurant?.restaurant_id;
+                const mealId = entry.meal?.meal_id;
+                
+                if (restaurantId && mealId) {
+                  // Initialize restaurant meal array if not exists
+                  if (!dateRestaurants[restaurantId]) {
+                    dateRestaurants[restaurantId] = [];
+                  }
+                  
+                  // Add only meal_id to this restaurant's array
+                  if (!dateRestaurants[restaurantId].includes(mealId)) {
+                    dateRestaurants[restaurantId].push(mealId);
+                  }
+                }
+              });
+              
+              // Convert to nested array format: {date, restaurants: [{restaurant_id, meal_ids}]}
+              if (Object.keys(dateRestaurants).length > 0) {
+                const restaurantsArray = Object.keys(dateRestaurants).map(restaurantId => ({
+                  restaurant_id: parseInt(restaurantId),
+                  meal_ids: dateRestaurants[restaurantId]
+                }));
+                
+                groupedByDate.push({
+                  date: dateEntry.date,
+                  restaurants: restaurantsArray
+                });
+              }
+            });
+            
+            // Send everything in restaurant_ids field
+            payload.restaurant_ids = groupedByDate;
+            
+            // Log to verify structure
+            console.log('🍽️ Restaurant Payload - Grouped Structure:', {
+              totalDates: groupedByDate.length,
+              groupedData: groupedByDate
+            });
+          } else {
+            // Old format: simple array
+            payload.restaurant_ids = restaurantDetails.selectedRestaurants.map(restaurant => 
+              restaurant.id || restaurant.restaurant_id || restaurant
+            );
+          }
         }
       }
 
-      console.log("Built enquiry payload:", payload);
+      // console.log("Built enquiry payload:", payload);
+      
+      // // Additional logging for restaurant data
+      // if (payload.restaurant_ids && Array.isArray(payload.restaurant_ids) && payload.restaurant_ids.length > 0 && payload.restaurant_ids[0]?.date) {
+      //   console.log('');
+      //   console.log('═══════════════════════════════════════════════════════');
+      //   console.log('📋 RESTAURANT DATA (In restaurant_ids field)');
+      //   console.log('═══════════════════════════════════════════════════════');
+      //   console.log('');
+      //   console.log('📅 Format: [{date, restaurants: [{restaurant_id, meal_ids}]}]');
+      //   console.log('');
+      //   console.log('📊 restaurant_ids Payload:');
+      //   console.log(JSON.stringify(payload.restaurant_ids, null, 2));
+      //   console.log('');
+      //   console.log('💡 Readable Format:');
+      //   payload.restaurant_ids.forEach((dateEntry, idx) => {
+      //     console.log(`  Date ${idx + 1}: ${dateEntry.date}`);
+      //     dateEntry.restaurants.forEach((restaurant) => {
+      //       console.log(`    → Restaurant ID: ${restaurant.restaurant_id}, Meal IDs: [${restaurant.meal_ids.join(', ')}]`);
+      //     });
+      //   });
+      //   console.log('');
+      //   console.log('═══════════════════════════════════════════════════════');
+      //   console.log('');
+      // }
+      
       return payload;
     };
     
@@ -1546,43 +2075,296 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           </Typography>
         </SectionHeader>
         
+        {/* Quick Stats Overview */}
+        {selectedServices && selectedServices.length > 0 && (
+          <Box sx={{ mb: 2, mt: 2 }}>
+            <Grid container spacing={1.5}>
+              <Grid item xs={6} sm={3} md={3}>
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 1.5, 
+                    textAlign: 'center',
+                    background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                    color: 'white',
+                    borderRadius: 1.5,
+                    transition: 'all 0.3s ease',
+                    minHeight: '80px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.4)'
+                    }
+                  }}
+                >
+                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.5rem' }}>
+                    {selectedServices.length}
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
+                    Services Selected
+                  </Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={6} sm={3} md={3}>
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 1.5, 
+                    textAlign: 'center',
+                    background: 'linear-gradient(135deg, #2e7d32 0%, #66bb6a 100%)',
+                    color: 'white',
+                    borderRadius: 1.5,
+                    transition: 'all 0.3s ease',
+                    minHeight: '80px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 4px 12px rgba(46, 125, 50, 0.4)'
+                    }
+                  }}
+                >
+                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1rem' }}>
+                    SGD {Math.round(totalPrice).toLocaleString()}
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
+                    Total Estimate
+                  </Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={6} sm={3} md={3}>
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 1.5, 
+                    textAlign: 'center',
+                    background: 'linear-gradient(135deg, #ed6c02 0%, #ff9800 100%)',
+                    color: 'white',
+                    borderRadius: 1.5,
+                    transition: 'all 0.3s ease',
+                    minHeight: '80px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 4px 12px rgba(237, 108, 2, 0.4)'
+                    }
+                  }}
+                >
+                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1rem' }}>
+                  SGD {(() => {
+                      const adults = parseInt(bookingDetails?.guests?.adults || 0);
+                      const children = parseInt(bookingDetails?.guests?.children || 0);
+                      // Exclude infants from avg per person calculation
+                      const guestsWithoutInfants = adults + children;
+                      const avg = guestsWithoutInfants > 0 ? Math.round(totalPrice / guestsWithoutInfants) : 0;
+                      console.log('💰 ConfirmDetails Avg Per Person:', {
+                        totalPrice,
+                        adults,
+                        children,
+                        guestsWithoutInfants,
+                        avgPerPerson: avg
+                      });
+                      return avg.toLocaleString();
+                    })()}
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
+                    Avg. per Person
+                  </Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={6} sm={3} md={3}>
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 1.5, 
+                    textAlign: 'center',
+                    background: 'linear-gradient(135deg, #7b1fa2 0%, #ab47bc 100%)',
+                    color: 'white',
+                    borderRadius: 1.5,
+                    transition: 'all 0.3s ease',
+                    minHeight: '80px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    '&:hover': {
+                      transform: 'scale(1.03)',
+                      boxShadow: '0 4px 12px rgba(123, 31, 162, 0.4)'
+                    }
+                  }}
+                >
+                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.5rem' }}>
+                    {(() => {
+                      const checkinDate = bookingDetails?.checkIn;
+                      const checkoutDate = bookingDetails?.checkOut;
+                      if (checkinDate && checkoutDate) {
+                        // Parse DD/MM/YYYY format correctly
+                        const parseDate = (dateStr) => {
+                          if (!dateStr) return null;
+                          const parts = dateStr.split('/');
+                          if (parts.length === 3) {
+                            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                          }
+                          return new Date(dateStr);
+                        };
+                        
+                        const checkIn = parseDate(checkinDate);
+                        const checkOut = parseDate(checkoutDate);
+                        
+                        if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+                          return Math.max(1, Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000)));
+                        }
+                      }
+                      return 1;
+                    })()}
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
+                    Days Duration
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+        
         <Divider sx={{ mb: 3 }} />
         
         {selectedServices && selectedServices.length > 0 ? (
           <Grid container spacing={3}>
             {selectedServices.map((service) => (
               <Grid item xs={12} md={6} key={service}>
-                <ServiceCard servicecolor={serviceColors[service]}>
-                  <CardContent>
-                    <Box display="flex" alignItems="center" mb={2}>
-                      <Avatar sx={{ bgcolor: serviceColors[service], mr: 2 }}>
-                        {getServiceIcon(service)}
-                      </Avatar>
-                      <Typography variant="h6" fontWeight={600}>
-                        {formatServiceName(service)}
-                      </Typography>
+                <ServiceCard 
+                  servicecolor={serviceColors[service]}
+                  sx={{
+                    position: 'relative',
+                    overflow: 'visible',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      boxShadow: `0 8px 25px ${serviceColors[service]}30`,
+                      transform: 'translateY(-5px)',
+                    }
+                  }}
+                  onClick={() => setExpandedService(expandedService === service ? null : service)}
+                >
+                  {/* Price Badge */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: -12,
+                      right: 16,
+                      bgcolor: serviceColors[service],
+                      color: 'white',
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: 2,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      zIndex: 1,
+                      animation: 'pulse 2s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%, 100%': { transform: 'scale(1)' },
+                        '50%': { transform: 'scale(1.05)' }
+                      }
+                    }}
+                  >
+                  
+                    <Typography variant="h6" fontWeight={700}>
+                      SGD {servicePrices[service]?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+
+                  <CardContent sx={{ pt: 3 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                      <Box display="flex" alignItems="center">
+                        <Avatar 
+                          sx={{ 
+                            bgcolor: serviceColors[service], 
+                            mr: 2,
+                            width: 48,
+                            height: 48,
+                            boxShadow: `0 4px 12px ${serviceColors[service]}40`
+                          }}
+                        >
+                          {getServiceIcon(service)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="h6" fontWeight={600}>
+                            {formatServiceName(service)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Click to {expandedService === service ? 'collapse' : 'expand'} details
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Chip
+                        label="Included"
+                        size="small"
+                        sx={{
+                          bgcolor: `${serviceColors[service]}20`,
+                          color: serviceColors[service],
+                          fontWeight: 600,
+                          border: `1px solid ${serviceColors[service]}40`
+                        }}
+                      />
                     </Box>
                     
                     <Divider sx={{ mb: 2 }} />
                     
                     <Accordion 
                       elevation={0} 
+                      expanded={expandedService === service}
+                      onChange={() => setExpandedService(expandedService === service ? null : service)}
                       sx={{ 
                         '&:before': { display: 'none' },
                         bgcolor: 'transparent'
                       }}
-                      defaultExpanded={true}
                     >
                       <AccordionSummary 
                         expandIcon={<ExpandMoreIcon />}
-                        sx={{ p: 0, minHeight: 'auto' }}
+                        sx={{ 
+                          p: 0, 
+                          minHeight: 'auto',
+                          '&:hover': {
+                            bgcolor: `${serviceColors[service]}08`
+                          },
+                          borderRadius: 1,
+                          px: 1
+                        }}
                       >
-                        <Typography color="primary" fontWeight={500}>
-                          Service Details
+                        <Typography 
+                          color="primary" 
+                          fontWeight={500}
+                          sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        >
+                          📋 Service Details
                         </Typography>
                       </AccordionSummary>
-                      <AccordionDetails sx={{ pt: 2, pb: 0 }}>
+                      <AccordionDetails 
+                        sx={{ 
+                          pt: 2, 
+                          pb: 0,
+                          maxHeight: 400,
+                          overflowY: 'auto',
+                          '&::-webkit-scrollbar': {
+                            width: '6px'
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            bgcolor: 'transparent'
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            bgcolor: `${serviceColors[service]}40`,
+                            borderRadius: '10px'
+                          }
+                        }}
+                      >
                         {renderServiceDetails(service)}
+                        {renderPriceBreakdown(service)}
                       </AccordionDetails>
                     </Accordion>
                   </CardContent>
@@ -1600,6 +2382,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       </SectionPaper>
       
       {/* Trust badges section */}
+     
+      
+      {/* Pricing Summary Section */}
+      {/* <PricingSummaryComponent /> */}
       <Grid container spacing={2} sx={{ mb: 5 }}>
         <Grid item xs={12} md={6}>
           <Paper 
@@ -1647,84 +2433,17 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
           </Paper>
         </Grid>
       </Grid>
-      
-      {/* Pricing Summary Section */}
-      {calculatedPrice > 0 && (
-        <SectionPaper>
-          <SectionHeader>
-            <SectionIcon bgcolor="#4caf50">
-              <AttachMoneyIcon />
-            </SectionIcon>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              Package Pricing Summary
-            </Typography>
-          </SectionHeader>
-          
-          <Box 
-            sx={{ 
-              background: 'linear-gradient(135deg,rgb(76, 119, 175) 0%,rgb(69, 86, 160) 100%)',
-              color: 'white',
-              p: 3,
-              borderRadius: 2,
-              textAlign: 'center'
-            }}
-          >
-            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
-              SGD {calculatedPrice.toLocaleString()}/adult
-            </Typography>
-            <Typography variant="body1" sx={{ opacity: 1, color: 'white' }}>
-              Approximate Total Package Cost
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 1 }}>
-              *Final price may vary based on actual selections and seasonal rates
-            </Typography>
-          </Box>
-
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              <strong>Price includes:</strong>
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {selectedServices.map((service) => (
-                <Chip
-                  key={service}
-                  label={formatServiceName(service)}
-                  icon={getServiceIcon(service)}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          </Box>
-
-          {bookingDetails?.guestCounts && (
-            <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Based on:</strong> {' '}
-                {(bookingDetails.guestCounts.Adults || 1)} Adult(s)
-                {bookingDetails.guestCounts.Children > 0 && `, ${bookingDetails.guestCounts.Children} Child(ren)`}
-                {bookingDetails.guestCounts.Infants > 0 && `, ${bookingDetails.guestCounts.Infants} Infant(s)`}
-                {bookingDetails.checkinDate && bookingDetails.checkoutDate && (
-                  <span>
-                    {' • '} 
-                    {Math.max(1, Math.ceil((new Date(bookingDetails.checkoutDate) - new Date(bookingDetails.checkinDate)) / (24 * 60 * 60 * 1000)))} day(s)
-                  </span>
-                )}
-              </Typography>
-            </Box>
-          )}
-        </SectionPaper>
-      )}
-      
       {/* Action buttons */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        mt: { xs: 2, sm: 2.5, md: 4 },
-        flexDirection: { xs: 'column', sm: 'row' },
-        gap: { xs: 1.5, sm: 0 }
-      }}>
+      <Box 
+        data-action-buttons
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          mt: { xs: 2, sm: 2.5, md: 4 },
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1.5, sm: 0 }
+        }}
+      >
         <ActionButton 
           variant="outlined" 
           color="primary" 
@@ -1738,7 +2457,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         
         <ActionButton 
           variant="contained" 
-          color="primary" 
+          color="primary"  
           endIcon={submitting ? null : <SendIcon />}
           onClick={handleSubmit}
           disabled={submitting || enquiryStatus === "submitted"}
@@ -1790,6 +2509,8 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       </Snackbar>
         </Grid>
       </Grid>
+
+  
     </Box>
   );
 };

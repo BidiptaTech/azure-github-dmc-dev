@@ -270,16 +270,11 @@ const Header1 = () => {
                         width: 320,
                         backgroundColor: '#fff',
                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                        zIndex: 1200, // Lower than modal z-index
                       },
-                      zIndex: 1200, // Ensure drawer doesn't interfere with modals
                     }}
                   >
                     <MobileMenu 
                       onMenuClose={handleMobileMenuClose}
-                      onOpenSearchModal={() => setIsSearchModalOpen(true)}
-                      onOpenEnquirySearchModal={() => setIsEnquirySearchModalOpen(true)}
-                      onOpenPackagesSearchModal={() => setIsPackagesSearchModalOpen(true)}
                     />
                   </Drawer>
                 </div>

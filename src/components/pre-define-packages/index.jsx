@@ -122,14 +122,14 @@ const PreDefinePackages = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // Auto-fetch DMCs when location is selected
+  // Auto-fetch DMCs when location is selected (for UI preview)
   useEffect(() => {
-    if (locationData && locationData.country) {
+    if (locationData && locationData.country && !hasSearched) {
       const countryName = locationData.country;
       console.log('🏢 Auto-fetching DMCs for country:', countryName);
       dispatch(fetchDMCsByCountry([countryName]));
     }
-  }, [locationData, dispatch]);
+  }, [locationData, dispatch, hasSearched]);
 
   // Process DMC data for sidebar options
   useEffect(() => {
@@ -337,14 +337,10 @@ const PreDefinePackages = () => {
     return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
-
-    // Reset DMC selection on new search
-    console.log('🔄 Resetting DMC selection for new search');
-    dispatch(clearSelectedDmc());
 
     // Format the data for submission
     const formData = {
@@ -380,6 +376,7 @@ const PreDefinePackages = () => {
       children: guestCounts.Children,
       children_ages: guestCounts.ages?.join(','),
       infants: guestCounts.Infants
+      
     };
 
     // Add agent_id parameter only if the agent selector is shown
@@ -387,24 +384,37 @@ const PreDefinePackages = () => {
       searchParams.agent_id = selectedAgent?.id;
     }
     
-    // Note: DMC ID is NOT included in initial search
-    // User will select DMC after seeing the search results
-    // DMC selection will trigger a refetch with the selected DMC ID
-    
-
-    
     // Set search status to true
     setHasSearched(true);
     
-    // Dispatch actions to fetch packages and store search parameters
+    // Store search parameters first
     dispatch(setSearchParams(searchParams));
+    
+    // Ensure DMCs are fetched and first one is auto-selected before searching packages
+    // This ensures the first DMC is included in the initial package search
+    try {
+      // Only fetch DMCs if they haven't been fetched yet or if no DMC is selected
+      if (locationData && locationData.country && (!dmcOptions || dmcOptions.length === 0 || !selectedDmcId)) {
+        console.log('🏢 Fetching DMCs before package search');
+        await dispatch(fetchDMCsByCountry([locationData.country])).unwrap();
+        console.log('🏢 DMCs fetched, first DMC auto-selected');
+        
+        // Small delay to ensure Redux state is updated with first DMC selection
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } else {
+        console.log('🏢 DMCs already loaded, DMC ID:', selectedDmcId);
+      }
+    } catch (dmcError) {
+      console.error('🏢 Failed to fetch DMCs, continuing with package search anyway:', dmcError);
+    }
+    
+    // Now fetch packages - the first DMC ID will be automatically included from Redux state
     dispatch(fetchPackages({ searchParams, start: 0, limit: 5 }))
       .unwrap()
       .then(() => {
         setSnackbarMessage("Search successful! Fetching packages...");
         setSnackbarSeverity("success");
         setOpenSnackbar(true);
-        // Here you can add navigation to packages list page if needed
       })
       .catch((error) => {
         setSnackbarMessage(error || "Failed to fetch packages. Please try again.");
@@ -454,82 +464,127 @@ const PreDefinePackages = () => {
           </Typography>
         </TitleSection>
 
-        <Paper elevation={3} sx={{ borderRadius: '8px', overflow: 'visible', mb: 4 }}>
-          <div className="mainSearch bg-white pr-20 py-20 lg:px-20 lg:pt-5 lg:pb-20 rounded-4">
-            <div className="button-grid items-center" style={{ 
-              display: 'flex', 
-              flexWrap: isMobile ? 'wrap' : 'nowrap',
-              gap: isMobile ? '16px' : '0'
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            borderRadius: isMobile ? '16px' : '50px',
+            overflow: 'visible', 
+            mb: 4,
+            background: 'white',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)'
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: isMobile ? 'wrap' : 'nowrap',
+            alignItems: 'stretch',
+            p: isMobile ? 2 : 1,
+            gap: isMobile ? 2 : 0
+          }}>
+            {/* Combined Location Search (Country + City) */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : showAgentSelector ? '1.5' : '2',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
             }}>
-              {/* Combined Location Search (Country + City) - Uses hero-2 pattern */}
-              <div style={{ 
-                flex: isMobile ? '1 1 100%' : showAgentSelector ? '1.5' : '2', 
-                minWidth: '0',
-                marginBottom: isMobile ? '8px' : '0'
-              }}>
-                <LocationSearch onLocationSelect={handleLocationSelect} />
-              </div>
-              {/* <div style={{ 
-                flex: isMobile ? '1 1 100%' : showAgentSelector ? '1.5' : '2', 
-                minWidth: '0',
-                marginBottom: isMobile ? '8px' : '0'
-              }}>
-                <CitySearch onLocationSelect={handleLocationSelect} />
-              </div> */}
+              <LocationSearch onLocationSelect={handleLocationSelect} />
+            </Box>
 
-              {showAgentSelector && (
-                <div style={{ 
-                  flex: isMobile ? '1 1 100%' : '1', 
-                  minWidth: '0',
-                  marginBottom: isMobile ? '8px' : '0'
+            {/* Agent Selector (if visible) */}
+            {showAgentSelector && (
+              <Box sx={{ 
+                flex: isMobile ? '1 1 100%' : '1',
+                minWidth: 0,
+                borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1.5,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center'
+              }}>
+                <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
+              </Box>
+            )}
+
+            {/* Date Selection */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '1.2',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
+            }}>
+              <Box sx={{ width: '100%' }}>
+                <Typography variant="caption" sx={{ 
+                  fontWeight: 600, 
+                  color: '#1a1a1a',
+                  fontSize: '0.75rem',
+                  display: 'block',
+                  mb: 0.5
                 }}>
-                  <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
-                </div>
-              )}
+                  Select Date
+                </Typography>
+                <DateSelect onChange={handleDateChange} value={selectedDate} />
+              </Box>
+            </Box>
 
-              <div style={{ 
-                flex: isMobile ? '1 1 100%' : '1.2', 
-                minWidth: '0',
-                marginBottom: isMobile ? '8px' : '0'
-              }} className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
-                <div>
-                  <h4 className="text-15 fw-500 ls-2 lh-16">
-                    Select Date
-                  </h4>
-                  <DateSelect onChange={handleDateChange} value={selectedDate} />
-                </div>
-              </div>
+            {/* Guest Selection */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '1',
+              minWidth: 0,
+              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1.5,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
+            }}>
+              <GuestSearch onGuestChange={handleGuestChange} guestCounts={guestCounts} />
+            </Box>
 
-              <div style={{ 
-                flex: isMobile ? '1 1 100%' : '1', 
-                minWidth: '0',
-                marginBottom: isMobile ? '8px' : '0'
-              }}>
-                <GuestSearch onGuestChange={handleGuestChange} guestCounts={guestCounts} />
-              </div>
-
-              <div className="button-item" style={{ 
-                width: isMobile ? '100%' : 'auto', 
-                padding: isMobile ? '0' : '0 15px', 
-                display: 'flex', 
-                alignItems: 'flex-end',
-                marginTop: isMobile ? '8px' : '0'
-              }}>
-                <button
-                  className="mainSearch__submit button -dark-1 py-15 px-35 h-60 col-12 rounded-4 bg-blue-1 text-white"
-                  onClick={handleSubmit}
-                  style={{ 
-                    whiteSpace: 'nowrap', 
-                    marginBottom: '5px',
-                    width: isMobile ? '100%' : 'auto'
-                  }}
-                >
-                  <i className="icon-search text-20 mr-10" />
-                  {isMobile ? 'Search' : 'Search Packages'}
-                </button>
-              </div>
-            </div>
-          </div>
+            {/* Search Button */}
+            <Box sx={{ 
+              flex: isMobile ? '1 1 100%' : '0 0 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              px: isMobile ? 0 : 2,
+              py: isMobile ? 0 : 1
+            }}>
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                startIcon={<i className="icon-search" />}
+                sx={{
+                  bgcolor: '#1976d2',
+                  color: 'white',
+                  px: isMobile ? 4 : 4,
+                  py: isMobile ? 1.5 : 1.75,
+                  borderRadius: isMobile ? '12px' : '40px',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  whiteSpace: 'nowrap',
+                  width: isMobile ? '100%' : 'auto',
+                  '&:hover': {
+                    bgcolor: '#1565c0',
+                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                  }
+                }}
+              >
+                {isMobile ? 'Search' : 'Search Packages'}
+              </Button>
+            </Box>
+          </Box>
         </Paper>
         
         <ListingCards 
@@ -579,43 +634,7 @@ const PreDefinePackages = () => {
           z-index: 1050 !important;
           position: absolute !important;
         }
-        
-        .mainSearch {
-          overflow: visible !important;
-        }
-        
-        .searchMenu-loc, 
-        .searchMenu-date, 
-        .searchMenu-guests {
-          position: relative;
-          z-index: 40;
-        }
-        
-        /* Ensure specific dropdown ordering */
-        .searchMenu-loc .shadow-2 {
-          z-index: 1060 !important;
-        }
-        
-        .searchMenu-date .rmdp-wrapper {
-          z-index: 1050 !important;
-          top: 100% !important;
-        }
-        
-        .searchMenu-guests .shadow-2 {
-          z-index: 1040 !important;
-        }
-        
-        /* Fix for position context */
-        .button-grid {
-          position: relative;
-          overflow: visible !important;
-        }
-        
-        /* Ensure dropdown menus are not cut off */
-        .button-item {
-          overflow: visible !important;
-        }
-        
+
         /* Fix global dropdown issues */
         body .dropdown-menu.show {
           display: block !important;
@@ -625,18 +644,6 @@ const PreDefinePackages = () => {
         }
 
         /* Responsive adjustments */
-        @media (max-width: 768px) {
-          .MuiGrid-item {
-            margin-bottom: 8px;
-          }
-          
-          .searchMenu-loc, 
-          .searchMenu-date, 
-          .searchMenu-guests {
-            margin-bottom: 16px;
-          }
-        }
-
         @media (max-width: 480px) {
           .MuiContainer-root {
             padding-left: 8px !important;

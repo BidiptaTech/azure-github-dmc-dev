@@ -154,11 +154,10 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
       setShowOthersInput(true);
       setIsDropdownOpen(false);
     } else {
-      if (!selectedHotels.some(h => h.hotel_unique_id === hotel.hotel_unique_id)) {
-        const updated = [...selectedHotels, hotel];
-        setSelectedHotels(updated);
-        onSelect?.(updated);
-      }
+      // Replace with single hotel (not add to array)
+      const updated = [hotel];
+      setSelectedHotels(updated);
+      onSelect?.(updated);
       setSearchTerm("");
       setIsDropdownOpen(false);
     }
@@ -207,7 +206,7 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
     <SearchContainer>
       <Box sx={{ mb: 2 }}>
         <InputLabel sx={{ mb: 1, fontSize: 16, fontWeight: 500, color: 'text.primary' }}>
-          Preferred Hotels {hotels.length > 0 && (
+          Preferred Hotel (Select One) {hotels.length > 0 && (
             <CountBadge label={hotels.length} size="small" variant="outlined" />
           )}
         </InputLabel>
