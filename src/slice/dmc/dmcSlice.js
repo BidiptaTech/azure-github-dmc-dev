@@ -356,36 +356,42 @@ const dmcSlice = createSlice({
         state.error = null;
         state.lastFetchedCountries = state.selectedCountries;
         
-        // Check if there's only 1 DMC available and auto-select it
+        // Auto-select the first DMC if DMCs are available and none is currently selected
         const dmcData = action.payload;
-        if (dmcData && dmcData.data && dmcData.data.length === 1) {
-          const singleDMC = dmcData.data[0];
+        if (dmcData && dmcData.data && dmcData.data.length > 0 && !state.dmcId) {
+          const firstDMC = dmcData.data[0];
           
-          // Auto-select the single DMC
-          state.dmcId = singleDMC.userId;
+          // Auto-select the first DMC
+          state.dmcId = firstDMC.userId;
           // Get the country from selected countries or from the DMC data
           const selectedCountry = state.selectedCountries && state.selectedCountries.length > 0 
             ? state.selectedCountries[0].name 
-            : (singleDMC.country || 'Unknown Location');
+            : (firstDMC.country || 'Unknown Location');
           
           state.selectedDmcData = {
-            id: `dmc-auto-${singleDMC.userId}`,
-            dmcId: singleDMC.userId,
-            name: singleDMC.company_name || singleDMC.name || `DMC ${singleDMC.userId}`,
+            id: `dmc-auto-${firstDMC.userId}`,
+            dmcId: firstDMC.userId,
+            name: firstDMC.company_name || firstDMC.name || `DMC ${firstDMC.userId}`,
             location: selectedCountry,
-            logo: singleDMC.logo || '',
+            logo: firstDMC.logo || '',
             description: 'Automatically selected DMC',
-            originalData: singleDMC
+            originalData: firstDMC
           };
-          state.selectedDmcLogo = singleDMC.logo || null;
-          state.selectedDmcCompanyName = singleDMC.company_name || null;
+          state.selectedDmcLogo = firstDMC.logo || null;
+          state.selectedDmcCompanyName = firstDMC.company_name || null;
+          
+          // Set PriceHide and zone_on cookies
+          const pricehide = firstDMC.price_hide || null;
+          const zoneon = firstDMC.zone_on || null;
+          Cookies.set('PriceHide', String(pricehide));
+          Cookies.set('zone_on', zoneon);
           
           // Store in localStorage for persistence
           try {
-            localStorage.setItem('selectedDmcId', singleDMC.userId.toString());
+            localStorage.setItem('selectedDmcId', firstDMC.userId.toString());
             localStorage.setItem('selectedDmcData', JSON.stringify(state.selectedDmcData));
-            localStorage.setItem('selectedDmcLogo', singleDMC.logo || '');
-            localStorage.setItem('selectedDmcCompanyName', singleDMC.company_name || '');
+            localStorage.setItem('selectedDmcLogo', firstDMC.logo || '');
+            localStorage.setItem('selectedDmcCompanyName', firstDMC.company_name || '');
           } catch (error) {
             // Error handling silently
           }

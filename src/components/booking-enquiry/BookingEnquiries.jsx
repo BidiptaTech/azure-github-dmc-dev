@@ -53,7 +53,7 @@ import {
   clearSpecificService,
   updateCalculatedPrice,
 } from "@/slice/common/EnquirySlice";
-import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
+import { fetchEnquiryList, clearEnquiryList } from "@/slice/common/enquiryListSlice";
 import {
   fetchDMCsByCountry,
   fetchDMCCount,
@@ -508,6 +508,10 @@ const BookingEnquiries = ({
       
       // Set flag to prevent sync useEffect from running
       isClearingDataRef.current = true;
+      
+      // Clear enquiry list data (available hotels, restaurants, attractions, etc.)
+      dispatch(clearEnquiryList());
+      console.log("🗑️ Cleared enquiry list data (available options)");
       
       // Clear all selected items from services
       setSelectedPreferredHotels([]);

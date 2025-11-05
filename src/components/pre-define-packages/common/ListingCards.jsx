@@ -216,6 +216,7 @@ const PackageCard = ({ packageData }) => {
     <Card sx={{ 
       display: 'flex', 
       flexDirection: 'column', 
+      height: '100%',
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       borderRadius: '12px',
       overflow: 'hidden',
@@ -252,7 +253,7 @@ const PackageCard = ({ packageData }) => {
           component="img"
           sx={{ 
             width: '100%',
-            height: 160,
+            height: 200,
             objectFit: 'cover'
           }}
           image={packageData.main_image}
@@ -278,9 +279,14 @@ const PackageCard = ({ packageData }) => {
             sx={{ 
               mb: 0.5,
               color: 'white',
-              textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-              fontSize: '0.9rem',
-              lineHeight: 1.2
+              textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+              fontSize: '1rem',
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical'
             }}
           >
             {packageData.title}
@@ -288,14 +294,17 @@ const PackageCard = ({ packageData }) => {
           
           {/* Location */}
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <LocationOnIcon sx={{ color: 'white', fontSize: 14, mr: 0.5 }} />
+            <LocationOnIcon sx={{ color: 'white', fontSize: 16, mr: 0.5 }} />
             <Typography 
               variant="body2" 
               sx={{ 
                 color: 'white',
-                fontSize: '0.75rem',
-                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-                opacity: 0.9
+                fontSize: '0.8rem',
+                textShadow: '0 2px 4px rgba(0,0,0,0.9)',
+                opacity: 0.95,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
               }}
             >
               {packageData.country || 'Singapore'} - {packageData.city || 'Singapore'}
@@ -304,24 +313,24 @@ const PackageCard = ({ packageData }) => {
         </Box>
       </Box>
 
-      <CardContent sx={{ flex: '1 0 auto', p: 2, pb: 1 }}>
+      <CardContent sx={{ flex: '1 0 auto', p: 2.5, pb: 1.5 }}>
         {/* Price and Status Row */}
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          mb: 1,
-          p: 1.5,
+          mb: 1.5,
+          p: 2,
           bgcolor: '#f8f9fa',
-          borderRadius: '8px',
+          borderRadius: '10px',
           border: '1px solid #e9ecef'
         }}>
           {/* Price Section */}
           <Box sx={{ flex: 1 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontSize: '0.7rem', fontWeight: 500 }}>
               From SGD
             </Typography>
-            <Typography variant="h6" color="primary" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
+            <Typography variant="h6" color="primary" fontWeight="bold" sx={{ fontSize: '1.25rem', lineHeight: 1.2 }}>
               ${packageData.price_adult || '343.00'}
             </Typography>
           </Box>
@@ -350,10 +359,10 @@ const PackageCard = ({ packageData }) => {
           </Box>
         </Box>
         
-        <Divider sx={{ my: 1 }} />
+        <Divider sx={{ my: 1.5 }} />
         
         {/* Compact sections layout */}
-        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
           {/* Top Attractions */}
           <Box sx={{ flex: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
@@ -372,7 +381,7 @@ const PackageCard = ({ packageData }) => {
               <Typography variant="caption" fontWeight="medium">Top Attractions</Typography>
             </Box>
             
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', gap: 0.75 }}>
               {attractions.length > 0 ? (
                 <>
                   {attractions.slice(0, 2).map((attraction, index) => (
@@ -381,10 +390,11 @@ const PackageCard = ({ packageData }) => {
                       component="img"
                       src={attraction.image || '/img/activities/1.png'}
                       sx={{ 
-                        width: 36, 
-                        height: 36, 
-                        borderRadius: '6px',
-                        objectFit: 'cover'
+                        width: 44, 
+                        height: 44, 
+                        borderRadius: '8px',
+                        objectFit: 'cover',
+                        border: '1px solid #e0e0e0'
                       }}
                       alt={attraction.name || 'Attraction'}
                     />
@@ -393,16 +403,17 @@ const PackageCard = ({ packageData }) => {
                     <Box 
                       key={`more-attractions-${packageData.package_id}`}
                       sx={{ 
-                        width: 36, 
-                        height: 36, 
-                        borderRadius: '6px',
+                        width: 44, 
+                        height: 44, 
+                        borderRadius: '8px',
                         bgcolor: '#f5f5f5',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#1976d2',
-                        fontSize: '0.7rem',
-                        fontWeight: 'bold'
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        border: '1px solid #e0e0e0'
                       }}
                     >
                       +{totalAttractions - 2}
@@ -449,24 +460,24 @@ const PackageCard = ({ packageData }) => {
               <Typography variant="caption" fontWeight="medium">Accommodations</Typography>
             </Box>
             
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {accommodations.length > 0 ? (
                 <>
                   <Avatar 
                     src={accommodations[0].main_image} 
                     sx={{ 
-                      width: 24, 
-                      height: 24,
-                      mr: 0.5
+                      width: 32, 
+                      height: 32,
+                      border: '1px solid #e0e0e0'
                     }}
                     alt={accommodations[0].name}
                   />
-                  <Typography variant="caption" sx={{ fontWeight: 500 }} noWrap>
+                  <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', flex: 1 }} noWrap>
                     {accommodations[0].name}
                   </Typography>
                 </>
               ) : (
-                <Typography variant="caption" sx={{ fontWeight: 500 }} noWrap>
+                <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', color: 'text.secondary', fontStyle: 'italic' }} noWrap>
                   No accommodations listed
                 </Typography>
               )}
@@ -477,8 +488,8 @@ const PackageCard = ({ packageData }) => {
      
         
         {/* Services */}
-        <Box sx={{ mt: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+        <Box sx={{ mt: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
             <Box sx={{ 
               display: 'inline-flex', 
               alignItems: 'center', 
@@ -494,12 +505,12 @@ const PackageCard = ({ packageData }) => {
             <Typography variant="caption" fontWeight="medium">Services</Typography>
           </Box>
           
-          <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, overflow: 'hidden' }}>
             {/* Combine Airport Pickup and Dropoff into a single chip */}
             {(hasArrivalPickup || hasDepartureService) && (
               <Chip 
                 key={`airport-service-${packageData.package_id}`}
-                icon={<FlightIcon sx={{ fontSize: '0.7rem !important' }} />} 
+                icon={<FlightIcon sx={{ fontSize: '0.75rem !important' }} />} 
                 label={
                   hasArrivalPickup && hasDepartureService
                     ? "Airport Pickup / Dropoff"
@@ -508,7 +519,7 @@ const PackageCard = ({ packageData }) => {
                       : "Airport Dropoff"
                 }
                 size="small" 
-                sx={{ height: 20, fontSize: '0.65rem', whiteSpace: 'nowrap' }} 
+                sx={{ height: 24, fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1 }} 
               />
             )}
             
@@ -516,10 +527,10 @@ const PackageCard = ({ packageData }) => {
             {hasTourGuides && (
               <Chip 
                 key={`tour-guide-${packageData.package_id}`}
-                icon={<ExploreIcon sx={{ fontSize: '0.7rem !important' }} />} 
+                icon={<ExploreIcon sx={{ fontSize: '0.75rem !important' }} />} 
                 label="Tour Guide" 
                 size="small" 
-                sx={{ height: 20, fontSize: '0.65rem', whiteSpace: 'nowrap' }} 
+                sx={{ height: 24, fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1 }} 
               />
             )}
             
@@ -527,10 +538,10 @@ const PackageCard = ({ packageData }) => {
             {hasTransfers && (
               <Chip 
                 key={`transfers-${packageData.package_id}`}
-                icon={<DirectionsBusIcon sx={{ fontSize: '0.7rem !important' }} />} 
+                icon={<DirectionsBusIcon sx={{ fontSize: '0.75rem !important' }} />} 
                 label="Transfers" 
                 size="small" 
-                sx={{ height: 20, fontSize: '0.65rem', whiteSpace: 'nowrap' }} 
+                sx={{ height: 24, fontSize: '0.7rem', whiteSpace: 'nowrap', px: 1 }} 
               />
             )}
             
@@ -562,17 +573,25 @@ const PackageCard = ({ packageData }) => {
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between',
-        p: 1.5, 
-        borderTop: '1px solid #eee'
+        p: 2, 
+        pt: 1.5,
+        borderTop: '1px solid #eee',
+        mt: 'auto'
       }}>
         <Button 
           variant="outlined" 
-          startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}
+          startIcon={<VisibilityIcon sx={{ fontSize: 18 }} />}
           onClick={handleViewDetails}
-          size="small"
-          sx={{ flex: 1, mr: 1, py: 0.5, fontSize: '0.75rem' }}
+          size="medium"
+          sx={{ 
+            flex: 1, 
+            py: 1, 
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            borderRadius: '8px'
+          }}
         >
-          Details
+          View Details
         </Button>
       
       </Box>
@@ -656,7 +675,7 @@ const NoResults = ({ hasSearched }) => (
 );
 
 const LoadingSkeleton = () => (
-  <Grid item xs={12} sm={6} md={4}>
+  <Grid item xs={12} sm={12} md={6} lg={6}>
     <Card sx={{ 
       height: '100%', 
       display: 'flex', 
@@ -677,7 +696,7 @@ const LoadingSkeleton = () => (
         <LinearProgress color="primary" />
       </Box>
       <Skeleton variant="rectangular" sx={{ width: '100%', height: 200 }} />
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 2.5 }}>
         <Skeleton variant="text" width="60%" height={30} />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', my: 2 }}>
           <Skeleton variant="text" width="40%" />
@@ -780,8 +799,9 @@ const ListingCards = ({
     // Update previous DMC ID
     previousDmcId.current = selectedDmcId;
     
-    // Only refetch if we have searchParams (a search has been performed)
-    if (searchParams) {
+    // Only refetch if we have searchParams AND packages have been loaded (not during initial load)
+    // This prevents double-fetching when first DMC is auto-selected during initial search
+    if (searchParams && packages.length > 0 && !loading) {
       console.log('🏢 DMC selection changed, refetching packages with DMC ID:', selectedDmcId);
       
       // Update searchParams with new DMC ID (single selection)
@@ -813,8 +833,10 @@ const ListingCards = ({
         .catch((error) => {
           console.error('🏢 Failed to refetch packages:', error);
         });
+    } else if (dmcIdChanged && selectedDmcId) {
+      console.log('🏢 First DMC auto-selected, will be used in initial package fetch');
     }
-  }, [selectedDmcId, searchParams, dispatch]); // Track single selectedDmcId
+  }, [selectedDmcId, searchParams, dispatch, packages.length, loading]); // Track single selectedDmcId
 
   // Infinite scroll effect - load more packages when scrolling
   useEffect(() => {
@@ -1424,7 +1446,7 @@ const ListingCards = ({
             <Box sx={{ position: 'relative' }}>
               <Grid container spacing={3}>
                 {packages.map((packageItem, index) => (
-                  <Grid item xs={12} sm={6} md={6} lg={4} key={`package-${packageItem.package_id || `temp-${index}`}`}>
+                  <Grid item xs={12} sm={12} md={6} lg={6} key={`package-${packageItem.package_id || `temp-${index}`}`}>
                     <PackageCard packageData={packageItem} />
                   </Grid>
                 ))}
