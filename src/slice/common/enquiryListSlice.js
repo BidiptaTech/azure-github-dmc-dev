@@ -29,7 +29,7 @@ export const fetchEnquiryList = createAsyncThunk(
       const state = getState();
       const dmcState = state.dmc;
       const selectedDmcIds = dmcState?.selectedDmcIds || [];
-      const selectedDmcId = dmcState?.dmcId || null;
+     // const selectedDmcId = dmcState?.dmcId || null;
       // console.log("FETCH ENQUIRY LIST - Selected DMC IDs:", selectedDmcIds);
       
       // Get auth token
@@ -50,10 +50,10 @@ export const fetchEnquiryList = createAsyncThunk(
         params: {
           country,
           city,
-          dmc_ids: selectedDmcIds.length > 0 ? JSON.stringify(selectedDmcIds) : JSON.stringify([selectedDmcId]),
+          dmc_ids: selectedDmcIds.length > 0 && JSON.stringify(selectedDmcIds) || null,
         }
       });
-
+      console.log("API Response:", response.data);  
       // console.log("API Response:", response.data);
 
       if (response.data && response.data.success) {

@@ -28,7 +28,7 @@ import { setSelectedCity } from "@/slice/common/commonSlice";
 import { fetchBookingid, setSearchLocation, setCheckIn, setCheckOut, setGuest } from "../../../slice/common/EnquirySlice";
 import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { store } from "../../../store/store";
-import { selectSelectedDmcIds, clearSelectedDmcs } from "../../../slice/dmc/dmcSlice";
+import { selectSelectedDmcIds, clearSelectedDmcs, clearSelectedDmc } from "../../../slice/dmc/dmcSlice";
 import { clearServiceDetails, clearSpecificService } from "../../../slice/common/EnquirySlice"; //EnquirySlice
 
 // Create a reusable alert component
@@ -247,6 +247,7 @@ const MainFilterSearchBox = ({ onNext, clearDataOnNext = false }) => {
     
     // Clear selected DMCs when searching for a new location
     dispatch(clearSelectedDmcs());
+    dispatch(clearSelectedDmc());
 
     // Create genders array based on male and female counts
     const maleCount = guestCounts.maleCount || 0;
