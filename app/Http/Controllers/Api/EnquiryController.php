@@ -273,8 +273,6 @@ class EnquiryController extends Controller
         $request_dmc_ids = $request->input('dmc_ids');
         if (is_string($request_dmc_ids)) {
             $request_dmc_ids = json_decode($request_dmc_ids, true) ?? [];
-        } elseif (!is_array($request_dmc_ids)) {
-            $request_dmc_ids = [];
         }
 
         if (!$country || !$city) {
@@ -283,10 +281,17 @@ class EnquiryController extends Controller
                 'message' => 'Please enter both country and city.',
             ]);
         }
+        if (empty($request_dmc_ids)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'DMC not found.',
+            ]);
+        }
         // if (empty($request_dmc_ids)) {
         //     $dmc = User::where('country', $country)->where('role_id', 11)->where('status', 1)->first();
         //     $request_dmc_ids = [$dmc->userId];
         // }
+        
         $country_id = Country::where('name', $country)->first();
         // Fetch all services for the given city and DMCs
         // For tables with JSON dmc_id field, we'll use a more complex query
