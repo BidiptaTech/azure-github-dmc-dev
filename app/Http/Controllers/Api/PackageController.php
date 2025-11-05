@@ -34,98 +34,39 @@ class PackageController extends Controller
         $start = $request->start ?? 0;
         $limit = $request->limit ?? 10;
         $children = $request->query('children');
-        $random_dmc_id = null;
         
-        $dmc = User::select('userId', 'name', 'company_name', 'logo')->where('userId', $dmcId)->first();
-        
+        $dmc = null;
+        if (!empty($dmcId)) {
+            $dmc = User::select('userId', 'name', 'company_name', 'logo')->where('userId', $dmcId)->first();
+        }        
+        // If dmcId is still null at this point, return error
         if (empty($dmcId)) {
-            // Get auth user agency id and get dmc ids
-            $user = auth()->user();
-            $agentDmcIds = [];
-            $agencyCountryArray = [];
-            
-            if($user && $user->agency_id){
-                $agency = Agency::where('agency_id', $user->agency_id)->first();
-                if($agency){
-                    $agentDmcIds = $agency->dmc_id;
-                    
-                    // Get agency's country for filtering
-                    if($agency->country){
-                        // Handle country as comma-separated string or array
-                        if(is_array($agency->country)){
-                            $agencyCountryArray = $agency->country;
-                        } else {
-                            // Remove spaces and split by comma
-                            $agencyCountryArray = array_map('trim', explode(',', str_replace(' ', '', $agency->country)));
-                        }
-                        $agencyCountryArray = array_filter($agencyCountryArray); // Remove empty values
-                    }
-                }
-            }
-            
-            // Ensure agentDmcIds is an array
-            if(!$agentDmcIds){
-                $agentDmcIds = [];
-            } else {
-                $agentDmcIds = array_map('intval', array_filter($agentDmcIds));
-            }
-            
-            // Prepare country array for filtering
-            $countryArray = [];
-            if($country){
-                if(is_array($country)){
-                    $countryArray = $country;
-                } else {
-                    $countryArray = array_map('trim', explode(',', $country));
-                }
-                $countryArray = array_filter($countryArray);
-            }
-            
-            // Find DMC user by matching country from the destination array
-            $dmcQuery = User::where('role_id', 11);
-            
-            // Filter by agency DMC IDs if available
-            if(!empty($agentDmcIds)){
-                $dmcQuery->whereIn('userId', $agentDmcIds);
-            }
-            
-            // If agency has country, filter DMCs by agency country
-            if(!empty($agencyCountryArray)){
-                $dmcQuery->whereRaw(
-                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
-                    [ '{' . implode(',', $agencyCountryArray) . '}' ]
-                );
-            }
-            
-            // Also filter by destination country
-            if(!empty($countryArray)){
-                $dmcQuery->whereRaw(
-                    "string_to_array(regexp_replace(country, '\\s+', '', 'g'), ',') && ?", 
-                    [ '{' . implode(',', $countryArray) . '}' ]
-                );
-            }
-            
-            $dmc_idd = $dmcQuery->first();
-            
-            if ($dmc_idd) {
-                $dmcId = $dmc_idd->userId;
-                $random_dmc_id = $dmc_idd->userId;
-            } else {
-                $dmcId = null;
-            }
+            return response()->json([
+                'success' => false,
+                'message' => 'DMC not found',
+                'packages' => [],
+            ], 404);
         }
+        
+        // Fetch DMC details if not already fetched
+        if (empty($dmc)) {
+            $dmc = User::select('userId', 'name', 'company_name', 'logo')->where('userId', $dmcId)->first();
+        }
+        
+        // If DMC still not found, return error
+        if (empty($dmc)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'DMC not found',
+                'packages' => [],
+            ], 404);
+        }
+        
         $dmc_data = [
             'dmc_id' => $dmc->userId ?? '',
             'dmc_name' => $dmc->name ?? '',
             'dmc_company_name' => $dmc->company_name ?? '',
             'dmc_logo' => $dmc->logo ?? '',
-        ];
-        $random_dmc=User::select('userId', 'name', 'company_name', 'logo')->where('userId', $random_dmc_id)->first();
-        $random_dmc_data = [
-            'dmc_id' => $random_dmc_id ?? '',
-            'dmc_name' => $random_dmc->name ?? '',
-            'dmc_company_name' => $random_dmc->company_name ?? '',
-            'dmc_logo' => $random_dmc->logo ?? '',
         ];
         // Format the date properly for comparison with database date fields
         if (empty($date)) {
@@ -185,9 +126,10 @@ class PackageController extends Controller
         
         // Format the response
         return response()->json([
+            'success' => true,
+            'message' => 'Packages retrieved successfully',
             'packages' => $packages,
             'dmc_data' => $dmc_data,
-            'random_dmc_data' => $random_dmc_data,
         ]);
     }
 
@@ -1091,3 +1033,4 @@ class PackageController extends Controller
     }
 
 }
+
