@@ -3878,7 +3878,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body p-0" style="max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: hidden;">
                             <!-- Basic Info Section -->
                             <div class="border-bottom p-3">
                                 <h6 class="text-primary fw-bold mb-3">
@@ -4066,22 +4066,7 @@
                                                                                             <span class="badge bg-secondary text-white" style="font-size: 0.65rem;">{{ $category }}</span>
                                                                                         @endif
                                                                                     </div>
-                                                                                    <div class="text-muted" style="font-size: 0.7rem;">
-                                                                                        @if($meal->adult_price)
-                                                                                            <span class="me-2">👤 Adult: ${{ number_format($meal->adult_price, 2) }}</span>
-                                                                                        @endif
-                                                                                        @if($meal->child_price)
-                                                                                            <span class="me-2">👶 Child: ${{ number_format($meal->child_price, 2) }}</span>
-                                                                                        @endif
-                                                                                        @if($meal->price)
-                                                                                            <span>📋 Set Menu: ${{ number_format($meal->price, 2) }}</span>
-                                                                                        @endif
-                                                                                    </div>
-                                                                                    @if($meal->item_description)
-                                                                                        <div class="text-muted mt-1" style="font-size: 0.68rem;">
-                                                                                            <i class="ri-information-line me-1"></i>{{ $meal->item_description }}
-                                                                                        </div>
-                                                                                    @endif
+                                                                                   
                                                                                 </div>
                                                                             </div>
                                                                         @endif
@@ -4181,6 +4166,28 @@
     
     .enquiry-sidebar .card-body {
         background: #ffffff;
+        /* Firefox scrollbar */
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f1f1f1;
+    }
+    
+    /* Custom Scrollbar for Enquiry Sidebar */
+    .enquiry-sidebar .card-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .enquiry-sidebar .card-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .enquiry-sidebar .card-body::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+    }
+    
+    .enquiry-sidebar .card-body::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
     }
     
     .service-item {
