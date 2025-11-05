@@ -379,6 +379,9 @@ const BookingEnquiries = ({
   
   // Ref to track previous DMC IDs
   const prevDmcIdsRef = React.useRef(selectedDmcIds);
+  
+  // Ref to track if we're currently clearing data due to DMC change
+  const isClearingDataRef = React.useRef(false);
 
   // Handle closing validation error
   const handleCloseValidationError = () => {
@@ -503,6 +506,9 @@ const BookingEnquiries = ({
       console.log("Previous DMCs:", prevDmcIdsRef.current);
       console.log("Current DMCs:", selectedDmcIds);
       
+      // Set flag to prevent sync useEffect from running
+      isClearingDataRef.current = true;
+      
       // Clear all selected items from services
       setSelectedPreferredHotels([]);
       setSelectedAttractions([]);
@@ -547,6 +553,11 @@ const BookingEnquiries = ({
       setDmcChangeNotification(true);
       
       console.log("✅ Service data cleared due to DMC change");
+      
+      // Reset the flag after a short delay to allow Redux updates to complete
+      setTimeout(() => {
+        isClearingDataRef.current = false;
+      }, 100);
     }
     
     // Update the ref for next comparison
@@ -612,71 +623,110 @@ const BookingEnquiries = ({
       const infants = parseInt(guestCounts.Infants || guestCounts.infant || 0);
       const totalPersons = adults + children + infants;
       
-      // Calculate days
+      // Calculate days - Handle DD/MM/YYYY format correctly
       const checkinDate = enquiryData?.checkinDate || enquiryData?.checkIn;
       const checkoutDate = enquiryData?.checkoutDate || enquiryData?.checkOut;
-      const totalDays = checkinDate && checkoutDate 
-        ? Math.max(1, Math.ceil((new Date(checkoutDate) - new Date(checkinDate)) / (24 * 60 * 60 * 1000)))
-        : 1;
+      
+      let totalDays = 1;
+      if (checkinDate && checkoutDate) {
+        // Parse DD/MM/YYYY format correctly
+        const parseDate = (dateStr) => {
+          if (!dateStr) return null;
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            // Convert DD/MM/YYYY to YYYY-MM-DD for proper parsing
+            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+          }
+          return new Date(dateStr);
+        };
+        
+        const checkIn = parseDate(checkinDate);
+        const checkOut = parseDate(checkoutDate);
+        
+        if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+          totalDays = Math.max(1, Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000)));
+        }
+      }
 
-      // Calculate hotel pricing
+      console.log('💰 Price calculation started:', {
+        totalDays,
+        totalPersons: `${adults} adults + ${children} children + ${infants} infants = ${totalPersons} total`
+      });
+
+      // Calculate hotel pricing (price × days)
       if (bookingOptions.hotel && serviceDetails.hotel) {
         const selectedHotels = serviceDetails.hotel.preferredHotels || [];
         selectedHotels.forEach(hotel => {
-          const actualPrice = parseFloat(hotel.single_base_price) || 120;
-          totalPrice += actualPrice * totalDays;
+          const pricePerDay = parseFloat(hotel.single_base_price) || 0;
+          if (pricePerDay > 0) {
+            const hotelTotal = pricePerDay * totalDays;
+            totalPrice += hotelTotal;
+            console.log(`  🏨 Hotel: ${pricePerDay} × ${totalDays} days = ${hotelTotal}`);
+          }
         });
       }
 
-      // Calculate port/transfer pricing
+      // Calculate port/transfer pricing (price × transfers)
       if (bookingOptions.entryExitPort && serviceDetails.entryExitPort) {
         let transferCount = 0;
         if (serviceDetails.entryExitPort.showEntryPort !== false) transferCount++;
         if (serviceDetails.entryExitPort.showExitPort === true) transferCount++;
         
         const cars = serviceDetails.entryExitPort.preferredCars || [];
-        if (cars.length > 0) {
+        if (cars.length > 0 && transferCount > 0) {
           cars.forEach(car => {
-            const actualPrice = parseFloat(car.base_price) || 45;
-            totalPrice += actualPrice * transferCount;
+            const pricePerTransfer = parseFloat(car.base_price) || 0;
+            if (pricePerTransfer > 0) {
+              const transferTotal = pricePerTransfer * transferCount;
+              totalPrice += transferTotal;
+              console.log(`  🚗 Port Transfer: ${pricePerTransfer} × ${transferCount} transfers = ${transferTotal}`);
+            }
           });
-        } else {
-          totalPrice += transferCount * 45;
         }
+        // Don't add default price if no cars selected
       }
 
-      // Calculate attraction pricing
+      // Calculate attraction pricing (price × persons)
       if (bookingOptions.attraction && serviceDetails.attraction) {
         const attractions = serviceDetails.attraction.selectedAttractions || [];
         attractions.forEach(attraction => {
-          const actualPrice = parseFloat(attraction.base_price) || 25;
-          totalPrice += actualPrice * totalPersons;
+          const pricePerPerson = parseFloat(attraction.base_price) || 0;
+          if (pricePerPerson > 0) {
+            const attractionTotal = pricePerPerson * totalPersons;
+            totalPrice += attractionTotal;
+            console.log(`  🎟️ Attraction: ${pricePerPerson} × ${totalPersons} persons = ${attractionTotal}`);
+          }
         });
       }
 
-      // Calculate local tour pricing
+      // Calculate local tour pricing (flat rate, NOT multiplied by days or persons)
       if (bookingOptions.localTour && serviceDetails.localTour) {
         const localTourCars = serviceDetails.localTour.preferredCars || [];
         if (localTourCars.length > 0) {
           localTourCars.forEach(car => {
-            const actualPrice = parseFloat(car.base_price) || 85;
-            totalPrice += actualPrice * totalDays;
+            const tourPrice = parseFloat(car.base_price) || 0;
+            if (tourPrice > 0) {
+              totalPrice += tourPrice;
+              console.log(`  🚌 Local Tour: ${tourPrice} (flat rate)`);
+            }
           });
-        } else {
-          totalPrice += 85 * totalDays;
         }
+        // Don't add default price if no cars selected
       }
 
-      // Calculate tour guide pricing
+      // Calculate tour guide pricing (flat rate, NOT multiplied by days or persons)
       if (bookingOptions.tourGuide && serviceDetails.tourGuide) {
         const guides = serviceDetails.tourGuide.preferredGuides || [];
         guides.forEach(guide => {
-          const actualPrice = parseFloat(guide.base_price) || 150;
-          totalPrice += actualPrice * totalDays;
+          const guidePrice = parseFloat(guide.base_price) || 0;
+          if (guidePrice > 0) {
+            totalPrice += guidePrice;
+            console.log(`  👨‍🏫 Guide: ${guidePrice} (flat rate)`);
+          }
         });
       }
 
-      // Calculate restaurant pricing
+      // Calculate restaurant pricing (price × persons per meal)
       if (bookingOptions.restaurant && serviceDetails.restaurant) {
         const restaurantData = serviceDetails.restaurant.selectedRestaurants || [];
         
@@ -701,17 +751,27 @@ const BookingEnquiries = ({
               } else {
                 // Fallback to base price
                 const restaurant = entry.restaurant;
-                mealPrice = (parseFloat(restaurant['base-price']) || 35) * totalPersons;
+                const basePrice = parseFloat(restaurant['base-price']) || 0;
+                if (basePrice > 0) {
+                  mealPrice = basePrice * totalPersons;
+                }
               }
               
-              totalPrice += mealPrice;
+              if (mealPrice > 0) {
+                totalPrice += mealPrice;
+                console.log(`  🍽️ Restaurant Meal: ${mealPrice} for ${totalPersons} persons`);
+              }
             });
           });
         } else {
           // Old format: flat array of restaurants
           restaurantData.forEach(restaurant => {
-            const actualPrice = parseFloat(restaurant['base-price']) || 35;
-            totalPrice += actualPrice * totalPersons;
+            const pricePerPerson = parseFloat(restaurant['base-price']) || 0;
+            if (pricePerPerson > 0) {
+              const restaurantTotal = pricePerPerson * totalPersons;
+              totalPrice += restaurantTotal;
+              console.log(`  🍽️ Restaurant: ${pricePerPerson} × ${totalPersons} persons = ${restaurantTotal}`);
+            }
           });
         }
       }
@@ -722,17 +782,13 @@ const BookingEnquiries = ({
         totalPrice = 0;
       }
       
-      const roundedPricePerPerson = Math.round(totalPrice);
-      const totalPriceForAllGuests = roundedPricePerPerson * totalPersons;
+      // Round the total price (this is already the full total, not per person)
+      const roundedTotalPrice = Math.round(totalPrice);
       
       // Final safety check
-      const safeTotalPrice = isNaN(totalPriceForAllGuests) ? 0 : totalPriceForAllGuests;
+      const safeTotalPrice = isNaN(roundedTotalPrice) ? 0 : roundedTotalPrice;
       
-      console.log('💰 Price calculation in BookingEnquiries:', {
-        pricePerPerson: roundedPricePerPerson,
-        totalGuests: totalPersons,
-        totalPrice: safeTotalPrice
-      });
+      console.log('✅ Final Total Price:', safeTotalPrice);
       
       // Dispatch total price to Redux
       dispatch(updateCalculatedPrice(safeTotalPrice));
@@ -746,6 +802,12 @@ const BookingEnquiries = ({
 
   // Effect to sync local state with Redux data when enquiryData changes
   useEffect(() => {
+    // Skip sync if we're currently clearing data due to DMC change
+    if (isClearingDataRef.current) {
+      console.log("⏭️ Skipping sync - currently clearing data due to DMC change");
+      return;
+    }
+    
     if (enquiryData.serviceDetails) {
       // Sync hotel data
       if (enquiryData.serviceDetails.hotel) {
@@ -1063,7 +1125,8 @@ const BookingEnquiries = ({
         name: guide.name || `Guide ${guide.id || guide.guide_id}`,
         city: guide.city || "",
         country: guide.country || "",
-        experience_years: guide.experience_years || ""
+        experience_years: guide.experience_years || "",
+        base_price: guide.base_price || guide.price || 0  // Include base_price for pricing calculations
       };
       
       // Properly handle languages if they exist

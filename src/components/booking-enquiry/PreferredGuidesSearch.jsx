@@ -189,10 +189,12 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
         // Create a clean guide object to avoid React rendering issues
         let cleanGuide = {
           guide_id: guide.guide_id,
+          id: guide.guide_id, // Also store as id for compatibility
           name: guide.name,
           experience_years: guide.experience_years,
           city: guide.city,
-          country: guide.country
+          country: guide.country,
+          base_price: guide.base_price || 0 // IMPORTANT: Include base_price for pricing calculations
         };
         
         // Properly handle languages array
@@ -205,6 +207,7 @@ const PreferredGuidesSearch = ({ onSelect, value = [] }) => {
         
         const updatedGuides = [...selectedGuides, cleanGuide];
         console.log("PreferredGuidesSearch: Adding guide:", cleanGuide);
+        console.log("PreferredGuidesSearch: Guide base_price:", cleanGuide.base_price);
         console.log("PreferredGuidesSearch: Updated guides after adding:", updatedGuides);
         setSelectedGuides(updatedGuides);
         console.log("PreferredGuidesSearch: Calling onSelect after adding guide with:", updatedGuides);

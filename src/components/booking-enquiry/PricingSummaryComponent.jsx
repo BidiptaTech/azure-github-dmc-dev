@@ -103,19 +103,48 @@ const PricingSummaryComponent = () => {
   const adults = parseInt(bookingDetails.guestCounts?.Adults || bookingDetails.guests?.adults || 1);
   const children = parseInt(bookingDetails.guestCounts?.Children || bookingDetails.guests?.children || 0);
   const infants = parseInt(bookingDetails.guestCounts?.Infants || bookingDetails.guests?.infant || 0);
-  const totalGuests = adults + children + infants;
+  const totalGuests = adults + children + infants; // Total including infants (for display)
+  const guestsWithoutInfants = adults + children; // Exclude infants for avg calculation
 
-  // Calculate per-person price from total
-  const pricePerPerson = totalGuests > 0 ? Math.round(totalPriceFromRedux / totalGuests) : 0;
+  // Calculate average per-person price from total (for display purposes only)
+  // Formula: Total Price ÷ Number of Guests (excluding infants)
+  // Note: Hotels are per day, Guides & Tours are flat rate, Attractions & Restaurants are per person
+  const averagePerPerson = guestsWithoutInfants > 0 ? Math.round(totalPriceFromRedux / guestsWithoutInfants) : 0;
   const totalPrice = totalPriceFromRedux;
+  
+  console.log('📊 Avg Per Person Calculation:', {
+    totalPrice: totalPriceFromRedux,
+    adults: adults,
+    children: children,
+    infants: infants,
+    guestsWithoutInfants: guestsWithoutInfants,
+    calculation: `${totalPriceFromRedux} ÷ ${guestsWithoutInfants} (excl. infants) = ${averagePerPerson}`,
+    averagePerPerson: averagePerPerson
+  });
 
-  // Calculate days
+  // Calculate days - Handle DD/MM/YYYY format correctly
   const calculateDays = () => {
     const checkinDate = bookingDetails.checkinDate || bookingDetails.checkIn;
     const checkoutDate = bookingDetails.checkoutDate || bookingDetails.checkOut;
     
     if (checkinDate && checkoutDate) {
-      return Math.max(1, Math.ceil((new Date(checkoutDate) - new Date(checkinDate)) / (24 * 60 * 60 * 1000)));
+      // Parse DD/MM/YYYY format correctly
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          // Convert DD/MM/YYYY to YYYY-MM-DD for proper parsing
+          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+        return new Date(dateStr);
+      };
+      
+      const checkIn = parseDate(checkinDate);
+      const checkOut = parseDate(checkoutDate);
+      
+      if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+        return Math.max(1, Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000)));
+      }
     }
     return 1;
   };
@@ -126,7 +155,7 @@ const PricingSummaryComponent = () => {
   console.log("💰 PricingSummaryComponent - Rendering with:", {
     totalPriceFromRedux,
     totalGuests,
-    pricePerPerson,
+    averagePerPerson,
     totalPrice,
     selectedServices
   });
@@ -157,7 +186,7 @@ const PricingSummaryComponent = () => {
       
       {/* Compact Pricing Display */}
       <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-        {/* Per Person Price Box */}
+        {/* Average Per Person Price Box */}
         <Box 
           sx={{ 
             flex: 1,
@@ -196,10 +225,10 @@ const PricingSummaryComponent = () => {
               mb: 0.25,
               opacity: 0.9
             }}>
-              Per Person
+              Avg. Per Person (excl. infants)
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1 }}>
-              SGD {pricePerPerson.toLocaleString()}
+              SGD {averagePerPerson.toLocaleString()}
             </Typography>
           </Box>
         </Box>
@@ -249,7 +278,7 @@ const PricingSummaryComponent = () => {
               SGD {totalPrice.toLocaleString()}
             </Typography>
             <Typography variant="caption" sx={{ fontSize: '0.65rem', opacity: 0.85 }}>
-              {totalGuests} guest{totalGuests !== 1 ? 's' : ''} · {totalDays} day{totalDays !== 1 ? 's' : ''}
+              {guestsWithoutInfants} guest{guestsWithoutInfants !== 1 ? 's' : ''}{infants > 0 ? ` + ${infants} infant${infants !== 1 ? 's' : ''}` : ''} · {totalDays} day{totalDays !== 1 ? 's' : ''}
             </Typography>
           </Box>
         </Box>
@@ -294,6 +323,22 @@ const PricingSummaryComponent = () => {
         {infants > 0 && (
           <Chip label={`${infants} infant${infants !== 1 ? 's' : ''}`} size="small" sx={{ height: 22, fontSize: '0.7rem' }} />
         )}
+      </Box>
+
+      {/* Pricing Model Info */}
+      <Box sx={{ 
+        p: 1.5, 
+        mb: 1.5,
+        backgroundColor: 'rgba(33, 150, 243, 0.08)', 
+        borderRadius: 1,
+        border: '1px solid rgba(33, 150, 243, 0.2)'
+      }}>
+        <Typography variant="caption" sx={{ color: '#1976d2', fontWeight: 600, fontSize: '0.7rem', display: 'block', mb: 0.5 }}>
+          💡 Pricing Model:
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', display: 'block' }}>
+          • Hotels: Priced per day • Guides & Tours: Flat rate • Attractions & Restaurants: Priced per person (incl. infants) • Transfers: Priced per trip • Avg calculation: Excludes infants
+        </Typography>
       </Box>
 
       {/* Compact Disclaimer */}

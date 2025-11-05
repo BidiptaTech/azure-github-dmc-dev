@@ -380,6 +380,7 @@ const PreDefinePackages = () => {
       children: guestCounts.Children,
       children_ages: guestCounts.ages?.join(','),
       infants: guestCounts.Infants
+      
     };
 
     // Add agent_id parameter only if the agent selector is shown
