@@ -527,13 +527,14 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         const attractions = serviceDetails.attraction.selectedAttractions || [];
         console.log("Attraction calculation - attractions:", attractions.length);
         let attractionTotal = 0;
+        const personsForAttraction = adults + children; // Exclude infants from attraction pricing
         attractions.forEach(attraction => {
           const pricePerPerson = parseFloat(attraction.base_price) || 0;
           if (pricePerPerson > 0) {
-            const attractionPrice = pricePerPerson * totalPersons;
+            const attractionPrice = pricePerPerson * personsForAttraction;
             attractionTotal += attractionPrice;
             calculatedTotal += attractionPrice;
-            console.log("  Attraction price added:", attractionPrice, "Total now:", calculatedTotal);
+            console.log("  Attraction price added:", attractionPrice, `for ${personsForAttraction} persons (${adults} adults + ${children} children, infants excluded)`, "Total now:", calculatedTotal);
           }
         });
         if (attractionTotal > 0) {
@@ -583,6 +584,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         const restaurantData = serviceDetails.restaurant.selectedRestaurants || [];
         console.log("Restaurant calculation - restaurantData:", restaurantData.length, restaurantData);
         let restaurantTotal = 0;
+        const personsForRestaurant = adults + children; // Exclude infants from restaurant pricing
         
         // Check if new format (with dates and meals)
         if (restaurantData.length > 0 && restaurantData[0]?.date && restaurantData[0]?.restaurants) {
@@ -593,38 +595,38 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
               let mealPrice = 0;
               
               if (meal) {
-                // Calculate based on meal type
+                // Calculate based on meal type (exclude infants)
                 if (meal.set_menu_price) {
-                  mealPrice = parseFloat(meal.set_menu_price) * totalPersons;
+                  mealPrice = parseFloat(meal.set_menu_price) * personsForRestaurant; // Exclude infants
                 } else {
-                  // Calculate for adults and children separately
+                  // Calculate for adults and children separately (infants excluded)
                   const adultPrice = parseFloat(meal.adult_price) || 0;
                   const childPrice = parseFloat(meal.child_price) || 0;
-                  mealPrice = (adultPrice * adults) + (childPrice * (children + infants));
+                  mealPrice = (adultPrice * adults) + (childPrice * children); // Infants excluded
                 }
               } else {
-                // Fallback to base price
+                // Fallback to base price (exclude infants)
                 const restaurant = entry.restaurant;
                 const basePrice = parseFloat(restaurant['base-price']) || 0;
                 if (basePrice > 0) {
-                  mealPrice = basePrice * totalPersons;
+                  mealPrice = basePrice * personsForRestaurant; // Exclude infants
                 }
               }
               
               restaurantTotal += mealPrice;
               calculatedTotal += mealPrice;
-              console.log("  Meal price added:", mealPrice, "Total now:", calculatedTotal);
+              console.log("  Meal price added:", mealPrice, `for ${personsForRestaurant} persons (${adults} adults + ${children} children, infants excluded)`, "Total now:", calculatedTotal);
             });
           });
         } else {
-          // Old format: flat array of restaurants
+          // Old format: flat array of restaurants (exclude infants)
           restaurantData.forEach(restaurant => {
             const pricePerPerson = parseFloat(restaurant['base-price']) || 0;
             if (pricePerPerson > 0) {
-              const restaurantPrice = pricePerPerson * totalPersons;
+              const restaurantPrice = pricePerPerson * personsForRestaurant; // Exclude infants
               restaurantTotal += restaurantPrice;
               calculatedTotal += restaurantPrice;
-              console.log("  Restaurant price added:", restaurantPrice, "Total now:", calculatedTotal);
+              console.log("  Restaurant price added:", restaurantPrice, `for ${personsForRestaurant} persons (${adults} adults + ${children} children, infants excluded)`, "Total now:", calculatedTotal);
             }
           });
         }
@@ -722,7 +724,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     remarks: ""
   });
 
-  // Helper function to render price breakdown for each service
+  // Helper function to render price breakdown for each service with individual item prices
   const renderPriceBreakdown = (service) => {
     const price = servicePrices[service];
     if (!price) return null;
@@ -731,7 +733,8 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     const adults = parseInt(guestCounts.Adults || guestCounts.adults || 1) || 1;
     const children = parseInt(guestCounts.Children || guestCounts.children || 0) || 0;
     const infants = parseInt(guestCounts.Infants || guestCounts.infant || 0) || 0;
-    const totalPersons = adults + children + infants;
+    const personsForAttraction = adults + children; // Exclude infants for attractions
+    const personsForRestaurant = adults + children; // Exclude infants for restaurants
     
     const checkinDate = bookingDetails?.checkIn;
     const checkoutDate = bookingDetails?.checkOut;
@@ -758,94 +761,205 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
     }
 
     let breakdown = [];
+    let showTotal = false;
 
     switch(service) {
       case "hotel":
         const hotels = serviceDetails.hotel?.preferredHotels || [];
-        breakdown.push({
-          label: `${hotels.length} Hotel${hotels.length > 1 ? 's' : ''} × ${totalDays} day${totalDays > 1 ? 's' : ''}`,
-          value: `SGD ${price.toLocaleString()}`
+        hotels.forEach((hotel, index) => {
+          const hotelName = typeof hotel === 'object' ? hotel.name || `Hotel ${index + 1}` : hotel;
+          const pricePerDay = parseFloat(hotel.single_base_price) || 0;
+          const hotelTotal = pricePerDay * totalDays;
+          breakdown.push({
+            label: `${hotelName}: SGD ${pricePerDay.toLocaleString()} × ${totalDays} day${totalDays > 1 ? 's' : ''}`,
+            value: `SGD ${hotelTotal.toLocaleString()}`
+          });
         });
+        showTotal = hotels.length > 1;
         break;
+        
       case "entryExitPort":
+        const cars = serviceDetails.entryExitPort?.preferredCars || [];
         let transferCount = 0;
         if (serviceDetails.entryExitPort?.showEntryPort !== false) transferCount++;
         if (serviceDetails.entryExitPort?.showExitPort === true) transferCount++;
-        breakdown.push({
-          label: `${transferCount} Transfer${transferCount > 1 ? 's' : ''}`,
-          value: `SGD ${price.toLocaleString()}`
+        
+        cars.forEach((car, index) => {
+          const carName = typeof car === 'string' ? car : (car.name || car.vehicle_name || `Vehicle ${index + 1}`);
+          const pricePerTransfer = parseFloat(car.base_price) || 0;
+          const carTotal = pricePerTransfer * transferCount;
+          breakdown.push({
+            label: `${carName}: SGD ${pricePerTransfer.toLocaleString()} × ${transferCount} transfer${transferCount > 1 ? 's' : ''}`,
+            value: `SGD ${carTotal.toLocaleString()}`
+          });
         });
+        showTotal = cars.length > 1;
         break;
+        
       case "attraction":
         const attractions = serviceDetails.attraction?.selectedAttractions || [];
-        breakdown.push({
-          label: `${attractions.length} Attraction${attractions.length > 1 ? 's' : ''} × ${totalPersons} guest${totalPersons > 1 ? 's' : ''}`,
-          value: `SGD ${price.toLocaleString()}`
+        attractions.forEach((attraction, index) => {
+          const attractionName = attraction.name || `Attraction ${index + 1}`;
+          const pricePerPerson = parseFloat(attraction.base_price) || 0;
+          const attractionTotal = pricePerPerson * personsForAttraction;
+          breakdown.push({
+            label: `${attractionName}: SGD ${pricePerPerson.toLocaleString()} × ${personsForAttraction} guest${personsForAttraction > 1 ? 's' : ''}`,
+            value: `SGD ${attractionTotal.toLocaleString()}`,
+            subtitle: '(infants excluded)'
+          });
         });
+        showTotal = attractions.length > 1;
         break;
+        
       case "localTour":
-        breakdown.push({
-          label: `Local Tour (Flat Rate)`,
-          value: `SGD ${price.toLocaleString()}`
+        const localTourCars = serviceDetails.localTour?.preferredCars || [];
+        localTourCars.forEach((car, index) => {
+          const carName = typeof car === 'string' ? car : (car.name || car.vehicle_name || `Vehicle ${index + 1}`);
+          const carPrice = parseFloat(car.base_price) || 0;
+          breakdown.push({
+            label: `${carName} (Flat Rate)`,
+            value: `SGD ${carPrice.toLocaleString()}`
+          });
         });
+        showTotal = localTourCars.length > 1;
         break;
+        
       case "tourGuide":
         const guides = serviceDetails.tourGuide?.preferredGuides || [];
-        breakdown.push({
-          label: `${guides.length} Guide${guides.length > 1 ? 's' : ''} (Flat Rate)`,
-          value: `SGD ${price.toLocaleString()}`
+        guides.forEach((guide, index) => {
+          const guideName = typeof guide === 'string' ? guide : (guide.name || `Guide ${index + 1}`);
+          const guidePrice = parseFloat(guide.base_price) || 0;
+          breakdown.push({
+            label: `${guideName} (Flat Rate)`,
+            value: `SGD ${guidePrice.toLocaleString()}`
+          });
         });
+        showTotal = guides.length > 1;
         break;
+        
       case "restaurant":
         const restaurantData = serviceDetails.restaurant?.selectedRestaurants || [];
-        let mealCount = 0;
-        if (restaurantData[0]?.date && restaurantData[0]?.restaurants) {
+        
+        // Check if new format (with dates and meals)
+        if (restaurantData.length > 0 && restaurantData[0]?.date && restaurantData[0]?.restaurants) {
+          // New format: Group by date and show individual meals
           restaurantData.forEach(dateEntry => {
-            mealCount += dateEntry.restaurants.length;
+            const dateObj = new Date(dateEntry.date);
+            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            dateEntry.restaurants.forEach(entry => {
+              const restaurantName = entry.restaurant?.name || 'Restaurant';
+              const meal = entry.meal;
+              const mealPeriod = entry.mealPeriod || meal?.meal_period || '';
+              const mealType = meal?.meal_type || '';
+              
+              let mealPrice = 0;
+              let priceLabel = '';
+              
+              if (meal) {
+                if (meal.set_menu_price) {
+                  const setMenuPrice = parseFloat(meal.set_menu_price) || 0;
+                  mealPrice = setMenuPrice * personsForRestaurant;
+                  priceLabel = `SGD ${setMenuPrice.toLocaleString()} × ${personsForRestaurant} guest${personsForRestaurant > 1 ? 's' : ''}`;
+                } else {
+                  const adultPrice = parseFloat(meal.adult_price) || 0;
+                  const childPrice = parseFloat(meal.child_price) || 0;
+                  mealPrice = (adultPrice * adults) + (childPrice * children);
+                  priceLabel = `SGD ${adultPrice.toLocaleString()}/adult × ${adults} + SGD ${childPrice.toLocaleString()}/child × ${children}`;
+                }
+              }
+              
+              breakdown.push({
+                label: `${dateStr} - ${restaurantName} (${mealPeriod}${mealType ? ' - ' + mealType : ''})`,
+                sublabel: priceLabel,
+                value: `SGD ${mealPrice.toLocaleString()}`,
+                subtitle: '(infants excluded)'
+              });
+            });
           });
+          showTotal = breakdown.length > 1;
         } else {
-          mealCount = restaurantData.length;
+          // Old format: flat array
+          restaurantData.forEach((restaurant, index) => {
+            const restaurantName = restaurant.name || `Restaurant ${index + 1}`;
+            const pricePerPerson = parseFloat(restaurant['base-price']) || 0;
+            const restaurantTotal = pricePerPerson * personsForRestaurant;
+            breakdown.push({
+              label: `${restaurantName}: SGD ${pricePerPerson.toLocaleString()} × ${personsForRestaurant} guest${personsForRestaurant > 1 ? 's' : ''}`,
+              value: `SGD ${restaurantTotal.toLocaleString()}`,
+              subtitle: '(infants excluded)'
+            });
+          });
+          showTotal = restaurantData.length > 1;
         }
-        breakdown.push({
-          label: `${mealCount} Meal${mealCount > 1 ? 's' : ''} × ${totalPersons} guest${totalPersons > 1 ? 's' : ''}`,
-          value: `SGD ${price.toLocaleString()}`
-        });
         break;
+        
       default:
         return null;
     }
+
+    if (breakdown.length === 0) return null;
 
     return (
       <Box 
         sx={{ 
           mt: 2, 
-          p: 1.5, 
+          p: 2, 
           bgcolor: `${serviceColors[service]}10`,
           borderRadius: 1.5,
           border: `1px solid ${serviceColors[service]}30`
         }}
       >
-        <Typography variant="caption" fontWeight={600} color={serviceColors[service]} sx={{ display: 'block', mb: 1 }}>
+        <Typography variant="caption" fontWeight={600} color={serviceColors[service]} sx={{ display: 'block', mb: 1.5, fontSize: '0.8rem' }}>
           💰 Price Breakdown
         </Typography>
         {breakdown.map((item, index) => (
           <Box 
             key={index}
             sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: index < breakdown.length - 1 ? 0.5 : 0
+              mb: index < breakdown.length - 1 ? 1.5 : (showTotal ? 1.5 : 0),
+              pb: index < breakdown.length - 1 ? 1.5 : (showTotal ? 1.5 : 0),
+              borderBottom: index < breakdown.length - 1 || showTotal ? `1px dashed ${serviceColors[service]}30` : 'none'
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              {item.label}
-            </Typography>
-            <Typography variant="body2" fontWeight={700} color={serviceColors[service]}>
-              {item.value}
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: item.sublabel ? 0.5 : 0 }}>
+              <Typography variant="body2" color="text.primary" sx={{ fontWeight: 500, flex: 1, pr: 2 }}>
+                {item.label}
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color={serviceColors[service]} sx={{ whiteSpace: 'nowrap' }}>
+                {item.value}
+              </Typography>
+            </Box>
+            {item.sublabel && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                {item.sublabel}
+              </Typography>
+            )}
+            {item.subtitle && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                {item.subtitle}
+              </Typography>
+            )}
           </Box>
         ))}
+        
+        {/* Show total if multiple items */}
+        {showTotal && (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            pt: 1,
+            mt: 0.5
+          }}>
+            <Typography variant="body2" fontWeight={700} color="text.primary">
+              Total:
+            </Typography>
+            <Typography variant="h6" fontWeight={700} color={serviceColors[service]}>
+              SGD {price.toLocaleString()}
+            </Typography>
+          </Box>
+        )}
       </Box>
     );
   };
@@ -2330,16 +2444,20 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                         sx={{ 
                           p: 0, 
                           minHeight: 'auto',
+                          cursor: 'pointer',
                           '&:hover': {
-                            bgcolor: `${serviceColors[service]}08`
+                            bgcolor: `${serviceColors[service]}12`,
+                            borderRadius: 1,
                           },
                           borderRadius: 1,
-                          px: 1
+                          px: 1.5,
+                          py: 1,
+                          transition: 'all 0.2s ease'
                         }}
                       >
                         <Typography 
                           color="primary" 
-                          fontWeight={500}
+                          fontWeight={600}
                           sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                         >
                           📋 Service Details
@@ -2348,18 +2466,71 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                       <AccordionDetails 
                         sx={{ 
                           pt: 2, 
-                          pb: 0,
-                          maxHeight: 400,
+                          pb: 2,
+                          px: 2,
+                          maxHeight: '400px',
+                          minHeight: '100px',
                           overflowY: 'auto',
+                          overflowX: 'hidden',
+                          position: 'relative',
+                          overscrollBehavior: 'contain',
+                          WebkitOverflowScrolling: 'touch',
+                          display: 'block',
+                          // Ensure scrolling works
+                          scrollBehavior: 'smooth',
+                          // Ensure scrollbar is interactive
+                          pointerEvents: 'auto',
+                          // Custom scrollbar styling
                           '&::-webkit-scrollbar': {
-                            width: '6px'
+                            width: '8px',
+                            display: 'block'
                           },
                           '&::-webkit-scrollbar-track': {
-                            bgcolor: 'transparent'
+                            bgcolor: `${serviceColors[service]}08`,
+                            borderRadius: '10px',
+                            margin: '8px 0',
+                            pointerEvents: 'auto'
                           },
                           '&::-webkit-scrollbar-thumb': {
-                            bgcolor: `${serviceColors[service]}40`,
-                            borderRadius: '10px'
+                            bgcolor: `${serviceColors[service]}60`,
+                            borderRadius: '10px',
+                            cursor: 'grab',
+                            pointerEvents: 'auto',
+                            '&:hover': {
+                              bgcolor: `${serviceColors[service]}80`
+                            },
+                            '&:active': {
+                              cursor: 'grabbing',
+                              bgcolor: `${serviceColors[service]}90`
+                            }
+                          },
+                          // Firefox scrollbar
+                          scrollbarWidth: 'thin',
+                          scrollbarColor: `${serviceColors[service]}60 ${serviceColors[service]}08`
+                        }}
+                        onClick={(e) => {
+                          // Prevent accordion toggle when clicking inside details
+                          // Scrollbar clicks will naturally not trigger this since they're on pseudo-elements
+                          e.stopPropagation();
+                        }}
+                        onWheel={(e) => {
+                          // Allow natural scrolling - only prevent propagation at boundaries to avoid parent scroll
+                          const element = e.currentTarget;
+                          const { scrollTop, scrollHeight, clientHeight } = element;
+                          
+                          // Only interfere if content is actually scrollable
+                          if (scrollHeight > clientHeight + 1) {
+                            const delta = e.deltaY;
+                            const tolerance = 2; // Small tolerance for boundary detection
+                            const isAtTop = scrollTop <= tolerance;
+                            const isAtBottom = scrollTop + clientHeight >= scrollHeight - tolerance;
+                            
+                            // Only stop propagation when at boundaries to prevent parent scroll
+                            // This allows normal scrolling within the container
+                            if ((isAtTop && delta < 0) || (isAtBottom && delta > 0)) {
+                              e.stopPropagation();
+                            }
+                            // Otherwise, let the scroll happen naturally - don't call preventDefault or stopPropagation
                           }
                         }}
                       >

@@ -72,7 +72,6 @@ import {
   setGuest 
 } from "../../../slice/common/EnquirySlice";
 import { setSearchLocation } from "../../../slice/common/BookingSlice";
-import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { setSearchCriteria, fetchTourPackages, clearPackages, clearAllServices, setAllServices, setPackageData } from "../../../slice/tour-packages/tourPackageSlice";
 import { store } from "../../../store/store";
 import { setSearchParams as setAttractionSearchParams } from "../../../slice/attractions/attractionSlice";
