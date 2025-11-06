@@ -2527,7 +2527,7 @@ class HotelBookingController extends Controller
                 'hotel_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
                 'reference_id' => 'required|string|max:255',
-                'actual_due_date' => 'required|date|after_or_equal:today',
+                'actual_due_date' => 'required|date',
                 'display_due_date_days' => 'required|integer|min:1',
                 'display_due_date' => 'required|string|max:255',
                 //'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max

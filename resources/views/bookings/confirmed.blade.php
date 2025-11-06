@@ -883,7 +883,7 @@
                                     </a>
                                     
                                     @php
-                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
+                                        $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
                                     @endphp
                                     @if(in_array(auth()->user()->role_id, $all_ids))
                                     <a href="{{ route('tour.itinerary', ['tourId' => Crypt::encrypt($tour->tour_id)]) }}" 
@@ -893,16 +893,16 @@
                                         <i class="fas fa-calendar-alt"></i> View Itinerary
                                     </a>
                                     @endif
-                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                         <a href="{{ route('tour.editpackage', Crypt::encrypt($tour->tour_id)) }}" 
                                         class="btn btn-outline-warning btn-sm rounded-pill">
                                             <i class="ri-settings-3-line"></i> Add/Remove Services
                                         </a>
                                     @endif
 
-                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130,131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('guests.index', ['tour_id' => Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-outline-warning btn-sm rounded-pill" 
+                                       class="btn btn-outline-info btn-sm rounded-pill" 
                                        title="Add guests for this tour">
                                         <i class="ri-user-add-line me-1"></i> Add Guests
                                     </a>
@@ -20680,10 +20680,7 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        if (selectedDate < today) {
-            alert('Actual due date cannot be in the past');
-            return;
-        }
+        
         
         // Show loading state
         const approveButton = event.target;
