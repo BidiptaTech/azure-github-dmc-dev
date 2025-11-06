@@ -473,11 +473,9 @@
         
         <!-- Email Footer -->
         <div class="email-footer">
-            <p class="footer-text">
-                &copy; {{ date('Y') }} {{ $company_name ?? 'Company Name' }}. All rights reserved.
-            </p>
-            <p class="footer-text" style="font-size: 12px; opacity: 0.8;">
-                This email was sent to {{ $email ?? 'you' }} regarding your guest account registration.
+            <p class="footer-text" style="font-size: 14px; line-height: 1.8;">
+                This invitation was initiated by <strong>{{ $dmc_company_name ?? 'Your DMC' }}</strong> via the Travclicks platform. 
+                For any support, please contact <a href="mailto:support@travclicks.com" style="color: #667eea; text-decoration: none;">support@travclicks.com</a> or your DMC directly.
             </p>
         </div>
     </div>

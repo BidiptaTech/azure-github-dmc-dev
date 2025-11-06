@@ -680,7 +680,7 @@ $(document).ready(function() {
         $('#email').val(data.email);
         $('#country_code').val(data.countryCode || '+91');
         $('#contact').val(data.contact);
-        $('#whatsapp_no').val(data.whatsappNo || '');
+        $('#whatsapp_no').val(data.whatsappNo || data['whatsapp-no'] || '');
         $('#app_password').val(data.appPassword || '');
         $('#formMethod').val('PUT');
         $('#formTitle').text('Update Guest Information');

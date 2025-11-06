@@ -14,6 +14,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Order;
+use App\Models\User;
 
 class GuestController extends Controller
 {
@@ -450,6 +451,11 @@ class GuestController extends Controller
             $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
             $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
             
+            // Get DMC company name (the company that initiated the invitation)
+            $dmcId = CommonHelper::getDmcId(auth()->user());
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcCompanyName = $dmc->company_name ?? null;
+            
             // Prepare email data (use plain password for email, not the hashed one)
             $emailData = [
                 'guest_name' => $guest->guest_name,
@@ -462,6 +468,7 @@ class GuestController extends Controller
                 'company_logo' => $companyLogo,
                 'support_email' => $supportEmail,
                 'support_phone' => $supportPhone,
+                'dmc_company_name' => $dmcCompanyName,
             ];
             
             // Render the email template
@@ -527,6 +534,11 @@ class GuestController extends Controller
             $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
             $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
             
+            // Get DMC company name (the company that initiated the invitation)
+            $dmcId = CommonHelper::getDmcId(auth()->user());
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcCompanyName = $dmc->company_name ?? null;
+            
             // Prepare email data (use plain password for email, not the hashed one)
             $emailData = [
                 'guest_name' => $guest->guest_name,
@@ -539,6 +551,7 @@ class GuestController extends Controller
                 'company_logo' => $companyLogo,
                 'support_email' => $supportEmail,
                 'support_phone' => $supportPhone,
+                'dmc_company_name' => $dmcCompanyName,
             ];
             
             // Render the email template
