@@ -359,7 +359,7 @@ class AgentController extends Controller
                 $dmc_user = User::where('userId', $dmc_id)->first();
 
                 // Generate activation link (login URL)
-                $activationLink = url('login');
+                $activationLink = CommonHelper::url();
                 
                 $emailData = [
                     'salutation' => $agent->salutation,

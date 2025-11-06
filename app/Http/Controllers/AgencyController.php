@@ -480,12 +480,67 @@ class AgencyController extends Controller
                 }
             }
             
+            // Check if this is the first DMC selecting this agency
+            $existingDmcIds = $agency->getSelectedDmcIds();
+            $isFirstDmc = empty($existingDmcIds);
+            
             // Add the DMC ID to the agency's dmc_id array
             $agency->addDmcId($dmc_id);
             
+            // Send appropriate email based on whether this is first DMC or not
+            try {
+                if ($isFirstDmc) {
+                    // First DMC selecting - send BOTH welcome email AND partnership email
+                    
+                    // Send welcome email
+                    $welcomeEmailResult = \App\Helpers\CommonHelper::sendAgencyWelcomeEmail($agencyId, $dmc_id);
+                    
+                    if ($welcomeEmailResult !== true) {
+                        \Log::warning("Agency welcome email not sent", [
+                            'agency_id' => $agencyId,
+                            'dmc_id' => $dmc_id,
+                            'reason' => $welcomeEmailResult
+                        ]);
+                    }
+                    
+                    // Send partnership email as well
+                    $partnershipEmailResult = \App\Helpers\CommonHelper::sendAgencyPartnershipEmail($agencyId, $dmc_id);
+                    
+                    if ($partnershipEmailResult !== true) {
+                        \Log::warning("Agency partnership email not sent on first DMC selection", [
+                            'agency_id' => $agencyId,
+                            'dmc_id' => $dmc_id,
+                            'reason' => $partnershipEmailResult
+                        ]);
+                    }
+                    
+                    $emailResult = ($welcomeEmailResult === true || $partnershipEmailResult === true);
+                } else {
+                    // Additional DMC selecting - send only partnership email
+                    $emailResult = \App\Helpers\CommonHelper::sendAgencyPartnershipEmail($agencyId, $dmc_id);
+                    
+                    if ($emailResult !== true) {
+                        \Log::warning("Agency partnership email not sent", [
+                            'agency_id' => $agencyId,
+                            'dmc_id' => $dmc_id,
+                            'reason' => $emailResult
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error("Exception while sending agency email", [
+                    'agency_id' => $agencyId,
+                    'dmc_id' => $dmc_id,
+                    'is_first_dmc' => $isFirstDmc,
+                    'error' => $e->getMessage()
+                ]);
+                // Don't fail the agency selection if email fails
+            }
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Agency selected successfully!'
+                'message' => 'Agency selected successfully!',
+                'email_sent' => isset($emailResult) && $emailResult === true
             ]);
             
         } catch (\Exception $e) {

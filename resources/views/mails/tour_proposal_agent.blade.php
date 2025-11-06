@@ -176,7 +176,10 @@
         <!-- Email Footer -->
         <tr>
             <td style="background: #f8fafc; padding: 25px 40px; text-align: center; font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; line-height: 1.7;">
-                <p style="margin: 0;">
+                <p style="margin: 0 0 15px 0; font-style: italic; color: #4f46e5; font-weight: 600; font-size: 15px;">
+                    *Empowering Destination Management through Smart Automation*
+                </p>
+                <p style="margin: 0 0 15px 0;">
                     This proposal was sent by <strong>{{ $dmc_name ?? 'DMC' }}</strong> via the Travclicks platform. 
                     For any support, please contact 
                     <a href="mailto:support@travclicks.com" style="color: #4f46e5; text-decoration: none; font-weight: 600;">support@travclicks.com</a>
@@ -192,6 +195,10 @@
                             {{ $dmc_phone }}
                         @endif
                     @endif.
+                </p>
+                <p style="margin: 15px 0 0 0; font-size: 13px; color: #94a3b8; line-height: 1.6;">
+                    This is an automated message from Travclicks. Do not reply to this email. For support, contact 
+                    <a href="mailto:support@travclicks.com" style="color: #4f46e5; text-decoration: none; font-weight: 600;">support@travclicks.com</a>
                 </p>
             </td>
         </tr>

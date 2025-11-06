@@ -343,6 +343,49 @@
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         backdrop-filter: blur(10px);
     }
+
+    /* Enhanced Checkbox Styling */
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid #cbd5e1;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: #4f46e5;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.15);
+    }
+
+    .form-check-input:hover {
+        border-color: #4f46e5;
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.3s ease;
+    }
+
+    .form-check-label:hover {
+        color: #4f46e5 !important;
+    }
+
+    .form-check {
+        padding: 0.5rem 0.75rem;
+        background: rgba(79, 70, 229, 0.03);
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+
+    .form-check:hover {
+        background: rgba(79, 70, 229, 0.06);
+        border-color: #4f46e5;
+    }
 </style>
 
 <!-- Select2 CSS -->
@@ -461,6 +504,15 @@
                                 <i class="ri-phone-line text-primary"></i>
                                 WP Number <span class="text-danger">*</span>
                             </label>
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sameAsPhone">
+                                    <label class="form-check-label" for="sameAsPhone" style="font-weight: 500; font-size: 0.875rem; color: #64748b;">
+                                        <i class="ri-checkbox-circle-line me-1"></i>
+                                        Same as phone number
+                                    </label>
+                                </div>
+                            </div>
                             <input type="text" 
                                    class="form-control @error('wp_number') is-invalid @enderror" 
                                    id="wp_number" 
@@ -804,6 +856,61 @@ $(document).ready(function() {
     initializeSelect2('#country', 'Search for country...');
     initializeSelect2('#city', 'Search for city...');
     initializeSelect2('#id_card_type', 'Search for card type...');
+
+    // Handle "Same as phone number" checkbox for WP number
+    $('#sameAsPhone').on('change', function() {
+        const phoneNumber = $('#phone').val();
+        const wpNumberField = $('#wp_number');
+        
+        if ($(this).is(':checked')) {
+            // Check if phone number is empty
+            if (!phoneNumber || !phoneNumber.trim()) {
+                showNotification('Please enter phone number first', 'warning');
+                $(this).prop('checked', false);
+                $('#phone').focus();
+                return;
+            }
+            
+            // Copy phone number to WP number and make field readonly
+            wpNumberField.val(phoneNumber);
+            wpNumberField.prop('readonly', true);
+            wpNumberField.css({
+                'background-color': '#f8f9fa',
+                'cursor': 'not-allowed',
+                'opacity': '0.8'
+            });
+            
+            showNotification('✓ WP number synchronized with phone number', 'success');
+        } else {
+            // Enable WP number field for manual entry
+            wpNumberField.val('');
+            wpNumberField.prop('readonly', false);
+            wpNumberField.css({
+                'background-color': '',
+                'cursor': '',
+                'opacity': ''
+            });
+            wpNumberField.focus();
+        }
+    });
+
+    // Update WP number when phone number changes (if checkbox is checked)
+    $('#phone').on('input', function() {
+        if ($('#sameAsPhone').is(':checked')) {
+            $('#wp_number').val($(this).val());
+        }
+    });
+
+    // Uncheck the checkbox if user manually edits WP number
+    $('#wp_number').on('focus', function() {
+        if ($('#sameAsPhone').is(':checked')) {
+            if (confirm('Do you want to enter a different WP number?')) {
+                $('#sameAsPhone').prop('checked', false).trigger('change');
+            } else {
+                $(this).blur();
+            }
+        }
+    });
 
     // Function to initialize Select2
     function initializeSelect2(selector, placeholder) {
