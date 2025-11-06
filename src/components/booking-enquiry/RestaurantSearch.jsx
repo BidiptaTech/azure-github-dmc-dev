@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
+import { selectSelectedDmcIds } from "@/slice/dmc/dmcSlice";
 import { styled } from "@mui/material/styles";
 import {
   Box,
@@ -263,6 +264,7 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
   // Get restaurants from Redux store
   const { restaurants = [], loading, error } = useSelector(state => state.enquiryList || { restaurants: [], loading: false });
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const selectedDmcIds = useSelector(selectSelectedDmcIds);
   
   // Use props dates first, fallback to Redux
   const reduxCheckinDate = useSelector(state => state.enquiry?.checkIn);
@@ -501,7 +503,15 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
           )}
         </InputLabel>
         
-        {dateRange.length === 0 && (
+        {selectedDmcIds.length === 0 && (
+          <Paper sx={{ p: 2, bgcolor: 'warning.light', color: 'text.secondary', mb: 2 }}>
+            <Typography variant="body2">
+              Please select at least one DMC to view available restaurants.
+            </Typography>
+          </Paper>
+        )}
+        
+        {dateRange.length === 0 && selectedDmcIds.length > 0 && (
           <Paper sx={{ p: 2, bgcolor: 'warning.light', color: 'text.secondary' }}>
             <Typography variant="body2">
               Please select check-in and check-out dates to add restaurants.
@@ -509,7 +519,7 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
           </Paper>
         )}
         
-        {dateRange.length > 0 && (
+        {dateRange.length > 0 && selectedDmcIds.length > 0 && (
           <Box>
             {/* Horizontal Day Selector */}
             <DayBoxContainer>
