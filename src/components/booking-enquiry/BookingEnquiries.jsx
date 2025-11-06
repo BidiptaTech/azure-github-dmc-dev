@@ -416,38 +416,38 @@ const BookingEnquiries = ({
 
 
   // Fetch enquiry list when component mounts or when city data changes
-  useEffect(() => {
-    // Check if we have city data to fetch the enquiry list
-    if (selectedCity && selectedCity.cityName && selectedCity.countryName) {
-      console.log("Fetching enquiry list from BookingEnquiries component", {
-        country: selectedCity.countryName,
-        city: selectedCity.cityName,
-      });
+  // useEffect(() => {
+  //   // Check if we have city data to fetch the enquiry list
+  //   if (selectedCity && selectedCity.cityName && selectedCity.countryName) {
+  //     console.log("Fetching enquiry list from BookingEnquiries component", {
+  //       country: selectedCity.countryName,
+  //       city: selectedCity.cityName,
+  //     });
 
-      dispatch(
-        fetchEnquiryList({
-          country: selectedCity.countryName,
-          city: selectedCity.cityName,
-        })
-      );
-    } else if (enquiryData && enquiryData.searchLocation) {
-      // Try to use data from enquiryData if selectedCity is not available
-      const { country, city } = enquiryData.searchLocation;
-      if (country && city) {
-        console.log("Fetching enquiry list using enquiry data", {
-          country,
-          city,
-        });
+  //     dispatch(
+  //       fetchEnquiryList({
+  //         country: selectedCity.countryName,
+  //         city: selectedCity.cityName,
+  //       })
+  //     );
+  //   } else if (enquiryData && enquiryData.searchLocation) {
+  //     // Try to use data from enquiryData if selectedCity is not available
+  //     const { country, city } = enquiryData.searchLocation;
+  //     if (country && city) {
+  //       console.log("Fetching enquiry list using enquiry data", {
+  //         country,
+  //         city,
+  //       });
 
-        dispatch(
-          fetchEnquiryList({
-            country,
-            city,
-          })
-        );
-      }
-    }
-  }, [selectedCity, enquiryData, dispatch]);
+  //       dispatch(
+  //         fetchEnquiryList({
+  //           country,
+  //           city,
+  //         })
+  //       );
+  //     }
+  //   }
+  // }, [selectedCity, enquiryData, dispatch]);
 
   // Refetch enquiry list when DMCs are selected/deselected
   useEffect(() => {
@@ -690,15 +690,16 @@ const BookingEnquiries = ({
         // Don't add default price if no cars selected
       }
 
-      // Calculate attraction pricing (price × persons)
+      // Calculate attraction pricing (price × persons, excluding infants)
       if (bookingOptions.attraction && serviceDetails.attraction) {
         const attractions = serviceDetails.attraction.selectedAttractions || [];
+        const personsForAttraction = adults + children; // Exclude infants from attraction pricing
         attractions.forEach(attraction => {
           const pricePerPerson = parseFloat(attraction.base_price) || 0;
           if (pricePerPerson > 0) {
-            const attractionTotal = pricePerPerson * totalPersons;
+            const attractionTotal = pricePerPerson * personsForAttraction;
             totalPrice += attractionTotal;
-            console.log(`  🎟️ Attraction: ${pricePerPerson} × ${totalPersons} persons = ${attractionTotal}`);
+            console.log(`  🎟️ Attraction: ${pricePerPerson} × ${personsForAttraction} persons (${adults} adults + ${children} children, infants excluded) = ${attractionTotal}`);
           }
         });
       }
@@ -730,9 +731,10 @@ const BookingEnquiries = ({
         });
       }
 
-      // Calculate restaurant pricing (price × persons per meal)
+      // Calculate restaurant pricing (price × persons per meal, excluding infants)
       if (bookingOptions.restaurant && serviceDetails.restaurant) {
         const restaurantData = serviceDetails.restaurant.selectedRestaurants || [];
+        const personsForRestaurant = adults + children; // Exclude infants from restaurant pricing
         
         // Check if new format (with dates and meals)
         if (restaurantData.length > 0 && restaurantData[0]?.date && restaurantData[0]?.restaurants) {
@@ -745,36 +747,36 @@ const BookingEnquiries = ({
               if (meal) {
                 // Calculate based on meal type
                 if (meal.set_menu_price) {
-                  mealPrice = parseFloat(meal.set_menu_price) * totalPersons;
+                  mealPrice = parseFloat(meal.set_menu_price) * personsForRestaurant; // Exclude infants
                 } else {
-                  // Calculate for adults and children separately
+                  // Calculate for adults and children separately (infants excluded)
                   const adultPrice = parseFloat(meal.adult_price) || 0;
                   const childPrice = parseFloat(meal.child_price) || 0;
-                  mealPrice = (adultPrice * adults) + (childPrice * (children + infants));
+                  mealPrice = (adultPrice * adults) + (childPrice * children); // Infants excluded
                 }
               } else {
-                // Fallback to base price
+                // Fallback to base price (exclude infants)
                 const restaurant = entry.restaurant;
                 const basePrice = parseFloat(restaurant['base-price']) || 0;
                 if (basePrice > 0) {
-                  mealPrice = basePrice * totalPersons;
+                  mealPrice = basePrice * personsForRestaurant; // Exclude infants
                 }
               }
               
               if (mealPrice > 0) {
                 totalPrice += mealPrice;
-                console.log(`  🍽️ Restaurant Meal: ${mealPrice} for ${totalPersons} persons`);
+                console.log(`  🍽️ Restaurant Meal: ${mealPrice} for ${personsForRestaurant} persons (${adults} adults + ${children} children, infants excluded)`);
               }
             });
           });
         } else {
-          // Old format: flat array of restaurants
+          // Old format: flat array of restaurants (exclude infants)
           restaurantData.forEach(restaurant => {
             const pricePerPerson = parseFloat(restaurant['base-price']) || 0;
             if (pricePerPerson > 0) {
-              const restaurantTotal = pricePerPerson * totalPersons;
+              const restaurantTotal = pricePerPerson * personsForRestaurant;
               totalPrice += restaurantTotal;
-              console.log(`  🍽️ Restaurant: ${pricePerPerson} × ${totalPersons} persons = ${restaurantTotal}`);
+              console.log(`  🍽️ Restaurant: ${pricePerPerson} × ${personsForRestaurant} persons (${adults} adults + ${children} children, infants excluded) = ${restaurantTotal}`);
             }
           });
         }
