@@ -14,10 +14,12 @@ import {
   CalendarMonth as CalendarIcon,
   People as PeopleIcon,
   LocationOn as LocationIcon,
-  Person as AdultIcon,
   ChildCare as ChildIcon,
-  BabyChangingStation as InfantIcon,
+  Male as MaleIcon,
+  Female as FemaleIcon,
 } from "@mui/icons-material";
+import Woman2TwoToneIcon from '@mui/icons-material/Woman2TwoTone';
+import Man2TwoToneIcon from '@mui/icons-material/Man2TwoTone';
 import { updateServiceDetails } from "@/slice/common/EnquirySlice";
 
 // Styled components
@@ -382,12 +384,22 @@ const TripDetailsComponent = ({ mode = 'view' }) => {
           >
             {bookingDetails.guests ? (
               <>
-                {/* Adults */}
-                {(bookingDetails.guests.adults > 0 || bookingDetails.guests.adults === '0' || parseInt(bookingDetails.guests.adults) > 0) && (
+                {/* Male Adults - Using Male icon as person icon */}
+                {(bookingDetails.guests.maleCount > 0 || parseInt(bookingDetails.guests.maleCount) > 0) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <AdultIcon sx={{ fontSize: 18, color: '#1976d2' }} />
+                    <Man2TwoToneIcon sx={{ fontSize: 18, color: '#1976d2' }} />
                     <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'text.primary' }}>
-                      {bookingDetails.guests.adults || 0}
+                      {bookingDetails.guests.maleCount || 0}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {/* Female Adults - Using Female icon as person icon */}
+                {(bookingDetails.guests.femaleCount > 0 || parseInt(bookingDetails.guests.femaleCount) > 0) && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Woman2TwoToneIcon sx={{ fontSize: 18, color: '#e91e63' }} />
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'text.primary' }}>
+                      {bookingDetails.guests.femaleCount || 0}
                     </Typography>
                   </Box>
                 )}
@@ -402,10 +414,14 @@ const TripDetailsComponent = ({ mode = 'view' }) => {
                   </Box>
                 )}
                 
-                {/* Infants - Fixed property name from 'infants' to 'infant' */}
+                {/* Infants */}
                 {(bookingDetails.guests.infant > 0 || bookingDetails.guests.infant === '0' || parseInt(bookingDetails.guests.infant) > 0) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <InfantIcon sx={{ fontSize: 18, color: '#9c27b0' }} />
+                    <img 
+                      src="/icons/infant.png" 
+                      alt="infant" 
+                      style={{ width: 18, height: 18, objectFit: 'contain' }}
+                    />
                     <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: 'text.primary' }}>
                       {bookingDetails.guests.infant || 0}
                     </Typography>
@@ -413,7 +429,8 @@ const TripDetailsComponent = ({ mode = 'view' }) => {
                 )}
                 
                 {/* Show "Not specified" if all counts are 0 or empty */}
-                {(!bookingDetails.guests.adults && !bookingDetails.guests.children && !bookingDetails.guests.infant) && (
+                {(!bookingDetails.guests.maleCount && !bookingDetails.guests.femaleCount && 
+                  !bookingDetails.guests.children && !bookingDetails.guests.infant) && (
                   <Typography sx={{ fontSize: '0.9rem', fontWeight: 500, color: 'text.secondary' }}>
                     Not specified
                   </Typography>

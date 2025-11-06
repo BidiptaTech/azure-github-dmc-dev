@@ -451,6 +451,13 @@ const BookingEnquiries = ({
 
   // Refetch enquiry list when DMCs are selected/deselected
   useEffect(() => {
+    // If no DMCs are selected, clear the enquiry list
+    if (selectedDmcsData.length === 0) {
+      console.log("🗑️ No DMCs selected - clearing enquiry list");
+      dispatch(clearEnquiryList());
+      return;
+    }
+
     // Only refetch if we have location data and at least one DMC is selected
     if (selectedDmcsData.length > 0 && activeLocation) {
       let country = null;
@@ -501,7 +508,8 @@ const BookingEnquiries = ({
     // Check if DMCs have changed
     const dmcsChanged = JSON.stringify(prevDmcIdsRef.current) !== JSON.stringify(selectedDmcIds);
     
-    if (dmcsChanged && prevDmcIdsRef.current.length > 0) {
+    // Clear data if DMCs changed (including when all are unselected)
+    if (dmcsChanged && (prevDmcIdsRef.current.length > 0 || selectedDmcIds.length === 0)) {
       console.log("🔄 DMCs changed - clearing selected service data");
       console.log("Previous DMCs:", prevDmcIdsRef.current);
       console.log("Current DMCs:", selectedDmcIds);
