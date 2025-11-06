@@ -409,6 +409,16 @@
                     </div>
 
                     <div class="col-md-6">
+                        <label for="whatsapp_no" class="form-label">
+                            <i class="ri-whatsapp-line me-1"></i>WhatsApp Number
+                        </label>
+                        <input type="text" class="form-control" id="whatsapp_no" name="whatsapp_no" 
+                               placeholder="Enter WhatsApp number with country code (e.g., +91 1234567890)" 
+                               title="Please enter a valid WhatsApp number with country code">
+                        <div class="invalid-feedback" id="whatsapp_no_error"></div>
+                    </div>
+
+                    <div class="col-md-6">
                         <label for="app_password" class="form-label">
                             <i class="ri-lock-password-line me-1"></i>App Password
                         </label>
@@ -465,6 +475,7 @@
                             <th>Tour ID</th>
                             <th>Email</th>
                             <th>Contact</th>
+                            <th>WhatsApp No.</th>
                             <th>Created At</th>
                             <th>Actions</th>
                         </tr>
@@ -538,10 +549,11 @@ $(document).ready(function() {
                 { data: 'tour_id', name: 'tour_id' },
                 { data: 'email', name: 'email' },
                 { data: 'contact', name: 'contact' },
+                { data: 'whatsapp_no', name: 'whatsapp_no' },
                 { data: 'created_at_formatted', name: 'created_at' },
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ],
-            order: [[6, 'desc']],
+            order: [[7, 'desc']],
             pageLength: 10,
             responsive: true,
             language: {
@@ -668,6 +680,7 @@ $(document).ready(function() {
         $('#email').val(data.email);
         $('#country_code').val(data.countryCode || '+91');
         $('#contact').val(data.contact);
+        $('#whatsapp_no').val(data.whatsappNo || '');
         $('#app_password').val(data.appPassword || '');
         $('#formMethod').val('PUT');
         $('#formTitle').text('Update Guest Information');

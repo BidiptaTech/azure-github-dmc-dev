@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome - Your Tour Tracking Credentials</title>
+    <title>Account Updated - Your Tour Tracking Credentials</title>
     <style>
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
         
@@ -74,6 +74,33 @@
             font-size: 16px;
             color: #64748b;
             line-height: 1.7;
+        }
+        
+        .update-notice {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-radius: 16px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 2px solid #22c55e;
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.1);
+        }
+        
+        .update-notice-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #166534;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .update-notice-text {
+            color: #14532d;
+            font-size: 15px;
+            line-height: 1.7;
+            margin: 0;
         }
         
         .credentials-box {
@@ -157,66 +184,6 @@
             color: #78350f;
             font-size: 15px;
             line-height: 1.7;
-        }
-        
-        .features-section {
-            margin: 35px 0;
-        }
-        
-        .section-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .feature-item {
-            display: flex;
-            align-items: start;
-            margin-bottom: 18px;
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 12px;
-            border-left: 4px solid #667eea;
-        }
-        
-        .feature-icon {
-            color: #667eea;
-            font-size: 20px;
-            margin-right: 15px;
-            margin-top: 2px;
-            min-width: 25px;
-        }
-        
-        .feature-text {
-            color: #475569;
-            font-size: 15px;
-            margin: 0;
-        }
-        
-        .cta-button {
-            display: block;
-            text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
-            padding: 18px 35px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 18px;
-            margin: 30px auto;
-            max-width: 350px;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-            transition: all 0.3s ease;
-        }
-        
-        .cta-button:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #6b3f92 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
         
         .security-notice {
@@ -304,18 +271,14 @@
             }
             
             .credentials-box,
-            .tour-info-box {
+            .tour-info-box,
+            .update-notice {
                 padding: 20px;
             }
             
             .contact-info {
                 flex-direction: column;
                 gap: 15px;
-            }
-            
-            .cta-button {
-                padding: 16px 25px;
-                font-size: 16px;
             }
         }
     </style>
@@ -329,8 +292,8 @@
                     <img src="{{ $company_logo }}" alt="{{ $company_name ?? 'Company Logo' }}" class="logo">
                 @endif
             </div>
-            <h1 class="header-title">Welcome Aboard!</h1>
-            <p class="header-subtitle">Your tour tracking credentials are ready</p>
+            <h1 class="header-title">Account Updated</h1>
+            <p class="header-subtitle">Your tour tracking credentials have been updated</p>
         </div>
         
         <!-- Email Body -->
@@ -338,15 +301,25 @@
             <p class="greeting">Hello {{ $guest_name ?? 'Guest' }}!</p>
             
             <p class="intro-text">
-                Thank you for choosing us for your upcoming tour! We're excited to have you on board. 
-                Your guest account has been successfully created, and you can now track your tour progress 
-                and access important information through our mobile app.
+                We're writing to inform you that your guest account information has been successfully updated. 
+                Your updated credentials and tour information are provided below for your reference.
             </p>
+            
+            <!-- Update Notice -->
+            <div class="update-notice">
+                <h3 class="update-notice-title">
+                    <i class="fas fa-check-circle"></i> What's Been Updated
+                </h3>
+                <p class="update-notice-text">
+                    Your account credentials have been refreshed. Please use the updated information below to access 
+                    your tour tracking dashboard and stay connected with your tour activities.
+                </p>
+            </div>
             
             <!-- Credentials Box -->
             <div class="credentials-box">
                 <h3 class="credentials-title">
-                    <i class="fas fa-key"></i> Your Login Credentials
+                    <i class="fas fa-key"></i> Your Updated Login Credentials
                 </h3>
                 
                 <div class="credential-item">
@@ -382,7 +355,7 @@
                 <div class="tour-info-content">
                     <strong>Tour ID{{ is_array($tour_id) && count($tour_id) > 1 ? 's' : '' }}:</strong> 
                     {{ is_array($tour_id) ? implode(', ', $tour_id) : $tour_id }}<br>
-                    You can use this ID to track your tour and access all related information in the app.
+                    You can use {{ is_array($tour_id) && count($tour_id) > 1 ? 'these IDs' : 'this ID' }} to track your tour and access all related information in the app.
                 </div>
             </div>
             @endif
@@ -390,53 +363,14 @@
             <!-- Security Notice -->
             <div class="security-notice">
                 <div class="security-notice-title">
-                    <i class="fas fa-shield-alt"></i> Security Notice
+                    <i class="fas fa-shield-alt"></i> Security Reminder
                 </div>
                 <p class="security-notice-text">
-                    Please keep your credentials secure and do not share them with anyone. 
-                    We recommend changing your password after your first login for enhanced security.
+                    If you did not request this update or if you notice any suspicious activity, 
+                    please contact our support team immediately. Always keep your credentials secure 
+                    and do not share them with anyone.
                 </p>
             </div>
-            
-            <!-- Features Section -->
-            <div class="features-section">
-                <h3 class="section-title">
-                    <i class="fas fa-star"></i> What You Can Do
-                </h3>
-                
-                <div class="feature-item">
-                    <i class="fas fa-map-marked-alt feature-icon"></i>
-                    <p class="feature-text">
-                        <strong>Track Your Tour:</strong> View real-time updates on your tour itinerary and schedule
-                    </p>
-                </div>
-                
-                <div class="feature-item">
-                    <i class="fas fa-calendar-check feature-icon"></i>
-                    <p class="feature-text">
-                        <strong>Access Bookings:</strong> Review your booking details, dates, and important information
-                    </p>
-                </div>
-                
-                <div class="feature-item">
-                    <i class="fas fa-bell feature-icon"></i>
-                    <p class="feature-text">
-                        <strong>Get Notifications:</strong> Receive timely updates about your tour and any changes
-                    </p>
-                </div>
-                
-                <div class="feature-item">
-                    <i class="fas fa-headset feature-icon"></i>
-                    <p class="feature-text">
-                        <strong>Contact Support:</strong> Reach out to our team anytime for assistance during your tour
-                    </p>
-                </div>
-            </div>
-            
-            <!-- CTA Button -->
-            <a href="#" class="cta-button">
-                <i class="fas fa-mobile-alt"></i> Download Our App
-            </a>
             
             <!-- Support Box -->
             <div class="support-box">
@@ -461,7 +395,7 @@
             </div>
             
             <p style="text-align: center; color: #64748b; font-size: 15px; margin-top: 30px;">
-                We're thrilled to be part of your journey. Have an amazing tour!
+                Thank you for keeping your information up to date. Have an amazing tour!
             </p>
             
             <p style="text-align: left; color: #1e293b; font-size: 16px; margin-top: 20px;">
@@ -477,7 +411,7 @@
                 &copy; {{ date('Y') }} {{ $company_name ?? 'Company Name' }}. All rights reserved.
             </p>
             <p class="footer-text" style="font-size: 12px; opacity: 0.8;">
-                This email was sent to {{ $email ?? 'you' }} regarding your guest account registration.
+                This email was sent to {{ $email ?? 'you' }} regarding your guest account update.
             </p>
         </div>
     </div>
