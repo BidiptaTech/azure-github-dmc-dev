@@ -120,6 +120,16 @@
                                 @enderror
                             </div>
 
+                            <!-- Vehicle Color -->
+                            <div class="col-md-3 mb-3">
+                                <label for="vehicle_color" class="form-label"><strong>Vehicle Color</strong><span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="vehicle_color"
+                                    placeholder="Enter Vehicle Color" value="{{ old('vehicle_color') }}">
+                                @error('vehicle_color')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+
                             <!-- Model Year -->
                             <div class="col-md-3 mb-3">
                                 <label for="model_year" class="form-label"><strong>Model Year</strong><span

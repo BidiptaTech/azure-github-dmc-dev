@@ -406,10 +406,6 @@
                             <i class="ri-building-2-line me-1"></i>
                             {{ $agency->total_branches }} {{ $agency->total_branches == 1 ? 'Office' : 'Offices' }}
                         </span>
-                        <span class="modern-badge bg-primary text-white">
-                            <i class="ri-price-tag-3-line me-1"></i>
-                            ID: {{ $agency->agency_id }}
-                        </span>
                     </div>
                 </div>
                 @if (auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
