@@ -2488,7 +2488,7 @@ export default function Pending({ filters = {} }) {
                                       total += roundedTaxAmount;
 
                                       // Store the total after this tax (for potential cascading)
-                                      taxCalculations[tax.tax_name] = {
+                                      taxCalculations[tax.tax_id] = {
                                         amount: total,
                                         taxAmount: roundedTaxAmount
                                       };
@@ -2503,15 +2503,17 @@ export default function Pending({ filters = {} }) {
                                       let taxAmount = 0;
                                       const taxValue = safeNumber(tax.tax_value);
 
-                                      // Find the base amount from the previous tax calculation
-                                      const baseCalc = taxCalculations[tax.calculate_on];
-                                      const baseAmount = baseCalc ? baseCalc.amount : total;
-
                                       if (tax.tax_type === 'percentage') {
-                                        // Calculate percentage tax on the base
+                                        // For percentage taxes, calculate on the previous tax's total amount
+                                        // Convert calculate_on to number to match tax_id keys in taxCalculations
+                                        const calculateOnKey = typeof tax.calculate_on === 'string' && !isNaN(parseInt(tax.calculate_on)) 
+                                          ? parseInt(tax.calculate_on) 
+                                          : tax.calculate_on;
+                                        const baseCalc = taxCalculations[calculateOnKey];
+                                        const baseAmount = baseCalc ? baseCalc.amount : total;
                                         taxAmount = (baseAmount * taxValue) / 100;
                                       } else if (tax.tax_type === 'fixed') {
-                                        // Calculate fixed tax based on if_fixed type
+                                        // For fixed taxes, use if_fixed rules (don't use previous tax's amount)
                                         switch (tax.if_fixed) {
                                           case 'person':
                                           case 'per_person':
@@ -2524,6 +2526,7 @@ export default function Pending({ filters = {} }) {
                                             taxAmount = nights * taxValue;
                                             break;
                                           case 'per_tour':
+                                          case 'person_tour':
                                             taxAmount = taxValue;
                                             break;
                                           default:
@@ -2541,7 +2544,7 @@ export default function Pending({ filters = {} }) {
                                       total += roundedTaxAmount;
 
                                       // Store the total after this tax
-                                      taxCalculations[tax.tax_name] = {
+                                      taxCalculations[tax.tax_id] = {
                                         amount: total,
                                         taxAmount: roundedTaxAmount
                                       };
@@ -2634,8 +2637,8 @@ export default function Pending({ filters = {} }) {
                                 const calculateNights = (ci, co) => { if(!ci||!co) return 0; try{ const i=dayjs(ci); const o=dayjs(co); const d=o.diff(i,'day'); return Math.max(d,0);}catch{return 0;} };
                                 let taxes=[]; try{ if(list.taxes && typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; }
                                 let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time, list.check_out_time); const taxCalculations={};
-                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_name]={amount:total,taxAmount:r}; });
-                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); const baseCalc=taxCalculations[t.calculate_on]; const b=baseCalc?baseCalc.amount:total; if(t.tax_type==='percentage') a=(b*v)/100; else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; });
+                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; });
+                                (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') { const calculateOnKey = typeof t.calculate_on === 'string' && !isNaN(parseInt(t.calculate_on)) ? parseInt(t.calculate_on) : t.calculate_on; const baseCalc=taxCalculations[calculateOnKey]; const b=baseCalc?baseCalc.amount:total; a=(b*v)/100; } else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; });
                                 const dueNow=Math.max(total - safeNumber(list.paidAmount),0);
                                 return dueNow > 0;
                               })() && (
@@ -2654,7 +2657,7 @@ export default function Pending({ filters = {} }) {
                                 >
                                   <i className="icon-alert-circle" style={{ fontSize: "8px", color: "#e53935" }}></i>
                                   <span style={{ fontSize: "8px", color: "#e53935", fontWeight: "600" }}>
-                                    {(() => { const safeNumber=(v)=>{const n=Number(v);return isNaN(n)?0:n;}; const calculateNights=(ci,co)=>{if(!ci||!co)return 0; try{const i=dayjs(ci); const o=dayjs(co); const d=o.diff(i,'day'); return Math.max(d,0);}catch{return 0;}}; const baseFinalAmount=Number(list.finalAmountWithTax||0); let taxes=[]; try{ if(list.taxes&&typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; } let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time,list.check_out_time); const taxCalculations={}; (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_name]={amount:total,taxAmount:r}; }); (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); const baseCalc=taxCalculations[t.calculate_on]; const b=baseCalc?baseCalc.amount:total; if(t.tax_type==='percentage') a=(b*v)/100; else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; }); const dueNow=Math.max(total - safeNumber(list.paidAmount),0); return `Due: SGD ${Math.ceil(dueNow)}`; })()}
+                                    {(() => { const safeNumber=(v)=>{const n=Number(v);return isNaN(n)?0:n;}; const calculateNights=(ci,co)=>{if(!ci||!co)return 0; try{const i=dayjs(ci); const o=dayjs(co); const d=o.diff(i,'day'); return Math.max(d,0);}catch{return 0;}}; const baseFinalAmount=Number(list.finalAmountWithTax||0); let taxes=[]; try{ if(list.taxes&&typeof list.taxes==='string') taxes=JSON.parse(list.taxes); else if(Array.isArray(list.taxes)) taxes=list.taxes; }catch{ taxes=[]; } let total=baseFinalAmount; const totalPax=safeNumber(list.total_pax); const nights=calculateNights(list.check_in_time,list.check_out_time); const taxCalculations={}; (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()==='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') a=(baseFinalAmount*v)/100; else { switch(t.if_fixed){case 'person': a=totalPax*v; break; case 'person_day': a=totalPax*nights*v; break; case 'per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; }); (taxes||[]).filter(t=>t.calculate_on&&t.calculate_on.toLowerCase()!=='total').forEach(t=>{ let a=0; const v=safeNumber(t.tax_value); if(t.tax_type==='percentage') { const calculateOnKey = typeof t.calculate_on === 'string' && !isNaN(parseInt(t.calculate_on)) ? parseInt(t.calculate_on) : t.calculate_on; const baseCalc=taxCalculations[calculateOnKey]; const b=baseCalc?baseCalc.amount:total; a=(b*v)/100; } else { switch(t.if_fixed){case 'person': case 'per_person': a=totalPax*v; break; case 'per_person_per_day': a=totalPax*nights*v; break; case 'per_tour_per_day': a=nights*v; break; case 'per_tour': case 'person_tour': a=v; break; default: a=v; } } const r=Math.ceil(isNaN(a)?0:a); total+=r; taxCalculations[t.tax_id]={amount:total,taxAmount:r}; }); const dueNow=Math.max(total - safeNumber(list.paidAmount),0); return `Due: SGD ${Math.ceil(dueNow)}`; })()}
                                   </span>
                                 </div>
                               )}
