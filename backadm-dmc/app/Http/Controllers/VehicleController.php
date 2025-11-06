@@ -221,6 +221,7 @@ class VehicleController extends Controller
             'vehicle_name' => 'required|string|max:255',
             'vehicle_type' => 'required|string|max:255',
             'vehicle_model' => 'required|string|max:255',
+            'vehicle_color' => 'required|string|max:255',
             'model_year' => 'required|integer|digits:4',
             'vehicle_plate_no' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -300,6 +301,7 @@ class VehicleController extends Controller
                     'vehicle_name' => $request->input('vehicle_name'),
                     'vehicle_type' => $request->input('vehicle_type'),
                     'vehicle_model' => $request->input('vehicle_model'),
+                    'vehicle_color' => $request->input('vehicle_color'),
                     'model_year' => $request->input('model_year'),
                     'vehicle_plate_no' => $request->input('vehicle_plate_no'),
                     'description' => $request->input('description'),
@@ -361,6 +363,7 @@ class VehicleController extends Controller
         $vehicle->vehicle_name = $request->input('vehicle_name');
         $vehicle->vehicle_type = $request->input('vehicle_type');
         $vehicle->vehicle_model = $request->input('vehicle_model');
+        $vehicle->vehicle_color = $request->input('vehicle_color');
         $vehicle->model_year = $request->input('model_year');
         $vehicle->vehicle_plate_no = $request->input('vehicle_plate_no');
         $vehicle->description = $request->input('description');
@@ -507,6 +510,7 @@ class VehicleController extends Controller
                 'vehicle_name' => 'required|string|max:255',
                 'vehicle_type' => 'required|string|max:255',
                 'vehicle_model' => 'required|string|max:255',
+                'vehicle_color' => 'required|string|max:255',
                 'model_year' => 'required|integer',
                 'description' => 'nullable|string',
                 'seating_capacity' => 'required|integer',
@@ -564,6 +568,7 @@ class VehicleController extends Controller
         $vehicle->vehicle_name = $request->input('vehicle_name');
         $vehicle->vehicle_type = $request->input('vehicle_type');
         $vehicle->vehicle_model = $request->input('vehicle_model');
+        $vehicle->vehicle_color = $request->input('vehicle_color');
         $vehicle->vehicle_plate_no = $request->input('vehicle_plate_no');
         $vehicle->model_year = $request->input('model_year');
         $vehicle->sharable = $request->input('sharable') ?? 0;
