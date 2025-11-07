@@ -21,9 +21,6 @@ import Home from "./pages";
 import LandingPage from "./pages/landing";
 import Home_1 from "./pages/homes/home_1";
 import Home_2 from "./pages/homes/home_2";
-import BlogListV1 from "./pages/blogs/blog-list-v1";
-import BlogListV2 from "./pages/blogs/blog-list-v2";
-import BlogSingleDynamic from "./pages/blogs/blog-details";
 import NotFoundPage from "./pages/not-found";
 import About from "./pages/others/about";
 import BecomeExpert from "./pages/others/become-expert";
@@ -151,16 +148,6 @@ function App() {
               <Route path="home_9" element={<Home_9 />} />
               <Route path="home_10" element={<Home_10 />} /> */}
 
-          {/* <Route path="blog-list-v1" element={<BlogListV1 />} />
-          <Route path="blog-list-v2" element={<BlogListV2 />} />
-          <Route path="blog-details/:id" element={<BlogSingleDynamic />} />
-
-          <Route path="404" element={<NotFoundPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-
-          <Route path="about" element={<About />} />
-          <Route path="become-expert" element={<BecomeExpert />} />
-          <Route path="help-center" element={<HelpCenter />} /> */}
           {/* <Route path="signup" element={<SignUp />} />
               <Route path="login" element={<LogIn />} /> */}
           {/* <Route path="terms" element={<Terms />} />

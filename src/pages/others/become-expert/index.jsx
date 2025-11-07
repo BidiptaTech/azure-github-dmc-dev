@@ -2,7 +2,7 @@ import CallToActions from "@/components/common/CallToActions";
 import DefaultHeader from "@/components/header/default-header";
 import DefaultFooter from "@/components/footer/default";
 
-import HowWorks from "@/components/block/HowWorks";
+
 import Block2 from "@/components/about/Block2";
 import Faq from "@/components/faq/Faq";
 import { Link } from "react-router-dom";
@@ -67,9 +67,7 @@ const BecomeExpert = () => {
           </div>
           {/* End .row */}
 
-          <div className="row y-gap-30 justify-between pt-40">
-            <HowWorks />
-          </div>
+         
           {/* End .row */}
         </div>
         {/* End .container */}
