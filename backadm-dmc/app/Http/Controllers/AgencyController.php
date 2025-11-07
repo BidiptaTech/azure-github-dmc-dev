@@ -306,7 +306,19 @@ class AgencyController extends Controller
         }
 
         $agency = Agency::where('agency_id', $id)->firstOrFail();
-        
+
+        // Prevent deletion if agency is assigned to any DMCs
+        $dmcIds = $agency->dmc_id;
+        if (is_string($dmcIds)) {
+            $decoded = json_decode($dmcIds, true);
+            $dmcIds = json_last_error() === JSON_ERROR_NONE ? $decoded : [];
+        }
+
+        if (!empty($dmcIds) && is_array($dmcIds)) {
+            return redirect()->route('agencies.index')
+                ->with('error', 'Cannot delete this agency! It is currently assigned to ' . count($dmcIds) . ' DMC(s). Please remove all DMC assignments before deleting.');
+        }
+
         if ($agency->delete()) {
             return redirect()->route('agencies.index')->with('success', 'Agency deleted successfully!');
         }

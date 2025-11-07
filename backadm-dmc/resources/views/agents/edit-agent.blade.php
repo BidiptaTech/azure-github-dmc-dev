@@ -86,7 +86,7 @@
                 </a>
             </h5>
 
-            <form action="{{ route('agents.update', $agent->agent_id) }}" method="POST" enctype="multipart/form-data" class="card-body">
+            <form id="editAgentForm" action="{{ route('agents.update', $agent->agent_id) }}" method="POST" enctype="multipart/form-data" class="card-body">
                 @csrf
                 @method('PUT')
 
@@ -337,7 +337,10 @@
                 </div>
 
                 <div class="text-center mt-4">
-                        <button type="submit" class="btn btn-primary">Update</button>
+                        <button type="submit" id="submitAgentUpdateBtn" class="btn btn-primary">
+                            <span class="spinner-border spinner-border-sm text-light me-2 d-none" role="status" aria-hidden="true"></span>
+                            <span class="btn-text">Update</span>
+                        </button>
                     <a href="{{ route('agents.index') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
@@ -749,6 +752,32 @@
                 button.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
             });
         });
+    });
+</script>
+
+<script>
+    $(document).ready(function () {
+        const setupSubmitLoader = (formSelector, buttonSelector, processingText = 'Processing...') => {
+            const $form = $(formSelector);
+            const $submitBtn = $(buttonSelector);
+
+            if (!$form.length || !$submitBtn.length) {
+                return;
+            }
+
+            $form.on('submit', function () {
+                if ($form.data('submitted')) {
+                    return false;
+                }
+
+                $form.data('submitted', true);
+                $submitBtn.prop('disabled', true).addClass('disabled');
+                $submitBtn.find('.spinner-border').removeClass('d-none');
+                $submitBtn.find('.btn-text').text(processingText);
+            });
+        };
+
+        setupSubmitLoader('#editAgentForm', '#submitAgentUpdateBtn');
     });
 </script>
 
