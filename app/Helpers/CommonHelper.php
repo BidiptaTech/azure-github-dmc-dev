@@ -1533,7 +1533,7 @@ class CommonHelper
             function root_url($path = '')
             {
                 $base = config('app.url');
-                $root = preg_replace('#/back/?$#', '', $base);
+                $root = preg_replace('#/backadm-dmc/?$#', '', $base);
                 return rtrim($root, '/') . '/' . ltrim($path, '/');
             }
         }
