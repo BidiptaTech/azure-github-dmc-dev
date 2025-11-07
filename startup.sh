@@ -35,7 +35,7 @@ echo "🔒 Configuring Laravel for HTTPS..."
 
 if ! grep -q "APP_URL=https://" .env 2>/dev/null; then
     echo "🔧 Setting APP_URL to HTTPS in .env..."
-    sed -i 's|APP_URL=.*|APP_URL=https://uat.travclicks.com|g' .env || echo "Could not update APP_URL"
+    sed -i 's|APP_URL=.*|APP_URL=https://demo.travclicks.com|g' .env || echo "Could not update APP_URL"
 fi
 
 echo "🔧 Ensuring critical environment variables are set..."
@@ -50,11 +50,11 @@ if ! grep -q "FORCE_HTTPS=" .env 2>/dev/null; then
     echo "FORCE_HTTPS=true" >> .env
 fi
 if ! grep -q "ASSET_URL=" .env 2>/dev/null; then
-    echo "ASSET_URL=https://uat.travclicks.com/backadm-dmc" >> .env
+    echo "ASSET_URL=https://demo.travclicks.com/backadm-dmc" >> .env
 fi
 
-export APP_URL="https://uat.travclicks.com"
-export ASSET_URL="https://uat.travclicks.com/backadm-dmc"
+export APP_URL="https://demo.travclicks.com"
+export ASSET_URL="https://demo.travclicks.com/backadm-dmc"
 export APP_ENV="production"
 export FORCE_HTTPS="true"
 export HTTPS="on"
@@ -106,4 +106,4 @@ echo "🎯 Laravel app should now be accessible at /backadm-dmc/"
 echo "🎯 React frontend should now load correctly at /"
 echo "🔒 HTTPS configuration applied to fix mixed content issues"
 echo "📁 Storage permissions: $(ls -la /home/site/wwwroot/backadm-dmc/storage | head -5)"
-echo "🔍 Debug URL: https://uat.travclicks.com/laravel-debug.php"
+echo "🔍 Debug URL: https://demo.travclicks.com/laravel-debug.php"
