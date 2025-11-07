@@ -117,7 +117,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form action="{{ route('agents.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
+            <form id="addAgentForm" action="{{ route('agents.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
                 @csrf
                 <input type="hidden" name="dmc_ids" id="dmc_ids" value="">
                 <div class="row">
@@ -323,7 +323,10 @@
                 </div>
                 <div class="row mt-4 text-center">
                     <div class="col-md-12">
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="submit" id="submitAgentBtn" class="btn btn-primary">
+                            <span class="spinner-border spinner-border-sm text-light me-2 d-none" role="status" aria-hidden="true"></span>
+                            <span class="btn-text">Submit</span>
+                        </button>
                         <button type="reset" class="btn btn-secondary px-4">Reset</button>
                     </div>
                 </div>
@@ -923,5 +926,32 @@ $(document).ready(function() {
         });
     });
 });
+</script>
+
+<script>
+    $(document).ready(function () {
+        const setupSubmitLoader = (formSelector, buttonSelector, processingText = 'Processing...') => {
+            const $form = $(formSelector);
+            const $submitBtn = $(buttonSelector);
+
+            if (!$form.length || !$submitBtn.length) {
+                return;
+            }
+
+            $form.on('submit', function () {
+                if ($form.data('submitted')) {
+                    return false;
+                }
+
+                $form.data('submitted', true);
+                $submitBtn.prop('disabled', true).addClass('disabled');
+                $submitBtn.find('.spinner-border').removeClass('d-none');
+                $submitBtn.find('.btn-text').text(processingText);
+            });
+        };
+
+        setupSubmitLoader('#addAgentForm', '#submitAgentBtn');
+        setupSubmitLoader('#editAgentForm', '#submitAgentUpdateBtn');
+    });
 </script>
 @endsection
