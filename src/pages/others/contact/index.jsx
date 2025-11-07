@@ -1,8 +1,8 @@
 import CallToActions from "@/components/common/CallToActions";
 import DefaultHeader from "@/components/header/default-header";
 import DefaultFooter from "@/components/footer/default";
-import WhyChoose from "@/components/block/BlockGuide";
-import Address from "@/components/block/Address";
+
+
 import Social from "@/components/common/social/Social";
 import ContactForm from "@/components/common/ContactForm";
 import LocationTopBar from "@/components/common/LocationTopBar";
@@ -59,8 +59,7 @@ const Contact = () => {
             </div>
             {/* End .col */}
 
-            <Address />
-            {/* End address com */}
+      
 
             <div className="col-auto">
               <div className="text-14 text-light-1">
@@ -76,29 +75,6 @@ const Contact = () => {
         </div>
       </section>
       {/* End Address Section */}
-
-      <section className="layout-pt-lg layout-pb-lg bg-blue-2">
-        <div className="container">
-          <div className="row justify-center text-center">
-            <div className="col-auto">
-              <div className="sectionTitle -md">
-                <h2 className="sectionTitle__title">Why Choose Us</h2>
-                <p className=" sectionTitle__text mt-5 sm:mt-0">
-                  These popular destinations have a lot to offer
-                </p>
-              </div>
-            </div>
-          </div>
-          {/* End .row */}
-
-          <div className="row y-gap-40 justify-between pt-50">
-            <WhyChoose />
-          </div>
-          {/* End .row */}
-        </div>
-        {/* End .container */}
-      </section>
-      {/* End Why Choose Us section */}
 
       <CallToActions />
       {/* End Call To Actions Section */}

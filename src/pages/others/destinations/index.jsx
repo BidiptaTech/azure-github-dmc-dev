@@ -6,8 +6,7 @@ import Faq from "@/components/faq/Faq";
 import TestimonialLeftCol from "@/components/home/home-1/TestimonialLeftCol";
 import Testimonial from "@/components/home/home-1/Testimonial";
 import { Link } from "react-router-dom";
-import Slights from "@/components/block/Slights";
-import Blog from "@/components/blog/Blog3";
+
 import LocationTopBar from "@/components/common/LocationTopBar";
 import Banner from "@/components/destinations/components/Banner";
 import Categories from "@/components/destinations/components/Categories";
@@ -277,10 +276,7 @@ const Destinations = () => {
               </div>
             </div>
           </div>
-          {/* End .row  */}
-          <div className="row y-gap-30 pt-40">
-            <Blog />
-          </div>
+    
           {/* End .row */}
         </div>
         {/* End .container */}
@@ -301,9 +297,7 @@ const Destinations = () => {
           </div>
           {/* End .row */}
 
-          <div className="row y-gap-30 pt-40">
-            <Slights />
-          </div>
+       
           {/* End .row */}
 
           <div className="row justify-center mt-40">

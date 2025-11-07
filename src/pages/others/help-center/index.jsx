@@ -2,9 +2,6 @@ import CallToActions from "@/components/common/CallToActions";
 import Faq from "@/components/faq/Faq";
 import DefaultHeader from "@/components/header/default-header";
 import DefaultFooter from "@/components/footer/default";
-import HelpSearchBlock from "@/components/block/HelpSearchBlock";
-import HelpBlock from "@/components/block/HelpBlock";
-
 import MetaComponent from "@/components/common/MetaComponent";
 
 const metadata = {
@@ -36,17 +33,12 @@ const HelpCenter = () => {
                   Lorem ipsum is placeholder text commonly used in site.
                 </p>
               </div>
-              {/* End .sectiontitle */}
-
-              <HelpSearchBlock />
+         
             </div>
           </div>
           {/* End .row */}
 
-          <div className="row y-gap-30 pt-60 lg:pt-40">
-            <HelpBlock />
-          </div>
-          {/* End .row */}
+        
         </div>
       </section>
       {/* End search and search block section */}
