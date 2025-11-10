@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
+import { selectSelectedDmcIds } from "@/slice/dmc/dmcSlice";
 import { styled } from "@mui/material/styles";
 import {
   Box,
@@ -263,6 +264,7 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
   // Get restaurants from Redux store
   const { restaurants = [], loading, error } = useSelector(state => state.enquiryList || { restaurants: [], loading: false });
   const PriceHide = useSelector((state) => state.auth.PriceHide);
+  const selectedDmcIds = useSelector(selectSelectedDmcIds);
   
   // Use props dates first, fallback to Redux
   const reduxCheckinDate = useSelector(state => state.enquiry?.checkIn);
@@ -501,7 +503,15 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
           )}
         </InputLabel>
         
-        {dateRange.length === 0 && (
+        {selectedDmcIds.length === 0 && (
+          <Paper sx={{ p: 2, bgcolor: 'warning.light', color: 'text.secondary', mb: 2 }}>
+            <Typography variant="body2">
+              Please select at least one DMC to view available restaurants.
+            </Typography>
+          </Paper>
+        )}
+        
+        {dateRange.length === 0 && selectedDmcIds.length > 0 && (
           <Paper sx={{ p: 2, bgcolor: 'warning.light', color: 'text.secondary' }}>
             <Typography variant="body2">
               Please select check-in and check-out dates to add restaurants.
@@ -509,7 +519,7 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
           </Paper>
         )}
         
-        {dateRange.length > 0 && (
+        {dateRange.length > 0 && selectedDmcIds.length > 0 && (
           <Box>
             {/* Horizontal Day Selector */}
             <DayBoxContainer>
@@ -756,23 +766,7 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
                                             >
                                               {meal.meal_type}
                                             </Typography>
-                                            {mealIdx === 0 && (
-                                              <Chip 
-                                                size="small" 
-                                                label="⭐ Popular" 
-                                                sx={{ 
-                                                  height: 18, 
-                                                  fontSize: '0.65rem',
-                                                  bgcolor: '#FFF3E0',
-                                                  color: '#F57C00',
-                                                  fontWeight: 700,
-                                                  border: '1px solid #FFB74D',
-                                                  '& .MuiChip-label': {
-                                                    padding: '0 6px',
-                                                  }
-                                                }} 
-                                              />
-                                            )}
+                                          
                                           </Box>
                                           
                                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 0.75 }}>
@@ -812,39 +806,26 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
                                               }} 
                                             />
                                           </Box>
+                                       
+                                      </Box>
+                                      
+                                      {PriceHide === "0" && (
+                                        <Box sx={{ 
+                                          bgcolor: '#FFF9F0',
+                                          px: 1.5,
+                                          py: 0.75,
+                                          borderRadius: 1.5,
+                                          minWidth: 'fit-content',
+                                          maxWidth: '140px',
+                                          textAlign: 'right',
+                                          boxShadow: '0 2px 6px rgba(255, 152, 0, 0.2)'
+                                        }}>
+                                          <Typography variant="caption" sx={{ display: 'block', fontSize: '0.65rem', color: '#E65100', fontWeight: 600, mb: 0.3 }}>
+                                            Price
+                                          </Typography>
                                           
-                                          {meal.item_description && meal.item_description.length < 100 && (
-                                            <Typography 
-                                              variant="caption" 
-                                              sx={{ 
-                                                display: 'block', 
-                                                color: 'text.secondary',
-                                                fontSize: '0.7rem',
-                                                lineHeight: 1.4,
-                                                fontStyle: 'italic',
-                                                wordBreak: 'break-word',
-                                                overflowWrap: 'break-word'
-                                              }}
-                                            >
-                                              {meal.item_description}
-                                            </Typography>
-                                          )}
-                                        </Box>
-                                        
-                                        {PriceHide === "0" && (
-                                          <Box sx={{ 
-                                            bgcolor: '#FFF9F0',
-                                            px: 1.5,
-                                            py: 0.75,
-                                            borderRadius: 1.5,
-                                            minWidth: 'fit-content',
-                                            maxWidth: '120px',
-                                            textAlign: 'right',
-                                            boxShadow: '0 2px 6px rgba(255, 152, 0, 0.2)'
-                                          }}>
-                                            <Typography variant="caption" sx={{ display: 'block', fontSize: '0.65rem', color: '#E65100', fontWeight: 600 }}>
-                                              Price
-                                            </Typography>
+                                          {/* Show set menu price */}
+                                          {meal.set_menu_price && (
                                             <Typography 
                                               variant="body2" 
                                               fontWeight={700} 
@@ -856,11 +837,60 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
                                                 textOverflow: 'ellipsis'
                                               }}
                                             >
-                                              {getMealPrice(meal)}
+                                              SGD {parseFloat(meal.set_menu_price).toLocaleString()}
                                             </Typography>
-                                          </Box>
-                                        )}
-                                      </Box>
+                                          )}
+                                          
+                                          {/* Show adult and child prices separately */}
+                                          {!meal.set_menu_price && (meal.adult_price || meal.child_price) && (
+                                            <Box>
+                                              {meal.adult_price && (
+                                                <Typography 
+                                                  variant="body2" 
+                                                  fontWeight={600} 
+                                                  sx={{ 
+                                                    fontSize: '0.75rem', 
+                                                    color: '#F57C00',
+                                                    whiteSpace: 'nowrap',
+                                                    lineHeight: 1.4
+                                                  }}
+                                                >
+                                                  SGD {parseFloat(meal.adult_price).toLocaleString()}/adult
+                                                </Typography>
+                                              )}
+                                              {meal.child_price && (
+                                                <Typography 
+                                                  variant="body2" 
+                                                  fontWeight={600} 
+                                                  sx={{ 
+                                                    fontSize: '0.7rem', 
+                                                    color: '#FF9800',
+                                                    whiteSpace: 'nowrap',
+                                                    lineHeight: 1.4
+                                                  }}
+                                                >
+                                                  SGD {parseFloat(meal.child_price).toLocaleString()}/child
+                                                </Typography>
+                                              )}
+                                            </Box>
+                                          )}
+                                          
+                                          {/* Fallback if no price available */}
+                                          {!meal.set_menu_price && !meal.adult_price && !meal.child_price && (
+                                            <Typography 
+                                              variant="caption" 
+                                              sx={{ 
+                                                fontSize: '0.7rem', 
+                                                color: '#F57C00',
+                                                fontStyle: 'italic'
+                                              }}
+                                            >
+                                              On request
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                      )}
+                                    </Box>
                                     </Box>
                                   ))}
                                   </Box>
@@ -1060,24 +1090,75 @@ const RestaurantSearch = ({ onSelect, value = [], checkinDate: propsCheckinDate,
                                     <Box sx={{
                                       bgcolor: '#FFF9F0',
                                       px: 1,
-                                      py: 0.4,
+                                      py: 0.5,
                                       borderRadius: 1,
-                                      maxWidth: '90px',
+                                      minWidth: '90px',
                                       boxShadow: '0 1px 4px rgba(255, 152, 0, 0.2)'
                                     }}>
-                                      <Typography 
-                                        variant="body2" 
-                                        fontWeight={700} 
-                                        sx={{ 
-                                          fontSize: '0.75rem', 
-                                          color: '#F57C00',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis'
-                                        }}
-                                      >
-                                        {getMealPrice(mealEntry.meal)}
-                                      </Typography>
+                                      {/* Show set menu price */}
+                                      {mealEntry.meal.set_menu_price && (
+                                        <Typography 
+                                          variant="body2" 
+                                          fontWeight={700} 
+                                          sx={{ 
+                                            fontSize: '0.75rem', 
+                                            color: '#F57C00',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis'
+                                          }}
+                                        >
+                                          SGD {parseFloat(mealEntry.meal.set_menu_price).toLocaleString()}
+                                        </Typography>
+                                      )}
+                                      
+                                      {/* Show adult and child prices separately */}
+                                      {!mealEntry.meal.set_menu_price && (mealEntry.meal.adult_price || mealEntry.meal.child_price) && (
+                                        <Box>
+                                          {mealEntry.meal.adult_price && (
+                                            <Typography 
+                                              variant="body2" 
+                                              fontWeight={600} 
+                                              sx={{ 
+                                                fontSize: '0.7rem', 
+                                                color: '#F57C00',
+                                                whiteSpace: 'nowrap',
+                                                lineHeight: 1.3
+                                              }}
+                                            >
+                                              SGD {parseFloat(mealEntry.meal.adult_price).toLocaleString()}/a
+                                            </Typography>
+                                          )}
+                                          {mealEntry.meal.child_price && (
+                                            <Typography 
+                                              variant="body2" 
+                                              fontWeight={600} 
+                                              sx={{ 
+                                                fontSize: '0.65rem', 
+                                                color: '#FF9800',
+                                                whiteSpace: 'nowrap',
+                                                lineHeight: 1.3
+                                              }}
+                                            >
+                                              SGD {parseFloat(mealEntry.meal.child_price).toLocaleString()}/c
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                      )}
+                                      
+                                      {/* Fallback if no price available */}
+                                      {!mealEntry.meal.set_menu_price && !mealEntry.meal.adult_price && !mealEntry.meal.child_price && (
+                                        <Typography 
+                                          variant="caption" 
+                                          sx={{ 
+                                            fontSize: '0.65rem', 
+                                            color: '#F57C00',
+                                            fontStyle: 'italic'
+                                          }}
+                                        >
+                                          On request
+                                        </Typography>
+                                      )}
                                     </Box>
                                   )}
                                   <IconButton

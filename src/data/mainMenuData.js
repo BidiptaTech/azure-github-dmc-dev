@@ -4,20 +4,7 @@ export const homeItems = [
     routePath: "/home_1",
   },
 ];
-export const blogItems = [
-  {
-    name: "Blog List V1",
-    routePath: "/blog-list-v1",
-  },
-  {
-    name: "Blog List V2",
-    routePath: "/blog-list-v2",
-  },
-  {
-    name: "Blog Single",
-    routePath: "/blog-details/1",
-  },
-];
+export const blogItems = [];
 export const pageItems = [
   {
     name: "404",

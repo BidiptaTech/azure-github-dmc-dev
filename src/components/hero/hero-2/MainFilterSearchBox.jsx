@@ -26,7 +26,7 @@ import { resetVehicles } from "../../../slice/port/pickupDropSlice";
 import { resetVehicles1 } from "../../../slice/localtour/Localslice";
 import { setSelectedCity } from "@/slice/common/commonSlice";
 import { fetchBookingid, setSearchLocation, setCheckIn, setCheckOut, setGuest } from "../../../slice/common/EnquirySlice";
-import { fetchEnquiryList, clearEnquiryList } from "../../../slice/common/enquiryListSlice";
+import {  clearEnquiryList } from "../../../slice/common/enquiryListSlice";
 import { store } from "../../../store/store";
 import { selectSelectedDmcIds, clearSelectedDmcs, clearSelectedDmc } from "../../../slice/dmc/dmcSlice";
 import { clearServiceDetails, clearSpecificService } from "../../../slice/common/EnquirySlice"; //EnquirySlice

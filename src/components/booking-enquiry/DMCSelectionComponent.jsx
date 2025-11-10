@@ -146,7 +146,7 @@ const DMCSelectionComponent = ({
     return (
       <DMCSelectionPanel elevation={3}>
         <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#333', fontSize: '0.9rem' }}>
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: '#333', fontSize: '0.8rem' }}>
             🏢 Selected DMC Partners
           </Typography>
           
