@@ -22,13 +22,6 @@ import LandingPage from "./pages/landing";
 import Home_1 from "./pages/homes/home_1";
 import Home_2 from "./pages/homes/home_2";
 import NotFoundPage from "./pages/not-found";
-import About from "./pages/others/about";
-import BecomeExpert from "./pages/others/become-expert";
-import HelpCenter from "./pages/others/help-center";
-//import LogIn from "./pages/others/login";
-//import SignUp from "./pages/others/signup";
-import Terms from "./pages/others/terms";
-import Invoice from "./pages/others/invoice";
 import DBDashboard from "./pages/dashboard/dashboard/db-dashboard";
 import DBBooking from "./pages/dashboard/dashboard/db-booking";
 import DBWishlist from "./pages/dashboard/dashboard/db-wishlist";
@@ -49,8 +42,6 @@ import ActivityListPage1 from "./pages/activity/activity-list-v1";
 import ActivityListPage2 from "./pages/activity/activity-list-v2";
 import ActivityListPage3 from "./pages/activity/activity-list-v3";
 import ActivitySingleV1Dynamic from "./pages/activity/activity-single";
-import Contact from "./pages/others/contact";
-// import Destinations from "./pages/others/destinations";
 import Login from "./pages/login/Login";
 import Register from "./pages/Register";
 import OTPVerification from "./pages/Register/verify";
@@ -76,7 +67,7 @@ import TourPackages from "./pages/tour-packages/index";
 import PreDefinePackagesPage from "./pages/pre-define-packages/index";
 import Packages from "./pages/packages";
 import PackageDetails from "./pages/pre-define-packages/package-details";
-import ModalTestRoute from "./pages/others/modal-test";
+
 import BookingEnquiryPage from "./pages/booking-enquiry";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
@@ -173,9 +164,9 @@ function App() {
               <PackageDetails />
             </ProtectedRoute>
           } />
-          <Route path="/modal-test" element={
+          {/* <Route path="/modal-test" element={
             <ModalTestRoute />
-          } />
+          } /> */}
           <Route path="/booking-enquiry" element={
             <ProtectedRoute>
               <BookingEnquiryPage />
