@@ -45,6 +45,9 @@ import { setDateService } from "@/slice/common/dateServicesSlice";
 import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import Pagination from "../../common/Pagination";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+
+dayjs.extend(customParseFormat);
 import { Button, InputAdornment, TextField, Typography, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
 import CustomPaymentTooltip from "./CustomTooltip";
 import { Visibility, Edit, AttachMoney, Update, Cancel, MoreVert } from "@mui/icons-material";
@@ -3486,18 +3489,24 @@ export default function Pending({ filters = {} }) {
                                           return isNaN(num) ? 0 : num;
                                         };
 
-                                        // Helper function to calculate nights
-                                        const calculateNights = (checkIn, checkOut) => {
-                                          if (!checkIn || !checkOut) return 0;
-                                          try {
-                                            const inDate = dayjs(checkIn);
-                                            const outDate = dayjs(checkOut);
-                                            const nights = outDate.diff(inDate, 'day');
-                                            return Math.max(nights, 0);
-                                          } catch (e) {
-                                            return 0;
-                                          }
-                                        };
+                                       // Helper function to calculate nights
+                                       const parseDate = (dateStr) => {
+                                         if (!dateStr) return null;
+                                         const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                         if (parsed.isValid()) {
+                                           return parsed;
+                                         }
+                                         const fallback = dayjs(dateStr);
+                                         return fallback.isValid() ? fallback : null;
+                                       };
+
+                                       const calculateNights = (checkIn, checkOut) => {
+                                         const inDate = parseDate(checkIn);
+                                         const outDate = parseDate(checkOut);
+                                         if (!inDate || !outDate) return 0;
+                                         const nights = outDate.diff(inDate, "day");
+                                         return Math.max(nights, 0);
+                                       };
 
                                         // Parse taxes from JSON string
                                         let taxes = [];
@@ -3520,6 +3529,7 @@ export default function Pending({ filters = {} }) {
                                         let total = baseFinalAmount;
                                         const totalPax = safeNumber(list.total_pax);
                                         const nights = calculateNights(list.check_in_time, list.check_out_time);
+                                        const effectiveNights = nights > 0 ? nights : 1;
 
                                         // Store calculated amounts for each tax (for cascading)
                                         const taxCalculations = {};
@@ -3543,10 +3553,10 @@ export default function Pending({ filters = {} }) {
                                                 taxAmount = totalPax * taxValue;
                                                 break;
                                               case 'person_day':
-                                                taxAmount = totalPax * nights * taxValue;
+                                                taxAmount = totalPax * effectiveNights * taxValue;
                                                 break;
                                               case 'per_day':
-                                                taxAmount = nights * taxValue;
+                                                taxAmount = effectiveNights * taxValue;
                                                 break;
                                               case 'per_tour':
                                               case 'person_tour':
@@ -3567,7 +3577,7 @@ export default function Pending({ filters = {} }) {
                                           total += roundedTaxAmount;
 
                                           // Store the total after this tax (for potential cascading)
-                                          taxCalculations[tax.tax_name] = {
+                                          taxCalculations[tax.tax_id] = {
                                             amount: total,
                                             taxAmount: roundedTaxAmount
                                           };
@@ -3583,7 +3593,10 @@ export default function Pending({ filters = {} }) {
                                           const taxValue = safeNumber(tax.tax_value);
 
                                           // Find the base amount from the previous tax calculation
-                                          const baseCalc = taxCalculations[tax.calculate_on];
+                                          const calculateOnKey = typeof tax.calculate_on === 'string' && !isNaN(parseInt(tax.calculate_on))
+                                            ? parseInt(tax.calculate_on)
+                                            : tax.calculate_on;
+                                          const baseCalc = taxCalculations[calculateOnKey];
                                           const baseAmount = baseCalc ? baseCalc.amount : total;
 
                                           if (tax.tax_type === 'percentage') {
@@ -3597,10 +3610,10 @@ export default function Pending({ filters = {} }) {
                                                 taxAmount = totalPax * taxValue;
                                                 break;
                                               case 'per_person_per_day':
-                                                taxAmount = totalPax * nights * taxValue;
+                                                taxAmount = totalPax * effectiveNights * taxValue;
                                                 break;
                                               case 'per_tour_per_day':
-                                                taxAmount = nights * taxValue;
+                                                taxAmount = effectiveNights * taxValue;
                                                 break;
                                               case 'per_tour':
                                                 taxAmount = taxValue;
@@ -3620,7 +3633,7 @@ export default function Pending({ filters = {} }) {
                                           total += roundedTaxAmount;
 
                                           // Store the total after this tax
-                                          taxCalculations[tax.tax_name] = {
+                                          taxCalculations[tax.tax_id] = {
                                             amount: total,
                                             taxAmount: roundedTaxAmount
                                           };
@@ -3632,7 +3645,7 @@ export default function Pending({ filters = {} }) {
                                           return `SGD ${Math.ceil(baseFinalAmount)}`;
                                         }
 
-                                        return `SGD ${total}`;
+                                       return `SGD ${Math.ceil(total)}`;
                                       })()}
                                       </span>
                                     </div>
@@ -3718,16 +3731,22 @@ export default function Pending({ filters = {} }) {
                                   return isNaN(num) ? 0 : num;
                                 };
 
-                                const calculateNights = (checkIn, checkOut) => {
-                                  if (!checkIn || !checkOut) return 0;
-                                  try {
-                                    const inDate = dayjs(checkIn);
-                                    const outDate = dayjs(checkOut);
-                                    const nights = outDate.diff(inDate, 'day');
-                                    return Math.max(nights, 0);
-                                  } catch (e) {
-                                    return 0;
+                                const parseDate = (dateStr) => {
+                                  if (!dateStr) return null;
+                                  const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                  if (parsed.isValid()) {
+                                    return parsed;
                                   }
+                                  const fallback = dayjs(dateStr);
+                                  return fallback.isValid() ? fallback : null;
+                                };
+
+                                const calculateNights = (checkIn, checkOut) => {
+                                  const inDate = parseDate(checkIn);
+                                  const outDate = parseDate(checkOut);
+                                  if (!inDate || !outDate) return 0;
+                                  const nights = outDate.diff(inDate, "day");
+                                  return Math.max(nights, 0);
                                 };
 
                                 let taxes = [];
@@ -3744,6 +3763,7 @@ export default function Pending({ filters = {} }) {
                                 let total = baseFinalAmount;
                                 const totalPax = safeNumber(list.total_pax);
                                 const nights = calculateNights(list.check_in_time, list.check_out_time);
+                                const effectiveNights = nights > 0 ? nights : 1;
                                 const taxCalculations = {};
 
                                 const totalTaxes = (taxes || []).filter(
@@ -3757,13 +3777,14 @@ export default function Pending({ filters = {} }) {
                                   } else if (tax.tax_type === 'fixed') {
                                     switch (tax.if_fixed) {
                                       case 'person':
+                                      case 'per_person':
                                         taxAmount = totalPax * taxValue;
                                         break;
-                                      case 'person_day':
-                                        taxAmount = totalPax * nights * taxValue;
+                                      case 'per_person_per_day':
+                                        taxAmount = totalPax * effectiveNights * taxValue;
                                         break;
-                                      case 'per_day':
-                                        taxAmount = nights * taxValue;
+                                      case 'per_tour_per_day':
+                                        taxAmount = effectiveNights * taxValue;
                                         break;
                                       case 'per_tour':
                                       case 'person_tour':
@@ -3801,10 +3822,10 @@ export default function Pending({ filters = {} }) {
                                         taxAmount = totalPax * taxValue;
                                         break;
                                       case 'per_person_per_day':
-                                        taxAmount = totalPax * nights * taxValue;
+                                        taxAmount = totalPax * effectiveNights * taxValue;
                                         break;
                                       case 'per_tour_per_day':
-                                        taxAmount = nights * taxValue;
+                                        taxAmount = effectiveNights * taxValue;
                                         break;
                                       case 'per_tour':
                                       case 'person_tour':
@@ -3843,14 +3864,21 @@ export default function Pending({ filters = {} }) {
                                         const num = Number(value);
                                         return isNaN(num) ? 0 : num;
                                       };
+                                      const parseDate = (dateStr) => {
+                                        if (!dateStr) return null;
+                                        const parsed = dayjs(dateStr, ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"], true);
+                                        if (parsed.isValid()) {
+                                          return parsed;
+                                        }
+                                        const fallback = dayjs(dateStr);
+                                        return fallback.isValid() ? fallback : null;
+                                      };
                                       const calculateNights = (checkIn, checkOut) => {
-                                        if (!checkIn || !checkOut) return 0;
-                                        try {
-                                          const inDate = dayjs(checkIn);
-                                          const outDate = dayjs(checkOut);
-                                          const nights = outDate.diff(inDate, 'day');
-                                          return Math.max(nights, 0);
-                                        } catch (e) { return 0; }
+                                        const inDate = parseDate(checkIn);
+                                        const outDate = parseDate(checkOut);
+                                        if (!inDate || !outDate) return 0;
+                                        const nights = outDate.diff(inDate, 'day');
+                                        return Math.max(nights, 0);
                                       };
                                       const baseFinalAmount = Number(list.finalAmountWithTax || 0);
                                       let taxes = [];
@@ -3861,12 +3889,13 @@ export default function Pending({ filters = {} }) {
                                       let total = baseFinalAmount;
                                       const totalPax = safeNumber(list.total_pax);
                                       const nights = calculateNights(list.check_in_time, list.check_out_time);
+                                      const effectiveNights = nights > 0 ? nights : 1;
                                       const taxCalculations = {};
                                       const totalTaxes = (taxes || []).filter(t => t.calculate_on && t.calculate_on.toLowerCase() === 'total');
                                       totalTaxes.forEach(t => {
                                         let a = 0; const v = safeNumber(t.tax_value);
                                         if (t.tax_type === 'percentage') a = (baseFinalAmount * v) / 100; else {
-                                          switch (t.if_fixed) { case 'person': a = totalPax * v; break; case 'person_day': a = totalPax * nights * v; break; case 'per_day': a = nights * v; break; case 'per_tour': case 'person_tour': a = v; break; default: a = v; }
+                                          switch (t.if_fixed) { case 'person': a = totalPax * v; break; case 'person_day': a = totalPax * effectiveNights * v; break; case 'per_day': a = effectiveNights * v; break; case 'per_tour': case 'person_tour': a = v; break; default: a = v; }
                                         }
                                         const r = Math.ceil(isNaN(a) ? 0 : a); total += r; taxCalculations[t.tax_id] = { amount: total, taxAmount: r };
                                       });
@@ -3880,7 +3909,7 @@ export default function Pending({ filters = {} }) {
                                           const baseCalc = taxCalculations[calculateOnKey]; const b = baseCalc ? baseCalc.amount : total;
                                           a = (b * v) / 100;
                                         } else {
-                                          switch (t.if_fixed) { case 'person': case 'per_person': a = totalPax * v; break; case 'per_person_per_day': a = totalPax * nights * v; break; case 'per_tour_per_day': a = nights * v; break; case 'per_tour': case 'person_tour': a = v; break; default: a = v; }
+                                          switch (t.if_fixed) { case 'person': case 'per_person': a = totalPax * v; break; case 'per_person_per_day': a = totalPax * effectiveNights * v; break; case 'per_tour_per_day': a = effectiveNights * v; break; case 'per_tour': case 'person_tour': a = v; break; default: a = v; }
                                         }
                                         const r = Math.ceil(isNaN(a) ? 0 : a); total += r; taxCalculations[t.tax_id] = { amount: total, taxAmount: r };
                                       });

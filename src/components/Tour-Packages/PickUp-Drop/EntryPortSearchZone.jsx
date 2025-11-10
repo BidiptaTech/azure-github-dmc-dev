@@ -80,6 +80,8 @@ const EntryPortSearchZone = ({ Location, portType}) => {
   const localZoneStatus = useSelector(
     (state) => state.pickupDrop.localZoneStatus
   );
+  const country = useSelector((state) => state.hotels.tourdetails.destination);
+  console.log("country", country);
 
   // Add state for validation
   const [validationTriggered, setValidationTriggered] = useState(false);
@@ -112,8 +114,8 @@ const EntryPortSearchZone = ({ Location, portType}) => {
       // Ensure TourId is passed correctly as a number
       dispatch(
         fetchPortCity({
+          country: country,
           city: selectedCity.name,
-          tourId: parseInt(TourId),
           type: "port",
         })
       )

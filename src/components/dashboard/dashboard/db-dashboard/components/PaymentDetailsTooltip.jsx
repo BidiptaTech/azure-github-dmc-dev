@@ -3,6 +3,9 @@ import { Box, Typography, Divider, Chip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+
+dayjs.extend(customParseFormat);
 
 const StyledTooltipContent = styled(Box)(({ theme }) => ({
   backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -85,16 +88,22 @@ const PaymentDetailsTooltip = ({ list }) => {
     };
 
     // Helper function to calculate nights
-    const calculateNights = (checkIn, checkOut) => {
-      if (!checkIn || !checkOut) return 0;
-      try {
-        const inDate = dayjs(checkIn);
-        const outDate = dayjs(checkOut);
-        const nights = outDate.diff(inDate, 'day');
-        return Math.max(nights, 0);
-      } catch (e) {
-        return 0;
+    const parseDate = (dateStr) => {
+      if (!dateStr) return null;
+      const parsed = dayjs(dateStr, ['DD/MM/YYYY', 'DD-MM-YYYY', 'YYYY-MM-DD', 'YYYY/MM/DD'], true);
+      if (parsed.isValid()) {
+        return parsed;
       }
+      const fallback = dayjs(dateStr);
+      return fallback.isValid() ? fallback : null;
+    };
+
+    const calculateNights = (checkIn, checkOut) => {
+      const inDate = parseDate(checkIn);
+      const outDate = parseDate(checkOut);
+      if (!inDate || !outDate) return 0;
+      const nights = outDate.diff(inDate, 'day');
+      return Math.max(nights, 0);
     };
 
     // Base amount - check first
@@ -137,6 +146,7 @@ const PaymentDetailsTooltip = ({ list }) => {
     let total = baseFinalAmount;
     const totalPax = safeNumber(list.total_pax);
     const nights = calculateNights(list.check_in_time, list.check_out_time);
+    const effectiveNights = nights > 0 ? nights : 1;
 
     // Store calculated amounts for each tax
     const taxCalculations = {};
@@ -161,10 +171,10 @@ const PaymentDetailsTooltip = ({ list }) => {
             taxAmount = totalPax * taxValue;
             break;
           case 'per_person_per_day':
-            taxAmount = totalPax * nights * taxValue;
+            taxAmount = totalPax * effectiveNights * taxValue;
             break;
           case 'per_tour_per_day':
-            taxAmount = nights * taxValue;
+            taxAmount = effectiveNights * taxValue;
             break;
           case 'per_tour':
             taxAmount = taxValue;
@@ -224,10 +234,10 @@ const PaymentDetailsTooltip = ({ list }) => {
             taxAmount = totalPax * taxValue;
             break;
           case 'per_person_per_day':
-            taxAmount = totalPax * nights * taxValue;
+          taxAmount = totalPax * effectiveNights * taxValue;
             break;
           case 'per_tour_per_day':
-            taxAmount = nights * taxValue;
+          taxAmount = effectiveNights * taxValue;
             break;
           case 'per_tour':
           case 'person_tour':
@@ -420,7 +430,7 @@ const PaymentDetailsTooltip = ({ list }) => {
                   </Typography>
                 </Box>
                 <Typography variant="caption" fontWeight={700} color="#4caf50" sx={{ fontSize: '0.7rem' }}>
-                  SGD {taxBreakdown.totalWithTax}
+                  SGD {Math.ceil(Number(taxBreakdown.totalWithTax || 0))}
                 </Typography>
               </PaymentRow>
             </>
