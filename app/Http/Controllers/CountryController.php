@@ -97,6 +97,22 @@ class CountryController extends Controller
             if (!empty($country_imagePath['master_value'])) {
                 $country_image = $country_imagePath['master_value'];
             }
+        } else {
+            // Use default image if no file is uploaded
+            $defaultImagePath = base_path('travel-2081174_1280.jpg');
+            if (file_exists($defaultImagePath)) {
+                $defaultImageFile = new \Illuminate\Http\UploadedFile(
+                    $defaultImagePath,
+                    'travel-2081174_1280.jpg',
+                    mime_content_type($defaultImagePath),
+                    null,
+                    true
+                );
+                $defaultImageUpload = CommonHelper::image_path('file_storage', $defaultImageFile);
+                if (!empty($defaultImageUpload['master_value'])) {
+                    $country_image = $defaultImageUpload['master_value'];
+                }
+            }
         }
         
         // Create and store the new country
@@ -248,6 +264,23 @@ class CountryController extends Controller
             $country_imagePath = CommonHelper::image_path('file_storage', $request->file('country_image'));
             if (!empty($country_imagePath['master_value'])) {
                 $country_image = $country_imagePath['master_value'];
+            }
+        }
+        // If no existing image and no new image uploaded, use default image
+        elseif (empty($country->country_image)) {
+            $defaultImagePath = base_path('travel-2081174_1280.jpg');
+            if (file_exists($defaultImagePath)) {
+                $defaultImageFile = new \Illuminate\Http\UploadedFile(
+                    $defaultImagePath,
+                    'travel-2081174_1280.jpg',
+                    mime_content_type($defaultImagePath),
+                    null,
+                    true
+                );
+                $defaultImageUpload = CommonHelper::image_path('file_storage', $defaultImageFile);
+                if (!empty($defaultImageUpload['master_value'])) {
+                    $country_image = $defaultImageUpload['master_value'];
+                }
             }
         }
 

@@ -359,7 +359,9 @@ class CityController extends Controller
             // Handle overview image
             $existingExploration = CityExploration::where('city_id', $cityId)->first();
             
+            // Handle image upload/removal
             if ($request->hasFile('overview_image')) {
+                // User is uploading a new image
                 // Delete old overview image if exists
                 if ($existingExploration && !empty($existingExploration->overview['image'])) {
                     CommonHelper::deleteAzureImage($existingExploration->overview['image']);
@@ -369,7 +371,14 @@ class CityController extends Controller
                 if (!empty($uploadResult['master_value'])) {
                     $overview['image'] = $uploadResult['master_value'];
                 }
+            } elseif ($request->input('remove_overview_image') == '1') {
+                // User is removing the image without uploading a new one
+                if ($existingExploration && !empty($existingExploration->overview['image'])) {
+                    CommonHelper::deleteAzureImage($existingExploration->overview['image']);
+                }
+                $overview['image'] = null;
             } elseif ($request->input('existing_overview_image')) {
+                // Keep existing image
                 $overview['image'] = $request->input('existing_overview_image');
             }
 
@@ -384,6 +393,7 @@ class CityController extends Controller
 
                     // Handle attraction image
                     if ($request->hasFile("attraction_image.{$index}")) {
+                        // User is uploading a new image
                         // Delete old attraction image if exists and being replaced
                         if ($existingExploration && 
                             isset($existingExploration->attractions[$index]['image']) && 
@@ -395,7 +405,16 @@ class CityController extends Controller
                         if (!empty($uploadResult['master_value'])) {
                             $attractionData['image'] = $uploadResult['master_value'];
                         }
+                    } elseif ($request->input("remove_attraction_image.{$index}") == '1') {
+                        // User is removing the image without uploading a new one
+                        if ($existingExploration && 
+                            isset($existingExploration->attractions[$index]['image']) && 
+                            !empty($existingExploration->attractions[$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->attractions[$index]['image']);
+                        }
+                        $attractionData['image'] = null;
                     } elseif ($request->input("existing_attraction_image.{$index}")) {
+                        // Keep existing image
                         $attractionData['image'] = $request->input("existing_attraction_image.{$index}");
                     }
 
@@ -423,6 +442,7 @@ class CityController extends Controller
 
                     // Handle restaurant image
                     if ($request->hasFile("restaurant_image.{$index}")) {
+                        // User is uploading a new image
                         // Delete old restaurant image if exists and being replaced
                         if ($existingExploration && 
                             isset($existingExploration->food_cuisine['top_restaurants'][$index]['image']) && 
@@ -434,7 +454,16 @@ class CityController extends Controller
                         if (!empty($uploadResult['master_value'])) {
                             $restaurantData['image'] = $uploadResult['master_value'];
                         }
+                    } elseif ($request->input("remove_restaurant_image.{$index}") == '1') {
+                        // User is removing the image without uploading a new one
+                        if ($existingExploration && 
+                            isset($existingExploration->food_cuisine['top_restaurants'][$index]['image']) && 
+                            !empty($existingExploration->food_cuisine['top_restaurants'][$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->food_cuisine['top_restaurants'][$index]['image']);
+                        }
+                        $restaurantData['image'] = null;
                     } elseif ($request->input("existing_restaurant_image.{$index}")) {
+                        // Keep existing image
                         $restaurantData['image'] = $request->input("existing_restaurant_image.{$index}");
                     }
 
@@ -454,6 +483,7 @@ class CityController extends Controller
 
             // Handle food image
             if ($request->hasFile('food_image')) {
+                // User is uploading a new image
                 // Delete old food image if exists
                 if ($existingExploration && !empty($existingExploration->food_cuisine['image'])) {
                     CommonHelper::deleteAzureImage($existingExploration->food_cuisine['image']);
@@ -463,7 +493,14 @@ class CityController extends Controller
                 if (!empty($uploadResult['master_value'])) {
                     $foodCuisine['image'] = $uploadResult['master_value'];
                 }
+            } elseif ($request->input('remove_food_image') == '1') {
+                // User is removing the image without uploading a new one
+                if ($existingExploration && !empty($existingExploration->food_cuisine['image'])) {
+                    CommonHelper::deleteAzureImage($existingExploration->food_cuisine['image']);
+                }
+                $foodCuisine['image'] = null;
             } elseif ($request->input('existing_food_image')) {
+                // Keep existing image
                 $foodCuisine['image'] = $request->input('existing_food_image');
             }
 
@@ -477,6 +514,7 @@ class CityController extends Controller
                     ];
 
                     if ($request->hasFile("hotel_image.{$index}")) {
+                        // User is uploading a new image
                         // Delete old hotel image if exists and being replaced
                         if ($existingExploration && 
                             isset($existingExploration->accommodation[$index]['image']) && 
@@ -488,7 +526,16 @@ class CityController extends Controller
                         if (!empty($uploadResult['master_value'])) {
                             $hotelData['image'] = $uploadResult['master_value'];
                         }
+                    } elseif ($request->input("remove_hotel_image.{$index}") == '1') {
+                        // User is removing the image without uploading a new one
+                        if ($existingExploration && 
+                            isset($existingExploration->accommodation[$index]['image']) && 
+                            !empty($existingExploration->accommodation[$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->accommodation[$index]['image']);
+                        }
+                        $hotelData['image'] = null;
                     } elseif ($request->input("existing_hotel_image.{$index}")) {
+                        // Keep existing image
                         $hotelData['image'] = $request->input("existing_hotel_image.{$index}");
                     }
 
@@ -525,6 +572,7 @@ class CityController extends Controller
 
                     // Handle shopping image
                     if ($request->hasFile("shopping_image.{$index}")) {
+                        // User is uploading a new image
                         // Delete old shopping image if exists and being replaced
                         if ($existingExploration && 
                             isset($existingExploration->shopping[$index]['image']) && 
@@ -536,7 +584,16 @@ class CityController extends Controller
                         if (!empty($uploadResult['master_value'])) {
                             $shoppingData['image'] = $uploadResult['master_value'];
                         }
+                    } elseif ($request->input("remove_shopping_image.{$index}") == '1') {
+                        // User is removing the image without uploading a new one
+                        if ($existingExploration && 
+                            isset($existingExploration->shopping[$index]['image']) && 
+                            !empty($existingExploration->shopping[$index]['image'])) {
+                            CommonHelper::deleteAzureImage($existingExploration->shopping[$index]['image']);
+                        }
+                        $shoppingData['image'] = null;
                     } elseif ($request->input("existing_shopping_image.{$index}")) {
+                        // Keep existing image
                         $shoppingData['image'] = $request->input("existing_shopping_image.{$index}");
                     }
 

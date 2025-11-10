@@ -12,6 +12,7 @@ use App\Models\Agent;
 use App\Models\Attraction;
 use App\Models\Restaurant;
 use App\Models\OperationalCountry;
+use App\Models\Agency;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -1257,5 +1258,285 @@ class CommonHelper
             }
         }
         return null;
+    }
+
+    /**
+     * Send tour proposal email to agent
+     * Date: Current
+     * 
+     * @param int $agentId - Agent ID
+     * @param int $tourId - Tour ID
+     * @param string $tourDisplayId - Tour Display ID
+     * @param array $tourData - Tour details (destination, dates, guests, etc.)
+     * @return bool|string - true on success, error message on failure
+     */
+    public static function sendTourProposalEmail($agentId, $tourId, $tourDisplayId, $tourData = [])
+    {
+        try {
+            // Get agent details
+            $agent = Agent::where('agent_id', $agentId)->first();
+            if (!$agent) {
+                Log::error("Agent not found for tour proposal email", ['agent_id' => $agentId]);
+                return "Agent not found";
+            }
+
+            // Get agent's agency details
+            $agency = \App\Models\Agency::where('agency_id', $agent->agency_id)->first();
+            $agencyName = $agency ? $agency->agency_name : 'Your Travel Agency';
+
+            // Get DMC details
+            $dmcId = self::getDmcId(\Illuminate\Support\Facades\Auth::user());
+            if (!$dmcId) {
+                // Try to get DMC from agent's sales_manager_dmc
+                $dmcId = $agent->sales_manager_dmc;
+            }
+            
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
+            $dmcEmail = $dmc ? ($dmc->email ?? null) : null;
+            $dmcPhone = $dmc ? ($dmc->phone_number ?? null) : null;
+
+            // Prepare email data
+            $emailData = [
+                'agent_name' => $agent->name ?? 'Valued Partner',
+                'agency_name' => $agencyName,
+                'dmc_name' => $dmcName,
+                'dmc_logo' => $dmcLogo,
+                'dmc_email' => $dmcEmail,
+                'dmc_phone' => $dmcPhone,
+                'tour_display_id' => $tourDisplayId,
+                'destination' => $tourData['destination'] ?? 'N/A',
+                'city' => $tourData['city'] ?? null,
+                'check_in_date' => isset($tourData['check_in_time']) ? Carbon::parse($tourData['check_in_time'])->format('M d, Y') : 'N/A',
+                'check_out_date' => isset($tourData['check_out_time']) ? Carbon::parse($tourData['check_out_time'])->format('M d, Y') : 'N/A',
+                'adults' => $tourData['adult'] ?? 0,
+                'children' => $tourData['child'] ?? 0,
+                'infants' => $tourData['infant'] ?? 0,
+                'total_guests' => ($tourData['adult'] ?? 0) + ($tourData['child'] ?? 0) + ($tourData['infant'] ?? 0),
+                'query_date' => now()->format('M d, Y'),
+                'dashboard_link' => self::url(),
+            ];
+
+            // Email subject
+            $subject = "✈️ New Travel Proposal from {$dmcName} via Travclicks";
+
+            // Render the email template
+            try {
+                $html = view('mails.tour_proposal_agent', $emailData)->render();
+            } catch (\Exception $e) {
+                Log::error("Error rendering tour proposal email template", [
+                    'error' => $e->getMessage(),
+                    'tour_id' => $tourId
+                ]);
+                return "Error rendering email template: " . $e->getMessage();
+            }
+
+            // Send the email
+            try {
+                Mail::to($agent->email)->send(new DmcMail($html, $subject));
+                
+                // Log successful email sending
+                Log::info("Tour proposal email sent successfully", [
+                    'agent_id' => $agentId,
+                    'agent_email' => $agent->email,
+                    'tour_id' => $tourId,
+                    'tour_display_id' => $tourDisplayId
+                ]);
+                
+                return true;
+            } catch (\Exception $e) {
+                Log::error("Failed to send tour proposal email", [
+                    'error' => $e->getMessage(),
+                    'agent_id' => $agentId,
+                    'agent_email' => $agent->email,
+                    'tour_id' => $tourId
+                ]);
+                return "Failed to send email: " . $e->getMessage();
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Tour proposal email sending failed', [
+                'error' => $e->getMessage(),
+                'agent_id' => $agentId,
+                'tour_id' => $tourId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return "Email sending failed: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Send welcome email to agency when first DMC selects them
+     * Date: Current
+     * 
+     * @param int $agencyId - Agency ID
+     * @param int $dmcId - DMC ID that selected the agency
+     * @return bool|string - true on success, error message on failure
+     */
+    public static function sendAgencyWelcomeEmail($agencyId, $dmcId)
+    {
+        try {
+            // Get agency details
+            $agency = \App\Models\Agency::where('agency_id', $agencyId)->first();
+            if (!$agency) {
+                Log::error("Agency not found for welcome email", ['agency_id' => $agencyId]);
+                return "Agency not found";
+            }
+
+            // Get DMC details
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
+
+            // Prepare email data
+            $emailData = [
+                'agency_name' => $agency->agency_name ?? 'Valued Partner',
+                'company_name' => $agency->agency_name ?? 'Travel Agency',
+                'dmc_name' => $dmcName,
+                'dmc_logo' => $dmcLogo,
+            ];
+
+            // Email subject
+            $subject = "TRAVCLICKS - Super Charge Your Travel Business - Reimagine. Automate. Accelerate";
+
+            // Render the email template
+            try {
+                $html = view('mails.agency_welcome', $emailData)->render();
+            } catch (\Exception $e) {
+                Log::error("Error rendering agency welcome email template", [
+                    'error' => $e->getMessage(),
+                    'agency_id' => $agencyId
+                ]);
+                return "Error rendering email template: " . $e->getMessage();
+            }
+
+            // Send the email
+            try {
+                Mail::to($agency->email)->send(new DmcMail($html, $subject));
+                
+                // Log successful email sending
+                Log::info("Agency welcome email sent successfully", [
+                    'agency_id' => $agencyId,
+                    'agency_email' => $agency->email,
+                    'dmc_id' => $dmcId
+                ]);
+                
+                return true;
+            } catch (\Exception $e) {
+                Log::error("Failed to send agency welcome email", [
+                    'error' => $e->getMessage(),
+                    'agency_id' => $agencyId,
+                    'agency_email' => $agency->email,
+                    'dmc_id' => $dmcId
+                ]);
+                return "Failed to send email: " . $e->getMessage();
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Agency welcome email sending failed', [
+                'error' => $e->getMessage(),
+                'agency_id' => $agencyId,
+                'dmc_id' => $dmcId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return "Email sending failed: " . $e->getMessage();
+        }
+    }
+
+    /**
+     * Send partnership invitation email to agency when additional DMC selects them
+     * Date: Current
+     * 
+     * @param int $agencyId - Agency ID
+     * @param int $dmcId - DMC ID that selected the agency
+     * @return bool|string - true on success, error message on failure
+     */
+    public static function sendAgencyPartnershipEmail($agencyId, $dmcId)
+    {
+        try {
+            // Get agency details
+            $agency = \App\Models\Agency::where('agency_id', $agencyId)->first();
+            if (!$agency) {
+                Log::error("Agency not found for partnership email", ['agency_id' => $agencyId]);
+                return "Agency not found";
+            }
+
+            // Get DMC details
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
+            $dmcEmail = $dmc ? ($dmc->email ?? null) : null;
+            $dmcPhone = $dmc ? ($dmc->phone_number ?? null) : null;
+
+            // Prepare email data
+            $emailData = [
+                'agency_name' => $agency->agency_name ?? 'Valued Partner',
+                'company_name' => $agency->agency_name ?? 'Travel Agency',
+                'dmc_name' => $dmcName,
+                'dmc_logo' => $dmcLogo,
+                'dmc_email' => $dmcEmail,
+                'dmc_phone' => $dmcPhone,
+                'dashboard_link' => self::url(),
+            ];
+
+            // Email subject
+            $subject = "🌍 You've Been Invited to Partner with {$dmcName} on Travclicks";
+
+            // Render the email template
+            try {
+                $html = view('mails.agency_partnership_invite', $emailData)->render();
+            } catch (\Exception $e) {
+                Log::error("Error rendering agency partnership email template", [
+                    'error' => $e->getMessage(),
+                    'agency_id' => $agencyId
+                ]);
+                return "Error rendering email template: " . $e->getMessage();
+            }
+
+            // Send the email
+            try {
+                Mail::to($agency->email)->send(new DmcMail($html, $subject));
+                
+                // Log successful email sending
+                Log::info("Agency partnership email sent successfully", [
+                    'agency_id' => $agencyId,
+                    'agency_email' => $agency->email,
+                    'dmc_id' => $dmcId,
+                    'dmc_name' => $dmcName
+                ]);
+                
+                return true;
+            } catch (\Exception $e) {
+                Log::error("Failed to send agency partnership email", [
+                    'error' => $e->getMessage(),
+                    'agency_id' => $agencyId,
+                    'agency_email' => $agency->email,
+                    'dmc_id' => $dmcId
+                ]);
+                return "Failed to send email: " . $e->getMessage();
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Agency partnership email sending failed', [
+                'error' => $e->getMessage(),
+                'agency_id' => $agencyId,
+                'dmc_id' => $dmcId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return "Email sending failed: " . $e->getMessage();
+        }
+    }
+
+    public static function url() {
+        if (!function_exists('root_url')) {
+            function root_url($path = '')
+            {
+                $base = config('app.url');
+                $root = preg_replace('#/backadm-dmc/?$#', '', $base);
+                return rtrim($root, '/') . '/' . ltrim($path, '/');
+            }
+        }
+        return root_url('login');
     }
 }

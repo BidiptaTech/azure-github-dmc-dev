@@ -1891,10 +1891,12 @@ class JobSheetController extends Controller
                     ->get();
                 }
                 else{
-                    $orders = Order::whereIn('orders.type', $orderTypes)
+                    $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
+                    ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
+                    ->whereIn('orders.type', $orderTypes)
                     ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
                     ->whereRaw("data->0->>'pickupdate' = ?", [$date])
-                    ->whereNotNull('tour_id')
+                    ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
                 }

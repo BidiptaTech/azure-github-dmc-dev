@@ -35,6 +35,7 @@ class Guest extends Model
         'email',
         'country_code',
         'contact',
+        'whatsapp_no',
         'app_password',
         'image',
     ];

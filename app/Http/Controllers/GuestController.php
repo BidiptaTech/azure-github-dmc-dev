@@ -14,6 +14,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Order;
+use App\Models\User;
 
 class GuestController extends Controller
 {
@@ -51,7 +52,7 @@ class GuestController extends Controller
     public function getGuests(Request $request)
     {
         try {
-            $query = Guest::select('id', 'guest_id', 'tour_id', 'guest_name', 'email', 'contact', 'country_code', 'created_at', 'updated_at');
+            $query = Guest::select('id', 'guest_id', 'tour_id', 'guest_name', 'email', 'contact', 'country_code', 'whatsapp_no', 'created_at', 'updated_at');
             
             // Filter by tour_id if provided (using JSON contains for array field)
             if ($request->has('tour_id') && $request->tour_id) {
@@ -87,6 +88,7 @@ class GuestController extends Controller
                         data-email="' . ($row->email ?? '') . '" 
                         data-country-code="' . ($row->country_code ?? '+91') . '" 
                         data-contact="' . ($row->contact ?? '') . '" 
+                        data-whatsapp-no="' . ($row->whatsapp_no ?? '') . '" 
                         data-app-password="' . ($row->app_password ?? '') . '" 
                         title="Edit">
                         <i class="ri-edit-line"></i>
@@ -100,10 +102,13 @@ class GuestController extends Controller
                     
                     return '<div class="d-flex gap-2">' . $editBtn . ' ' . $deleteBtn . '</div>';
                 })
+                ->addColumn('whatsapp_no', function ($row) {
+                    return $row->whatsapp_no ? htmlspecialchars($row->whatsapp_no) : '<span class="text-muted">N/A</span>';
+                })
                 ->addColumn('created_at_formatted', function ($row) {
                     return $row->created_at ? $row->created_at->format('M d, Y H:i A') : 'N/A';
                 })
-                ->rawColumns(['action', 'tour_id'])
+                ->rawColumns(['action', 'tour_id', 'whatsapp_no'])
                 ->make(true);
         } catch (\Exception $e) {
             Log::error('Error fetching guests: ' . $e->getMessage());
@@ -130,6 +135,7 @@ class GuestController extends Controller
                 'email' => 'nullable|email|max:255',
                 'country_code' => 'nullable|string|max:10',
                 'contact' => 'nullable|string|max:255',
+                'whatsapp_no' => 'nullable|string|max:255',
                 'app_password' => 'nullable|string|max:255',
             ]);
 
@@ -146,6 +152,9 @@ class GuestController extends Controller
             if ($request->email) {
                 $existingGuest = Guest::where('email', $request->email)->first();
             }
+            
+            // Store plain password for email before hashing
+            $plainPassword = $request->app_password;
             
             // If guest exists with this email
             if ($existingGuest) {
@@ -165,9 +174,34 @@ class GuestController extends Controller
                     }
                 }
                 
+                // Update password if provided
+                if ($plainPassword) {
+                    $existingGuest->app_password = Hash::make($plainPassword);
+                    $existingGuest->save();
+                    
+                    Log::info('Guest password updated', [
+                        'guest_id' => $existingGuest->guest_id,
+                        'email' => $existingGuest->email
+                    ]);
+                }
+                
+                // Send credentials email with updated information
+                if ($existingGuest->email && $plainPassword) {
+                    try {
+                        $this->sendGuestCredentialsEmail($existingGuest, $plainPassword);
+                        Log::info('Credentials email sent to existing guest', [
+                            'guest_id' => $existingGuest->guest_id,
+                            'email' => $existingGuest->email
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to send credentials email to existing guest: ' . $e->getMessage());
+                        // Don't fail the request if email sending fails
+                    }
+                }
+                
                 return response()->json([
                     'success' => true,
-                    'message' => 'Guest already exists. Tour ID added to existing guest.',
+                    'message' => 'Guest already exists. Tour ID added and credentials updated.',
                     'data' => $existingGuest,
                     'existing_guest' => true
                 ], 200);
@@ -182,9 +216,6 @@ class GuestController extends Controller
             while (Guest::where('guest_id', $guestId)->exists()) {
                 $guestId = CommonHelper::createId($guestId);
             }
-
-            // Store plain password for email before hashing
-            $plainPassword = $request->app_password;
 
             // Use default avatar image from project root (deployed with code)
             $defaultAvatarPath = base_path('avatar-1577909_1280.png');
@@ -202,7 +233,7 @@ class GuestController extends Controller
                     );
                     
                     // Upload to Azure Storage using CommonHelper
-                    $uploadResult = CommonHelper::image_path('file_storage', $imageFile, 'guests');
+                    $uploadResult = CommonHelper::image_path('file_storage', $imageFile);
                     if (!empty($uploadResult['master_value'])) {
                         $imagePath = $uploadResult['master_value'];
                         Log::info('Guest default avatar uploaded to Azure successfully', ['path' => $imagePath]);
@@ -231,6 +262,7 @@ class GuestController extends Controller
                 'email' => $request->email,
                 'country_code' => $request->country_code ?? '+91',
                 'contact' => $request->contact,
+                'whatsapp_no' => $request->whatsapp_no,
                 'app_password' => $plainPassword ? Hash::make($plainPassword) : null,
                 'image' => $imagePath,
             ]);
@@ -272,6 +304,7 @@ class GuestController extends Controller
                 'email' => 'nullable|email|max:255',
                 'country_code' => 'nullable|string|max:10',
                 'contact' => 'nullable|string|max:255',
+                'whatsapp_no' => 'nullable|string|max:255',
                 'app_password' => 'nullable|string|max:255',
             ]);
 
@@ -292,17 +325,21 @@ class GuestController extends Controller
                 ], 404);
             }
             
+            // Store plain password for email before hashing
+            $plainPassword = $request->app_password;
+            
             // Prepare update data (excluding tour_id for now)
             $updateData = [
                 'guest_name' => $request->guest_name,
                 'email' => $request->email,
                 'country_code' => $request->country_code ?? '+91',
                 'contact' => $request->contact,
+                'whatsapp_no' => $request->whatsapp_no,
             ];
             
             // Hash password if provided
-            if ($request->app_password) {
-                $updateData['app_password'] = Hash::make($request->app_password);
+            if ($plainPassword) {
+                $updateData['app_password'] = Hash::make($plainPassword);
             }
             
             // Handle tour_id separately - it could be comma-separated or single value
@@ -333,6 +370,20 @@ class GuestController extends Controller
             }
             
             $guest->update($updateData);
+
+            // Send update notification email if email and password are provided
+            if ($guest->email && $plainPassword) {
+                try {
+                    $this->sendGuestUpdateEmail($guest, $plainPassword);
+                    Log::info('Update email sent to guest', [
+                        'guest_id' => $guest->guest_id,
+                        'email' => $guest->email
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to send update email to guest: ' . $e->getMessage());
+                    // Don't fail the request if email sending fails
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -400,6 +451,11 @@ class GuestController extends Controller
             $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
             $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
             
+            // Get DMC company name (the company that initiated the invitation)
+            $dmcId = CommonHelper::getDmcId(auth()->user());
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcCompanyName = $dmc->company_name ?? null;
+            
             // Prepare email data (use plain password for email, not the hashed one)
             $emailData = [
                 'guest_name' => $guest->guest_name,
@@ -412,6 +468,7 @@ class GuestController extends Controller
                 'company_logo' => $companyLogo,
                 'support_email' => $supportEmail,
                 'support_phone' => $supportPhone,
+                'dmc_company_name' => $dmcCompanyName,
             ];
             
             // Render the email template
@@ -446,6 +503,89 @@ class GuestController extends Controller
             }
         } catch (\Exception $e) {
             Log::error('Failed to send guest credentials email', [
+                'error' => $e->getMessage(),
+                'guest_id' => $guest->guest_id ?? null,
+                'email' => $guest->email ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send guest update email
+     * This method sends an update notification email with updated credentials
+     * 
+     * @param Guest $guest
+     * @param string $plainPassword
+     * @return bool
+     */
+    private function sendGuestUpdateEmail(Guest $guest, string $plainPassword)
+    {
+        try {
+            // Get company settings for branding
+            $logoSetting = Setting::where('name', 'logo')->where('status', 1)->first();
+            $nameSetting = Setting::where('name', 'name')->where('status', 1)->first();
+            $supportEmailSetting = Setting::where('name', 'support_email')->first();
+            $supportPhoneSetting = Setting::where('name', 'support_phone')->first();
+            
+            $companyLogo = $logoSetting ? $logoSetting->value : null;
+            $companyName = $nameSetting ? $nameSetting->value : config('app.name');
+            $supportEmail = $supportEmailSetting ? $supportEmailSetting->value : null;
+            $supportPhone = $supportPhoneSetting ? $supportPhoneSetting->value : null;
+            
+            // Get DMC company name (the company that initiated the invitation)
+            $dmcId = CommonHelper::getDmcId(auth()->user());
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcCompanyName = $dmc->company_name ?? null;
+            
+            // Prepare email data (use plain password for email, not the hashed one)
+            $emailData = [
+                'guest_name' => $guest->guest_name,
+                'email' => $guest->email,
+                'app_password' => $plainPassword,
+                'country_code' => $guest->country_code ?? '+91',
+                'contact' => $guest->contact,
+                'tour_id' => $guest->tour_id,
+                'company_name' => $companyName,
+                'company_logo' => $companyLogo,
+                'support_email' => $supportEmail,
+                'support_phone' => $supportPhone,
+                'dmc_company_name' => $dmcCompanyName,
+            ];
+            
+            // Render the email template
+            $html = view('mails.guest_update', $emailData)->render();
+            
+            // Extract styles and email container
+            preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
+            $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
+            
+            // Extract the email-container div
+            preg_match('/<div class="email-container">(.*?)<\/div>\s*<\/body>/s', $html, $matches);
+            
+            if (!empty($matches[0])) {
+                $extractedHtml = $matches[0];
+                
+                // Build complete email HTML
+                $subject = 'Your Tour Tracking Credentials Have Been Updated';
+                $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
+                
+                // Send the email
+                Mail::to($guest->email)->send(new DmcMail($emailHtml, $subject));
+                
+                Log::info("Guest update email sent successfully to: {$guest->email}", [
+                    'guest_id' => $guest->guest_id,
+                    'guest_name' => $guest->guest_name,
+                ]);
+                
+                return true;
+            } else {
+                Log::error("Email container div not found in guest update template");
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to send guest update email', [
                 'error' => $e->getMessage(),
                 'guest_id' => $guest->guest_id ?? null,
                 'email' => $guest->email ?? null,

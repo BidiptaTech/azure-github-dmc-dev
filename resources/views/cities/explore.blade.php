@@ -55,20 +55,22 @@
         top: 10px;
         right: 10px;
         color: white !important;
-        font-size: 24px !important;
-        font-weight: bold;
+        font-size: 14px !important;
+        font-weight: 600;
         line-height: 1;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 34px;
-        min-height: 34px;
-        padding: 0 !important;
+        padding: 6px 12px !important;
+        border-radius: 6px;
     }
     .remove-btn:hover {
         color: white !important;
         background-color: #c82333 !important;
         opacity: 1;
+    }
+    .hide-remove {
+        display: none !important;
     }
     .add-more-btn {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
@@ -89,6 +91,35 @@
         border-radius: 10px;
         margin-top: 10px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .image-wrapper {
+        position: relative;
+        display: inline-block;
+        margin-top: 10px;
+    }
+    .image-remove-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border: 2px solid white;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 1;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    .image-remove-btn:hover {
+        background: #c82333;
+        transform: scale(1.1);
     }
     .btn-save {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -231,12 +262,19 @@
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">City Image</label>
-                                    <input type="file" class="form-control" name="overview_image" accept="image/*" onchange="previewImage(this, 'overview-preview')">
+                                    <input type="file" class="form-control" name="overview_image" accept="image/*" onchange="previewImage(this, 'overview-preview', 'overview-wrapper')" id="overview-image-input">
+                                    <input type="hidden" name="remove_overview_image" id="remove-overview-image" value="0">
                                     @if($exploration && isset($exploration->overview['image']))
                                         <input type="hidden" name="existing_overview_image" value="{{ $exploration->overview['image'] }}">
-                                        <img src="{{ $exploration->overview['image'] }}" class="image-preview" id="overview-preview">
+                                        <div class="image-wrapper" id="overview-wrapper">
+                                            <img src="{{ $exploration->overview['image'] }}" class="image-preview" id="overview-preview">
+                                            <span class="image-remove-btn" onclick="removeImage('overview-preview', 'overview-wrapper', 'overview-image-input', 'remove-overview-image')" title="Remove image">×</span>
+                                        </div>
                                     @else
-                                        <img src="#" class="image-preview d-none" id="overview-preview">
+                                        <div class="image-wrapper d-none" id="overview-wrapper">
+                                            <img src="#" class="image-preview" id="overview-preview">
+                                            <span class="image-remove-btn" onclick="removeImage('overview-preview', 'overview-wrapper', 'overview-image-input', 'remove-overview-image')" title="Remove image">×</span>
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -264,8 +302,8 @@
                                 @if($exploration && isset($exploration->attractions) && count($exploration->attractions) > 0)
                                     @foreach($exploration->attractions as $index => $attraction)
                                         <div class="dynamic-item attraction-item">
-                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-attraction" title="Remove">
-                                                ×
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-attraction {{ $index == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                Remove
                                             </button>
                                             <div class="row">
                                                 <div class="col-md-8 mb-3">
@@ -281,10 +319,21 @@
                                                 </div>
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Image</label>
-                                                    <input type="file" class="form-control" name="attraction_image[{{ $index }}]" accept="image/*">
+                                                    <input type="file" class="form-control" name="attraction_image[{{ $index }}]" accept="image/*" 
+                                                           id="attraction-image-{{ $index }}" 
+                                                           onchange="previewImage(this, 'attraction-preview-{{ $index }}', 'attraction-wrapper-{{ $index }}')">
+                                                    <input type="hidden" name="remove_attraction_image[{{ $index }}]" id="remove-attraction-image-{{ $index }}" value="0">
                                                     @if(isset($attraction['image']))
                                                         <input type="hidden" name="existing_attraction_image[{{ $index }}]" value="{{ $attraction['image'] }}">
-                                                        <img src="{{ $attraction['image'] }}" class="image-preview mt-2">
+                                                        <div class="image-wrapper" id="attraction-wrapper-{{ $index }}">
+                                                            <img src="{{ $attraction['image'] }}" class="image-preview" id="attraction-preview-{{ $index }}">
+                                                            <span class="image-remove-btn" onclick="removeImage('attraction-preview-{{ $index }}', 'attraction-wrapper-{{ $index }}', 'attraction-image-{{ $index }}', 'remove-attraction-image-{{ $index }}')" title="Remove image">×</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="image-wrapper d-none" id="attraction-wrapper-{{ $index }}">
+                                                            <img src="#" class="image-preview" id="attraction-preview-{{ $index }}">
+                                                            <span class="image-remove-btn" onclick="removeImage('attraction-preview-{{ $index }}', 'attraction-wrapper-{{ $index }}', 'attraction-image-{{ $index }}', 'remove-attraction-image-{{ $index }}')" title="Remove image">×</span>
+                                                        </div>
                                                     @endif
                                                 </div>
                                             </div>
@@ -292,6 +341,9 @@
                                     @endforeach
                                 @else
                                     <div class="dynamic-item attraction-item">
+                                        <button type="button" class="btn btn-danger btn-sm remove-btn remove-attraction hide-remove" title="Remove">
+                                            Remove
+                                        </button>
                                         <div class="row">
                                             <div class="col-md-8 mb-3">
                                                 <label class="form-label">Attraction Name</label>
@@ -304,7 +356,14 @@
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">Image</label>
-                                                <input type="file" class="form-control" name="attraction_image[0]" accept="image/*">
+                                                <input type="file" class="form-control" name="attraction_image[0]" accept="image/*" 
+                                                       id="attraction-image-0" 
+                                                       onchange="previewImage(this, 'attraction-preview-0', 'attraction-wrapper-0')">
+                                                <input type="hidden" name="remove_attraction_image[0]" id="remove-attraction-image-0" value="0">
+                                                <div class="image-wrapper d-none" id="attraction-wrapper-0">
+                                                    <img src="#" class="image-preview" id="attraction-preview-0">
+                                                    <span class="image-remove-btn" onclick="removeImage('attraction-preview-0', 'attraction-wrapper-0', 'attraction-image-0', 'remove-attraction-image-0')" title="Remove image">×</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -327,10 +386,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-food-fork-drink me-2"></i>Famous Local Dishes</h6>
                                 <div id="dishes-container">
                                     @if($exploration && isset($exploration->food_cuisine['famous_dishes']) && count($exploration->food_cuisine['famous_dishes']) > 0)
+                                        @php $dishIndex = 0; @endphp
                                         @foreach($exploration->food_cuisine['famous_dishes'] as $name => $description)
                                             <div class="dynamic-item dish-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-dish" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-dish {{ $dishIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-6 mb-3">
@@ -343,9 +403,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $dishIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item dish-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-dish hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
                                                     <label class="form-label">Dish Name</label>
@@ -371,8 +435,8 @@
                                     @if($exploration && isset($exploration->food_cuisine['top_restaurants']) && count($exploration->food_cuisine['top_restaurants']) > 0)
                                         @foreach($exploration->food_cuisine['top_restaurants'] as $index => $restaurant)
                                             <div class="dynamic-item restaurant-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-restaurant" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-restaurant {{ $index == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-8 mb-3">
@@ -388,10 +452,21 @@
                                                     </div>
                                                     <div class="col-md-4 mb-3">
                                                         <label class="form-label">Image</label>
-                                                        <input type="file" class="form-control" name="restaurant_image[{{ $index }}]" accept="image/*">
+                                                        <input type="file" class="form-control" name="restaurant_image[{{ $index }}]" accept="image/*" 
+                                                               id="restaurant-image-{{ $index }}" 
+                                                               onchange="previewImage(this, 'restaurant-preview-{{ $index }}', 'restaurant-wrapper-{{ $index }}')">
+                                                        <input type="hidden" name="remove_restaurant_image[{{ $index }}]" id="remove-restaurant-image-{{ $index }}" value="0">
                                                         @if(isset($restaurant['image']))
                                                             <input type="hidden" name="existing_restaurant_image[{{ $index }}]" value="{{ $restaurant['image'] }}">
-                                                            <img src="{{ $restaurant['image'] }}" class="image-preview mt-2" style="max-width: 100px;">
+                                                            <div class="image-wrapper" id="restaurant-wrapper-{{ $index }}">
+                                                                <img src="{{ $restaurant['image'] }}" class="image-preview" id="restaurant-preview-{{ $index }}" style="max-width: 100px;">
+                                                                <span class="image-remove-btn" onclick="removeImage('restaurant-preview-{{ $index }}', 'restaurant-wrapper-{{ $index }}', 'restaurant-image-{{ $index }}', 'remove-restaurant-image-{{ $index }}')" title="Remove image">×</span>
+                                                            </div>
+                                                        @else
+                                                            <div class="image-wrapper d-none" id="restaurant-wrapper-{{ $index }}">
+                                                                <img src="#" class="image-preview" id="restaurant-preview-{{ $index }}" style="max-width: 100px;">
+                                                                <span class="image-remove-btn" onclick="removeImage('restaurant-preview-{{ $index }}', 'restaurant-wrapper-{{ $index }}', 'restaurant-image-{{ $index }}', 'remove-restaurant-image-{{ $index }}')" title="Remove image">×</span>
+                                                            </div>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -399,6 +474,9 @@
                                         @endforeach
                                     @else
                                         <div class="dynamic-item restaurant-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-restaurant hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-8 mb-3">
                                                     <label class="form-label">Restaurant Name</label>
@@ -411,7 +489,14 @@
                                                 </div>
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Image</label>
-                                                    <input type="file" class="form-control" name="restaurant_image[0]" accept="image/*">
+                                                    <input type="file" class="form-control" name="restaurant_image[0]" accept="image/*" 
+                                                           id="restaurant-image-0" 
+                                                           onchange="previewImage(this, 'restaurant-preview-0', 'restaurant-wrapper-0')">
+                                                    <input type="hidden" name="remove_restaurant_image[0]" id="remove-restaurant-image-0" value="0">
+                                                    <div class="image-wrapper d-none" id="restaurant-wrapper-0">
+                                                        <img src="#" class="image-preview" id="restaurant-preview-0" style="max-width: 100px;">
+                                                        <span class="image-remove-btn" onclick="removeImage('restaurant-preview-0', 'restaurant-wrapper-0', 'restaurant-image-0', 'remove-restaurant-image-0')" title="Remove image">×</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -427,10 +512,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-food-variant me-2"></i>Street Food Spots</h6>
                                 <div id="street-spots-container">
                                     @if($exploration && isset($exploration->food_cuisine['street_spots']) && count($exploration->food_cuisine['street_spots']) > 0)
+                                        @php $spotIndex = 0; @endphp
                                         @foreach($exploration->food_cuisine['street_spots'] as $spot)
                                             <div class="dynamic-item street-spot-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-street-spot" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-street-spot {{ $spotIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-6 mb-3">
@@ -443,9 +529,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $spotIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item street-spot-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-street-spot hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
                                                     <label class="form-label">Spot Name</label>
@@ -467,12 +557,19 @@
                             <!-- Food Image -->
                             <div class="section-card">
                                 <label class="form-label">Representative Food Image</label>
-                                <input type="file" class="form-control" name="food_image" accept="image/*" onchange="previewImage(this, 'food-preview')">
+                                <input type="file" class="form-control" name="food_image" accept="image/*" onchange="previewImage(this, 'food-preview', 'food-wrapper')" id="food-image-input">
+                                <input type="hidden" name="remove_food_image" id="remove-food-image" value="0">
                                 @if($exploration && isset($exploration->food_cuisine['image']))
                                     <input type="hidden" name="existing_food_image" value="{{ $exploration->food_cuisine['image'] }}">
-                                    <img src="{{ $exploration->food_cuisine['image'] }}" class="image-preview" id="food-preview">
+                                    <div class="image-wrapper" id="food-wrapper">
+                                        <img src="{{ $exploration->food_cuisine['image'] }}" class="image-preview" id="food-preview">
+                                        <span class="image-remove-btn" onclick="removeImage('food-preview', 'food-wrapper', 'food-image-input', 'remove-food-image')" title="Remove image">×</span>
+                                    </div>
                                 @else
-                                    <img src="#" class="image-preview d-none" id="food-preview">
+                                    <div class="image-wrapper d-none" id="food-wrapper">
+                                        <img src="#" class="image-preview" id="food-preview">
+                                        <span class="image-remove-btn" onclick="removeImage('food-preview', 'food-wrapper', 'food-image-input', 'remove-food-image')" title="Remove image">×</span>
+                                    </div>
                                 @endif
                             </div>
                         </div>
@@ -487,8 +584,8 @@
                                 @if($exploration && isset($exploration->accommodation) && count($exploration->accommodation) > 0)
                                     @foreach($exploration->accommodation as $index => $hotel)
                                         <div class="dynamic-item hotel-item">
-                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-hotel" title="Remove">
-                                                ×
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-hotel {{ $index == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                Remove
                                             </button>
                                             <div class="row">
                                                 <div class="col-md-8 mb-3">
@@ -504,10 +601,21 @@
                                                 </div>
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Image</label>
-                                                    <input type="file" class="form-control" name="hotel_image[{{ $index }}]" accept="image/*">
+                                                    <input type="file" class="form-control" name="hotel_image[{{ $index }}]" accept="image/*" 
+                                                           id="hotel-image-{{ $index }}" 
+                                                           onchange="previewImage(this, 'hotel-preview-{{ $index }}', 'hotel-wrapper-{{ $index }}')">
+                                                    <input type="hidden" name="remove_hotel_image[{{ $index }}]" id="remove-hotel-image-{{ $index }}" value="0">
                                                     @if(isset($hotel['image']))
                                                         <input type="hidden" name="existing_hotel_image[{{ $index }}]" value="{{ $hotel['image'] }}">
-                                                        <img src="{{ $hotel['image'] }}" class="image-preview mt-2" style="max-width: 100px;">
+                                                        <div class="image-wrapper" id="hotel-wrapper-{{ $index }}">
+                                                            <img src="{{ $hotel['image'] }}" class="image-preview" id="hotel-preview-{{ $index }}" style="max-width: 100px;">
+                                                            <span class="image-remove-btn" onclick="removeImage('hotel-preview-{{ $index }}', 'hotel-wrapper-{{ $index }}', 'hotel-image-{{ $index }}', 'remove-hotel-image-{{ $index }}')" title="Remove image">×</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="image-wrapper d-none" id="hotel-wrapper-{{ $index }}">
+                                                            <img src="#" class="image-preview" id="hotel-preview-{{ $index }}" style="max-width: 100px;">
+                                                            <span class="image-remove-btn" onclick="removeImage('hotel-preview-{{ $index }}', 'hotel-wrapper-{{ $index }}', 'hotel-image-{{ $index }}', 'remove-hotel-image-{{ $index }}')" title="Remove image">×</span>
+                                                        </div>
                                                     @endif
                                                 </div>
                                             </div>
@@ -515,6 +623,9 @@
                                     @endforeach
                                 @else
                                     <div class="dynamic-item hotel-item">
+                                        <button type="button" class="btn btn-danger btn-sm remove-btn remove-hotel hide-remove" title="Remove">
+                                            Remove
+                                        </button>
                                         <div class="row">
                                             <div class="col-md-8 mb-3">
                                                 <label class="form-label">Hotel Name</label>
@@ -527,7 +638,14 @@
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">Image</label>
-                                                <input type="file" class="form-control" name="hotel_image[0]" accept="image/*">
+                                                <input type="file" class="form-control" name="hotel_image[0]" accept="image/*" 
+                                                       id="hotel-image-0" 
+                                                       onchange="previewImage(this, 'hotel-preview-0', 'hotel-wrapper-0')">
+                                                <input type="hidden" name="remove_hotel_image[0]" id="remove-hotel-image-0" value="0">
+                                                <div class="image-wrapper d-none" id="hotel-wrapper-0">
+                                                    <img src="#" class="image-preview" id="hotel-preview-0" style="max-width: 100px;">
+                                                    <span class="image-remove-btn" onclick="removeImage('hotel-preview-0', 'hotel-wrapper-0', 'hotel-image-0', 'remove-hotel-image-0')" title="Remove image">×</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -550,10 +668,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-airplane me-2"></i>Nearest Airports</h6>
                                 <div id="airports-container">
                                     @if($exploration && isset($exploration->transportation['airports']) && count($exploration->transportation['airports']) > 0)
+                                        @php $airportIndex = 0; @endphp
                                         @foreach($exploration->transportation['airports'] as $airport)
                                             <div class="dynamic-item airport-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-airport" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-airport {{ $airportIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-4 mb-3">
@@ -570,9 +689,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $airportIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item airport-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-airport hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Airport Name</label>
@@ -600,10 +723,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-train me-2"></i>Railway Stations</h6>
                                 <div id="railways-container">
                                     @if($exploration && isset($exploration->transportation['railway_stations']) && count($exploration->transportation['railway_stations']) > 0)
+                                        @php $railwayIndex = 0; @endphp
                                         @foreach($exploration->transportation['railway_stations'] as $railway)
                                             <div class="dynamic-item railway-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-railway" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-railway {{ $railwayIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-6 mb-3">
@@ -616,9 +740,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $railwayIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item railway-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-railway hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
                                                     <label class="form-label">Station Name</label>
@@ -642,10 +770,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-bus me-2"></i>Getting Around (Local Transport)</h6>
                                 <div id="transport-options-container">
                                     @if($exploration && isset($exploration->transportation['local_transport']) && count($exploration->transportation['local_transport']) > 0)
+                                        @php $transportIndex = 0; @endphp
                                         @foreach($exploration->transportation['local_transport'] as $type => $description)
                                             <div class="dynamic-item transport-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-transport" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-transport {{ $transportIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-4 mb-3">
@@ -665,9 +794,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $transportIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item transport-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-transport hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Transport Type</label>
@@ -705,10 +838,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-weather-sunny me-2"></i>Seasonal Highlights</h6>
                                 <div id="seasons-container">
                                     @if($exploration && isset($exploration->best_time_visit['seasonal_highlights']) && count($exploration->best_time_visit['seasonal_highlights']) > 0)
+                                        @php $seasonIndex = 0; @endphp
                                         @foreach($exploration->best_time_visit['seasonal_highlights'] as $season)
                                             <div class="dynamic-item season-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-season" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-season {{ $seasonIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-4 mb-3">
@@ -721,9 +855,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $seasonIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item season-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-season hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Period</label>
@@ -747,10 +885,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-party-popper me-2"></i>Festival Periods</h6>
                                 <div id="festivals-container">
                                     @if($exploration && isset($exploration->best_time_visit['festival_periods']) && count($exploration->best_time_visit['festival_periods']) > 0)
+                                        @php $festivalIndex = 0; @endphp
                                         @foreach($exploration->best_time_visit['festival_periods'] as $festival)
                                             <div class="dynamic-item festival-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-festival" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-festival {{ $festivalIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-4 mb-3">
@@ -767,9 +906,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $festivalIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item festival-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-festival hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Festival Name</label>
@@ -803,8 +946,8 @@
                                 @if($exploration && isset($exploration->shopping) && count($exploration->shopping) > 0)
                                     @foreach($exploration->shopping as $index => $shop)
                                         <div class="dynamic-item shopping-item">
-                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-shopping" title="Remove">
-                                                ×
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-shopping {{ $index == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                Remove
                                             </button>
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
@@ -827,10 +970,21 @@
                                                 </div>
                                                 <div class="col-md-2 mb-3">
                                                     <label class="form-label">Image</label>
-                                                    <input type="file" class="form-control" name="shopping_image[{{ $index }}]" accept="image/*">
+                                                    <input type="file" class="form-control" name="shopping_image[{{ $index }}]" accept="image/*" 
+                                                           id="shopping-image-{{ $index }}" 
+                                                           onchange="previewImage(this, 'shopping-preview-{{ $index }}', 'shopping-wrapper-{{ $index }}')">
+                                                    <input type="hidden" name="remove_shopping_image[{{ $index }}]" id="remove-shopping-image-{{ $index }}" value="0">
                                                     @if(isset($shop['image']))
                                                         <input type="hidden" name="existing_shopping_image[{{ $index }}]" value="{{ $shop['image'] }}">
-                                                        <img src="{{ $shop['image'] }}" class="image-preview mt-2" style="max-width: 100px;">
+                                                        <div class="image-wrapper" id="shopping-wrapper-{{ $index }}">
+                                                            <img src="{{ $shop['image'] }}" class="image-preview" id="shopping-preview-{{ $index }}" style="max-width: 100px;">
+                                                            <span class="image-remove-btn" onclick="removeImage('shopping-preview-{{ $index }}', 'shopping-wrapper-{{ $index }}', 'shopping-image-{{ $index }}', 'remove-shopping-image-{{ $index }}')" title="Remove image">×</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="image-wrapper d-none" id="shopping-wrapper-{{ $index }}">
+                                                            <img src="#" class="image-preview" id="shopping-preview-{{ $index }}" style="max-width: 100px;">
+                                                            <span class="image-remove-btn" onclick="removeImage('shopping-preview-{{ $index }}', 'shopping-wrapper-{{ $index }}', 'shopping-image-{{ $index }}', 'remove-shopping-image-{{ $index }}')" title="Remove image">×</span>
+                                                        </div>
                                                     @endif
                                                 </div>
                                             </div>
@@ -838,6 +992,9 @@
                                     @endforeach
                                 @else
                                     <div class="dynamic-item shopping-item">
+                                        <button type="button" class="btn btn-danger btn-sm remove-btn remove-shopping hide-remove" title="Remove">
+                                            Remove
+                                        </button>
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">Name</label>
@@ -859,7 +1016,14 @@
                                             </div>
                                             <div class="col-md-2 mb-3">
                                                 <label class="form-label">Image</label>
-                                                <input type="file" class="form-control" name="shopping_image[0]" accept="image/*">
+                                                <input type="file" class="form-control" name="shopping_image[0]" accept="image/*" 
+                                                       id="shopping-image-0" 
+                                                       onchange="previewImage(this, 'shopping-preview-0', 'shopping-wrapper-0')">
+                                                <input type="hidden" name="remove_shopping_image[0]" id="remove-shopping-image-0" value="0">
+                                                <div class="image-wrapper d-none" id="shopping-wrapper-0">
+                                                    <img src="#" class="image-preview" id="shopping-preview-0" style="max-width: 100px;">
+                                                    <span class="image-remove-btn" onclick="removeImage('shopping-preview-0', 'shopping-wrapper-0', 'shopping-image-0', 'remove-shopping-image-0')" title="Remove image">×</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -882,10 +1046,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-hospital-building me-2"></i>Top Nearby Hospitals</h6>
                                 <div id="hospitals-container">
                                     @if($exploration && isset($exploration->hospitals_emergency['hospitals']) && count($exploration->hospitals_emergency['hospitals']) > 0)
+                                        @php $hospitalIndex = 0; @endphp
                                         @foreach($exploration->hospitals_emergency['hospitals'] as $hospital)
                                             <div class="dynamic-item hospital-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-hospital" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-hospital {{ $hospitalIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-4 mb-3">
@@ -910,9 +1075,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $hospitalIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item hospital-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-hospital hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-4 mb-3">
                                                     <label class="form-label">Hospital Name</label>
@@ -948,19 +1117,24 @@
                                 <h6 class="mb-3"><i class="mdi mdi-pharmacy me-2"></i>Nearby Pharmacies</h6>
                                 <div id="pharmacies-container">
                                     @if($exploration && isset($exploration->hospitals_emergency['pharmacies']) && count($exploration->hospitals_emergency['pharmacies']) > 0)
+                                        @php $pharmacyIndex = 0; @endphp
                                         @foreach($exploration->hospitals_emergency['pharmacies'] as $pharmacy)
                                             <div class="dynamic-item pharmacy-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-pharmacy" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-pharmacy {{ $pharmacyIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="mb-3">
                                                     <label class="form-label">Pharmacy Name</label>
                                                     <input type="text" class="form-control" name="pharmacy_name[]" value="{{ $pharmacy }}">
                                                 </div>
                                             </div>
+                                            @php $pharmacyIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item pharmacy-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-pharmacy hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="mb-3">
                                                 <label class="form-label">Pharmacy Name</label>
                                                 <input type="text" class="form-control" name="pharmacy_name[]" placeholder="Pharmacy name and location">
@@ -978,10 +1152,11 @@
                                 <h6 class="mb-3"><i class="mdi mdi-phone-alert me-2"></i>Emergency Numbers</h6>
                                 <div id="emergency-numbers-container">
                                     @if($exploration && isset($exploration->hospitals_emergency['emergency_numbers']) && count($exploration->hospitals_emergency['emergency_numbers']) > 0)
+                                        @php $emergencyIndex = 0; @endphp
                                         @foreach($exploration->hospitals_emergency['emergency_numbers'] as $emergency)
                                             <div class="dynamic-item emergency-item">
-                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-emergency" title="Remove">
-                                                    ×
+                                                <button type="button" class="btn btn-danger btn-sm remove-btn remove-emergency {{ $emergencyIndex == 0 ? 'hide-remove' : '' }}" title="Remove">
+                                                    Remove
                                                 </button>
                                                 <div class="row">
                                                     <div class="col-md-6 mb-3">
@@ -994,9 +1169,13 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            @php $emergencyIndex++; @endphp
                                         @endforeach
                                     @else
                                         <div class="dynamic-item emergency-item">
+                                            <button type="button" class="btn btn-danger btn-sm remove-btn remove-emergency hide-remove" title="Remove">
+                                                Remove
+                                            </button>
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
                                                     <label class="form-label">Service</label>
@@ -1063,15 +1242,68 @@ $(document).ready(function() {
 });
 
 // Image Preview Function
-function previewImage(input, previewId) {
+function previewImage(input, previewId, wrapperId) {
     const preview = document.getElementById(previewId);
+    const wrapper = wrapperId ? document.getElementById(wrapperId) : null;
+    
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
             preview.src = e.target.result;
-            preview.classList.remove('d-none');
+            if (wrapper) {
+                wrapper.classList.remove('d-none');
+            } else {
+                preview.classList.remove('d-none');
+            }
+            
+            // Clear the removal flag when a new file is selected
+            // This ensures that if user removed an image and then uploads a new one,
+            // the new upload takes precedence
+            if (input.id === 'overview-image-input') {
+                document.getElementById('remove-overview-image').value = '0';
+            } else if (input.id === 'food-image-input') {
+                document.getElementById('remove-food-image').value = '0';
+            } else if (input.id && input.id.startsWith('attraction-image-')) {
+                const index = input.id.replace('attraction-image-', '');
+                const removeInput = document.getElementById('remove-attraction-image-' + index);
+                if (removeInput) removeInput.value = '0';
+            } else if (input.id && input.id.startsWith('restaurant-image-')) {
+                const index = input.id.replace('restaurant-image-', '');
+                const removeInput = document.getElementById('remove-restaurant-image-' + index);
+                if (removeInput) removeInput.value = '0';
+            } else if (input.id && input.id.startsWith('hotel-image-')) {
+                const index = input.id.replace('hotel-image-', '');
+                const removeInput = document.getElementById('remove-hotel-image-' + index);
+                if (removeInput) removeInput.value = '0';
+            } else if (input.id && input.id.startsWith('shopping-image-')) {
+                const index = input.id.replace('shopping-image-', '');
+                const removeInput = document.getElementById('remove-shopping-image-' + index);
+                if (removeInput) removeInput.value = '0';
+            }
         }
         reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Remove Image Function
+function removeImage(previewId, wrapperId, inputId, removeInputId) {
+    const preview = document.getElementById(previewId);
+    const wrapper = document.getElementById(wrapperId);
+    const fileInput = document.getElementById(inputId);
+    const removeInput = document.getElementById(removeInputId);
+    
+    // Clear the image preview
+    preview.src = '#';
+    
+    // Hide the wrapper
+    wrapper.classList.add('d-none');
+    
+    // Clear the file input
+    fileInput.value = '';
+    
+    // Mark for removal
+    if (removeInput) {
+        removeInput.value = '1';
     }
 }
 
@@ -1158,7 +1390,7 @@ function addAttraction() {
     const html = `
         <div class="dynamic-item attraction-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-attraction" title="Remove">
-                ×
+                Remove
             </button>
             <div class="row">
                 <div class="col-md-8 mb-3">
@@ -1193,7 +1425,7 @@ function addDish() {
     const html = `
         <div class="dynamic-item dish-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-dish" title="Remove">
-                ×
+                Remove
             </button>
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -1216,7 +1448,7 @@ function addRestaurant() {
     const html = `
         <div class="dynamic-item restaurant-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-restaurant" title="Remove">
-                ×
+                Remove
             </button>
             <div class="row">
                 <div class="col-md-8 mb-3">
@@ -1251,7 +1483,7 @@ function addStreetSpot() {
     const html = `
         <div class="dynamic-item street-spot-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-street-spot" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -1272,7 +1504,7 @@ function addHotel() {
     const html = `
         <div class="dynamic-item hotel-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-hotel" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-8 mb-3">
@@ -1307,7 +1539,7 @@ function addAirport() {
     const html = `
         <div class="dynamic-item airport-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-airport" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -1332,7 +1564,7 @@ function addRailway() {
     const html = `
         <div class="dynamic-item railway-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-railway" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -1353,7 +1585,7 @@ function addTransportOption() {
     const html = `
         <div class="dynamic-item transport-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-transport" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -1381,7 +1613,7 @@ function addSeason() {
     const html = `
         <div class="dynamic-item season-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-season" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -1402,7 +1634,7 @@ function addFestival() {
     const html = `
         <div class="dynamic-item festival-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-festival" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -1429,7 +1661,7 @@ function addShopping() {
     const html = `
         <div class="dynamic-item shopping-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-shopping" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -1465,7 +1697,7 @@ function addHospital() {
     const html = `
         <div class="dynamic-item hospital-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-hospital" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-4 mb-3">
@@ -1498,7 +1730,7 @@ function addPharmacy() {
     const html = `
         <div class="dynamic-item pharmacy-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-pharmacy" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="mb-3">
                 <label class="form-label">Pharmacy Name</label>
@@ -1513,7 +1745,7 @@ function addEmergency() {
     const html = `
         <div class="dynamic-item emergency-item">
             <button type="button" class="btn btn-danger btn-sm remove-btn remove-emergency" title="Remove">
-                ×
+                                                Remove
             </button>
             <div class="row">
                 <div class="col-md-6 mb-3">
