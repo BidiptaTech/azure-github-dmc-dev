@@ -1783,10 +1783,6 @@
                                                             <small class="text-muted">Surcharge</small>
                                                             <div class="fw-medium text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
                                                         </div>
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Tax (%)</small>
-                                                            <div class="fw-medium">{{ $booking['Tax'] ?? 0 }}%</div>
-                                                        </div>
                                                         {{-- <div class="col-6 mb-3">
                                                             <small class="text-muted">Mode</small>
                                                             <span class="badge bg-info">{{ strtoupper($booking['Mode'] ?? 'N/A') }}</span>
@@ -1891,14 +1887,6 @@
                                                     <div class="text-center p-3 border rounded" style="border-color: #ffc107;">
                                                         <small class="text-muted d-block">Surcharge</small>
                                                         <div class="fs-5 fw-bold text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <div class="text-center p-3 border rounded" style="border-color: #17a2b8;">
-                                                        <small class="text-muted d-block">Tax ({{ $booking['Tax'] ?? 0 }}%)</small>
-                                                        <div class="fs-5 fw-bold text-info">
-                                                            SGD {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
-                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3 mb-3">
@@ -2747,10 +2735,6 @@
                                                     <small class="text-muted">Total Price</small>
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
                                                 {{-- <div class="col-12 mb-3">
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
@@ -3066,10 +3050,6 @@
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
                                                 <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
                                                     <small class="text-muted">From Zone</small>
                                                     <div class="fw-medium">{{ $fromZoneName }}</div>
                                                 </div>
@@ -3383,10 +3363,6 @@
                                                 <div class="col-md-6 mb-3">
                                                     <small class="text-muted">Total Price</small>
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
                                                 </div>
                                                 <div class="col-md-6 mb-3">
                                                     <small class="text-muted">From Zone</small>

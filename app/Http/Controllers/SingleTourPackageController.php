@@ -1676,7 +1676,7 @@ class SingleTourPackageController extends Controller
                 $query->where('city', $city);
             }
             
-            $guides = $query->select('guide_id', 'name', 'city', 'night_start_time', 'night_end_time', 
+            $guides = $query->select('guide_id', 'name', 'city', 'image', 'night_start_time', 'night_end_time', 
                         'night_surcharge', 'hourly_price', 
                         'two_hour_price', 'four_hour_price', 'six_hour_price', 
                         'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
@@ -1687,6 +1687,7 @@ class SingleTourPackageController extends Controller
                     'guide_id' => $guide->guide_id,
                     'name' => $guide->name,
                     'city' => $guide->city,
+                    'image' => $guide->image,
                     'night_start_time' => $guide->night_start_time,
                     'night_end_time' => $guide->night_end_time,
                     'day_rate' => 0,
@@ -1748,7 +1749,7 @@ class SingleTourPackageController extends Controller
                 ->where('status', 1)
                 ->where('city', $city)
                 ->with('languages')
-                ->select('guide_id', 'name', 'city', 'night_start_time', 'night_end_time', 
+                ->select('guide_id', 'name', 'city', 'image', 'night_start_time', 'night_end_time', 
                         'night_surcharge', 'hourly_price', 
                         'two_hour_price', 'four_hour_price', 'six_hour_price', 
                         'eight_hour_price', 'ten_hour_price', 'twelve_hour_price')
@@ -2371,6 +2372,8 @@ class SingleTourPackageController extends Controller
                         'vehicle_name' => $vehicle->vehicle_name,
                         'vehicle_type' => $vehicle->vehicle_type,
                         'seating_capacity' => $vehicle->seating_capacity,
+                        'vehicle_model' => $vehicle->vehicle_model,
+                        'image' => $vehicle->image,
                         'base_price' => $vehicle->base_price,
                         'sharable_base_price' => $vehicle->sharable_base_price,
                         'service_type' => $vehicle->service_type,

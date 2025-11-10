@@ -20673,11 +20673,6 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        if (selectedDate < today) {
-            alert('Actual due date cannot be in the past');
-            return;
-        }
-        
         // Show loading state
         const approveButton = event.target;
         const originalText = approveButton.innerHTML;
