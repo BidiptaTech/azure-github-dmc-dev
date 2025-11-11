@@ -2355,13 +2355,18 @@ class SingleTourPackageController extends Controller
                             // ✅ Zone mapping prices
                             'private_price' => $mapping->private_price,
                             'shared_price' => $mapping->shared_price,
+                            // Additional fields for consistency
+                            'dmc_id' => $vehicle->dmc_id,
+                            'city' => $vehicle->city,
+                            'country' => $vehicle->country,
+                            'model_year' => $vehicle->model_year,
                         ];
                     })
                 ->filter()
                 ->values();
             }
             else{
-                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable')
+                $vehicles = Vehicle::select('vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'vehicle_model', 'image', 'base_price', 'sharable_base_price', 'service_type', 'sharable', 'dmc_id', 'city', 'country', 'model_year')
                     ->where('dmc_id', $dmcId)
                     ->where('city', $city)
                     ->where('is_available', 1)
@@ -2380,6 +2385,11 @@ class SingleTourPackageController extends Controller
                         'private_price' => $vehicle->base_price,
                         'shared_price' => $vehicle->sharable_base_price,
                         'sharable' => $vehicle->sharable,
+                        // Additional fields for consistency
+                        'dmc_id' => $vehicle->dmc_id,
+                        'city' => $vehicle->city,
+                        'country' => $vehicle->country,
+                        'model_year' => $vehicle->model_year,
                     ];
                 });
             }
@@ -3454,13 +3464,26 @@ class SingleTourPackageController extends Controller
             $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
         }
         
-        // Log the transport data for debugging
+        // Detailed logging for transport order - check image field
         \Log::info("Processing transport order", [
             'transport_data' => $transportData,
             'booking_id' => $bookingId,
             'agent_id' => $agentId,
             'tour_id' => $tourId
         ]);
+        
+        // Specifically log the image field from first transport item
+        if (is_array($transportData) && count($transportData) > 0) {
+            \Log::info("Transport order IMAGE field check", [
+                'image_value' => $transportData[0]['image'] ?? 'NOT_FOUND',
+                'dmc_id_value' => $transportData[0]['dmc_id'] ?? 'NOT_FOUND',
+                'vehicle_id' => $transportData[0]['vehicles_id'] ?? 'NOT_FOUND',
+                'vehicle_name' => $transportData[0]['vehicles_name'] ?? 'NOT_FOUND',
+                'has_image_key' => isset($transportData[0]['image']),
+                'image_is_empty' => empty($transportData[0]['image']),
+                'all_keys' => array_keys($transportData[0])
+            ]);
+        }
         
         // Create order
         $order = \App\Models\Order::create([
