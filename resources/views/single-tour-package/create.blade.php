@@ -5329,6 +5329,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             const languageNames = guide.languages ? guide.languages.map(lang => lang.language).join(', ') : 'Languages not specified';
                             option.textContent = `${guide.name} - ${languageNames}`;
                             option.dataset.city = guide.city;
+                            option.dataset.image = guide.image || '';
+                            option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
+                            option.dataset.experience = guide.experience || 0;
                             
                             // Add pricing data attributes
                             option.dataset.nightStartTime = guide.night_start_time;
@@ -8238,7 +8241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                      </div>
                      
-                                           <!-- Tour Guide Services -->
+                    <!-- Tour Guide Services -->
                       <div class="service-card mb-4">
                           <div class="service-header d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-top border-bottom border-info">
                               <div>
@@ -10791,6 +10794,9 @@ document.addEventListener('DOMContentLoaded', function() {
                          const option = document.createElement('option');
                          option.value = guide.guide_id;
                          option.textContent = guide.name;
+                         option.dataset.image = guide.image || '';
+                         option.dataset.languages = guide.languages ? JSON.stringify(guide.languages.map(lang => lang.language)) : JSON.stringify([]);
+                         option.dataset.experience = guide.experience || 0;
                          option.dataset.nightStartTime = guide.night_start_time;
                          option.dataset.nightEndTime = guide.night_end_time;
                          option.dataset.dayRate = 0;
@@ -11108,7 +11114,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Format hours for display and value
             const hourStr = hour.toString().padStart(2, '0');
             const timeValue = `${hourStr}:00:00`;
-            const timeDisplay = `${hourStr}:00`;
+            const timeDisplay = formatTo12Hour(hour);
             
             // Check if this hour is in night range
             const isNightHour = nightStart !== null && nightEnd !== null && 
@@ -11125,7 +11131,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add change event listener
         selectElement.addEventListener('change', function() {
             const selectedTime = this.value;
-            const selectedTimeDisplay = selectedTime ? selectedTime.substring(0, 5) : '';
+            const selectedTimeDisplay = selectedTime ? formatTo12Hour(parseInt(selectedTime.split(':')[0], 10)) : '';
             selectPickupTime(day, index, selectedTime, selectedTimeDisplay);
         });
         
@@ -11138,7 +11144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             nightInfo.className = 'alert alert-warning py-2 mb-2';
             nightInfo.innerHTML = `
                 <i class="ri-moon-line me-1"></i>
-                <strong>Night Hours:</strong> ${nightStart}:00 - ${originalNightEnd}:00
+                <strong>Night Hours:</strong> ${formatTo12Hour(nightStart)} - ${formatTo12Hour(originalNightEnd)}
                 <br><small>Night surcharge applies during these hours</small>
             `;
             timeOptionsContainer.appendChild(nightInfo);
@@ -11165,10 +11171,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Format hour to 12-hour format
     function formatTo12Hour(hour) {
-        if (hour === 0) return '12:00 AM';
-        if (hour < 12) return hour.toString().padStart(2, '0') + ':00 AM';
-        if (hour === 12) return '12:00 PM';
-        return (hour - 12).toString().padStart(2, '0') + ':00 PM';
+        const normalizedHour = Number.isNaN(hour) ? 0 : hour;
+        const period = normalizedHour >= 12 ? 'PM' : 'AM';
+        const hour12 = normalizedHour % 12 === 0 ? 12 : normalizedHour % 12;
+        return `${hour12}:00 ${period}`;
     }
     
     // Select pickup time
@@ -15040,12 +15046,13 @@ function loadDropoffZones(day, section) {
                          console.log('Private price:', vehicle.private_price);
                          console.log('Shared price:', vehicle.shared_price);
                          
-                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                              data-private-price="${vehicle.private_price}" 
                              data-shared-price="${vehicle.shared_price}"
                              data-service-type="${vehicle.service_type}"
                              data-mapping-id="${vehicle.mapping_id}"
-                             data-seatingCapacity="${vehicle.seating_capacity}" data-sharable="${vehicle.sharable}">
+                            data-seatingCapacity="${vehicle.seating_capacity}" data-sharable="${vehicle.sharable}"
+                            data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
                          </option>`;
                      });
@@ -16690,14 +16697,15 @@ window.saveService = function(day, type) {
                                  console.log('Shared price:', vehicle.shared_price);
                                  console.log('Sharable:', vehicle.sharable);
                                  
-                                 vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                                      data-private-price="${vehicle.private_price || ''}" 
                                      data-shared-price="${vehicle.shared_price || ''}"
                                      data-service-type="${vehicle.service_type || ''}"
                                      data-cost-per-hour="${vehicle.cost_per_hour || ''}"
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                                     data-seatingCapacity="${vehicle.seating_capacity || ''}"
-                                    data-sharable="${vehicle.sharable || ''}">
+                                    data-sharable="${vehicle.sharable || ''}"
+                                    data-image="${vehicle.image || ''}">
                                      ${vehicleInfo}
                                  </option>`;
                              });
@@ -16943,13 +16951,14 @@ window.saveService = function(day, type) {
                          console.log('Private price:', vehicle.private_price);
                          console.log('Shared price:', vehicle.shared_price);
                          
-                         vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                              data-private-price="${vehicle.private_price || ''}" 
                              data-shared-price="${vehicle.shared_price || ''}"
                              data-service-type="${vehicle.service_type || ''}"
                              data-mapping-id="${vehicle.mapping_id || ''}"
-                             data-seatingCapacity="${vehicle.seating_capacity || ''}"
-                             data-sharable="${vehicle.sharable || ''}">
+                            data-seatingCapacity="${vehicle.seating_capacity || ''}"
+                            data-sharable="${vehicle.sharable || ''}"
+                            data-image="${vehicle.image || ''}">
                              ${vehicleInfo}
                          </option>`;
                      });
@@ -18811,7 +18820,7 @@ window.saveService = function(day, type) {
                                     vehicleSelect.innerHTML = '<option value="">Choose your vehicle</option>';
                                     data.vehicles.forEach(vehicle => {
                                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+                                    vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                                             data-vehicle-name="${vehicle.vehicle_name}" 
                                             data-vehicle-type="${vehicle.vehicle_type}" 
                                             data-seating-capacity="${vehicle.seating_capacity}"
@@ -18820,7 +18829,8 @@ window.saveService = function(day, type) {
                                             data-service-type="${vehicle.service_type || ''}"
                                             data-cost-per-hour="${vehicle.cost_per_hour || ''}"
                                             data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
-                                            data-sharable="${vehicle.sharable || '0'}">
+                                            data-sharable="${vehicle.sharable || '0'}"
+                                            data-image="${vehicle.image || ''}">
                                             ${vehicleInfo}
                                         </option>`;
                                     });
@@ -19422,7 +19432,7 @@ function populateVehicleDropdown(day, section, vehicles) {
         vehicles.forEach(vehicle => {
             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
             
-            vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
+        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
                 data-private-price="${vehicle.private_price || ''}" 
                 data-shared-price="${vehicle.shared_price || ''}"
                 data-service-type="${vehicle.service_type || ''}"
@@ -19431,7 +19441,8 @@ function populateVehicleDropdown(day, section, vehicles) {
                 data-vehicle-name="${vehicle.vehicle_name || ''}"
                 data-vehicle-type="${vehicle.vehicle_type || ''}"
                 data-seatingCapacity="${vehicle.seating_capacity || ''}"
-                data-sharable="${vehicle.sharable || ''}">
+                data-sharable="${vehicle.sharable || ''}"
+                data-image="${vehicle.image || ''}">
                 ${vehicleInfo}
             </option>`;
         });
@@ -19572,12 +19583,16 @@ function saveTransportService(day, section, type) {
     // Prepare data based on service category
     let data = {};
     
+    const vehicleSelectElement = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
+    let selectedVehicleOption = vehicleSelectElement && vehicleSelectElement.selectedIndex >= 0
+        ? vehicleSelectElement.options[vehicleSelectElement.selectedIndex]
+        : null;
+
     if (serviceCategory === 'point_to_point') {
         const pickupLocation = document.querySelector(`input[name="day${day}_${section}_point_pickup_location"]`);
         const dropoffLocation = document.querySelector(`input[name="day${day}_${section}_point_dropoff_location"]`);
         const pickupTime = document.querySelector(`select[name="day${day}_${section}_point_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_point_pickup_date"]`);
-        const vehicleId = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         
         data = {
@@ -19586,7 +19601,7 @@ function saveTransportService(day, section, type) {
             dropoff_location: dropoffLocation?.value,
             pickup_time: pickupTime?.value,
             pickup_date: pickupDate?.value,
-            vehicle_id: vehicleId?.value,
+            vehicle_id: vehicleSelectElement?.value,
             service_type: serviceType?.value,
             day: day
         };
@@ -19594,7 +19609,6 @@ function saveTransportService(day, section, type) {
         const pickupLocation = document.querySelector(`input[name="day${day}_${section}_hourly_pickup_location"]`);
         const pickupTime = document.querySelector(`select[name="day${day}_${section}_hourly_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_hourly_pickup_date"]`);
-        const vehicleId = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         
         data = {
@@ -19602,7 +19616,7 @@ function saveTransportService(day, section, type) {
             pickup_location: pickupLocation?.value,
             pickup_time: pickupTime?.value,
             pickup_date: pickupDate?.value,
-            vehicle_id: vehicleId?.value,
+            vehicle_id: vehicleSelectElement?.value,
             service_type: serviceType?.value,
             day: day
         };
@@ -19612,7 +19626,6 @@ function saveTransportService(day, section, type) {
         const dropoffZoneId = document.querySelector(`select[name="day${day}_${section}_dropoff_zone_id"]`);
         const pickupTime = document.querySelector(`select[name="day${day}_${section}_pickup_time"]`);
         const pickupDate = document.querySelector(`input[name="day${day}_${section}_date"]`);
-        const vehicleId = document.querySelector(`select[name="day${day}_${section}_vehicle_id"]`);
         const serviceType = document.querySelector(`select[name="day${day}_${section}_service_type"]`);
         
         data = {
@@ -19621,10 +19634,18 @@ function saveTransportService(day, section, type) {
             dropoff_zone_id: dropoffZoneId?.value,
             pickup_time: pickupTime?.value,
             pickup_date: pickupDate?.value,
-            vehicle_id: vehicleId?.value,
+            vehicle_id: vehicleSelectElement?.value,
             service_type: serviceType?.value,
             day: day
         };
+    }
+    
+    if (selectedVehicleOption) {
+        data.image = selectedVehicleOption.dataset.image || '';
+        data.vehicles_name = selectedVehicleOption.dataset.vehicleName || selectedVehicleOption.text || '';
+        data.vehicle_type = selectedVehicleOption.dataset.vehicleType || '';
+        data.vehicle_model = selectedVehicleOption.dataset.vehicleModel || '';
+        data.seating_capacity = selectedVehicleOption.dataset.seatingcapacity || selectedVehicleOption.dataset.seatingCapacity || '';
     }
     
     // Get customer information

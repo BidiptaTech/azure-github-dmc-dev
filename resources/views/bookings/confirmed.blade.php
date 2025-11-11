@@ -378,7 +378,6 @@
                             <td>
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
                             <td>
@@ -931,7 +930,7 @@
                                                 </button>
                                             @endif
                                         @endif
-                                    @endif
+                                @endif
                                 </div>
                             </td>
                             <td>
@@ -2503,10 +2502,6 @@
                                                             <small class="text-muted">Surcharge</small>
                                                             <div class="fw-medium text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
                                                         </div>
-                                                        <div class="col-6 mb-3">
-                                                            <small class="text-muted">Tax (%)</small>
-                                                            <div class="fw-medium">{{ $booking['Tax'] ?? 0 }}%</div>
-                                                        </div>
                                                         {{-- <div class="col-6 mb-3">
                                                             <small class="text-muted">Mode</small>
                                                             <span class="badge bg-info">{{ strtoupper($booking['Mode'] ?? 'N/A') }}</span>
@@ -2611,14 +2606,6 @@
                                                     <div class="text-center p-3 border rounded" style="border-color: #ffc107;">
                                                         <small class="text-muted d-block">Surcharge</small>
                                                         <div class="fs-5 fw-bold text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <div class="text-center p-3 border rounded" style="border-color: #17a2b8;">
-                                                        <small class="text-muted d-block">Tax ({{ $booking['Tax'] ?? 0 }}%)</small>
-                                                        <div class="fs-5 fw-bold text-info">
-                                                            SGD {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
-                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3 mb-3">
@@ -4093,10 +4080,6 @@
                                                     <small class="text-muted">Total Price</small>
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
                                                 {{-- <div class="col-12 mb-3">
                                                     <small class="text-muted">Booking Type</small>
                                                     <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
@@ -4483,10 +4466,6 @@
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                                 </div>
                                                 <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
                                                     <small class="text-muted">From Zone</small>
                                                     <div class="fw-medium">{{ $fromZoneName }}</div>
                                                 </div>
@@ -4865,10 +4844,6 @@
                                                 <div class="col-md-6 mb-3">
                                                     <small class="text-muted">Total Price</small>
                                                     <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <small class="text-muted">Tax</small>
-                                                    <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
                                                 </div>
                                                 <div class="col-md-6 mb-3">
                                                     <small class="text-muted">From Zone</small>
@@ -5422,10 +5397,6 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                             <div class="fw-medium">SGD ${parseFloat(guideBooking.surcharge || 0).toFixed(2)}</div>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <small class="text-muted">Tax (${guideBooking.tax || '0'}%)</small>
-                            <div class="fw-medium">SGD ${(parseFloat(guideBooking.totalPrice || 0) * parseFloat(guideBooking.tax || 0) / 100).toFixed(2)}</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <small class="text-muted">Total Price</small>
                             <div class="fw-bold text-success fs-5">SGD ${parseFloat(guideBooking.totalPrice || 0).toFixed(2)}</div>
                         </div>
@@ -5895,12 +5866,12 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required value="{{ $guide_info['actualDueDate'] ?? '' }}" 
                                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -5918,7 +5889,7 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
                                     <option value="7">1 week before</option>
                                     <option value="14">2 weeks before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -6221,12 +6192,12 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateHourlyDisplayDueDate('${tourId}', '${hourlyOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -6244,7 +6215,7 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
                                     <option value="7">1 week before</option>
                                     <option value="14">2 weeks before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -6890,7 +6861,7 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
             return;
         }
         
-        // Calculate display due date by subtracting days from actual due date
+        // Calculate display due date by subtracting days from Free Cancellation Date
         const actualDate = new Date(actualDueDate);
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
@@ -8780,11 +8751,11 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${autoCancelDate}"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -8802,7 +8773,7 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -8957,7 +8928,7 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                     attractionNameElement.textContent = attractionData.attraction_name || 'Attraction Booking';
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const defaultDate = new Date();
@@ -10666,12 +10637,12 @@ function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingInd
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="actual_due_date" required 
                        onchange="calculateArrivalDisplayDueDate('${tourId}', '${arrivalOrderIndex}', '${arrivalBookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -10689,7 +10660,7 @@ function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingInd
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -11143,12 +11114,12 @@ function generateApproveDepartureForm(tourId, departureOrderIndex, departureBook
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="actual_due_date" required 
                        onchange="calculateDepartureDisplayDueDate('${tourId}', '${departureOrderIndex}', '${departureBookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -11166,7 +11137,7 @@ function generateApproveDepartureForm(tourId, departureOrderIndex, departureBook
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -13537,10 +13508,6 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                         <small class="text-muted">Total Price</small>
                                         <div class="fw-bold text-success">SGD ${travelHourlyData.totalPrice || '0'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-medium">${travelHourlyData.Tax || '0'}%</div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -14093,12 +14060,12 @@ function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, booking
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculateHourlyDisplayDueDate('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -14116,7 +14083,7 @@ function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, booking
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Choose how many days before the actual due date to display</div>
+                <div class="form-text">Choose how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -14824,10 +14791,6 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <small class="text-muted">Total Price</small>
                                         <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
-                                    </div>
                                     <div class="col-12 mb-2">
                                         <small class="text-muted">Customer Name</small>
                                         <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
@@ -15187,7 +15150,7 @@ window.calculatePointDisplayDueDate = function(tourId, travelPointOrderIndex, bo
             return;
         }
         
-        // Calculate display due date by subtracting days from actual due date
+        // Calculate display due date by subtracting days from Free Cancellation Date
         const actualDate = new Date(actualDueDate);
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
@@ -15275,12 +15238,12 @@ function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIn
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculatePointDisplayDueDate('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -15298,7 +15261,7 @@ function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIn
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Choose how many days before the actual due date to display</div>
+                <div class="form-text">Choose how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -16308,10 +16271,6 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                         <div class="col-md-6 mb-3">
                                             <small class="text-muted">Total Price</small>
                                             <div class="fw-bold text-success">SGD ${travelPointData.totalPrice || '0'}</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Tax</small>
-                                            <div class="fw-medium">${travelPointData.Tax || '0'}%</div>
                                         </div>
                                     </div>
                                 </div>
@@ -17518,10 +17477,6 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                                             <small class="text-muted">Total Price</small>
                                             <div class="fw-bold text-success">SGD ${localTransportData.totalPrice || '0'}</div>
                                         </div>
-                                        <div class="col-md-6 mb-3">
-                                            <small class="text-muted">Tax</small>
-                                            <div class="fw-medium">${localTransportData.Tax || '0'}%</div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -17752,12 +17707,12 @@ function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, boo
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateLocalTransportDisplayDueDate('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -17776,7 +17731,7 @@ function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, boo
                                     <option value="14">2 weeks before</option>
                                     <option value="30">1 month before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -18079,7 +18034,7 @@ function confirmIndividualLocalTransportApproval(tourId, localTransportOrderInde
         }
 
         if (!actualDueDate) {
-            alert('Please select an actual due date.');
+            alert('Please select an Free Cancellation Date.');
             return;
         }
 
@@ -18643,10 +18598,10 @@ function generateApproveLocalTransportForm(tourId, localTransportOrderIndex, boo
                             <small class="text-muted">Supported: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)</small>
                         </div>
 
-                        <!-- Actual Due Date -->
+                        <!-- Free Cancellation Date -->
                         <div class="col-md-6">
                             <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
-                                <i class="ri-calendar-line me-1"></i>Actual Due Date <span class="text-danger">*</span>
+                                <i class="ri-calendar-line me-1"></i>Free Cancellation Date <span class="text-danger">*</span>
                             </label>
                             <input type="date" 
                                    class="form-control" 
@@ -20226,11 +20181,11 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="text" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -20248,7 +20203,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -20524,7 +20479,7 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                     hotelNameElement.textContent = hotelData.hotel_name || 'Hotel Booking';
                 }
                 
-                // Set actual due date from tour's auto_cancel_date
+                // Set Free Cancellation Date from tour's auto_cancel_date
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
@@ -20676,7 +20631,7 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
             return;
         }
         
-        // Validate actual due date is not in the past
+        // Validate Free Cancellation Date is not in the past
         const selectedDate = new Date(actualDueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -23513,11 +23468,11 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${autoCancelDate}"
                     style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -23535,7 +23490,7 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -24575,12 +24530,12 @@ function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -24598,7 +24553,7 @@ function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -24726,13 +24681,13 @@ function loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex) {
                     }
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const defaultDate = new Date();
                     defaultDate.setDate(defaultDate.getDate() + 7);
                     actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
-                    console.log('✅ Set default actual due date to:', actualDueDateInput.value);
+                    console.log('✅ Set default Free Cancellation Date to:', actualDueDateInput.value);
                 }
                 
             } else {

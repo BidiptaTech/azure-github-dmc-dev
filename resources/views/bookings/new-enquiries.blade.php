@@ -127,25 +127,29 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID, Destination...">
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">Country</label>
                     <select class="form-select" id="countryFilter">
                         <option value="">All Countries</option>
-                        @foreach($tours->pluck('destination')->unique()->filter() as $destination)
-                            <option value="{{ $destination }}">{{ $destination }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">City</label>
-                    <select class="form-select" id="cityFilter">
-                        <option value="">All Cities</option>
-                        @foreach($tours->pluck('city')->unique()->filter() as $city)
-                            <option value="{{ $city }}">{{ $city }}</option>
+                        @php
+                            $allCountries = [];
+                            foreach($tours as $tour) {
+                                if($tour->destination) {
+                                    // Split by comma to get individual countries
+                                    $countries = array_map('trim', explode(',', $tour->destination));
+                                    $allCountries = array_merge($allCountries, $countries);
+                                }
+                            }
+                            // Get unique countries
+                            $uniqueCountries = array_unique(array_filter($allCountries));
+                            sort($uniqueCountries);
+                        @endphp
+                        @foreach($uniqueCountries as $country)
+                            <option value="{{ $country }}">{{ $country }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -239,7 +243,6 @@
                             <td>
                                 <div class="d-flex flex-column">
                                     <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                    <small class="text-muted">{{ $tour->city ?? 'N/A' }}</small>
                                 </div>
                             </td>
 
@@ -1710,10 +1713,6 @@
                                                         <small class="text-muted">Surcharge</small>
                                                         <div class="fw-medium text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
                                                     </div>
-                                                    <div class="col-6 mb-3">
-                                                        <small class="text-muted">Tax (%)</small>
-                                                        <div class="fw-medium">{{ $booking['Tax'] ?? 0 }}%</div>
-                                                    </div>
                                                     {{-- <div class="col-6 mb-3">
                                                         <small class="text-muted">Mode</small>
                                                         <span class="badge bg-info">{{ strtoupper($booking['Mode'] ?? 'N/A') }}</span>
@@ -1818,14 +1817,6 @@
                                                 <div class="text-center p-3 border rounded" style="border-color: #ffc107;">
                                                     <small class="text-muted d-block">Surcharge</small>
                                                     <div class="fs-5 fw-bold text-warning">SGD {{ number_format($booking['surcharge'] ?? 0, 2) }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3 mb-3">
-                                                <div class="text-center p-3 border rounded" style="border-color: #17a2b8;">
-                                                    <small class="text-muted d-block">Tax ({{ $booking['Tax'] ?? 0 }}%)</small>
-                                                    <div class="fs-5 fw-bold text-info">
-                                                        SGD {{ number_format((($booking['basePrice'] ?? 0) + ($booking['surcharge'] ?? 0)) * (($booking['Tax'] ?? 0) / 100), 2) }}
-                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="col-md-3 mb-3">
@@ -2674,10 +2665,6 @@
                                                 <small class="text-muted">Total Price</small>
                                                 <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                             </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Tax</small>
-                                                <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                            </div>
                                             {{-- <div class="col-12 mb-3">
                                                 <small class="text-muted">Booking Type</small>
                                                 <span class="badge bg-primary">{{ ucfirst($booking['bookingType'] ?? 'Standard') }}</span>
@@ -2991,10 +2978,6 @@
                                             <div class="col-md-6 mb-3">
                                                 <small class="text-muted">Total Price</small>
                                                 <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Tax</small>
-                                                <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <small class="text-muted">From Zone</small>
@@ -3312,10 +3295,6 @@
                                                 <div class="fw-bold text-success">${{ $booking['totalPrice'] ?? '0' }}</div>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <small class="text-muted">Tax</small>
-                                                <div class="fw-medium">{{ $booking['Tax'] ?? '0' }}%</div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
                                                 <small class="text-muted">From Zone</small>
                                                 <div class="fw-medium">{{ $fromZoneName }}</div>
                                             </div>
@@ -3393,7 +3372,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const countryFilter = document.getElementById('countryFilter');
-    const cityFilter = document.getElementById('cityFilter');
     const agentFilter = document.getElementById('agentFilter');
     const dateRange = document.getElementById('dateRange');
     const dateRangeStart = document.getElementById('dateRangeStart');
@@ -3402,7 +3380,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (countryFilter) countryFilter.addEventListener('change', filterTable);
-    if (cityFilter) cityFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     // Date range picker will be initialized in scripts section where jQuery is available
     
@@ -3424,7 +3401,6 @@ document.addEventListener('DOMContentLoaded', function() {
 function filterTable() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const countryFilter = document.getElementById('countryFilter')?.value || '';
-    const cityFilter = document.getElementById('cityFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
     const dateStart = document.getElementById('dateRangeStart')?.value || '';
     const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
@@ -3448,21 +3424,21 @@ function filterTable() {
         
         let show = true;
         
-        // Search filter - check tour details, destination, and city
+        // Search filter - check tour details and destination
         if (searchTerm && !tourDetails.includes(searchTerm) && 
-            !destination.toLowerCase().includes(searchTerm) && 
-            !city.toLowerCase().includes(searchTerm)) {
+            !destination.toLowerCase().includes(searchTerm)) {
             show = false;
         }
         
-        // Country filter
-        if (countryFilter && destination !== countryFilter) {
-            show = false;
-        }
-        
-        // City filter
-        if (cityFilter && city !== cityFilter) {
-            show = false;
+        // Country filter - use LIKE operator logic (contains)
+        // This works for multi-country destinations like "India, Singapore"
+        if (countryFilter) {
+            // Split destination by comma and trim spaces
+            const destinationCountries = destination.split(',').map(c => c.trim());
+            // Check if the selected country is in the destination list
+            if (!destinationCountries.includes(countryFilter)) {
+                show = false;
+            }
         }
         
         // Agent filter
@@ -3572,7 +3548,6 @@ function filterTable() {
 function resetFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('countryFilter').value = '';
-    document.getElementById('cityFilter').value = '';
     document.getElementById('agentFilter').value = '';
     const dr = document.getElementById('dateRange');
     const ds = document.getElementById('dateRangeStart');
