@@ -2,8 +2,6 @@
 @section('title', 'Refunds')
 @extends('layouts.datatablecss')
 
-<!-- Date Range Picker CSS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <!-- jQuery -->
@@ -141,11 +139,13 @@
                         <option value="Refunded">Refunded</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date Range</label>
-                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
-                    <input type="hidden" id="dateRangeStart">
-                    <input type="hidden" id="dateRangeEnd">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -360,221 +360,335 @@
 @endsection
 
 @section('scripts')
-<!-- Date Range Picker JS - Load after jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
-    // Wait for all scripts to load before initializing
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const destinationFilter = document.getElementById('destinationFilter');
+        const agentFilter = document.getElementById('agentFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const today = new Date().toISOString().split('T')[0];
+
+        if (searchInput) searchInput.addEventListener('input', filterTable);
+        if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
+        if (agentFilter) agentFilter.addEventListener('change', filterTable);
+        if (statusFilter) statusFilter.addEventListener('change', filterTable);
+
+        if (startDateFilter) {
+            startDateFilter.setAttribute('max', today);
+            startDateFilter.addEventListener('change', function() {
+                if (endDateFilter) {
+                    if (this.value) {
+                        if (endDateFilter.value && endDateFilter.value < this.value) {
+                            endDateFilter.value = this.value;
+                        }
+                        endDateFilter.setAttribute('min', this.value);
+                    } else {
+                        endDateFilter.removeAttribute('min');
+                    }
+                }
+                filterTable();
+            });
+        }
+
+        if (endDateFilter) {
+            endDateFilter.setAttribute('max', today);
+            endDateFilter.addEventListener('change', function() {
+                if (startDateFilter) {
+                    if (this.value) {
+                        if (startDateFilter.value && startDateFilter.value > this.value) {
+                            startDateFilter.value = this.value;
+                        }
+                        startDateFilter.setAttribute('max', this.value);
+                    } else {
+                        startDateFilter.setAttribute('max', today);
+                    }
+                }
+                filterTable();
+            });
+        }
+    });
+
     $(document).ready(function() {
-        // Small delay to ensure all scripts are loaded
         setTimeout(function() {
-            initializeDateRangePicker();
             initializeDataTable();
+            filterTable();
         }, 200);
     });
 
-    function initializeDateRangePicker() {
-        // Initialize date range picker first
-        const dateRange = document.getElementById('dateRange');
-        const dateRangeStart = document.getElementById('dateRangeStart');
-        const dateRangeEnd = document.getElementById('dateRangeEnd');
-        
-        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
-            // Set default to current month
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            
-            $(dateRange).daterangepicker({
-                opens: 'left',
-                autoUpdateInput: true,
-                maxDate: moment(), // No future dates
-                startDate: startOfMonth,
-                endDate: endOfMonth,
-                locale: {
-                    cancelLabel: 'Clear',
-                    format: 'MMM DD, YYYY'
-                }
-            });
-            
-            // Set initial values for current month
-            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
-            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
+    function filterTable() {
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase().trim() || '';
+        const destinationFilter = document.getElementById('destinationFilter')?.value || '';
+        const agentFilter = document.getElementById('agentFilter')?.value || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        const startDateValue = document.getElementById('startDateFilter')?.value || '';
+        const endDateValue = document.getElementById('endDateFilter')?.value || '';
 
-            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
-                const start = picker.startDate.clone().startOf('day');
-                const end = picker.endDate.clone().endOf('day');
-                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
-                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
-                filterTable();
-            });
+        const rows = document.querySelectorAll('#toursTable tbody tr');
 
-            $(dateRange).on('cancel.daterangepicker', function() {
-                $(this).val('');
-                if (dateRangeStart) dateRangeStart.value = '';
-                if (dateRangeEnd) dateRangeEnd.value = '';
-                filterTable();
+        if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
+            table.rows('.dt-hasChild').every(function() {
+                if (this.child.isShown()) this.child.hide();
+                $(this.node()).removeClass('dt-hasChild');
             });
-            
-            // Apply initial filter with current month data
-            setTimeout(function() {
-                filterTable();
-            }, 100);
-        } else {
-            console.error('Date range picker could not be initialized. Missing dependencies:', {
-                dateRange: !!dateRange,
-                moment: typeof moment !== 'undefined',
-                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
-                jquery: typeof $ !== 'undefined'
-            });
-            
-            // Fallback: still set initial date values for current month
-            if (dateRange && typeof moment !== 'undefined') {
-                const startOfMonth = moment().startOf('month');
-                const endOfMonth = moment().endOf('month');
-                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-                setTimeout(function() {
-                    filterTable();
-                }, 100);
+        }
+
+        let visibleCount = 0;
+        let pendingCount = 0;
+        let refundedCount = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length <= 1) {
+                return;
             }
+
+            const rowText = row.textContent.toLowerCase();
+            const destination = row.getAttribute('data-destination') || '';
+            const agent = row.getAttribute('data-agent') || '';
+            const rowStatus = row.getAttribute('data-tour-status') || '';
+            const createdAt = row.getAttribute('data-created-at');
+            const updatedAt = row.getAttribute('data-updated-at');
+
+            let show = true;
+
+            if (searchTerm && !rowText.includes(searchTerm)) {
+                show = false;
+            }
+
+            if (destinationFilter && destination !== destinationFilter) {
+                show = false;
+            }
+
+            if (agentFilter && agent !== agentFilter) {
+                show = false;
+            }
+
+            if (statusFilter && rowStatus !== statusFilter) {
+                show = false;
+            }
+
+            if (startDateValue || endDateValue) {
+                if (createdAt || updatedAt) {
+                    const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+                    const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
+                    let dateInRange = false;
+
+                    if (createdAt) {
+                        const createdDate = new Date(createdAt + 'T00:00:00');
+                        if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
+                            dateInRange = true;
+                        }
+                    }
+
+                    if (!dateInRange && updatedAt) {
+                        const updatedDate = new Date(updatedAt + 'T00:00:00');
+                        if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
+                            dateInRange = true;
+                        }
+                    }
+
+                    if (!dateInRange) {
+                        show = false;
+                    }
+                } else {
+                    show = false;
+                }
+            }
+
+            row.style.display = show ? '' : 'none';
+
+            if (show) {
+                visibleCount++;
+                if (rowStatus === 'Refund - Pending') {
+                    pendingCount++;
+                }
+                if (rowStatus === 'Refunded') {
+                    refundedCount++;
+                }
+            }
+        });
+
+        const countEl = document.getElementById('rangeCount');
+        const labelEl = document.getElementById('rangeLabel');
+        const statRefunds = document.getElementById('statRefundsCount');
+        const statRefundsLabel = document.getElementById('statRefundsLabel');
+        const statTotal = document.getElementById('statTotalCount');
+        const statTotalLabel = document.getElementById('statTotalLabel');
+        const statPending = document.getElementById('statPendingCount');
+        const statPendingLabel = document.getElementById('statPendingLabel');
+        const statCompleted = document.getElementById('statCompletedCount');
+        const statCompletedLabel = document.getElementById('statCompletedLabel');
+
+        if (countEl) countEl.textContent = visibleCount;
+        if (statRefunds) statRefunds.textContent = visibleCount;
+        if (statTotal) statTotal.textContent = visibleCount;
+        if (statPending) statPending.textContent = pendingCount;
+        if (statCompleted) statCompleted.textContent = refundedCount;
+
+        if (startDateValue || endDateValue) {
+            const start = startDateValue ? new Date(startDateValue) : null;
+            const end = endDateValue ? new Date(endDateValue) : null;
+            let label = '';
+
+            if (start && end) {
+                if (start.getTime() === end.getTime()) {
+                    label = start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' });
+                } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                    if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                        label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    } else {
+                        label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                    }
+                } else {
+                    label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+                }
+            } else if (start) {
+                label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+            } else if (end) {
+                label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+            }
+
+            if (!label) {
+                label = 'Custom Range';
+            }
+
+            if (labelEl) labelEl.textContent = label;
+            if (statRefundsLabel) statRefundsLabel.textContent = `Refunds - ${label}`;
+            if (statTotalLabel) statTotalLabel.textContent = `Total Refunds - ${label}`;
+            if (statPendingLabel) statPendingLabel.textContent = `Pending Refunds - ${label}`;
+            if (statCompletedLabel) statCompletedLabel.textContent = `Completed Refunds - ${label}`;
+        } else {
+            const month = new Date().toLocaleString('default', { month: 'long' });
+            if (labelEl) labelEl.textContent = month;
+            if (statRefundsLabel) statRefundsLabel.textContent = `${month} Refunds`;
+            if (statTotalLabel) statTotalLabel.textContent = 'Total Refunds';
+            if (statPendingLabel) statPendingLabel.textContent = 'Pending Refunds';
+            if (statCompletedLabel) statCompletedLabel.textContent = 'Completed Refunds';
         }
     }
 
+    function resetFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const destinationSelect = document.getElementById('destinationFilter');
+        const agentSelect = document.getElementById('agentFilter');
+        const statusSelect = document.getElementById('statusFilter');
+        const startDateInput = document.getElementById('startDateFilter');
+        const endDateInput = document.getElementById('endDateFilter');
+        const today = new Date().toISOString().split('T')[0];
+
+        if (searchInput) searchInput.value = '';
+        if (destinationSelect) destinationSelect.value = '';
+        if (agentSelect) agentSelect.value = '';
+        if (statusSelect) statusSelect.value = '';
+
+        if (startDateInput) {
+            startDateInput.value = '';
+            startDateInput.setAttribute('max', today);
+            startDateInput.removeAttribute('min');
+        }
+        if (endDateInput) {
+            endDateInput.value = '';
+            endDateInput.setAttribute('max', today);
+            endDateInput.removeAttribute('min');
+        }
+
+        filterTable();
+    }
+
+    var table;
     function initializeDataTable() {
-        // Initialize filter event handlers
-        $('#searchInput').on('keyup', function() {
-            filterTable();
+        if ($.fn.DataTable.isDataTable('.datatables-basic')) {
+            $('.datatables-basic').DataTable().destroy();
+        }
+
+        table = $('.datatables-basic').DataTable({
+            responsive: true,
+            dom: 'lrtip',
+            buttons: [
+                'copy',
+                'csv',
+                'excel',
+                'pdf',
+                'print'
+            ],
+            searching: false,
+            language: {
+                search: "DataTable Search:",
+                searchPlaceholder: "Search all columns...",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "Showing 0 to 0 of 0 entries",
+                infoFiltered: "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: "First",
+                    last: "Last",
+                    next: "Next",
+                    previous: "Previous"
+                }
+            },
+            lengthMenu: [10, 25, 50, 100],
+            pageLength: 25,
+            columnDefs: [
+                {
+                    targets: [8], // Actions column
+                    orderable: false,
+                    searchable: false
+                },
+                {
+                    targets: [3], // Guests column
+                    orderable: false
+                },
+                {
+                    targets: [6], // Refund Status column
+                    orderable: false
+                }
+            ],
+            initComplete: function() {
+                console.log('DataTable initialized successfully');
+            }
         });
 
-        $('#destinationFilter').on('change', function() {
-            filterTable();
-        });
-
-        $('#agentFilter').on('change', function() {
-            filterTable();
-        });
-
-        $('#statusFilter').on('change', function() {
-            filterTable();
-        });
-
-        // Export functionality
         $('#exportCopy').on('click', function() {
-            alert('Copy functionality would be implemented here');
+            if (table && typeof table.button === 'function') {
+                table.button('.buttons-copy').trigger();
+            } else {
+                alert('Copy export is not available.');
+            }
         });
 
         $('#exportCSV').on('click', function() {
-            alert('CSV export functionality would be implemented here');
+            if (table && typeof table.button === 'function') {
+                table.button('.buttons-csv').trigger();
+            } else {
+                alert('CSV export is not available.');
+            }
         });
 
         $('#exportExcel').on('click', function() {
-            alert('Excel export functionality would be implemented here');
+            if (table && typeof table.button === 'function') {
+                table.button('.buttons-excel').trigger();
+            } else {
+                alert('Excel export is not available.');
+            }
         });
 
         $('#exportPDF').on('click', function() {
-            alert('PDF export functionality would be implemented here');
+            if (table && typeof table.button === 'function') {
+                table.button('.buttons-pdf').trigger();
+            } else {
+                alert('PDF export is not available.');
+            }
         });
 
         $('#exportPrint').on('click', function() {
-            window.print();
-        });
-
-        // Add data table initialization if needed
-        console.log('Data table and filters initialized');
-    }
-
-    // Reset filters function (global)
-    function resetFilters() {
-        $('#searchInput').val('');
-        $('#destinationFilter').val('');
-        $('#agentFilter').val('');
-        $('#statusFilter').val('');
-        $('#dateRange').val('');
-        $('#dateRangeStart').val('');
-        $('#dateRangeEnd').val('');
-        filterTable();
-        updateStats();
-    }
-
-    // Filter table function
-    function filterTable() {
-        var searchTerm = $('#searchInput').val().toLowerCase();
-        var destinationFilter = $('#destinationFilter').val();
-        var agentFilter = $('#agentFilter').val();
-        var statusFilter = $('#statusFilter').val();
-        var startDate = $('#dateRangeStart').val();
-        var endDate = $('#dateRangeEnd').val();
-
-        var visibleRows = 0;
-
-        $('#toursTable tbody tr').each(function() {
-            var row = $(this);
-            var show = true;
-
-            // Search filter
-            if (searchTerm) {
-                var rowText = row.text().toLowerCase();
-                if (rowText.indexOf(searchTerm) === -1) {
-                    show = false;
-                }
-            }
-
-            // Destination filter
-            if (destinationFilter && show) {
-                var destination = row.data('destination');
-                if (destination !== destinationFilter) {
-                    show = false;
-                }
-            }
-
-            // Agent filter
-            if (agentFilter && show) {
-                var agent = row.data('agent');
-                if (agent !== agentFilter) {
-                    show = false;
-                }
-            }
-
-            // Status filter
-            if (statusFilter && show) {
-                var status = row.data('tour-status');
-                if (status !== statusFilter) {
-                    show = false;
-                }
-            }
-
-            // Date filter
-            if (startDate && endDate && show) {
-                var rowDate = row.data('updated-at');
-                if (rowDate) {
-                    show = rowDate >= startDate && rowDate <= endDate;
-                }
-            }
-
-            if (show) {
-                row.show();
-                visibleRows++;
+            if (table && typeof table.button === 'function') {
+                table.button('.buttons-print').trigger();
             } else {
-                row.hide();
+                window.print();
             }
         });
-
-        // Update stats based on filtered results
-        updateFilteredStats(visibleRows);
-    }
-
-    // Update filtered stats
-    function updateFilteredStats(visibleRows) {
-        // You can implement dynamic stats update based on filtered results here
-        console.log('Visible rows:', visibleRows);
-    }
-
-    // Update stats
-    function updateStats() {
-        // Implement stats update logic if needed
     }
 
 // Process refund function

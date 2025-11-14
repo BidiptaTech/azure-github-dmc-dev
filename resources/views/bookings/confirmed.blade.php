@@ -2,8 +2,6 @@
 @section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
 
-<!-- Date Range Picker CSS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
@@ -255,7 +253,7 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
                 </div>
@@ -296,11 +294,13 @@
                         <option value="next_month">Next Month</option>
                     </select>
                 </div> --}}
-                <div class="col-md-3">
-                    <label class="form-label">Date Range</label>
-                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
-                    <input type="hidden" id="dateRangeStart">
-                    <input type="hidden" id="dateRangeEnd">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -877,6 +877,10 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex flex-column gap-2">
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-pill">
+                                        <i class="ri-pencil-line"></i> Edit
+                                    </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> View
@@ -5866,12 +5870,12 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required value="{{ $guide_info['actualDueDate'] ?? '' }}" 
                                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -5889,7 +5893,7 @@ function createGuideApprovalModal(tourId, guideOrderIndex, bookingIndex) {
                                     <option value="7">1 week before</option>
                                     <option value="14">2 weeks before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -6192,12 +6196,12 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${hourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateHourlyDisplayDueDate('${tourId}', '${hourlyOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -6215,7 +6219,7 @@ function createHourlyApprovalModal(tourId, hourlyOrderIndex, bookingIndex) {
                                     <option value="7">1 week before</option>
                                     <option value="14">2 weeks before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -6861,7 +6865,7 @@ window.calculateHourlyDisplayDueDate = function(tourId, hourlyOrderIndex, bookin
             return;
         }
         
-        // Calculate display due date by subtracting days from actual due date
+        // Calculate display due date by subtracting days from Free Cancellation Date
         const actualDate = new Date(actualDueDate);
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
@@ -8751,11 +8755,11 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${autoCancelDate}"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -8773,7 +8777,7 @@ window.generateApproveAttractionForm = function(tourId, attractionOrderIndex, bo
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -8928,7 +8932,7 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                     attractionNameElement.textContent = attractionData.attraction_name || 'Attraction Booking';
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const defaultDate = new Date();
@@ -11203,12 +11207,12 @@ function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingInd
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${arrivalOrderIndex}_${arrivalBookingIndex}" name="actual_due_date" required 
                        onchange="calculateArrivalDisplayDueDate('${tourId}', '${arrivalOrderIndex}', '${arrivalBookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -11226,7 +11230,7 @@ function generateApproveArrivalForm(tourId, arrivalOrderIndex, arrivalBookingInd
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -11680,12 +11684,12 @@ function generateApproveDepartureForm(tourId, departureOrderIndex, departureBook
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${departureOrderIndex}_${departureBookingIndex}" name="actual_due_date" required 
                        onchange="calculateDepartureDisplayDueDate('${tourId}', '${departureOrderIndex}', '${departureBookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -11703,7 +11707,7 @@ function generateApproveDepartureForm(tourId, departureOrderIndex, departureBook
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -14626,12 +14630,12 @@ function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, booking
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelHourlyOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculateHourlyDisplayDueDate('${tourId}', '${travelHourlyOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -14649,7 +14653,7 @@ function generateApproveTravelHourlyForm(tourId, travelHourlyOrderIndex, booking
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Choose how many days before the actual due date to display</div>
+                <div class="form-text">Choose how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -15716,7 +15720,7 @@ window.calculatePointDisplayDueDate = function(tourId, travelPointOrderIndex, bo
             return;
         }
         
-        // Calculate display due date by subtracting days from actual due date
+        // Calculate display due date by subtracting days from Free Cancellation Date
         const actualDate = new Date(actualDueDate);
         const displayDate = new Date(actualDate);
         displayDate.setDate(actualDate.getDate() - parseInt(daysBefore));
@@ -15804,12 +15808,12 @@ function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIn
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${travelPointOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculatePointDisplayDueDate('${tourId}', '${travelPointOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -15827,7 +15831,7 @@ function generateApproveTravelPointForm(tourId, travelPointOrderIndex, bookingIn
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Choose how many days before the actual due date to display</div>
+                <div class="form-text">Choose how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -18273,12 +18277,12 @@ function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, boo
 
                             <div class="mb-3">
                                 <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                                        onchange="calculateLocalTransportDisplayDueDate('${tourId}', '${localTransportOrderIndex}', '${bookingIndex}')"
                                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                                <div class="form-text">Select the actual due date for this booking</div>
+                                <div class="form-text">Select the Free Cancellation Date for this booking</div>
                             </div>
 
                             <div class="mb-3">
@@ -18297,7 +18301,7 @@ function createLocalTransportApprovalModal(tourId, localTransportOrderIndex, boo
                                     <option value="14">2 weeks before</option>
                                     <option value="30">1 month before</option>
                                 </select>
-                                <div class="form-text">Select how many days before the actual due date to display</div>
+                                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
                             </div>
 
                             <div class="mb-3">
@@ -18600,7 +18604,7 @@ function confirmIndividualLocalTransportApproval(tourId, localTransportOrderInde
         }
 
         if (!actualDueDate) {
-            alert('Please select an actual due date.');
+            alert('Please select an Free Cancellation Date.');
             return;
         }
 
@@ -19164,10 +19168,10 @@ function generateApproveLocalTransportForm(tourId, localTransportOrderIndex, boo
                             <small class="text-muted">Supported: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)</small>
                         </div>
 
-                        <!-- Actual Due Date -->
+                        <!-- Free Cancellation Date -->
                         <div class="col-md-6">
                             <label for="actualDueDate_${tourId}_${localTransportOrderIndex}_${bookingIndex}" class="form-label fw-medium text-dark">
-                                <i class="ri-calendar-line me-1"></i>Actual Due Date <span class="text-danger">*</span>
+                                <i class="ri-calendar-line me-1"></i>Free Cancellation Date <span class="text-danger">*</span>
                             </label>
                             <input type="date" 
                                    class="form-control" 
@@ -20747,11 +20751,11 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="text" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -20769,7 +20773,7 @@ function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCan
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -21045,7 +21049,7 @@ function loadHotelDataForApprove(tourId, hotelOrderIndex, bookingIndex) {
                     hotelNameElement.textContent = hotelData.hotel_name || 'Hotel Booking';
                 }
                 
-                // Set actual due date from tour's auto_cancel_date
+                // Set Free Cancellation Date from tour's auto_cancel_date
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const autoCancelDate = (tourData && tourData.auto_cancel_date) ? tourData.auto_cancel_date : '';
@@ -21197,7 +21201,7 @@ function confirmIndividualHotelApproval(tourId, hotelOrderIndex, bookingIndex) {
             return;
         }
         
-        // Validate actual due date is not in the past
+        // Validate Free Cancellation Date is not in the past
         const selectedDate = new Date(actualDueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -22428,15 +22432,20 @@ function showUpcomingTours() {
 }
 
 function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
+    const searchInput = document.getElementById('searchInput');
+    const destinationSelect = document.getElementById('destinationFilter');
+    const agentSelect = document.getElementById('agentFilter');
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (destinationSelect) destinationSelect.value = '';
+    if (agentSelect) agentSelect.value = '';
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) {
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
+    }
     filterTable();
 }
 
@@ -22445,8 +22454,8 @@ window.filterTable = function() {
     // const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const dateStart = document.getElementById('dateRangeStart')?.value || '';
-    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    const startDateValue = document.getElementById('startDateFilter')?.value || '';
+    const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
     // Get existing DataTable instance if already initialized
     // var table = $.fn.dataTable.isDataTable('.datatables-basic')
@@ -22483,9 +22492,8 @@ window.filterTable = function() {
     //     });
 
     const rows = document.querySelectorAll('#toursTable tbody tr');
-
-
-    
+    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
+        
     // Collapse any open child rows before filtering
     // Check if table is initialized before using it
     if (typeof table !== 'undefined' && table && table.rows) {
@@ -22494,6 +22502,8 @@ window.filterTable = function() {
             $(this.node()).removeClass('dt-hasChild');
         });
     }
+
+    let visibleCount = 0;
 
     rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
@@ -22505,6 +22515,7 @@ window.filterTable = function() {
         const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
         const confirmationDateText = row.cells[8]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
+        const createdAtAttr = row.getAttribute('data-created-at');
         
         let show = true;
         
@@ -22528,24 +22539,23 @@ window.filterTable = function() {
         }
         
         // Date range filtering (check both created_at and updated_at)
-        if (dateStart && dateEnd && (updatedAt || row.getAttribute('data-created-at'))) {
-            const createdAt = row.getAttribute('data-created-at');
-            const s = new Date(dateStart + 'T00:00:00');
-            const e = new Date(dateEnd + 'T23:59:59');
+        if ((startDateValue || endDateValue) && (updatedAt || createdAtAttr)) {
+            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
             let dateInRange = false;
             
             // Check updated_at if available
             if (updatedAt) {
                 const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if (updatedDate >= s && updatedDate <= e) {
+                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
                     dateInRange = true;
                 }
             }
             
             // Check created_at if available and updated_at didn't match
-            if (!dateInRange && createdAt) {
-                const createdDate = new Date(createdAt + 'T00:00:00');
-                if (createdDate >= s && createdDate <= e) {
+            if (!dateInRange && createdAtAttr) {
+                const createdDate = new Date(createdAtAttr + 'T00:00:00');
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
                     dateInRange = true;
                 }
             }
@@ -22553,14 +22563,17 @@ window.filterTable = function() {
             if (!dateInRange) {
                 show = false;
             }
+        } else if (startDateValue || endDateValue) {
+            show = false;
         }
         
         row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
     });
 
     // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
-    const rangeCount = visibleRows.length;
+    const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     
@@ -22587,28 +22600,33 @@ window.filterTable = function() {
     if (statChildren) statChildren.textContent = children;
     if (statToday) statToday.textContent = todayCount;
 
-    if (dateStart && dateEnd) {
-        const start = new Date(dateStart);
-        const end = new Date(dateEnd);
-        
-        // Format the date range label
-        let label;
-        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-            // Same month
-            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
-                // Full month
-                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+    if (startDateValue || endDateValue) {
+        const start = startDateValue ? new Date(startDateValue) : null;
+        const end = endDateValue ? new Date(endDateValue) : null;
+        let label = '';
+
+        if (start && end) {
+            if (start.getTime() === end.getTime()) {
+                label = start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' });
+            } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                    label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                } else {
+                    label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                }
             } else {
-                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
-        } else {
-            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        } else if (start) {
+            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+        } else if (end) {
+            label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
-        
-        if (labelEl) labelEl.textContent = label;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `Confirmed - ${label}`;
-        if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
-        if (statChildrenLabel) statChildrenLabel.textContent = `Childrens - ${label}`;
+
+        if (label && labelEl) labelEl.textContent = label;
+        if (label && statConfirmedLabel) statConfirmedLabel.textContent = `Confirmed - ${label}`;
+        if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
+        if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
@@ -22625,16 +22643,45 @@ document.addEventListener('DOMContentLoaded', function() {
     // const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const dateRange = document.getElementById('dateRange');
-    const dateRangeStart = document.getElementById('dateRangeStart');
-    const dateRangeEnd = document.getElementById('dateRangeEnd');
+    const startDateFilter = document.getElementById('startDateFilter');
+    const endDateFilter = document.getElementById('endDateFilter');
+    const today = new Date().toISOString().split('T')[0];
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     // if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    // Date range picker will be initialized in scripts section where jQuery is available
+    if (startDateFilter) {
+        startDateFilter.setAttribute('max', today);
+        startDateFilter.addEventListener('change', function() {
+            if (endDateFilter) {
+                if (startDateFilter.value) {
+                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                        endDateFilter.value = startDateFilter.value;
+                    }
+                } else {
+                    endDateFilter.removeAttribute('min');
+                }
+            }
+            filterTable();
+        });
+    }
+    if (endDateFilter) {
+        endDateFilter.setAttribute('max', today);
+        if (startDateFilter && startDateFilter.value) {
+            endDateFilter.setAttribute('min', startDateFilter.value);
+        }
+        endDateFilter.addEventListener('change', function() {
+            if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                startDateFilter.value = endDateFilter.value;
+                startDateFilter.dispatchEvent(new Event('change'));
+                return;
+            }
+            filterTable();
+        });
+    }
     
     // Apply initial filter on page load to show today's data
     filterTable();
@@ -24034,11 +24081,11 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${restaurantOrderIndex}_${bookingIndex}" name="actual_due_date" required readonly value="${autoCancelDate}"
                     style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -24056,7 +24103,7 @@ function generateApproveRestaurantForm(tourId, restaurantOrderIndex, bookingInde
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -25096,12 +25143,12 @@ function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
 
             <div class="mb-3">
                 <label for="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Actual Due Date <span class="text-danger">*</span>
+                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
                 </label>
                 <input type="date" class="form-control form-control-lg" id="actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}" name="actual_due_date" required 
                        onchange="calculateGuideDisplayDueDate('${tourId}', '${guideOrderIndex}', '${bookingIndex}')"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Select the actual due date for this booking</div>
+                <div class="form-text">Select the Free Cancellation Date for this booking</div>
             </div>
 
             <div class="mb-3">
@@ -25119,7 +25166,7 @@ function generateApproveGuideForm(tourId, guideOrderIndex, bookingIndex) {
                     <option value="7">1 week before</option>
                     <option value="14">2 weeks before</option>
                 </select>
-                <div class="form-text">Select how many days before the actual due date to display</div>
+                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
             </div>
 
             <div class="mb-3">
@@ -25247,13 +25294,13 @@ function loadGuideDataForApprove(tourId, guideOrderIndex, bookingIndex) {
                     }
                 }
                 
-                // Set default actual due date to today + 7 days
+                // Set default Free Cancellation Date to today + 7 days
                 const actualDueDateInput = document.getElementById(`actualDueDate_${tourId}_${guideOrderIndex}_${bookingIndex}`);
                 if (actualDueDateInput) {
                     const defaultDate = new Date();
                     defaultDate.setDate(defaultDate.getDate() + 7);
                     actualDueDateInput.value = defaultDate.toISOString().split('T')[0];
-                    console.log('✅ Set default actual due date to:', actualDueDateInput.value);
+                    console.log('✅ Set default Free Cancellation Date to:', actualDueDateInput.value);
                 }
                 
             } else {
@@ -25581,88 +25628,17 @@ window.showNotification = function(message, type = 'info') {
 @endsection
 
 @section('scripts')
-<!-- Date Range Picker JS - Load after jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
-            initializeDateRangePicker();
             initializeDataTable();
+            filterTable();
         }, 200);
     });
     
-    function initializeDateRangePicker() {
-        // Initialize date range picker first
-        const dateRange = document.getElementById('dateRange');
-        const dateRangeStart = document.getElementById('dateRangeStart');
-        const dateRangeEnd = document.getElementById('dateRangeEnd');
-        
-        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
-            // Set default to current month
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            
-            $(dateRange).daterangepicker({
-                opens: 'left',
-                autoUpdateInput: true,
-                maxDate: moment(), // No future dates
-                startDate: startOfMonth,
-                endDate: endOfMonth,
-                locale: {
-                    cancelLabel: 'Clear',
-                    format: 'MMM DD, YYYY'
-                }
-            });
-
-            // Set initial values for current month
-            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
-            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-
-            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
-                const start = picker.startDate.clone().startOf('day');
-                const end = picker.endDate.clone().endOf('day');
-                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
-                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
-                filterTable();
-            });
-
-            $(dateRange).on('cancel.daterangepicker', function() {
-                $(this).val('');
-                if (dateRangeStart) dateRangeStart.value = '';
-                if (dateRangeEnd) dateRangeEnd.value = '';
-                filterTable();
-            });
-            
-            // Apply initial filter with current month data
-            setTimeout(function() {
-                filterTable();
-            }, 100);
-        } else {
-            console.error('Date range picker could not be initialized. Missing dependencies:', {
-                dateRange: !!dateRange,
-                moment: typeof moment !== 'undefined',
-                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
-                jquery: typeof $ !== 'undefined'
-            });
-            
-            // Fallback: still set initial date values for current month
-            if (dateRange && typeof moment !== 'undefined') {
-                const startOfMonth = moment().startOf('month');
-                const endOfMonth = moment().endOf('month');
-                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-                setTimeout(function() {
-                    filterTable();
-                }, 100);
-            }
-        }
-    }
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized

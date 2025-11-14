@@ -219,15 +219,16 @@
                                         <th>Pickup Zone</th>
                                         <th>Dropoff Location</th>
                                         <th>Dropoff Zone</th>
-                                        <th>Assign Driver</th>
+                                        <th>Vehicle</th>
                                         <th>Assign Vehicle</th>
+                                        <th>Assign Driver</th>
                                         <th>Order Type</th>
                                         <th>Tour Type</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tourOrdersTableBody">
                                     <tr>
-                                        <td colspan="10" class="text-center">Loading data...</td>
+                                        <td colspan="11" class="text-center">Loading data...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -261,9 +262,22 @@ var initialOrders = {!! json_encode($orders ?? []) !!};
 var initialDrivers = {!! json_encode($drivers ?? []) !!};
 var initialVehicles = {!! json_encode($vehicles ?? []) !!};
 var dataTableInitialized = false; // Track if DataTable is initialized
+var isUpdatingAssignment = false; // Flag to prevent infinite loops
 
 $(document).ready(function() {
     let datePicker = null;
+    
+    // Helper function to format order type display
+    function formatOrderType(orderType) {
+        const orderTypeMap = {
+            'travel_point': 'Local Transfer(Point to Point)',
+            'travel_hourly': 'Local Transfer(Hourly)',
+            'local_transport': 'Local Transfer',
+            'entry_port': 'Arrival',
+            'exit_port': 'Departure'
+        };
+        return orderTypeMap[orderType] || orderType;
+    }
     
     // Custom alert function
     function showAlert(type, message) {
@@ -297,6 +311,11 @@ $(document).ready(function() {
                 const orderData = item.data || {};
                 let dataItem;
                 console.log("item === ", item);
+                console.log("item.vehicle === ", item.vehicle);
+                console.log("item.driver === ", item.driver);
+                console.log("item.assigned_vehicle_id === ", item.assigned_vehicle_id);
+                console.log("item.assigned_driver_id === ", item.assigned_driver_id);
+                
                 // Check if data is array or object and extract the right data
                 if (Array.isArray(orderData) && orderData.length > 0) {
                     dataItem = orderData[0];
@@ -314,6 +333,33 @@ $(document).ready(function() {
                         <td>${item.pickup_zone || 'N/A'}</td>
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
                         <td>${item.dropoff_zone || 'N/A'}</td>
+                        <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
+                        <td>
+                            <select class="form-control vehicle-select" 
+                                name="vehicle_id[${index}]" 
+                                data-order-id="${item.id || ''}" 
+                                data-tour-id="${item.tour_id || ''}"
+                                data-order-type="${item.type || ''}"
+                                data-entry-time="${dataItem.entrytime || ''}"
+                                data-entrypickup="${dataItem.entrypickup || ''}"
+                                data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                data-type="${dataItem.type || ''}">
+                                <option value="">Select Vehicle</option>
+                                ${(function() {
+                                    let options = '';
+                                    if (initialVehicles.length) {
+                                        initialVehicles.forEach(vehicle => {
+                                            const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
+                                            const vehicleDisplay = vehicle.vehicle_plate_no 
+                                                ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
+                                                : vehicle.vehicle_name;
+                                            options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
+                                        });
+                                    }
+                                    return options;
+                                })()}
+                            </select>
+                        </td>
                         <td>
                             <select class="form-control driver-select" 
                                 name="driver_id[${index}]" 
@@ -330,7 +376,10 @@ $(document).ready(function() {
                                     if (initialDrivers.length) {
                                         initialDrivers.forEach(driver => {
                                             const isSelected = item.assigned_driver_id && (driver.driver_id == item.assigned_driver_id);
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driver.name}</option>`;
+                                            const driverDisplay = driver.license_no 
+                                                ? `${driver.name} - ${driver.license_no}` 
+                                                : driver.name;
+                                            options += `<option ${isSelected ? 'selected' : ''} value="${driver.driver_id}">${driverDisplay}</option>`;
                                         });
                                     }
                                     return options;
@@ -339,30 +388,7 @@ $(document).ready(function() {
                             <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                             <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                         </td>
-                        <td>
-                            <select class="form-control vehicle-select" 
-                                name="vehicle_id[${index}]" 
-                                data-order-id="${item.booking_id || ''}" 
-                                data-tour-id="${item.tour_id || ''}"
-                                data-order-type="${item.type || ''}"
-                                data-entry-time="${dataItem.entrytime || ''}"
-                                data-entrypickup="${dataItem.entrypickup || ''}"
-                                data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                data-type="${dataItem.type || ''}">
-                                <option value="">Select Vehicle</option>
-                                ${(function() {
-                                    let options = '';
-                                    if (initialVehicles.length) {
-                                        initialVehicles.forEach(vehicle => {
-                                            const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicle.vehicle_name}</option>`;
-                                        });
-                                    }
-                                    return options;
-                                })()}
-                            </select>
-                        </td>
-                        <td>${item.type || 'N/A'}</td>
+                        <td>${formatOrderType(item.type) || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
                     </tr>`;
             });
@@ -376,7 +402,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -406,7 +432,7 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
@@ -415,7 +441,7 @@ $(document).ready(function() {
         $('#hiddenDate').val(date);
         
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date), {
             method: 'GET',
@@ -440,6 +466,12 @@ $(document).ready(function() {
                         //The data is already parsed by Laravel, no need to parse again
                         const orderData = item.data || {};
                         
+                        console.log("AJAX item === ", item);
+                        console.log("AJAX item.vehicle === ", item.vehicle);
+                        console.log("AJAX item.driver === ", item.driver);
+                        console.log("AJAX item.assigned_vehicle_id === ", item.assigned_vehicle_id);
+                        console.log("AJAX item.assigned_driver_id === ", item.assigned_driver_id);
+                        
                         // Handle data as array or object
                         let dataItem;
                         if (Array.isArray(orderData) && orderData.length > 0) {
@@ -458,6 +490,33 @@ $(document).ready(function() {
                                 <td>${item.pickup_zone || 'N/A'}</td>
                                 <td>${dataItem.entrydropoff || 'N/A'}</td>
                                 <td>${item.dropoff_zone || 'N/A'}</td>
+                                <td>${item.vehicle ? (item.vehicle.vehicle_plate_no ? item.vehicle.vehicle_name + ' - ' + item.vehicle.vehicle_plate_no : item.vehicle.vehicle_name) : (dataItem.vehicles_name || 'N/A')}</td>
+                                <td>
+                                    <select class="form-control vehicle-select" 
+                                        name="vehicle_id[${index}]" 
+                                        data-order-id="${item.id || ''}" 
+                                        data-tour-id="${item.tour_id || ''}"
+                                        data-order-type="${item.type || ''}"
+                                        data-entry-time="${dataItem.entrytime || ''}"
+                                        data-entrypickup="${dataItem.entrypickup || ''}"
+                                        data-entrydropoff="${dataItem.entrydropoff || ''}"
+                                        data-type="${dataItem.type || ''}">
+                                        <option value="">Select Vehicle</option>
+                                        ${(function() {
+                                            let options = '';
+                                            if (response.vehicles && response.vehicles.length) {
+                                                response.vehicles.forEach(vehicle => {
+                                                    const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
+                                                    const vehicleDisplay = vehicle.vehicle_plate_no 
+                                                        ? `${vehicle.vehicle_name} - ${vehicle.vehicle_plate_no}` 
+                                                        : vehicle.vehicle_name;
+                                                    options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicleDisplay}</option>`;
+                                                });
+                                            }
+                                            return options;
+                                        })()}
+                                    </select>
+                                </td>
                                 <td>
                                     <select class="form-control driver-select" 
                                         name="driver_id[${index}]" 
@@ -483,30 +542,7 @@ $(document).ready(function() {
                                     <input type="hidden" name="order_id[${index}]" value="${item.id || ''}">
                                     <input type="hidden" name="tour_id[${index}]" value="${item.tour_id || ''}">
                                 </td>
-                                <td>
-                                    <select class="form-control vehicle-select" 
-                                        name="vehicle_id[${index}]" 
-                                        data-order-id="${item.id || ''}" 
-                                        data-tour-id="${item.tour_id || ''}"
-                                        data-order-type="${item.type || ''}"
-                                        data-entry-time="${dataItem.entrytime || ''}"
-                                        data-entrypickup="${dataItem.entrypickup || ''}"
-                                        data-entrydropoff="${dataItem.entrydropoff || ''}"
-                                        data-type="${dataItem.type || ''}">
-                                        <option value="">Select Vehicle</option>
-                                        ${(function() {
-                                            let options = '';
-                                            if (response.vehicles && response.vehicles.length) {
-                                                response.vehicles.forEach(vehicle => {
-                                                    const isSelected = item.assigned_vehicle_id && (vehicle.vehicle_id == item.assigned_vehicle_id);
-                                                    options += `<option ${isSelected ? 'selected' : ''} value="${vehicle.vehicle_id}">${vehicle.vehicle_name}</option>`;
-                                                });
-                                            }
-                                            return options;
-                                        })()}
-                                    </select>
-                                </td>
-                                <td>${item.type || 'N/A'}</td>
+                                <td>${formatOrderType(item.type) || 'N/A'}</td>
                                 <td>${dataItem.type || 'N/A'}</td>
                             </tr>`;
                     });
@@ -520,14 +556,14 @@ $(document).ready(function() {
                     // Initialize DataTable after content is loaded
                     initializeDataTable();
                 } else {
-                    $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center">No orders found for this date</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">No orders found for this date</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
             } else {
                 const errorMessage = response.message || 'Error loading orders';
                 console.error('Error:', errorMessage);
                 showAlert('error', errorMessage);
-                $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center">Error loading orders</td></tr>');
+                $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
                 $('#exportOrdersBtn').hide();
             }
         })
@@ -535,7 +571,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="10" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="11" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -587,7 +623,7 @@ $(document).ready(function() {
                     info: true,
                     searching: true,
                     columnDefs: [
-                        { orderable: false, targets: [6, 7] }  // Disable sorting on Assign Driver and Assign Vehicle columns
+                        { orderable: false, targets: [7, 8] }  // Disable sorting on Assign Vehicle and Assign Driver columns
                     ]
                 });
                 
@@ -655,7 +691,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 10) {
+            if (cells.length < 11) {
                 return; // Skip incomplete rows
             }
             
@@ -666,15 +702,16 @@ $(document).ready(function() {
             const pickupZone = $(cells[3]).text().trim();
             const dropoffLocation = $(cells[4]).text().trim();
             const dropoffZone = $(cells[5]).text().trim();
-            const orderType = $(cells[8]).text().trim();
-            const tourType = $(cells[9]).text().trim();
+            const vehicle = $(cells[6]).text().trim();
+            const orderType = $(cells[9]).text().trim(); // Already formatted by formatOrderType()
+            const tourType = $(cells[10]).text().trim();
             
-            // Get selected driver and vehicle from the dropdowns
-            const driverSelect = $(cells[6]).find('.driver-select');
+            // Get selected vehicle and driver from the dropdowns
             const vehicleSelect = $(cells[7]).find('.vehicle-select');
+            const driverSelect = $(cells[8]).find('.driver-select');
             
-            const assignedDriver = driverSelect.find('option:selected').text().trim() || 'Not Assigned';
             const assignedVehicle = vehicleSelect.find('option:selected').text().trim() || 'Not Assigned';
+            const assignedDriver = driverSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
             excelData.push({
@@ -684,8 +721,9 @@ $(document).ready(function() {
                 'Pickup Zone': pickupZone,
                 'Dropoff Location': dropoffLocation,
                 'Dropoff Zone': dropoffZone,
-                'Assigned Driver': assignedDriver,
+                'Vehicle': vehicle,
                 'Assigned Vehicle': assignedVehicle,
+                'Assigned Driver': assignedDriver,
                 'Order Type': orderType,
                 'Tour Type': tourType
             });
@@ -799,19 +837,50 @@ $(document).ready(function() {
 
     // Handle driver selection change
     $(document).on('change', '.driver-select', function() {
+        // Prevent infinite loop
+        if (isUpdatingAssignment) {
+            console.log('Skipping driver change - update in progress');
+            return;
+        }
+        
         const $select = $(this);
-        const driverId = $select.val();
+        // Get actual selected value from Select2 if active, otherwise from select element
+        const driverId = $select.hasClass('select2-hidden-accessible') 
+            ? $select.select2('data')[0]?.id 
+            : $select.val();
+        
+        // Don't proceed if no driver selected (cleared dropdown)
+        if (!driverId) {
+            console.log('No driver selected - skipping AJAX');
+            return;
+        }
+        
+        const $row = $select.closest('tr');
+        const $vehicleSelect = $row.find('.vehicle-select');
+        const vehicleId = $vehicleSelect.hasClass('select2-hidden-accessible') 
+            ? $vehicleSelect.select2('data')[0]?.id 
+            : $vehicleSelect.val();
+        
         const orderType = $select.data('order-type');
-        console.log("orderType = ", orderType);
         const entryTime = $select.data('entry-time');
         const entryPickup = $select.data('entrypickup');
         const entryDropoff = $select.data('entrydropoff');
         const type = $select.data('type');
         const orderId = $select.data('order-id');
-        const vehicleId = $select.closest('tr').find('.vehicle-select').val();
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
         const date = $('#hiddenDate').val();
         const dmcId = $('#dmc_id').val();
+        
+        console.log('=== Driver Change Handler ===');
+        console.log('Selected driver_id:', driverId);
+        console.log('Vehicle in same row:', vehicleId);
+        console.log('order_id:', orderId);
+        console.log('tour_id:', tourId);
+        console.log('order_type:', orderType);
+        console.log('============================');
+        
+        // Set flag
+        isUpdatingAssignment = true;
         
         // Prepare form data
         const formData = new FormData();
@@ -821,7 +890,6 @@ $(document).ready(function() {
         formData.append('entrydropoff', entryDropoff);
         formData.append('type', type);
         formData.append('driver_id', driverId);
-        formData.append('vehicle_id', vehicleId);
         formData.append('tour_id', tourId);
         formData.append('date', date);
         formData.append('dmc_id', dmcId);
@@ -853,17 +921,17 @@ $(document).ready(function() {
                 // Find the vehicle select in the same row as the driver select
                 const $vehicleSelect = $select.closest('tr').find('.vehicle-select');
                 // If we have a vehicle from the response, select it
-                if (vehicle) {
-                     // First try with vehicle_id
-                    $vehicleSelect.find('option').each(function() {
-                        if ($(this).val() === vehicle.vehicle_id.toString() || 
-                            $(this).text() === vehicle.vehicle_name) {
-                            $vehicleSelect.val($(this).val());
-                            return false; // break the loop
-                        }
-                    });
-                    $vehicleSelect.trigger('change');
-                }
+                // if (vehicle) {
+                //      // First try with vehicle_id
+                //     $vehicleSelect.find('option').each(function() {
+                //         if ($(this).val() === vehicle.vehicle_id.toString() || 
+                //             $(this).text() === vehicle.vehicle_name) {
+                //             $vehicleSelect.val($(this).val());
+                //             return false; // break the loop
+                //         }
+                //     });
+                //     $vehicleSelect.trigger('change');
+                // }
                 
                 showAlert('success', 'Driver assigned successfully');
             } else {
@@ -873,23 +941,63 @@ $(document).ready(function() {
         .catch(error => {
             console.error('Error updating driver assignment:', error);
             showAlert('error', error.message || 'Error updating driver assignment');
+        })
+        .finally(() => {
+            // Reset flag after request completes
+            setTimeout(() => {
+                isUpdatingAssignment = false;
+                console.log('Driver assignment update flag reset');
+            }, 500);
         });
     });
 
     // Handle vehicle selection change
     $(document).on('change', '.vehicle-select', function() {
+        // Prevent infinite loop
+        if (isUpdatingAssignment) {
+            console.log('Skipping vehicle change - update in progress');
+            return;
+        }
+        
         const $select = $(this);
-        const vehicleId = $select.val();
-        const orderType = $select.data('order-type');
-        const entryTime = $select.data('entry-time');
-        const entryPickup = $select.data('entrypickup');
-        const entryDropoff = $select.data('entrydropoff');
-        const type = $select.data('type');
+        // Get actual selected value from Select2 if active, otherwise from select element
+        const vehicleId = $select.hasClass('select2-hidden-accessible') 
+            ? $select.select2('data')[0]?.id 
+            : $select.val();
+        
+        // Don't proceed if no vehicle selected
+        if (!vehicleId) {
+            return;
+        }
+        
+        const $row = $select.closest('tr');
+        const $driverSelect = $row.find('.driver-select');
+        const driverId = $driverSelect.hasClass('select2-hidden-accessible') 
+            ? $driverSelect.select2('data')[0]?.id || '' 
+            : $driverSelect.val() || '';
+        
+        const orderType = $select.data('order-type') || '';
+        const entryTime = $select.data('entry-time') || '';
+        const entryPickup = $select.data('entrypickup') || '';
+        const entryDropoff = $select.data('entrydropoff') || '';
+        const type = $select.data('type') || '';
         const orderId = $select.data('order-id');
-        const driverId = $select.closest('tr').find('.driver-select').val();
         const tourId = $select.data('tour-id') || $('#hiddenTourId').val();
-        const date = $('#hiddenDate').val();
+        const date = $('#hiddenDate').val() || $('#dateSelect').val();
         const dmcId = $('#dmc_id').val();
+        
+        // Set flag
+        isUpdatingAssignment = true;
+        
+        console.log('=== Vehicle Change Handler ===');
+        console.log('Selected vehicle_id:', vehicleId);
+        console.log('Driver in same row:', driverId);
+        console.log('order_id:', orderId);
+        console.log('tour_id:', tourId);
+        console.log('order_type:', orderType);
+        console.log('date:', date);
+        console.log('dmc_id:', dmcId);
+        console.log('============================');
         
         // Prepare form data
         const formData = new FormData();
@@ -898,7 +1006,6 @@ $(document).ready(function() {
         formData.append('entrypickup', entryPickup);
         formData.append('entrydropoff', entryDropoff);
         formData.append('type', type);
-        formData.append('driver_id', driverId);
         formData.append('vehicle_id', vehicleId);
         formData.append('tour_id', tourId);
         formData.append('date', date);
@@ -926,7 +1033,63 @@ $(document).ready(function() {
         })
         .then(data => {
             if (data.success) {
-                showAlert('success', 'Vehicle assigned successfully');
+                // If a driver is returned (from the vehicle's driver_id), auto-populate the driver dropdown
+                let driver = data.driver;
+                console.log("driver from vehicle = ", driver);
+                
+                if (driver) {
+                    // Find the driver select in the same row as the vehicle select
+                    const $driverSelect = $select.closest('tr').find('.driver-select');
+                    
+                    console.log('Driver to auto-select:', driver);
+                    console.log('Driver ID:', driver.driver_id);
+                    console.log('Driver name:', driver.name);
+                    console.log('Driver license_no:', driver.license_no);
+                    
+                    // Check if this driver exists in the dropdown options
+                    let driverFound = false;
+                    let driverOptionText = '';
+                    
+                    $driverSelect.find('option').each(function() {
+                        const optionVal = $(this).val();
+                        const optionText = $(this).text();
+                        console.log('Checking option - val:', optionVal, 'text:', optionText);
+                        
+                        if (optionVal === driver.driver_id.toString()) {
+                            // Set flag to prevent triggering the driver change handler
+                            const wasUpdating = isUpdatingAssignment;
+                            isUpdatingAssignment = true;
+                            
+                            // Set value and update Select2 display
+                            $driverSelect.val(optionVal);
+                            
+                            // Update Select2 display
+                            if ($driverSelect.hasClass('select2-hidden-accessible')) {
+                                $driverSelect.trigger('change');
+                            }
+                            
+                            // Restore flag state
+                            setTimeout(() => {
+                                isUpdatingAssignment = wasUpdating;
+                            }, 100);
+                            
+                            driverOptionText = optionText;
+                            driverFound = true;
+                            return false; // break the loop
+                        }
+                    });
+                    
+                    if (driverFound) {
+                        console.log('Driver auto-selected:', driverOptionText);
+                        showAlert('success', `Vehicle assigned successfully. Driver "${driverOptionText}" auto-assigned from vehicle.`);
+                    } else {
+                        console.log('Driver not found in dropdown options');
+                        showAlert('success', 'Vehicle assigned successfully (driver not found in list)');
+                    }
+                } else {
+                    console.log('No driver returned from backend');
+                    showAlert('success', 'Vehicle assigned successfully');
+                }
             } else {
                 showAlert('error', data.message || 'Failed to assign vehicle');
             }
@@ -934,6 +1097,13 @@ $(document).ready(function() {
         .catch(error => {
             console.error('Error updating vehicle assignment:', error);
             showAlert('error', error.message || 'Error updating vehicle assignment');
+        })
+        .finally(() => {
+            // Reset flag after request completes and allow subsequent changes
+            setTimeout(() => {
+                isUpdatingAssignment = false;
+                console.log('Assignment update flag reset');
+            }, 500); // Small delay to ensure all triggers are complete
         });
     });
 
