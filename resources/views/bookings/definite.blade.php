@@ -2,8 +2,6 @@
 @section('title', 'Definite Bookings')
 @extends('layouts.datatablecss')
 
-<!-- Date Range Picker CSS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
@@ -310,11 +308,13 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date Range</label>
-                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
-                    <input type="hidden" id="dateRangeStart">
-                    <input type="hidden" id="dateRangeEnd">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -22508,31 +22508,17 @@ function showUpcomingTours() {
     filterTable();
 }
 
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
-    filterTable();
-}
-
 window.filterTable = function() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const dateStart = document.getElementById('dateRangeStart')?.value || '';
-    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    const startDateValue = document.getElementById('startDateFilter')?.value || '';
+    const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
+    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
     
-    // Check if table is initialized before using it
     if (typeof table !== 'undefined' && table && table.rows) {
         table.rows('.dt-hasChild').every(function() {
             if (this.child.isShown()) this.child.hide();
@@ -22543,82 +22529,70 @@ window.filterTable = function() {
     let visibleCount = 0;
     
     rows.forEach(row => {
-        if (row.cells.length === 1) return; // Skip empty state row
+        if (row.cells.length === 1) return;
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[5]?.querySelector('.fw-medium')?.textContent || '';
         const executionStatus = row.getAttribute('data-execution-status') || '';
-        const travelDates = row.cells[6]?.textContent.toLowerCase() || '';
-        const confirmationDateText = row.cells[7]?.textContent || '';
         const updatedAt = row.getAttribute('data-updated-at');
+        const createdAtAttr = row.getAttribute('data-created-at');
         
         let show = true;
         
         if (searchTerm && !tourDetails.includes(searchTerm)) {
-            console.log('Search term not found', searchTerm, tourDetails);
             show = false;
         }
         
-        // Status filter - use data attribute for accurate filtering
         if (statusFilter && executionStatus !== statusFilter) {
-            console.log('Status filter not found', statusFilter, executionStatus);
             show = false;
         }
         
         if (destinationFilter && destination !== destinationFilter) {
-            console.log('Destination filter not found', destinationFilter, destination);
             show = false;
         }
         
         if (agentFilter && agent !== agentFilter) {
-            console.log('Agent filter not found', agentFilter, agent);
             show = false;
         }
         
-        // Date range filtering (check both created_at and updated_at)
-        if (dateStart && dateEnd && (updatedAt || row.getAttribute('data-created-at'))) {
-            const createdAt = row.getAttribute('data-created-at');
-            const s = new Date(dateStart + 'T00:00:00');
-            const e = new Date(dateEnd + 'T23:59:59');
+        if ((startDateValue || endDateValue) && (updatedAt || createdAtAttr)) {
+            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
             let dateInRange = false;
             
-            // Check updated_at if available
             if (updatedAt) {
                 const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if (updatedDate >= s && updatedDate <= e) {
+                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
                     dateInRange = true;
                 }
             }
             
-            // Check created_at if available and updated_at didn't match
-            if (!dateInRange && createdAt) {
-                const createdDate = new Date(createdAt + 'T00:00:00');
-                if (createdDate >= s && createdDate <= e) {
+            if (!dateInRange && createdAtAttr) {
+                const createdDate = new Date(createdAtAttr + 'T00:00:00');
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
                     dateInRange = true;
                 }
             }
             
             if (!dateInRange) {
-                console.log('Date range filter not found', dateStart, dateEnd, createdAt, updatedAt);
                 show = false;
             }
+        } else if (startDateValue || endDateValue) {
+            show = false;
         }
         
         row.style.display = show ? '' : 'none';
         if (show) visibleCount++;
     });
     
-    // Update visible count display
-    updateFilterResults(visibleCount, rows.length);
+    updateFilterResults(visibleCount, totalRows);
 
-    // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
-    const rangeCount = visibleRows.length;
+    const rangeCount = visibleCount;
     const adults = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-adult') || '0', 10), 0);
     const children = visibleRows.reduce((sum, r) => sum + parseInt(r.getAttribute('data-child') || '0', 10), 0);
     
-    // Count today's bookings from visible rows
     const today = new Date().toISOString().split('T')[0];
     const todayCount = visibleRows.filter(r => {
         const createdAt = r.getAttribute('data-created-at');
@@ -22641,28 +22615,33 @@ window.filterTable = function() {
     if (statChildren) statChildren.textContent = children;
     if (statToday) statToday.textContent = todayCount;
 
-    if (dateStart && dateEnd) {
-        const start = new Date(dateStart);
-        const end = new Date(dateEnd);
-        
-        // Format the date range label
-        let label;
-        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-            // Same month
-            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
-                // Full month
-                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+    if (startDateValue || endDateValue) {
+        const start = startDateValue ? new Date(startDateValue) : null;
+        const end = endDateValue ? new Date(endDateValue) : null;
+        let label = '';
+
+        if (start && end) {
+            if (start.getTime() === end.getTime()) {
+                label = start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' });
+            } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                    label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                } else {
+                    label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                }
             } else {
-                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
-        } else {
-            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        } else if (start) {
+            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+        } else if (end) {
+            label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
-        
-        if (labelEl) labelEl.textContent = label;
-        if (statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
-        if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
-        if (statChildrenLabel) statChildrenLabel.textContent = `Childrens - ${label}`;
+
+        if (label && labelEl) labelEl.textContent = label;
+        if (label && statConfirmedLabel) statConfirmedLabel.textContent = `Definite - ${label}`;
+        if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
+        if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
@@ -22673,16 +22652,22 @@ window.filterTable = function() {
 };
 
 function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
+    const searchInput = document.getElementById('searchInput');
+    const statusSelect = document.getElementById('statusFilter');
+    const destinationSelect = document.getElementById('destinationFilter');
+    const agentSelect = document.getElementById('agentFilter');
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (statusSelect) statusSelect.value = '';
+    if (destinationSelect) destinationSelect.value = '';
+    if (agentSelect) agentSelect.value = '';
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) {
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
+    }
     filterTable();
     
     // Show success message
@@ -22725,16 +22710,45 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('statusFilter');
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const dateRange = document.getElementById('dateRange');
-    const dateRangeStart = document.getElementById('dateRangeStart');
-    const dateRangeEnd = document.getElementById('dateRangeEnd');
+    const startDateFilter = document.getElementById('startDateFilter');
+    const endDateFilter = document.getElementById('endDateFilter');
+    const today = new Date().toISOString().split('T')[0];
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (statusFilter) statusFilter.addEventListener('change', filterTable);
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    // Date range picker will be initialized in scripts section where jQuery is available
+    if (startDateFilter) {
+        startDateFilter.setAttribute('max', today);
+        startDateFilter.addEventListener('change', function() {
+            if (endDateFilter) {
+                if (startDateFilter.value) {
+                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                        endDateFilter.value = startDateFilter.value;
+                    }
+                } else {
+                    endDateFilter.removeAttribute('min');
+                }
+            }
+            filterTable();
+        });
+    }
+    if (endDateFilter) {
+        endDateFilter.setAttribute('max', today);
+        if (startDateFilter && startDateFilter.value) {
+            endDateFilter.setAttribute('min', startDateFilter.value);
+        }
+        endDateFilter.addEventListener('change', function() {
+            if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                startDateFilter.value = endDateFilter.value;
+                startDateFilter.dispatchEvent(new Event('change'));
+                return;
+            }
+            filterTable();
+        });
+    }
     
     // Apply initial filter on page load to show today's data
     filterTable();
@@ -25556,88 +25570,16 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
 @endsection
 
 @section('scripts')
-<!-- Date Range Picker JS - Load after jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
-            initializeDateRangePicker();
             initializeDataTable();
+            filterTable();
         }, 200);
     });
-    
-    function initializeDateRangePicker() {
-        // Initialize date range picker first
-        const dateRange = document.getElementById('dateRange');
-        const dateRangeStart = document.getElementById('dateRangeStart');
-        const dateRangeEnd = document.getElementById('dateRangeEnd');
-        
-        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
-            // Set default to current month
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            
-            $(dateRange).daterangepicker({
-                opens: 'left',
-                autoUpdateInput: true,
-                maxDate: moment(), // No future dates
-                startDate: startOfMonth,
-                endDate: endOfMonth,
-                locale: {
-                    cancelLabel: 'Clear',
-                    format: 'MMM DD, YYYY'
-                }
-            });
-
-            // Set initial values for current month
-            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
-            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-
-            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
-                const start = picker.startDate.clone().startOf('day');
-                const end = picker.endDate.clone().endOf('day');
-                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
-                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
-                filterTable();
-            });
-
-            $(dateRange).on('cancel.daterangepicker', function() {
-                $(this).val('');
-                if (dateRangeStart) dateRangeStart.value = '';
-                if (dateRangeEnd) dateRangeEnd.value = '';
-                filterTable();
-            });
-            
-            // Apply initial filter with current month data
-            setTimeout(function() {
-                filterTable();
-            }, 100);
-        } else {
-            console.error('Date range picker could not be initialized. Missing dependencies:', {
-                dateRange: !!dateRange,
-                moment: typeof moment !== 'undefined',
-                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
-                jquery: typeof $ !== 'undefined'
-            });
-            
-            // Fallback: still set initial date values for current month
-            if (dateRange && typeof moment !== 'undefined') {
-                const startOfMonth = moment().startOf('month');
-                const endOfMonth = moment().endOf('month');
-                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-                setTimeout(function() {
-                    filterTable();
-                }, 100);
-            }
-        }
-    }
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
