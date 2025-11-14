@@ -590,6 +590,10 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-2">
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-pill">
+                                        <i class="ri-pencil-line"></i> Edit
+                                    </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> View
