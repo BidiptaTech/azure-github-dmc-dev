@@ -877,6 +877,10 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex flex-column gap-2">
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-pill">
+                                        <i class="ri-pencil-line"></i> Edit
+                                    </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> View
@@ -10085,6 +10089,9 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
 function generateIndividualRestaurantContent(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {
     // Get the full booking data from the restaurantDetails
     const fullBooking = booking.restaurant_details || booking;
+    const userRole = parseInt(document.querySelector('meta[name="user-role"]')?.getAttribute('content')) || {{ auth()->user()->role_id ?? 0 }};
+    const allowedRestaurantQrRoles = [11, 34, 124, 125, 128, 131, 132, 134, 135, 137, 138];
+    const canAccessRestaurantQR = allowedRestaurantQrRoles.includes(userRole);
     
     return `
         <div class="card mb-4 shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
@@ -10315,6 +10322,49 @@ function generateIndividualRestaurantContent(booking, tourId, restaurantOrderInd
                         ${generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, bookingIndex, autoCancelDate)}
                     </div>
                 </div>
+
+                ${canAccessRestaurantQR ? `
+                <!-- Restaurant QR Code -->
+                <div class="bg-white rounded p-3 shadow-sm mt-3" id="restaurantQRSection_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-dark rounded-circle p-2 me-3">
+                                <i class="ri-qr-code-line text-white"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">Restaurant Check-in QR</h6>
+                                <small class="text-muted">Generate a QR code with key restaurant booking details.</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-sm px-3 py-2"
+                                    id="restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
+                                    onclick="generateRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;">
+                                <i class="ri-qr-code-line me-1"></i>Generate QR
+                            </button>
+                            <button type="button"
+                                    class="btn btn-outline-dark btn-sm px-3 py-2"
+                                    id="restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}"
+                                    onclick="downloadRestaurantQRCode(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                                    style="border-radius: 25px;"
+                                    disabled>
+                                <i class="ri-download-2-line me-1"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-none text-center" id="restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                        <div class="d-inline-block position-relative rounded-4 p-4" 
+                             style="background: #ffffff; border: 6px solid #ffffff; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);">
+                            <div id="restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}"></div>
+                        </div>
+                        <div class="mt-3 text-muted small fw-medium" id="restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}">
+                            Scan this code at the restaurant to view the booking details.
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -10386,6 +10436,526 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
         </div>
     `;
 }
+
+@php
+    $travClicksLogoSetting = \App\Helpers\CommonHelper::masterSettingsName('logo');
+    $travClicksLogoUrl = $travClicksLogoSetting['master_value'] ?? '';
+    if (empty($travClicksLogoUrl)) {
+        $travClicksLogoUrl = asset('assets/images/logo-dark.png');
+    } elseif (!preg_match('/^https?:\/\//i', $travClicksLogoUrl) && !\Illuminate\Support\Str::startsWith($travClicksLogoUrl, ['//'])) {
+        $travClicksLogoUrl = asset(ltrim($travClicksLogoUrl, '/'));
+    }
+    $travClicksLogoDataUri = null;
+    try {
+        $logoContent = @file_get_contents($travClicksLogoUrl);
+        if ($logoContent !== false) {
+            $mimeType = null;
+            if (class_exists(\finfo::class)) {
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                if ($finfo) {
+                    $mimeType = $finfo->buffer($logoContent);
+                }
+            }
+            if (!$mimeType) {
+                $path = parse_url($travClicksLogoUrl, PHP_URL_PATH);
+                $extension = strtolower(pathinfo($path ?? '', PATHINFO_EXTENSION));
+                $mimeMap = [
+                    'png' => 'image/png',
+                    'jpg' => 'image/jpeg',
+                    'jpeg' => 'image/jpeg',
+                    'gif' => 'image/gif',
+                    'svg' => 'image/svg+xml',
+                    'webp' => 'image/webp',
+                ];
+                $mimeType = $mimeMap[$extension] ?? 'image/png';
+            }
+            $travClicksLogoDataUri = 'data:' . $mimeType . ';base64,' . base64_encode($logoContent);
+        }
+    } catch (\Exception $e) {
+        $travClicksLogoDataUri = null;
+    }
+@endphp
+
+let qrCodeLibraryPromise = null;
+const TRAVCLICKS_LOGO_URL = @json($travClicksLogoDataUri ?? $travClicksLogoUrl);
+
+function ensureQRCodeLibrary() {
+    if (window.QRCode) {
+        return Promise.resolve();
+    }
+
+    if (qrCodeLibraryPromise) {
+        return qrCodeLibraryPromise;
+    }
+
+    qrCodeLibraryPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-qr-library="qrcodejs"]');
+
+        const handleLoaded = () => {
+            if (window.QRCode) {
+                resolve();
+            } else {
+                qrCodeLibraryPromise = null;
+                reject(new Error('QR code library loaded but QRCode is unavailable.'));
+            }
+        };
+
+        const handleError = () => {
+            qrCodeLibraryPromise = null;
+            reject(new Error('Failed to load QR code library.'));
+        };
+
+        if (existingScript) {
+            existingScript.addEventListener('load', handleLoaded, { once: true });
+            existingScript.addEventListener('error', handleError, { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.async = true;
+        script.dataset.qrLibrary = 'qrcodejs';
+        script.onload = handleLoaded;
+        script.onerror = handleError;
+        document.head.appendChild(script);
+    });
+
+    return qrCodeLibraryPromise;
+}
+
+function extractRestaurantLogoData(fullData, fallbackName = '') {
+    const ensureString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+    const fromObject = (obj) => {
+        if (!obj || typeof obj !== 'object') {
+            return '';
+        }
+        const candidateKeys = ['url', 'src', 'image', 'image_url', 'logo', 'logo_url', 'path'];
+        for (const key of candidateKeys) {
+            const candidate = ensureString(obj[key]);
+            if (candidate) {
+                return candidate;
+            }
+        }
+        return '';
+    };
+
+    const extractFromValue = (value) => {
+        if (!value) {
+            return '';
+        }
+        if (typeof value === 'string') {
+            return ensureString(value);
+        }
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                const candidate = extractFromValue(item);
+                if (candidate) {
+                    return candidate;
+                }
+            }
+        }
+        return fromObject(value);
+    };
+
+    const candidates = [];
+
+    if (fullData && typeof fullData === 'object') {
+        const directKeys = [
+            'restaurant_logo_url',
+            'restaurant_logo',
+            'restaurantLogoUrl',
+            'restaurantLogo',
+            'logo_url',
+            'logoUrl',
+            'logo',
+            'image_url',
+            'imageUrl',
+            'image',
+            'thumbnail',
+            'photo',
+            'picture',
+            'featured_image',
+            'featuredImage',
+            'primary_image',
+            'primaryImage',
+            'cover_image',
+            'coverImage'
+        ];
+
+        for (const key of directKeys) {
+            const candidate = ensureString(fullData[key]);
+            if (candidate) {
+                candidates.push(candidate);
+            }
+        }
+
+        const nestedValues = [
+            fullData?.restaurant,
+            fullData?.vendor,
+            fullData?.supplier,
+            fullData?.meta,
+            fullData?.details,
+            fullData?.media,
+            fullData?.images,
+            fullData?.gallery,
+            fullData?.photos
+        ];
+
+        for (const nested of nestedValues) {
+            const candidate = extractFromValue(nested);
+            if (candidate) {
+                candidates.push(candidate);
+            }
+        }
+    }
+
+    const normalizeUrl = (value) => {
+        if (!value) {
+            return '';
+        }
+        if (value.startsWith('data:')) {
+            return value;
+        }
+        if (/^https?:\/\//i.test(value)) {
+            return value;
+        }
+        if (value.startsWith('//')) {
+            return `${window.location.protocol}${value}`;
+        }
+        if (value.startsWith('/')) {
+            return `${window.location.origin}${value}`;
+        }
+        return `${window.location.origin}/${value}`;
+    };
+
+    for (const candidate of candidates) {
+        const normalized = normalizeUrl(candidate);
+        if (normalized) {
+            return { type: 'image', value: normalized };
+        }
+    }
+
+    const fallbackLetter = (fallbackName || 'R').trim().charAt(0).toUpperCase() || 'R';
+    if (TRAVCLICKS_LOGO_URL) {
+        return { type: 'image', value: TRAVCLICKS_LOGO_URL };
+    }
+    return { type: 'letter', value: fallbackLetter };
+}
+
+function drawLogoOnCanvas(canvas, logoData, restaurantName) {
+    return new Promise((resolve) => {
+        try {
+            if (!canvas) {
+                resolve();
+                return;
+            }
+
+            const context = canvas.getContext('2d');
+            if (!context) {
+                resolve();
+                return;
+            }
+
+            const size = Math.min(canvas.width, canvas.height);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const outerRadius = Math.floor(size * 0.18);
+            const innerRadius = Math.floor(size * 0.15);
+
+            context.save();
+            context.beginPath();
+            context.arc(centerX, centerY, outerRadius, 0, Math.PI * 2, true);
+            context.fillStyle = '#ffffff';
+            context.fill();
+            context.lineWidth = Math.max(2, size * 0.015);
+            context.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+            context.stroke();
+            context.restore();
+
+            const drawLetter = () => {
+                const letter =
+                    (logoData && logoData.type === 'letter' && logoData.value) ||
+                    (restaurantName || 'R').trim().charAt(0) ||
+                    'R';
+
+                context.save();
+                context.beginPath();
+                context.arc(centerX, centerY, innerRadius, 0, Math.PI * 2, true);
+                context.clip();
+                context.fillStyle = '#2d3436';
+                context.font = `700 ${innerRadius * 1.4}px "Segoe UI", Arial, sans-serif`;
+                context.textAlign = 'center';
+                context.textBaseline = 'middle';
+                context.fillText(letter.toUpperCase(), centerX, centerY + innerRadius * 0.05);
+                context.restore();
+            };
+
+            if (logoData && logoData.type === 'image' && logoData.value) {
+                const image = new Image();
+                if (/^https?:\/\//i.test(logoData.value)) {
+                    image.crossOrigin = 'anonymous';
+                }
+                image.onload = () => {
+                    try {
+                        context.save();
+                        context.beginPath();
+                        context.arc(centerX, centerY, innerRadius, 0, Math.PI * 2, true);
+                        context.clip();
+                        context.drawImage(
+                            image,
+                            centerX - innerRadius,
+                            centerY - innerRadius,
+                            innerRadius * 2,
+                            innerRadius * 2
+                        );
+                        context.restore();
+                    } catch (drawError) {
+                        console.error('Error drawing restaurant logo onto QR canvas:', drawError);
+                        drawLetter();
+                    }
+                    resolve();
+                };
+                image.onerror = () => {
+                    drawLetter();
+                    resolve();
+                };
+
+                image.src = logoData.value;
+            } else {
+                drawLetter();
+                resolve();
+            }
+        } catch (error) {
+            console.error('Error preparing restaurant logo overlay:', error);
+            resolve();
+        }
+    });
+}
+
+function applyRestaurantLogoToQRCode(qrContainer, logoData, restaurantName) {
+    return new Promise((resolve) => {
+        try {
+            if (!qrContainer) {
+                resolve();
+                return;
+            }
+
+            const canvas = qrContainer.querySelector('canvas');
+            if (canvas) {
+                drawLogoOnCanvas(canvas, logoData, restaurantName)
+                    .then(resolve)
+                    .catch(() => resolve());
+                return;
+            }
+
+            const img = qrContainer.querySelector('img');
+            if (img) {
+                const renderWithImage = () => {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = img.naturalWidth || 220;
+                    tempCanvas.height = img.naturalHeight || 220;
+
+                    const context = tempCanvas.getContext('2d');
+                    if (!context) {
+                        resolve();
+                        return;
+                    }
+
+                    context.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+                    drawLogoOnCanvas(tempCanvas, logoData, restaurantName)
+                        .then(() => {
+                            try {
+                                img.src = tempCanvas.toDataURL('image/png');
+                            } catch (conversionError) {
+                                console.error('Error updating QR image with logo overlay:', conversionError);
+                            }
+                            resolve();
+                        })
+                        .catch(() => {
+                            try {
+                                img.src = tempCanvas.toDataURL('image/png');
+                            } catch (conversionError) {
+                                console.error('Error updating QR image during fallback overlay:', conversionError);
+                            }
+                            resolve();
+                        });
+                };
+
+                if (img.complete && img.naturalWidth) {
+                    renderWithImage();
+                } else {
+                    img.onload = renderWithImage;
+                    img.onerror = () => resolve();
+                }
+                return;
+            }
+
+            resolve();
+        } catch (error) {
+            console.error('Error applying restaurant logo to QR code:', error);
+            resolve();
+        }
+    });
+}
+
+window.generateRestaurantQRCode = function(tourId, restaurantOrderIndex, bookingIndex) {
+    const generateBtn = document.getElementById(`restaurantQRGenerateBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const downloadBtn = document.getElementById(`restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const wrapper = document.getElementById(`restaurantQRWrapper_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const qrContainer = document.getElementById(`restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const detailsContainer = document.getElementById(`restaurantQRDetails_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+
+    if (!generateBtn || !qrContainer || !downloadBtn) {
+        console.warn('QR elements not found for restaurant booking', { tourId, restaurantOrderIndex, bookingIndex });
+        return;
+    }
+
+    const originalButtonText = generateBtn.getAttribute('data-original-text') || generateBtn.innerHTML;
+    generateBtn.setAttribute('data-original-text', originalButtonText);
+
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Generating...
+    `;
+
+    if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.classList.remove('btn-primary');
+        if (!downloadBtn.classList.contains('btn-outline-dark')) {
+            downloadBtn.classList.add('btn-outline-dark');
+        }
+    }
+
+    ensureQRCodeLibrary()
+        .then(() => getRestaurantServiceData(tourId, restaurantOrderIndex, bookingIndex))
+        .then(restaurantData => {
+            const fullData = restaurantData.restaurantDetails || restaurantData.restaurant_details || restaurantData;
+
+            const qrPayload = {
+                tour_id: tourId,
+                restaurant: fullData?.restaurant_name || fullData?.restaurantName || 'Restaurant',
+                reservation_date: fullData?.booking_date || fullData?.bookingDate || '',
+                reservation_time: fullData?.visit_time || fullData?.visitTime || '',
+                meal_type: fullData?.meal_type || fullData?.mealType || '',
+                meal_specific_type: fullData?.meal_specific_type || fullData?.mealSpecificType || '',
+                guests: {
+                    adults: Number(fullData?.adult_count ?? fullData?.adultCount ?? 0),
+                    children: Number(fullData?.child_count ?? fullData?.childCount ?? 0)
+                },
+                total_price: Number(fullData?.total_price ?? fullData?.totalPrice ?? 0),
+                reference: fullData?.reference_id || restaurantData?.reference_id || '',
+                provider: fullData?.provider_name || fullData?.providerName || '',
+                contact: {
+                    name: fullData?.full_name || fullData?.fullName || '',
+                    email: fullData?.email || '',
+                    phone: `${fullData?.country_code || fullData?.countryCode || ''} ${fullData?.phone || ''}`.trim()
+                },
+                generated_at: new Date().toISOString()
+            };
+
+            const qrContent = JSON.stringify(qrPayload);
+
+            qrContainer.innerHTML = '';
+
+            new QRCode(qrContainer, {
+                text: qrContent,
+                width: 220,
+                height: 220,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: window.QRCode?.CorrectLevel?.M ?? 0
+            });
+
+            if (wrapper) {
+                wrapper.classList.remove('d-none');
+            }
+
+            const logoData = extractRestaurantLogoData(fullData, qrPayload.restaurant);
+
+            return applyRestaurantLogoToQRCode(qrContainer, logoData, qrPayload.restaurant)
+                .catch(overlayError => {
+                    console.error('Error overlaying restaurant logo onto QR:', overlayError);
+                })
+                .finally(() => {
+                    if (detailsContainer) {
+                        detailsContainer.textContent = 'Scan this code at the restaurant to view the booking details.';
+                    }
+
+                    if (downloadBtn) {
+                        downloadBtn.disabled = false;
+                        downloadBtn.classList.remove('btn-outline-dark');
+                        downloadBtn.classList.add('btn-primary');
+                    }
+                });
+        })
+        .catch(error => {
+            console.error('Error generating restaurant QR:', error);
+            showToast('Unable to generate restaurant QR code. Please try again.', 'error');
+            if (wrapper) {
+                wrapper.classList.add('d-none');
+            }
+            if (detailsContainer) {
+                detailsContainer.innerHTML = '';
+            }
+            if (downloadBtn) {
+                downloadBtn.disabled = true;
+                downloadBtn.classList.remove('btn-primary');
+                if (!downloadBtn.classList.contains('btn-outline-dark')) {
+                    downloadBtn.classList.add('btn-outline-dark');
+                }
+            }
+        })
+        .finally(() => {
+            if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = generateBtn.getAttribute('data-original-text') || originalButtonText;
+            }
+        });
+};
+
+window.downloadRestaurantQRCode = function(tourId, restaurantOrderIndex, bookingIndex) {
+    const qrContainer = document.getElementById(`restaurantQRCode_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+    const downloadBtn = document.getElementById(`restaurantQRDownloadBtn_${tourId}_${restaurantOrderIndex}_${bookingIndex}`);
+
+    if (!qrContainer) {
+        showToast('QR section not ready yet. Please try again.', 'warning');
+        return;
+    }
+
+    const canvas = qrContainer.querySelector('canvas');
+    const img = qrContainer.querySelector('img');
+
+    if (!canvas && !img) {
+        showToast('Generate the QR code before downloading.', 'warning');
+        return;
+    }
+
+    let dataUrl;
+
+    if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+    } else if (img) {
+        dataUrl = img.src;
+    }
+
+    if (!dataUrl) {
+        showToast('Unable to prepare QR download.', 'error');
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `restaurant_${tourId}_${bookingIndex}_qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (downloadBtn) {
+        downloadBtn.blur();
+    }
+};
 
 // Load restaurant data for approve modal (similar to attraction)
 window.loadRestaurantDataForApprove = function(tourId, restaurantOrderIndex, bookingIndex, autoCancelDate=null) {

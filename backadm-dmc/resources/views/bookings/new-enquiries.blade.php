@@ -458,6 +458,12 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                                       style="width: 32px; height: 32px;"
+                                       title="Edit Tour">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
                                        style="width: 32px; height: 32px;"
