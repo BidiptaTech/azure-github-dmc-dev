@@ -147,6 +147,7 @@ Route::get('/clear', function () {
             Route::get('transaction', [UserController::class, 'transaction'])->name('transaction');
             Route::get('/admin/login-as/{userId}', [UserController::class, 'loginAsUser'])->name('admin.loginAsUser');
             Route::post('/update-price-comment', [EnquiryController::class, 'update'])->name('update-price-comment');
+            Route::post('/tours/agent-negotiation', [BookingsController::class, 'agentNegotiation'])->name('tours.agent-negotiation');
             //currency exchange rate
             Route::get('/exchange-rate', [CurrencyController::class, 'showExchangeRate'])->name('exchange-rate');
             Route::get('/get-exchange-rate', [CurrencyController::class, 'getExchangeRate'])->name('get-exchange-rate');
