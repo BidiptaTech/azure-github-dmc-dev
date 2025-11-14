@@ -129,6 +129,7 @@
                                 <th>Pickup Time</th>
                                 <th>Pickup Location</th>
                                 <th>Tour Type</th>
+                                <th>Guide</th>
                                 <th>Assign Guide</th>
                                 <!-- Hidden columns for now -->
                                 <!-- <th>Booking Type</th>
@@ -233,6 +234,16 @@ $(document).ready(function() {
                         <td>${dataItem.entrytime || 'N/A'}</td>
                         <td>${dataItem.entrypickup || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
+                        <td>${(function() {
+                            if (item.OrderGuide) {
+                                const guide = item.OrderGuide;
+                                const languages = guide.languages && guide.languages.length > 0 
+                                    ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                    : '';
+                                return guide.name + ' - ' + (guide.government_license_no || 'N/A') + languages;
+                            }
+                            return 'N/A';
+                        })()}</td>
                         <td>
                             <select class="form-control guide-select" 
                                 name="guide_id[${index}]" 
@@ -248,7 +259,10 @@ $(document).ready(function() {
                                     if (initialGuides.length) {
                                         initialGuides.forEach(guide => {
                                             const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
-                                            options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}</option>`;
+                                            const languages = guide.languages && guide.languages.length > 0 
+                                                ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                : '';
+                                            options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name}${languages}</option>`;
                                         });
                                     }
                                     return options;
@@ -269,7 +283,7 @@ $(document).ready(function() {
             // Initialize DataTable
             initializeDataTable();
         } else {
-            $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">No orders found</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">No orders found</td></tr>');
             $('#exportOrdersBtn').hide();
         }
     }
@@ -280,13 +294,13 @@ $(document).ready(function() {
         cleanupDataTable();
         
         if (!date) {
-            $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Please select a date</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Please select a date</td></tr>');
             $('#exportOrdersBtn').hide();
             return;
         }
 
         // Show loading indicator
-        $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
+        $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading data...</td></tr>');
 
         fetch(getOrdersByDateUrl.replace(':date', date) + '?type=guide', {
             method: 'GET',
@@ -329,6 +343,16 @@ $(document).ready(function() {
                                     <td>${dataItem.entrytime || 'N/A'}</td>
                                     <td>${dataItem.entrypickup || 'N/A'}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
+                                    <td>${(function() {
+                                        if (item.OrderGuide) {
+                                            const guide = item.OrderGuide;
+                                            const languages = guide.languages && guide.languages.length > 0 
+                                                ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                : '';
+                                            return guide.name + ' - ' + (guide.government_license_no || 'N/A') + languages;
+                                        }
+                                        return 'N/A';
+                                    })()}</td>
                                     <td>
                                         <select class="form-control guide-select" 
                                             name="guide_id[${index}]" 
@@ -344,7 +368,10 @@ $(document).ready(function() {
                                                 if (response.guides && response.guides.length) {
                                                     response.guides.forEach(guide => {
                                                         const isSelected = item.assigned_guide_id && (guide.guide_id == item.assigned_guide_id);
-                                                        options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}</option>`;
+                                                        const languages = guide.languages && guide.languages.length > 0 
+                                                            ? ' (' + guide.languages.map(lang => lang.language).join(', ') + ')'
+                                                            : '';
+                                                        options += `<option ${isSelected ? 'selected' : ''} value="${guide.guide_id}">${guide.name} - ${guide.government_license_no}${languages}</option>`;
                                                     });
                                                 }
                                                 return options;
@@ -365,14 +392,14 @@ $(document).ready(function() {
                         // Initialize DataTable
                         initializeDataTable();
                     } else {
-                        $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">No orders found for this date</td></tr>');
+                        $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">No orders found for this date</td></tr>');
                         $('#exportOrdersBtn').hide();
                     }
                 } else {
                     const errorMessage = response.message || 'Error loading orders';
                     console.error('Error:', errorMessage);
                     showAlert('error', errorMessage);
-                    $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
+                    $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Error loading orders</td></tr>');
                     $('#exportOrdersBtn').hide();
                 }
         })
@@ -380,7 +407,7 @@ $(document).ready(function() {
             console.error('Error fetching orders by date:', error);
             const errorMessage = error.message || 'Error fetching orders';
             showAlert('error', errorMessage);
-            $('#tourOrdersTableBody').html('<tr><td colspan="6" class="text-center">Error loading orders</td></tr>');
+            $('#tourOrdersTableBody').html('<tr><td colspan="7" class="text-center">Error loading orders</td></tr>');
             $('#exportOrdersBtn').hide();
         });
     }
@@ -432,7 +459,7 @@ $(document).ready(function() {
                     info: true,
                     searching: true,
                     columnDefs: [
-                        { orderable: false, targets: [5] }  // Disable sorting on guide select column
+                        { orderable: false, targets: [6] }  // Disable sorting on guide select column
                     ]
                 });
                 
@@ -590,7 +617,7 @@ $(document).ready(function() {
             }
             
             const cells = $row.find('td');
-            if (cells.length < 6) {
+            if (cells.length < 7) {
                 return; // Skip incomplete rows
             }
             
@@ -600,9 +627,10 @@ $(document).ready(function() {
             const pickupTime = $(cells[2]).text().trim();
             const pickupLocation = $(cells[3]).text().trim();
             const tourType = $(cells[4]).text().trim();
+            const guide = $(cells[5]).text().trim();
             
             // Get selected guide from the dropdown
-            const guideSelect = $(cells[5]).find('.guide-select');
+            const guideSelect = $(cells[6]).find('.guide-select');
             const assignedGuide = guideSelect.find('option:selected').text().trim() || 'Not Assigned';
             
             // Add to excel data
@@ -612,6 +640,7 @@ $(document).ready(function() {
                 'Pickup Time': pickupTime,
                 'Pickup Location': pickupLocation,
                 'Tour Type': tourType,
+                'Guide': guide,
                 'Assigned Guide': assignedGuide
             });
         });
