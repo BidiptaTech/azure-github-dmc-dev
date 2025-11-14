@@ -4208,30 +4208,35 @@
                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                             
                             // Debug logging for vehicle data
-                            console.log(`Vehicle ${index + 1}:`, vehicle);
+                            console.log(`Point-to-Point Vehicle ${index + 1}:`, vehicle);
+                            console.log(`Point-to-Point Vehicle ${index + 1} Image:`, vehicle.image);
                             
                             try {
-                                const vehicleDataString = JSON.stringify(vehicle);
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                                    data-vehicle-name="${vehicle.vehicle_name}" 
-                                    data-vehicle-type="${vehicle.vehicle_type}" 
-                                    data-seating-capacity="${vehicle.seating_capacity}"
-                                    data-private-price="${vehicle.private_price || ''}" 
-                                    data-shared-price="${vehicle.shared_price || ''}" 
-                                    data-service-type="${vehicle.service_type || ''}" 
-                                    data-cost-per-hour="${vehicle.cost_per_hour || ''}" 
-                                    data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}" 
-                                    data-sharable="${vehicle.sharable || '0'}" 
-                                    data-vehicle="${vehicleDataString}">
-                                    ${vehicleInfo}
-                                </option>`;
+                                // Use createElement and setAttribute to avoid HTML escaping issues
+                                const option = document.createElement('option');
+                                option.value = vehicle.vehicle_id;
+                                option.textContent = vehicleInfo;
+                                option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
+                                option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
+                                option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                                option.setAttribute('data-private-price', vehicle.private_price || '');
+                                option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                                option.setAttribute('data-service-type', vehicle.service_type || '');
+                                option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                                option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                                option.setAttribute('data-sharable', vehicle.sharable || '0');
+                                option.setAttribute('data-vehicle-image', vehicle.image || '');
+                                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                                
+                                vehicleSelect.appendChild(option);
                             } catch (error) {
                                 console.error('Error stringifying vehicle data:', error);
                                 console.log('Problematic vehicle object:', vehicle);
                                 // Fallback: create option without data-vehicle attribute
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}">
-                                    ${vehicleInfo}
-                                </option>`;
+                                const option = document.createElement('option');
+                                option.value = vehicle.vehicle_id;
+                                option.textContent = vehicleInfo;
+                                vehicleSelect.appendChild(option);
                             }
                         });
                         
@@ -4338,29 +4343,34 @@
                             
                             // Debug logging for vehicle data
                             console.log(`Hourly Vehicle ${index + 1}:`, vehicle);
+                            console.log(`Hourly Vehicle ${index + 1} Image:`, vehicle.image);
                             
                             try {
-                                const vehicleDataString = JSON.stringify(vehicle);
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                                    data-vehicle-name="${vehicle.vehicle_name}" 
-                                    data-vehicle-type="${vehicle.vehicle_type}" 
-                                    data-seating-capacity="${vehicle.seating_capacity}"
-                                    data-private-price="${vehicle.private_price || ''}" 
-                                    data-shared-price="${vehicle.shared_price || ''}" 
-                                    data-service-type="${vehicle.service_type || ''}" 
-                                    data-cost-per-hour="${vehicle.cost_per_hour || ''}" 
-                                    data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}" 
-                                    data-sharable="${vehicle.sharable || '0'}" 
-                                    data-vehicle="${vehicleDataString}">
-                                    ${vehicleInfo}
-                                </option>`;
+                                // Use createElement and setAttribute to avoid HTML escaping issues
+                                const option = document.createElement('option');
+                                option.value = vehicle.vehicle_id;
+                                option.textContent = vehicleInfo;
+                                option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
+                                option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
+                                option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                                option.setAttribute('data-private-price', vehicle.private_price || '');
+                                option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                                option.setAttribute('data-service-type', vehicle.service_type || '');
+                                option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
+                                option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
+                                option.setAttribute('data-sharable', vehicle.sharable || '0');
+                                option.setAttribute('data-vehicle-image', vehicle.image || '');
+                                option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                                
+                                vehicleSelect.appendChild(option);
                             } catch (error) {
                                 console.error('Error stringifying vehicle data for hourly service:', error);
                                 console.log('Problematic vehicle object:', vehicle);
                                 // Fallback: create option without data-vehicle attribute
-                                vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}">
-                                    ${vehicleInfo}
-                                </option>`;
+                                const option = document.createElement('option');
+                                option.value = vehicle.vehicle_id;
+                                option.textContent = vehicleInfo;
+                                vehicleSelect.appendChild(option);
                             }
                             });
                             
@@ -4514,6 +4524,7 @@
         .then(response => response.json())
         .then(data => {
             console.log('Zone-based vehicle search response:', data);
+            console.log('First vehicle from API:', data.vehicles && data.vehicles.length > 0 ? data.vehicles[0] : 'No vehicles');
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
                 // Show the vehicle results section
@@ -4524,19 +4535,34 @@
                 // Populate vehicle dropdown
                 if (vehicleSelect) {
                     vehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-                    data.vehicles.forEach(vehicle => {
+                    data.vehicles.forEach((vehicle, index) => {
                         const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                        vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_id}" 
-                            data-vehicle-name="${vehicle.vehicle_name}" 
-                            data-vehicle-type="${vehicle.vehicle_type}" 
-                            data-seating-capacity="${vehicle.seating_capacity}"
-                            data-private-price="${vehicle.private_price || ''}"
-                            data-shared-price="${vehicle.shared_price || ''}"
-                            data-service-type="${vehicle.service_type || ''}"
-                            data-sharable="${vehicle.sharable || ''}"
-                            data-vehicle="${JSON.stringify(vehicle)}">
-                            ${vehicleInfo}
-                        </option>`;
+                        
+                        console.log(`Entry Port Zone-Based Vehicle ${index + 1}:`, vehicle);
+                        console.log(`Entry Port Zone-Based Vehicle ${index + 1} Image:`, vehicle.image);
+                        console.log(`Entry Port Zone-Based Vehicle ${index + 1} DMC ID:`, vehicle.dmc_id);
+                        
+                        // Escape HTML for safe insertion
+                        const escapeHtml = (text) => {
+                            const div = document.createElement('div');
+                            div.textContent = text || '';
+                            return div.innerHTML;
+                        };
+                        
+                        const option = document.createElement('option');
+                        option.value = vehicle.vehicle_id;
+                        option.textContent = vehicleInfo;
+                        option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
+                        option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
+                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
+                        option.setAttribute('data-private-price', vehicle.private_price || '');
+                        option.setAttribute('data-shared-price', vehicle.shared_price || '');
+                        option.setAttribute('data-service-type', vehicle.service_type || '');
+                        option.setAttribute('data-sharable', vehicle.sharable || '');
+                        option.setAttribute('data-vehicle-image', vehicle.image || '');
+                        option.setAttribute('data-vehicle', JSON.stringify(vehicle));
+                        
+                        vehicleSelect.appendChild(option);
                     });
                     vehicleSelect.disabled = false;
                 }
@@ -4600,7 +4626,8 @@
                             const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
                             
                             // Debug: Log vehicle data before stringifying
-                            console.log('Vehicle data for entry point-to-point:', vehicle);
+                            console.log('Entry Port Transport Vehicle:', vehicle);
+                            console.log('Entry Port Transport Vehicle Image:', vehicle.image);
                             
                             try {
                                 const vehicleDataString = JSON.stringify(vehicle);
@@ -4614,6 +4641,7 @@
                                     data-cost-per-hour="${vehicle.cost_per_hour || ''}"
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
                                     data-sharable="${vehicle.sharable || ''}"
+                                    data-vehicle-image="${vehicle.image || ''}"
                                     data-vehicle="${vehicleDataString}">
                                     ${vehicleInfo}
                                 </option>`;
@@ -4678,21 +4706,31 @@
         // Clear existing options
         serviceTypeSelect.innerHTML = '<option value="">Select service type</option>';
         
-        // Always add Private option
+        // Get complete vehicle data from data-vehicle attribute (includes image and all fields)
+        let vehicleData = {};
+        try {
+            const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
+            if (dataVehicleAttr) {
+                vehicleData = JSON.parse(dataVehicleAttr);
+            }
+        } catch (error) {
+            console.error('Error parsing vehicle data in updateServiceTypeOptionsForTransport:', error);
+            // Fallback to individual attributes if JSON parsing fails
+            vehicleData = {
+                vehicle_id: selectedOption.value,
+                vehicle_name: selectedOption.dataset.vehicleName,
+                vehicle_type: selectedOption.dataset.vehicleType,
+                seating_capacity: selectedOption.dataset.seatingCapacity,
+                private_price: selectedOption.dataset.privatePrice,
+                shared_price: selectedOption.dataset.sharedPrice,
+                service_type: selectedOption.dataset.serviceType,
+                sharable: selectedOption.dataset.sharable,
+                image: selectedOption.getAttribute('data-vehicle-image') || '',
+            };
+        }
         
-        
-        // Add Shared option if vehicle supports it
-        const vehicleData = {
-            id: selectedOption.value,
-            name: selectedOption.dataset.vehicleName,
-            type: selectedOption.dataset.vehicleType,
-            seatingCapacity: selectedOption.dataset.seatingCapacity,
-            privatePrice: selectedOption.dataset.privatePrice,
-            sharedPrice: selectedOption.dataset.sharedPrice,
-            serviceType: selectedOption.dataset.serviceType,
-            sharable: selectedOption.dataset.sharable,
-        };        
         console.log('Vehicle data from updateServiceTypeOptionsForTransport:', vehicleData);
+        console.log('Vehicle IMAGE from updateServiceTypeOptionsForTransport:', vehicleData.image);
         
         // Based on sharable field: 1=Private only, 2=Shared only, 3=Both
         if(vehicleData.sharable == 1){
@@ -4851,6 +4889,7 @@
                             option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
                             option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
                             option.setAttribute('data-sharable', vehicle.sharable || '0');
+                            option.setAttribute('data-vehicle-image', vehicle.image || '');
                             option.setAttribute('data-vehicle', JSON.stringify(vehicle));
                             vehicleSelect.appendChild(option);
                         });
@@ -4967,7 +5006,8 @@
                         service_type: selectedOption.dataset.serviceType || '',
                         sharable: selectedOption.dataset.sharable || '',
                         cost_per_hour: selectedOption.dataset.costPerHour || '',
-                        sharable_cost_per_hour: selectedOption.dataset.sharableCostPerHour || ''
+                        sharable_cost_per_hour: selectedOption.dataset.sharableCostPerHour || '',
+                        image: selectedOption.getAttribute('data-vehicle-image') || ''
                     };
                 }
             } catch (error) {
@@ -4984,7 +5024,8 @@
                     base_price: selectedOption.dataset.privatePrice || '',
                     sharable_base_price: selectedOption.dataset.sharedPrice || '',
                     service_type: selectedOption.dataset.serviceType || '',
-                    sharable: selectedOption.dataset.sharable || ''
+                    sharable: selectedOption.dataset.sharable || '',
+                    image: selectedOption.getAttribute('data-vehicle-image') || ''
                 };
             }
             
@@ -5131,6 +5172,7 @@
                             data-seating-capacity="${vehicle.seating_capacity}"
                             data-private-price="${vehicle.private_price || ''}"
                             data-shared-price="${vehicle.shared_price || ''}"
+                            data-vehicle-image="${vehicle.image || ''}"
                             data-service-type="${vehicle.service_type || ''}"
                             data-vehicle='${JSON.stringify(vehicle)}'
                             data-sharable="${vehicle.sharable || '0'}">
@@ -5239,6 +5281,7 @@
                                     data-service-type="${vehicle.service_type || ''}"
                                     data-cost-per-hour="${vehicle.cost_per_hour || ''}"
                                     data-sharable-cost-per-hour="${vehicle.sharable_cost_per_hour || ''}"
+                                    data-vehicle-image="${vehicle.image || ''}"
                                     data-vehicle="${vehicleDataString}"
                                     data-sharable="${vehicle.sharable || '0'}">
                                     ${vehicleInfo}
@@ -5500,17 +5543,29 @@
         const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
         console.log('Raw vehicle data string:', selectedOption.getAttribute('data-vehicle'));
 
-        
-        const vehicleData = {
-            id: selectedOption.value,
-            name: selectedOption.dataset.vehicleName,
-            type: selectedOption.dataset.vehicleType,
-            capacity: selectedOption.dataset.seatingCapacity,
-            privatePrice: selectedOption.dataset.privatePrice,
-            sharedPrice: selectedOption.dataset.sharedPrice,
-            serviceType: selectedOption.dataset.serviceType,
-            sharable: selectedOption.dataset.sharable
-        };
+        let vehicleData = {};
+        if (selectedOption) {
+            try {
+                const vehicleDataString = selectedOption.getAttribute('data-vehicle');
+                vehicleData = vehicleDataString ? JSON.parse(vehicleDataString) : {};
+                // Ensure image is captured from data-vehicle-image attribute or from parsed JSON
+                vehicleData.image = selectedOption.getAttribute('data-vehicle-image') || vehicleData.image || '';
+            } catch (error) {
+                console.error('Error parsing vehicle data:', error);
+                // Fallback to dataset attributes
+                vehicleData = {
+                    id: selectedOption.value,
+                    vehicle_name: selectedOption.dataset.vehicleName,
+                    vehicle_type: selectedOption.dataset.vehicleType,
+                    seating_capacity: selectedOption.dataset.seatingCapacity,
+                    privatePrice: selectedOption.dataset.privatePrice,
+                    sharedPrice: selectedOption.dataset.sharedPrice,
+                    serviceType: selectedOption.dataset.serviceType,
+                    sharable: selectedOption.dataset.sharable,
+                    image: selectedOption.getAttribute('data-vehicle-image') || ''
+                };
+            }
+        }
 
         console.log('Vehicle data from:', vehicleData);
         // Get tour details
@@ -5541,7 +5596,7 @@
             vehicles_id: vehicleId,
             image: vehicleData.image || "",
             dmc_id: vehicleData.dmc_id || "",
-            vehicles_name: vehicleData.name || 'Vehicle',
+            vehicles_name: vehicleData.vehicle_name || vehicleData.name || 'Vehicle',
             Mode: "dmc",
             type: serviceType,
             entrypickup: pickupZoneName,
@@ -5561,10 +5616,10 @@
             city: vehicleData.city || "Singapore",
             country: vehicleData.country || "Singapore",
             id: `entry-${Date.now()}`,
-            vehicle_type: vehicleData.vehicleType || "",
-            vehicle_model: vehicleData.vehicleModel || "",
-            model_year: vehicleData.modelYear || null,
-            seating_capacity: vehicleData.seatingCapacity || 0,
+            vehicle_type: vehicleData.vehicle_type || "",
+            vehicle_model: vehicleData.vehicle_model || "",
+            model_year: vehicleData.model_year || null,
+            seating_capacity: vehicleData.seating_capacity || 0,
             booking_id: null
         };
         
@@ -5647,19 +5702,32 @@
         if (vehicleSelect.value || serviceTypeSelect.value) {
             console.log('Vehicle and service type selected');
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            console.log('vehicle data:', selectedOption.getAttribute('data-vehicle'));
+            console.log('vehicle data RAW:', selectedOption.getAttribute('data-vehicle'));
 
-            const vehicleData = {
-                id: selectedOption.value,
-                name: selectedOption.dataset.vehicleName,
-                type: selectedOption.dataset.vehicleType,
-                seatingCapacity: selectedOption.dataset.seatingCapacity,
-                privatePrice: selectedOption.dataset.privatePrice,
-                sharedPrice: selectedOption.dataset.sharedPrice,
-                serviceType: selectedOption.dataset.serviceType,
-                sharable: selectedOption.dataset.sharable
-            };
-            console.log('vehicle data:', vehicleData);
+            // Parse the complete vehicle data from data-vehicle attribute (includes image!)
+            let vehicleData = {};
+            try {
+                const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
+                if (dataVehicleAttr) {
+                    vehicleData = JSON.parse(dataVehicleAttr);
+                }
+            } catch (error) {
+                console.error('Error parsing vehicle data:', error);
+                // Fallback to individual attributes
+                vehicleData = {
+                    vehicle_id: selectedOption.value,
+                    vehicle_name: selectedOption.dataset.vehicleName,
+                    vehicle_type: selectedOption.dataset.vehicleType,
+                    seating_capacity: selectedOption.dataset.seatingCapacity,
+                    private_price: selectedOption.dataset.privatePrice,
+                    shared_price: selectedOption.dataset.sharedPrice,
+                    service_type: selectedOption.dataset.serviceType,
+                    sharable: selectedOption.dataset.sharable,
+                    image: selectedOption.getAttribute('data-vehicle-image') || '',
+                };
+            }
+            console.log('vehicle data PARSED:', vehicleData);
+            console.log('vehicle data IMAGE:', vehicleData.image);
             const serviceType = serviceTypeSelect.value;
             const validatedPassengers = parseInt(passengersInput.value) || 1;
             
@@ -5676,12 +5744,12 @@
                 basePrice = manualPrice;
                 totalPrice = manualPrice;
             } else {
-                // Use vehicle's default pricing
+                // Use vehicle's default pricing (handle both camelCase and snake_case)
                 if (serviceType === 'Private') {
-                    basePrice = parseFloat(vehicleData.privatePrice) || 0;
+                    basePrice = parseFloat(vehicleData.private_price || vehicleData.privatePrice) || 0;
                     totalPrice = basePrice;
                 } else if (serviceType === 'Shared') {
-                    basePrice = parseFloat(vehicleData.sharedPrice) || 0;
+                    basePrice = parseFloat(vehicleData.shared_price || vehicleData.sharedPrice) || 0;
                     totalPrice = basePrice * validatedPassengers;
                 }
             }
@@ -5689,6 +5757,9 @@
             // Format price details
             const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
             const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
+            
+            const vehicleName = vehicleData.vehicle_name || vehicleData.name || 'Vehicle';
+            const vehicleSeats = vehicleData.seating_capacity || vehicleData.seatingCapacity || 0;
             
             priceDetails.innerHTML = `
                 <div class="row">
@@ -5702,7 +5773,7 @@
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${validatedPassengers} passengers</span>
+                    <span style="color: #26c6f9;">Vehicle: ${vehicleName} (${vehicleSeats} seats) - ${validatedPassengers} passengers</span>
                     ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
                 </div>
             `;
@@ -5743,18 +5814,32 @@
         
         if (vehicleSelect.value && serviceTypeSelect.value) {
             const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
-            const vehicleData = {
-                id: selectedOption.value,
-                name: selectedOption.dataset.vehicleName,
-                type: selectedOption.dataset.vehicleType,
-                seatingCapacity: selectedOption.dataset.seatingCapacity,
-                privatePrice: selectedOption.dataset.privatePrice,
-                sharedPrice: selectedOption.dataset.sharedPrice,
-                serviceType: selectedOption.dataset.serviceType,
-                costPerHour: selectedOption.dataset.costPerHour,
-                sharableCostPerHour: selectedOption.dataset.sharableCostPerHour,
-            };
-            console.log('vehicle data:', vehicleData);
+            
+            // Parse complete vehicle data from data-vehicle attribute (includes image!)
+            let vehicleData = {};
+            try {
+                const dataVehicleAttr = selectedOption.getAttribute('data-vehicle');
+                if (dataVehicleAttr) {
+                    vehicleData = JSON.parse(dataVehicleAttr);
+                }
+            } catch (error) {
+                console.error('Error parsing vehicle data in updateLocalTransferPricing:', error);
+                // Fallback to individual attributes
+                vehicleData = {
+                    vehicle_id: selectedOption.value,
+                    vehicle_name: selectedOption.dataset.vehicleName,
+                    vehicle_type: selectedOption.dataset.vehicleType,
+                    seating_capacity: selectedOption.dataset.seatingCapacity,
+                    private_price: selectedOption.dataset.privatePrice,
+                    shared_price: selectedOption.dataset.sharedPrice,
+                    service_type: selectedOption.dataset.serviceType,
+                    cost_per_hour: selectedOption.dataset.costPerHour,
+                    sharable_cost_per_hour: selectedOption.dataset.sharableCostPerHour,
+                    image: selectedOption.getAttribute('data-vehicle-image') || '',
+                };
+            }
+            console.log('vehicle data PARSED:', vehicleData);
+            console.log('vehicle data IMAGE:', vehicleData.image);
             const serviceType = serviceTypeSelect.value;
             const validatedPassengers = parseInt(passengersInput.value) || 1;
             
@@ -5778,13 +5863,13 @@
                 basePrice = manualPrice;
                 totalPrice = manualPrice;
             } else {
-                // Use vehicle's default pricing
+                // Use vehicle's default pricing (handle both snake_case and camelCase)
                 if (serviceType == 'Private') {
-                    basePrice = parseFloat(vehicleData.privatePrice) || 0;
+                    basePrice = parseFloat(vehicleData.private_price || vehicleData.privatePrice) || 0;
                     
                     // Apply hourly calculation if this is hourly service
                     if (isHourlyService && selectedHours > 0) {
-                        const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+                        const costPerHour = parseFloat(vehicleData.cost_per_hour || vehicleData.costPerHour) || 0;
                         priceMultiplier = selectedHours;
                         totalPrice = basePrice + (selectedHours * costPerHour);
                         priceMultiplierText = ` + (${selectedHours} hrs × $${costPerHour.toFixed(2)})`;
@@ -5792,11 +5877,11 @@
                         totalPrice = basePrice;
                     }
                 } else if (serviceType == 'Shared') {
-                    basePrice = parseFloat(vehicleData.sharedPrice) || 0;
+                    basePrice = parseFloat(vehicleData.shared_price || vehicleData.sharedPrice) || 0;
                     
                     // Apply hourly calculation if this is hourly service
                     if (isHourlyService && selectedHours > 0) {
-                        const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
+                        const sharableCostPerHour = parseFloat(vehicleData.sharable_cost_per_hour || vehicleData.sharableCostPerHour) || 0;
                         priceMultiplier = selectedHours;
                         totalPrice = basePrice + (selectedHours * sharableCostPerHour * validatedPassengers);
                         priceMultiplierText = ` + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax)`;
@@ -5810,20 +5895,22 @@
             const priceSource = isManualPriceUsed ? 'Manual Price' : 'Vehicle Price';
             const priceSourceIcon = isManualPriceUsed ? 'ri-edit-line' : 'ri-car-line';
             
-            // Format price calculation for better readability
+            // Format price calculation for better readability (handle both snake_case and camelCase)
             let priceCalculationText = '';
             if (isHourlyService && selectedHours > 0 && !isManualPriceUsed) {
                 if (serviceType == 'Private') {
-                    const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+                    const costPerHour = parseFloat(vehicleData.cost_per_hour || vehicleData.costPerHour) || 0;
                     priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${costPerHour.toFixed(2)}) = $${totalPrice.toFixed(2)}`;
                 } else if (serviceType == 'Shared') {
-                    const sharableCostPerHour = parseFloat(vehicleData.sharableCostPerHour) || 0;
+                    const sharableCostPerHour = parseFloat(vehicleData.sharable_cost_per_hour || vehicleData.sharableCostPerHour) || 0;
                     priceCalculationText = `$${basePrice.toFixed(2)} + (${selectedHours} hrs × $${sharableCostPerHour.toFixed(2)} × ${validatedPassengers} pax) = $${totalPrice.toFixed(2)}`;
                 }
             } else {
                 priceCalculationText = `$${basePrice.toFixed(2)}${priceMultiplierText}`;
             }
-            const costPerHour = parseFloat(vehicleData.costPerHour) || 0;
+            const costPerHour = parseFloat(vehicleData.cost_per_hour || vehicleData.costPerHour) || 0;
+            const vehicleName = vehicleData.vehicle_name || vehicleData.name || 'Vehicle';
+            const vehicleSeats = vehicleData.seating_capacity || vehicleData.seatingCapacity || 0;
 
             priceDetails.innerHTML = `
                 <div class="row">
@@ -5839,7 +5926,7 @@
                 </div>
                 <div class="small mt-2">
                     <i class="ri-information-line me-1"></i>
-                    <span style="color: #26c6f9;">Vehicle: ${vehicleData.name} (${vehicleData.seatingCapacity} seats) - ${passengers} passengers</span>
+                    <span style="color: #26c6f9;">Vehicle: ${vehicleName} (${vehicleSeats} seats) - ${passengers} passengers</span>
                     ${isHourlyService && selectedHours > 0 ? `<br><i class="ri-time-line me-1"></i><span style="color: #26c6f9;">Duration: ${selectedHours} hour${selectedHours > 1 ? 's' : ''}</span>` : ''}
                     ${isManualPriceUsed ? '<br><i class="ri-edit-line me-1"></i><span style="color: #26c6f9;">Using custom manual price override</span>' : ''}
                 </div>
@@ -5927,6 +6014,24 @@
             try {
                 const vehicleDataString = selectedOption.getAttribute('data-vehicle');
                 vehicleData = vehicleDataString ? JSON.parse(vehicleDataString) : {};
+                // Ensure image is captured from data-vehicle-image attribute or from parsed JSON
+                const imageFromAttr = selectedOption.getAttribute('data-vehicle-image');
+                const imageFromJSON = vehicleData.image;
+                vehicleData.image = imageFromAttr || imageFromJSON || '';
+                
+                console.log('Entry Port Image Debug:', {
+                    imageFromAttribute: imageFromAttr,
+                    imageFromJSON: imageFromJSON,
+                    finalImage: vehicleData.image,
+                    vehicleData: vehicleData
+                });
+                
+                // Check if the option element has the attribute at all
+                console.log('Selected option element:', selectedOption);
+                console.log('All attributes on selected option:');
+                for (let attr of selectedOption.attributes) {
+                    console.log(`  ${attr.name}: ${attr.value.substring(0, 100)}...`); // First 100 chars
+                }
             } catch (error) {
                 console.error('Error parsing vehicle data:', error);
                 console.log('Raw vehicle data string:', selectedOption.getAttribute('data-vehicle'));
@@ -6000,6 +6105,13 @@
         };
         
         console.log('Transport booking data:', transportData);
+        console.log('Transport booking data IMAGE specifically:', transportData.image);
+        console.log('Transport booking data DMC ID specifically:', transportData.dmc_id);
+        
+        // Create JSON string to be sent
+        const transportDataJSON = JSON.stringify([transportData]);
+        console.log('Transport data JSON being sent:', transportDataJSON);
+        console.log('Transport data JSON length:', transportDataJSON.length);
         
         // Create a form to submit the transport data
         const form = document.createElement('form');
@@ -6017,8 +6129,10 @@
         const transportDataInput = document.createElement('input');
         transportDataInput.type = 'hidden';
         transportDataInput.name = 'transport_data';
-        transportDataInput.value = JSON.stringify([transportData]); // Wrap in array
+        transportDataInput.value = transportDataJSON;
         form.appendChild(transportDataInput);
+        
+        console.log('Form transport_data input value:', transportDataInput.value);
         
         // Add basic form fields
         const basicData = {
@@ -6084,6 +6198,17 @@
             if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
                 try {
                     vehicleData = JSON.parse(dataVehicleAttr);
+                    // Ensure image is captured from data-vehicle-image attribute or from parsed JSON
+                    const imageFromAttr = selectedOption.getAttribute('data-vehicle-image');
+                    const imageFromJSON = vehicleData.image;
+                    vehicleData.image = imageFromAttr || imageFromJSON || '';
+                    
+                    console.log('Point-to-Point Image Debug:', {
+                        imageFromAttribute: imageFromAttr,
+                        imageFromJSON: imageFromJSON,
+                        finalImage: vehicleData.image,
+                        vehicleData: vehicleData
+                    });
                 } catch (error) {
                     console.warn('Invalid JSON in data-vehicle attribute:', dataVehicleAttr);
                     vehicleData = {};
@@ -6109,7 +6234,7 @@
             bookingDate: pickupDate,
             vehicles_id: vehicleId,
             vehicles_name: vehicleData.vehicle_name || 'Vehicle',
-            image: vehicleData.vehicle_image || '',
+            image: vehicleData.image || '',
             dmc_id: dmcUser.userId || '',
             Mode: 'dmc',
             type: serviceType,
@@ -6190,6 +6315,17 @@
             if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
                 try {
                     vehicleData = JSON.parse(dataVehicleAttr);
+                    // Ensure image is captured from data-vehicle-image attribute or from parsed JSON
+                    const imageFromAttr = selectedOption.getAttribute('data-vehicle-image');
+                    const imageFromJSON = vehicleData.image;
+                    vehicleData.image = imageFromAttr || imageFromJSON || '';
+                    
+                    console.log('Hourly Image Debug:', {
+                        imageFromAttribute: imageFromAttr,
+                        imageFromJSON: imageFromJSON,
+                        finalImage: vehicleData.image,
+                        vehicleData: vehicleData
+                    });
                 } catch (error) {
                     console.warn('Invalid JSON in data-vehicle attribute:', dataVehicleAttr);
                     vehicleData = {};
@@ -6212,7 +6348,7 @@
             bookingDate: pickupDate,
             vehicles_id: vehicleId,
             vehicles_name: vehicleData.vehicle_name || 'Vehicle',
-            image: vehicleData.vehicle_image || '',
+            image: vehicleData.image || '',
             dmc_id: dmcUser.userId || '',
             Mode: 'dmc',
             type: serviceType,
@@ -6340,6 +6476,8 @@
             if (dataVehicleAttr && dataVehicleAttr.trim() !== '') {
                 try {
                     vehicleData = JSON.parse(dataVehicleAttr);
+                    // Ensure image is captured from data-vehicle-image attribute or from parsed JSON
+                    vehicleData.image = selectedOption.getAttribute('data-vehicle-image') || vehicleData.image || '';
                 } catch (error) {
                     console.warn('Invalid JSON in data-vehicle attribute:', dataVehicleAttr);
                     vehicleData = {};
@@ -6376,7 +6514,7 @@
             bookingDate: pickupDate,
             vehicles_id: vehicleId,
             vehicles_name: vehicleData.vehicle_name || 'Vehicle',
-            image: vehicleData.vehicle_image || '',
+            image: vehicleData.image || '',
             dmc_id: dmcUser.userId || '',
             Mode: 'dmc',
             type: serviceType,
