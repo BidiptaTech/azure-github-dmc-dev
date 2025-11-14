@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Tour;
-use App\Models\User;
+use App\Helpers\CommonHelper;
 use App\Models\Agent;
 use App\Models\Country;
+use App\Models\Enquiry;
+use App\Models\EnquiryForm;
+use App\Models\Order;
+use App\Models\Tour;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -14,7 +18,6 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Crypt;
-use App\Models\Enquiry;
 
 class BookingsController extends Controller
 {
@@ -188,6 +191,157 @@ class BookingsController extends Controller
         return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax'));
     }
 
+    public function agentNegotiation(Request $request)
+    {
+        $validated = $request->validate([
+            'tour_id' => 'required|integer|exists:tours,tour_id',
+            'action' => 'required|in:negotiate,cancel,confirm',
+            'amount' => 'required_if:action,negotiate|numeric|min:0.01',
+            'comment' => 'required_if:action,negotiate|string|max:1000',
+        ], [
+            'amount.required_if' => 'Please enter a negotiation amount.',
+            'comment.required_if' => 'Please add remarks for this negotiation.',
+        ]);
+
+        $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
+        $action = $validated['action'];
+
+        $latestEnquiry = Enquiry::where('tour_id', $tour->tour_id)->orderByDesc('created_at')->first();
+        $activeEnquiry = Enquiry::where('tour_id', $tour->tour_id)
+            ->where('status', 1)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($action === 'negotiate') {
+            $actualAmount = (float) $request->input('actual_amount', 0);
+            if ($actualAmount <= 0) {
+                $actualAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
+            }
+            $amountOffered = (float) $validated['amount'];
+
+            if ($actualAmount > 0 && $amountOffered > $actualAmount) {
+                return back()
+                    ->withErrors(['amount' => 'Negotiated amount cannot exceed the current amount.'])
+                    ->withInput();
+            }
+
+            $lastEnquiryId = Enquiry::latest('created_at')->value('enquiry_id') ?? 1;
+            $newEnquiryId = CommonHelper::createId($lastEnquiryId);
+            while (Enquiry::where('enquiry_id', $newEnquiryId)->exists()) {
+                $newEnquiryId = CommonHelper::createId($newEnquiryId);
+            }
+
+            $enquiry = Enquiry::create([
+                'tour_id' => $tour->tour_id,
+                'status' => 1,
+                'dmcId' => $tour->dmc_id,
+                'enquiry_id' => $newEnquiryId,
+                'sender_id' => $tour->agent_id ?? 0,
+                'sender_type' => 'agent',
+                'receiver_id' => $latestEnquiry->sender_id ?? 0,
+                'receiver_type' => 'OM',
+                'current_position' => 'OM',
+                'amount' => $amountOffered,
+                'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
+                'comment' => $validated['comment'],
+            ]);
+
+            if ($enquiry && $activeEnquiry && $activeEnquiry->id !== $enquiry->id) {
+                $activeEnquiry->update(['status' => 0]);
+            }
+
+            if ($enquiry) {
+                return back()->with('success', 'Negotiation submitted successfully.');
+            }
+
+            return back()->with('error', 'Unable to submit negotiation. Please try again.');
+        }
+
+        if ($action === 'cancel') {
+            if ($activeEnquiry) {
+                $activeEnquiry->update(['status' => 3]);
+            }
+
+            $newStatus = $tour->tour_status === 'Definite'
+                ? 'Refund - Pending'
+                : 'Cancel - ' . $tour->tour_status;
+
+            $tour->update(['tour_status' => $newStatus]);
+
+            return back()->with('success', 'Tour cancelled successfully.');
+        }
+
+        if ($action === 'confirm') {
+            if ($activeEnquiry) {
+                $activeEnquiry->update(['status' => 2]);
+            }
+
+            Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
+
+            if ($tour->tour_status !== 'Confirmed') {
+                $tour->update(['tour_status' => 'Confirmed']);
+            }
+
+            if (!empty($tour->multi_enq_id)) {
+                $formEnquiry = EnquiryForm::where('multi_enq_id', (string) $tour->multi_enq_id)->first();
+
+                if ($formEnquiry && $formEnquiry->multi_enq_id) {
+                    EnquiryForm::where('multi_enq_id', (string) $formEnquiry->multi_enq_id)
+                        ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
+                        ->update(['status' => 'cancelled']);
+                }
+
+                Tour::where('multi_enq_id', (string) $tour->multi_enq_id)
+                    ->where('tour_id', '!=', $tour->tour_id)
+                    ->update(['deleted_at' => now()]);
+            }
+
+            return back()->with('success', 'Tour confirmed successfully.');
+        }
+
+        return back()->with('error', 'Unsupported action requested.');
+    }
+
+    private function calculateOrdersTotalAmount(int $tourId): float
+    {
+        $orders = Order::where('tour_id', $tourId)->get();
+        $sum = 0;
+
+        foreach ($orders as $order) {
+            $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            $sum += $this->extractOrderPayloadTotal($payload);
+        }
+
+        return round($sum, 2);
+    }
+
+    private function extractOrderPayloadTotal($payload): float
+    {
+        if (is_object($payload)) {
+            $payload = (array) $payload;
+        }
+
+        if (!is_array($payload)) {
+            return 0;
+        }
+
+        $priorityKeys = ['totalPrice', 'total_price', 'price', 'amount'];
+        foreach ($priorityKeys as $key) {
+            if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                return (float) $payload[$key];
+            }
+        }
+
+        $sum = 0;
+        foreach ($payload as $value) {
+            if (is_array($value) || is_object($value)) {
+                $sum += $this->extractOrderPayloadTotal($value);
+            }
+        }
+
+        return $sum;
+    }
+
     /**
      * Display Follow Ups (tour_status = 'Prospect' and 'Tentative')
      */
@@ -332,6 +486,7 @@ class BookingsController extends Controller
                 'enquiry_comments.comment as enquiry_comment',
                 'enquiry_comments.amount as enquiry_comment_amount',
                 'enquiry_comments.actual_amount as actual_amount',
+                'enquiry_comments.sender_type as enquiry_comment_sender_type',
                 'enquiry_comments.created_at as enquiry_comment_created_at',
                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
             ])
@@ -408,6 +563,7 @@ class BookingsController extends Controller
      */
     public function tentative()
     {
+        $user = Auth::user();
         $tours = Tour::where('tour_status', 'Tentative')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
@@ -437,7 +593,7 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
 
-        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
         return view('bookings.tentative', compact('tours', 'country_tax'));
     }
 
@@ -1023,6 +1179,7 @@ class BookingsController extends Controller
      */
     public function cancellationsRefunds()
     {
+        $user = Auth::user();
         $tours = Tour::where('tour_status', 'Cancelled')
             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
             ->select([
@@ -1048,7 +1205,7 @@ class BookingsController extends Controller
             ->orderBy('tours.created_at', 'desc')
             ->get();
 
-        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
         return view('bookings.cancellations-refunds', compact('tours', 'country_tax'));
     }
 
