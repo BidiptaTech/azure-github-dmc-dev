@@ -184,19 +184,41 @@ class JobSheetController extends Controller
                                 $order->pickup_zone = $this->getZoneForLocation($dataItem['entrypickup'] ?? '', $dmcId);
                                 $order->dropoff_zone = $this->getZoneForLocation($dataItem['entrydropoff'] ?? '', $dmcId);
                                 
+                                // Get vehicle from order data
+                                $vehicleIdFromOrder = $dataItem['vehicles_id'] ?? null;
+                                $vehicleFromOrder = null;
+                                $driverFromVehicle = null;
+                                
+                                if ($vehicleIdFromOrder) {
+                                    $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                                    
+                                    // If vehicle has a driver assigned, get that driver
+                                    if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                                        $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                                    }
+                                }
+                                
                                 // Check if there's an assignment in the jobsheets table
-                                $jobsheet = Jobsheet::where('date', $tomorrow)
+                                 $jobsheet = Jobsheet::where('date', $tomorrow)
                                     ->where('type', $order->type)
                                     ->where('service_type', $dataItem['type'] ?? null)
                                     ->where('journey_time', $dataItem['entrytime'] ?? null)
+                                    ->where('dmc_id', $dmcId)
+                                    ->where('order_id', $order->order_id)
                                     ->first();
                                 
-                                // Attach driver and vehicle info from jobsheet
+                                // Priority: Jobsheet assignment > Vehicle from order data
                                 if ($jobsheet) {
                                     $order->assigned_driver_id = $jobsheet->driver_id;
                                     $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                                     $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                                     $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
+                                } else {
+                                    // Use vehicle and driver from order data as default
+                                    $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                                    $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                                    $order->vehicle = $vehicleFromOrder;
+                                    $order->driver = $driverFromVehicle;
                                 }
                             }
                             return $order;
@@ -424,24 +446,24 @@ class JobSheetController extends Controller
         if(in_array($user->role_id, [11, 34, 66, 108, 128, 131, 132, 134, 135, 137, 138])){
             if($user->role_id == 11 || $user->role_id == 20){
                 $resolvedDmcId = $user->userId;
-                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
+                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->with('languages')->get();
             }
             elseif($user->role_id == 34 || $user->role_id == 128 || $user->role_id == 131 || $user->role_id == 132 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 137 || $user->role_id == 138){
                 $resolvedDmcId = $user->created_by;
-                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
+                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->with('languages')->get();
             }
             elseif($user->role_id == 65){
                 $op_head_id = $user->created_by;
                 $op_head = User::where('userId', $op_head_id)->first();
                 $resolvedDmcId = $op_head->created_by;
-                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
+                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->with('languages')->get();
             }
             elseif($user->role_id == 99){
                 $op_manager_id = $user->created_by;
                 $op_manager = User::where('userId', $op_manager_id)->first();
                 $op_head = User::where('userId', $op_manager->created_by)->first();
                 $resolvedDmcId = $op_head->created_by;
-                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->get();
+                $dmcGuides = Guide::orderBy('updated_at', 'desc')->where('dmc_id', $resolvedDmcId)->with('languages')->get();
             }
         }
 
@@ -456,6 +478,7 @@ class JobSheetController extends Controller
         try {
             $guides = Guide::where('dmc_id', $dmcId)
                 ->where('status', 1)
+                ->with('languages')
                 ->get();
 
             return response()->json([
@@ -834,7 +857,7 @@ class JobSheetController extends Controller
                 }
 
                 // Get guides for this DMC
-                $guides = Guide::where('dmc_id', $dmcId)->get();
+                $guides = Guide::where('dmc_id', $dmcId)->with('languages')->get();
 
                 // Get orders with tour information
                 $orders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id')
@@ -900,10 +923,20 @@ class JobSheetController extends Controller
                             ->first();
                     }
                     
+                    // Get OrderGuide from order data if available
+                    $orderGuide = null;
+                    if (isset($dataItem['guide_id'])) {
+                        $orderGuide = Guide::select('guide_id', 'name', 'email', 'government_license_no')
+                            ->where('guide_id', $dataItem['guide_id'])
+                            ->with('languages')
+                            ->first();
+                    }
+                    $order->OrderGuide = $orderGuide;
+                    
                     // Attach guide info from jobsheet
                     if ($jobsheet) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
-                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->first() : null;
+                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first() : null;
                     } else {
                         $order->assigned_guide_id = null;
                         $order->guide = null;
@@ -982,6 +1015,7 @@ class JobSheetController extends Controller
                 $guides = Guide::select('guide_id', 'name', 'government_license_no')
                     ->where('dmc_id', $dmc_id)
                     ->where('status', 1)
+                    ->with('languages')
                     ->get();
             }
             
@@ -1179,17 +1213,31 @@ class JobSheetController extends Controller
     public function updateDriverVehicleAssignment(Request $request)
     {
         try {
+            // Log all incoming request data for debugging
+            \Log::info('updateDriverVehicleAssignment called', [
+                'all_data' => $request->all(),
+                'driver_id' => $request->driver_id,
+                'vehicle_id' => $request->vehicle_id,
+                'order_id' => $request->order_id,
+                'tour_id' => $request->tour_id,
+                'order_type' => $request->order_type,
+                'type' => $request->type,
+                'date' => $request->date,
+                'dmc_id' => $request->dmc_id
+            ]);
+            
             // Validate required fields
             $validator = Validator::make($request->all(), [
                 'date' => 'required|date',
                 'dmc_id' => 'required',
                 'order_type' => 'required',
                 'type' => 'required',
-                'entry_time' => 'required',
+                'entry_time' => 'nullable', // Changed to nullable
                 'order_id' => 'required'
             ]);
 
             if ($validator->fails()) {
+                \Log::error('Validation failed', ['errors' => $validator->errors()]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -1197,8 +1245,33 @@ class JobSheetController extends Controller
                 ], 422);
             }
 
+            // Get the order to extract entry_time if not provided
+            $order = Order::where('booking_id', $request->order_id)
+                ->first();
+            
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found'
+                ], 404);
+            }
+            
+            // Extract entry_time from order data if not provided in request
+            $entryTimeFromRequest = $request->entry_time;
+            if (empty($entryTimeFromRequest)) {
+                $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
+                $entryTimeFromRequest = $dataItem['entrytime'] ?? null;
+                
+                \Log::info('Entry time extracted from order data', [
+                    'order_id' => $request->order_id,
+                    'extracted_entrytime' => $entryTimeFromRequest,
+                    'dataItem' => $dataItem
+                ]);
+            }
+
             // Convert entry_time to proper time format (HH:MM:SS)
-            $entryTime = $request->entry_time;
+            $entryTime = $entryTimeFromRequest;
             if ($entryTime !== null) {
                 $entryTime = trim($entryTime);
                 
@@ -1237,24 +1310,14 @@ class JobSheetController extends Controller
                 }
             }
 
-            // Get the actual numeric tour_id from the order
-            $order = Order::where('booking_id', $request->order_id)->first();
-            if (!$order) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Order not found'
-                ], 404);
-            }
-
             // Get the actual numeric tour_id (not the display_id)
             $actualTourId = $order->tour_id;
             $jobsheet = null;
             $vehicle = null;
+            $driver = null;
             
             // Check if a record with the same date, order_type, type, and entry_time exists
             $existingJobsheet = Jobsheet::where('date', $request->date)
-                ->where('type', $request->order_type)
-                ->where('service_type', $request->type)
                 ->where('journey_time', $entryTime)
                 ->where('tour_id', $actualTourId)
                 ->where('order_id', $request->order_id)
@@ -1265,12 +1328,18 @@ class JobSheetController extends Controller
             $jobsheetId = CommonHelper::createId($jobsheet_max_id);
             while (Jobsheet::where('jobsheet_id', $jobsheetId)->exists()) {
                 $jobsheetId = CommonHelper::createId($jobsheetId);
-            }    
+            }
             
             $user = auth()->user();
             
             if ($existingJobsheet) {
                 // Update existing record
+                \Log::info('Updating existing jobsheet', [
+                    'jobsheet_id' => $existingJobsheet->jobsheet_id,
+                    'driver_id' => $request->driver_id,
+                    'vehicle_id' => $request->vehicle_id
+                ]);
+                
                 if ($request->has('driver_id') && !empty($request->driver_id)) {
                     $existingJobsheet->driver_id = $request->driver_id;
                     $vehicle = Vehicle::where('driver_id', $request->driver_id)
@@ -1280,12 +1349,31 @@ class JobSheetController extends Controller
                 }
                 if ($request->has('vehicle_id') && !empty($request->vehicle_id)) {
                     $existingJobsheet->vehicle_id = $request->vehicle_id;
+                    
+                    // Get the vehicle and its assigned driver
+                    $vehicle = Vehicle::where('vehicle_id', $request->vehicle_id)->first();
+                    if ($vehicle && $vehicle->driver_id && !$request->driver_id) {
+                        $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
+                        // Also update the jobsheet with this driver
+                        $existingJobsheet->driver_id = $vehicle->driver_id;
+                    }
                 }
                 if ($request->has('guide_id') && !empty($request->guide_id)) {
                     $existingJobsheet->guide_id = $request->guide_id;
                 }
-                $existingJobsheet->save();
-                $jobsheet = $existingJobsheet;
+                $is_saved = $existingJobsheet->save();
+                if($is_saved){
+                    $jobsheet = $existingJobsheet;
+                    $order = Order::where('booking_id', $request->order_id)->first();
+                    $order->is_approve = true;
+                    $order->save();
+                }
+                else{
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error updating driver/vehicle/guide assignment'
+                    ], 500);
+                }
             } else {
                 // Create new record
                 $jobsheet = new Jobsheet();
@@ -1311,22 +1399,62 @@ class JobSheetController extends Controller
                 }
                 if ($request->has('vehicle_id') && !empty($request->vehicle_id)) {
                     $jobsheet->vehicle_id = $request->vehicle_id;
+                    
+                    // Get the vehicle and its assigned driver
+                    $vehicle = Vehicle::where('vehicle_id', $request->vehicle_id)->first();
+                    if ($vehicle && $vehicle->driver_id) {
+                        $driver = Driver::where('driver_id', $vehicle->driver_id)->first();
+                        // Also update the jobsheet with this driver
+                        $jobsheet->driver_id = $vehicle->driver_id;
+                    }
                 }
                 if ($request->has('guide_id') && !empty($request->guide_id)) {
                     $jobsheet->guide_id = $request->guide_id;
                 }
 
                 $jobsheet->order_id = $request->order_id;
-                
                 $jobsheet->save();
             }
 
-            // Return success
+            // Log the driver information being returned
+            \Log::info('Assignment update response', [
+                'jobsheet_id' => $jobsheet->jobsheet_id ?? null,
+                'vehicle_id' => $jobsheet->vehicle_id ?? null,
+                'driver_id' => $jobsheet->driver_id ?? null,
+                'driver_returned' => $driver ? [
+                    'driver_id' => $driver->driver_id,
+                    'name' => $driver->name,
+                    'license_no' => $driver->license_no,
+                    'full_driver_object' => $driver->toArray()
+                ] : null
+            ]);
+            
+            // Ensure driver name is complete
+            if ($driver) {
+                \Log::info('Driver name check', [
+                    'driver_id' => $driver->driver_id,
+                    'name_field' => $driver->name,
+                    'name_length' => strlen($driver->name ?? ''),
+                    'attributes' => $driver->getAttributes()
+                ]);
+            }
+            
+            // Fresh fetch of driver if it exists to ensure all data is loaded
+            if ($driver) {
+                $driver = $driver->fresh(); // Reload from database
+            }
+            
+            // Return success with driver information
             return response()->json([
                 'success' => true,
                 'message' => 'Assignment updated successfully',
                 'jobsheet' => $jobsheet,
-                'vehicle' => $vehicle
+                'vehicle' => $vehicle,
+                'driver' => $driver ? [
+                    'driver_id' => $driver->driver_id,
+                    'name' => $driver->name,
+                    'license_no' => $driver->license_no ?? null
+                ] : null
             ]);
         } catch (\Exception $e) {
             \Log::error('Error updating driver/vehicle/guide assignment: ' . $e->getMessage());
@@ -1871,7 +1999,7 @@ class JobSheetController extends Controller
             
             // Get drivers/guides and vehicles for assignment dropdowns
             if ($type === 'guide') {
-                $guides = Guide::where('dmc_id', $dmcId)->get();
+                $guides = Guide::where('dmc_id', $dmcId)->with('languages')->get();
             } else {
                 $drivers = Driver::where('dmc_id', $dmcId)->get();
                 $vehicles = Vehicle::where('dmc_id', $dmcId)->get();
@@ -1923,12 +2051,23 @@ class JobSheetController extends Controller
                         ->where('type', $order->type)
                         ->where('service_type', $order->type) // For guides, service_type is same as type
                         ->where('journey_time', $dataItem['entrytime'] ?? null)
+                        ->where('order_id', $order->booking_id)
                         ->first();
+                    
+                    // Get OrderGuide from order data if available
+                    $orderGuide = null;
+                    if (isset($dataItem['guide_id'])) {
+                        $orderGuide = Guide::select('guide_id', 'name', 'email', 'government_license_no')
+                            ->where('guide_id', $dataItem['guide_id'])
+                            ->with('languages')
+                            ->first();
+                    }
+                    $order->OrderGuide = $orderGuide;
                     
                     // Attach guide info from jobsheet
                     if ($jobsheet) {
                         $order->assigned_guide_id = $jobsheet->guide_id;
-                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->first() : null;
+                        $order->guide = $jobsheet->guide_id ? Guide::where('guide_id', $jobsheet->guide_id)->with('languages')->first() : null;
                     } else {
                         $order->assigned_guide_id = null;
                         $order->guide = null;
@@ -1953,24 +2092,39 @@ class JobSheetController extends Controller
                     $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                     $dataItem = is_array($orderData) && isset($orderData[0]) ? $orderData[0] : [];
                     
+                    // Get vehicle from order data
+                    $vehicleIdFromOrder = $dataItem['vehicles_id'] ?? null;
+                    $vehicleFromOrder = null;
+                    $driverFromVehicle = null;
+                    
+                    if ($vehicleIdFromOrder) {
+                        $vehicleFromOrder = Vehicle::where('vehicle_id', $vehicleIdFromOrder)->first();
+                        
+                        // If vehicle has a driver assigned, get that driver
+                        if ($vehicleFromOrder && $vehicleFromOrder->driver_id) {
+                            $driverFromVehicle = Driver::where('driver_id', $vehicleFromOrder->driver_id)->first();
+                        }
+                    }
+                    
                     // Check if there's an assignment in the jobsheets table
                     $jobsheet = Jobsheet::where('date', $date)
                         ->where('type', $order->type)
                         ->where('service_type', $dataItem['type'] ?? null)
                         ->where('journey_time', $dataItem['entrytime'] ?? null)
+                        ->where('order_id', $order->booking_id)
                         ->first();
-                    
-                    // Attach driver and vehicle info from jobsheet
+                    // Priority: Jobsheet assignment > Vehicle from order data
                     if ($jobsheet) {
                         $order->assigned_driver_id = $jobsheet->driver_id;
                         $order->assigned_vehicle_id = $jobsheet->vehicle_id;
                         $order->driver = $jobsheet->driver_id ? Driver::where('driver_id', $jobsheet->driver_id)->first() : null;
                         $order->vehicle = $jobsheet->vehicle_id ? Vehicle::where('vehicle_id', $jobsheet->vehicle_id)->first() : null;
                     } else {
-                        $order->assigned_driver_id = null;
-                        $order->assigned_vehicle_id = null;
-                        $order->driver = null;
-                        $order->vehicle = null;
+                        // Use vehicle and driver from order data as default
+                        $order->assigned_vehicle_id = $vehicleFromOrder ? $vehicleFromOrder->vehicle_id : null;
+                        $order->assigned_driver_id = $driverFromVehicle ? $driverFromVehicle->driver_id : null;
+                        $order->vehicle = $vehicleFromOrder;
+                        $order->driver = $driverFromVehicle;
                     }
                     
                     // Add zone information for pickup and dropoff
@@ -1981,7 +2135,6 @@ class JobSheetController extends Controller
                     
                     return $order;
                 });
-                
                 return response()->json([
                     'success' => true,
                     'data' => $orders,
