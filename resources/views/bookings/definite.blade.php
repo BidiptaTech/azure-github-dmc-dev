@@ -494,10 +494,14 @@
                                                                     ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
                                                                     : '';
                                                                 @endphp
+                                                                @php
+                                                                    $restaurantName = $booking['restaurantName'] ?? 'Restaurant';
+                                                                @endphp
                                                                 <span class="badge @if($restaurantOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')">
+                                                                      onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      title="{{ e($restaurantName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Restaurant {{ $globalRestaurantCounter }}
+                                                                    {{ $restaurantName }}
                                                                     @if($restaurantOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -522,10 +526,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($guideData as $originalKey => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $guideName = $booking['guide_name'] ?? 'Guide';
+                                                                @endphp
                                                                 <span class="badge @if($guideOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($guideName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Guide {{ $globalGuideCounter }}
+                                                                    {{ $guideName }}
                                                                     @if($guideOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -555,10 +563,14 @@
                                                             ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
                                                             : '';
                                                         @endphp
+                                                                @php
+                                                                    $hotelName = $booking['hotelDetails']['hotel_name'] ?? 'Hotel';
+                                                                @endphp
                                                                 <span class="badge @if($hotelOrder->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')">
+                                                                      onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      title="{{ e($hotelName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Hotel {{ $globalHotelCounter }}
+                                                                    {{ $hotelName }}
                                                                     @if($hotelOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -584,10 +596,14 @@
                                                                     ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
                                                                     : '';
                                                                 @endphp
+                                                                @php
+                                                                    $attractionName = $booking['AttractionName'] ?? 'Attraction';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')">
+                                                                      onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
+                                                                      title="{{ e($attractionName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Attraction {{ $globalAttractionCounter }}
+                                                                    {{ $attractionName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -609,10 +625,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Hourly';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Local-Tour Hourly {{ $globalTravelHourlyCounter }}
+                                                                    {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -634,10 +654,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local-Tour Point to Point';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Local-Tour Point to Point {{ $globalTravelPointCounter }}
+                                                                    {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -659,10 +683,14 @@
                                                             @php $actualBookingIndex = 0; @endphp
                                                             @foreach($orderData as $bookingIndex => $booking)
                                                                 @php $bookingIndex = $actualBookingIndex; @endphp
+                                                                @php
+                                                                    $vehicleName = $booking['vehicles_name'] ?? 'Local Transport';
+                                                                @endphp
                                                                 <span class="badge @if($order->is_approve == 1) bg-success text-white @else bg-light text-dark border @endif me-1 mb-1" style="cursor: pointer;" 
-                                                                      onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})">
+                                                                      onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})"
+                                                                      title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    Local Transport {{ $globalLocalTransportCounter }}
+                                                                    {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -678,18 +706,28 @@
                                             @elseif(in_array($key, ['entry_port', 'exit_port']))
                                                 @php
                                                     $isServiceApproved = false;
+                                                    $vehicleNames = [];
                                                     if(isset($serviceData[$key])) {
                                                         foreach($serviceData[$key] as $serviceOrder) {
                                                             if($serviceOrder->is_approve == 1) {
                                                                 $isServiceApproved = true;
-                                                                break;
+                                                            }
+                                                            $orderData = is_string($serviceOrder->data) ? json_decode($serviceOrder->data, true) : $serviceOrder->data;
+                                                            if(is_array($orderData)) {
+                                                                foreach($orderData as $booking) {
+                                                                    if(isset($booking['vehicles_name']) && !empty($booking['vehicles_name'])) {
+                                                                        $vehicleNames[] = $booking['vehicles_name'];
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
+                                                    $tooltipText = !empty($vehicleNames) ? implode(', ', array_unique($vehicleNames)) : ($key === 'entry_port' ? 'Arrival Transfer' : 'Departure Transfer');
                                                 @endphp
                                                 <span class="badge @if($isServiceApproved) bg-success text-white @else bg-light text-dark border @endif" style="cursor: pointer;" 
                                                       onclick="openServiceModal('{{ $key }}', {{ $tour->tour_id }}, event)"
-                                                      data-debug-info="{{ json_encode($debugInfo) }}">
+                                                      data-debug-info="{{ json_encode($debugInfo) }}"
+                                                      title="{{ e($tooltipText) }}">
                                                     <i class="{{ $icons[$key] }} me-1"></i>
                                                     @if($key === 'entry_port')
                                                         Arrival {{ $count }}
