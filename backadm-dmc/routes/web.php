@@ -56,6 +56,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\PackagedAttractionController;
+use App\Helpers\CommonHelper;
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
 
@@ -171,6 +172,13 @@ Route::get('/clear', function () {
             Route::get('/single-tour-package/{id}/edit', [SingleTourPackageController::class, 'edit'])->name('single-tour-package.edit');
             Route::put('/single-tour-package/{id}', [SingleTourPackageController::class, 'update'])->name('single-tour-package.update');
             Route::delete('/single-tour-package/{id}', [SingleTourPackageController::class, 'destroy'])->name('single-tour-package.destroy');
+            Route::get('/tour/{tourId}/download-itinerary', function ($tourId) {
+                $pdfResponse = CommonHelper::downloadTourPdf($tourId);
+                if ($pdfResponse) {
+                    return $pdfResponse;
+                }
+                return redirect()->back()->with('error', 'Unable to generate itinerary PDF.');
+            })->name('tour.itinerary.pdf');
 
             // API routes for single tour packages (follow agent controller pattern)
             Route::get('/fetch-cities-by-country-single-tour', [SingleTourPackageController::class, 'fetchCitiesByCountry'])->name('fetch-cities-by-country-single-tour');
