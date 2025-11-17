@@ -2,14 +2,42 @@
 @section('title', 'New Enquiries')
 @extends('layouts.datatablecss')
 
-<!-- Date Range Picker CSS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
 
 @section('content')
+@php
+    if (!function_exists('extractOrderTotals')) {
+        function extractOrderTotals($payload)
+        {
+            if (is_object($payload)) {
+                $payload = (array) $payload;
+            }
+
+            if (!is_array($payload)) {
+                return 0;
+            }
+
+            $priorityKeys = ['totalPrice', 'total_price', 'price', 'amount'];
+            foreach ($priorityKeys as $key) {
+                if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                    return (float) $payload[$key];
+                }
+            }
+
+            $sum = 0;
+            foreach ($payload as $value) {
+                if (is_array($value) || is_object($value)) {
+                    $sum += extractOrderTotals($value);
+                }
+            }
+
+            return $sum;
+        }
+    }
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -127,7 +155,7 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Search</label>
                     <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID, Destination...">
                 </div>
@@ -162,11 +190,13 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date Range</label>
-                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
-                    <input type="hidden" id="dateRangeStart">
-                    <input type="hidden" id="dateRangeEnd">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -212,6 +242,7 @@
                             <th>Check-in/Check-out</th>
                             <th>Created At</th>
                             <th>Auto Cancel Date</th>
+                            <th>Agent Negotiation</th>
                             <th>Negotiation</th>
                             <th>Actions</th>
                             
@@ -292,6 +323,7 @@
                                             'local_transport' => 0,
                                         ];
                                         $serviceData = [];
+                                        $ordersTotalAmount = 0;
                                         
                                         foreach($orders as $order) {
                                             if(isset($svc[$order->type])) {
@@ -301,7 +333,10 @@
                                                 }
                                                 $serviceData[$order->type][] = $order;
                                             }
+                                            $orderPayload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                                            $ordersTotalAmount += extractOrderTotals($orderPayload);
                                         }
+                                        $ordersTotalAmount = round($ordersTotalAmount, 2);
                                         
                                         $icons = [
                                             'hotel' => 'ri-hotel-line',
@@ -403,27 +438,50 @@
                                     @endif
                                 </div>
                             </td>
-                            <td>
-                            @php 
-                                $enquiryComment = $enquary_comments->where('tour_id', $tour->tour_id)->first();
+                            @php
+                                $tourEnquiries = $enquary_comments->where('tour_id', $tour->tour_id)->sortByDesc('created_at')->values();
+                                $latestComment = $tourEnquiries->first();
+                                $latestAgentComment = $tourEnquiries->first(function ($comment) {
+                                    return strtolower($comment->sender_type ?? '') === 'agent';
+                                });
+                                $currentActualAmount = $latestComment->actual_amount ?? ($latestAgentComment->actual_amount ?? $ordersTotalAmount);
+                                $lastAgentAmount = $latestAgentComment->amount ?? null;
+                                $lastAgentRemark = $latestAgentComment->comment ?? '';
+                                $canCheckNegotiation = $latestAgentComment !== null;
                             @endphp
-                                @if($enquiryComment && $enquiryComment->sender_type == "agent" && $tour->tour_status == "New Enquiry")
-                                    <button 
-                                        type="button"
-                                        class="btn btn-sm btn-warning"
-                                        data-tour-id="{{ $tour->tour_id }}"
-                                        data-enquiry-id="{{ $enquiryComment->enquiry_id ?? '' }}"
-                                        data-price="{{ $enquiryComment->amount ?? 0 }}"
-                                        data-actual="{{ $enquiryComment->actual_amount ?? 0 }}"
-                                        data-comment="{{ $enquiryComment->comment ?? '' }}"
-                                        onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
-                                    >
-                                        Check Negotiation
-                                    </button>
-                                @elseif($enquiryComment && $enquiryComment->sender_type == "OM" && $tour->tour_status == "New Enquiry")
-                                    <span class="text-muted">Waiting for agent response</span>
-                                @else
-                                    <span class="text-muted">No negotiation</span>
+                            <td>
+                                <button 
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-tour-id="{{ $tour->tour_id }}"
+                                    data-display-id="{{ e($tour->display_id) }}"
+                                    data-actual="{{ $currentActualAmount ?? 0 }}"
+                                    data-last-amount="{{ $lastAgentAmount ?? '' }}"
+                                    data-last-comment="{{ e($lastAgentRemark) }}"
+                                    data-tour-status="{{ e($tour->tour_status) }}"
+                                    data-negotiation-locked="{{ $canCheckNegotiation ? '1' : '0' }}"
+                                    onclick="openAgentNegotiationModal(this)"
+                                    {{ $canCheckNegotiation ? 'disabled' : '' }}
+                                >
+                                    Negotiate by Agent
+                                </button>
+                            </td>
+                            <td>
+                                <button 
+                                    type="button"
+                                    class="btn btn-sm btn-warning"
+                                    data-tour-id="{{ $tour->tour_id }}"
+                                    data-enquiry-id="{{ $latestAgentComment->enquiry_id ?? '' }}"
+                                    data-price="{{ $latestAgentComment->amount ?? 0 }}"
+                                    data-actual="{{ $latestAgentComment->actual_amount ?? $currentActualAmount ?? 0 }}"
+                                    data-comment="{{ e($latestAgentComment->comment ?? '') }}"
+                                    onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
+                                    {{ $canCheckNegotiation ? '' : 'disabled' }}
+                                >
+                                    Check Negotiation
+                                </button>
+                                @if(!$canCheckNegotiation)
+                                    <small class="text-muted d-block mt-1">Awaiting agent negotiation</small>
                                 @endif
                             </td>
                             {{-- <td>
@@ -458,6 +516,12 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                                       style="width: 32px; height: 32px;"
+                                       title="Edit Tour">
+                                        <i class="ri-pencil-line"></i>
+                                    </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
                                        style="width: 32px; height: 32px;"
@@ -548,6 +612,69 @@
         </div>
     </div>
     
+    <!-- Negotiate by Agent Modal -->
+    <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}">
+                @csrf
+                <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
+                <input type="hidden" name="action" id="agent_negotiation_action" value="negotiate">
+                <input type="hidden" name="actual_amount" id="agent_negotiation_actual_amount">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agentNegotiationModalLabel">Negotiate by Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Tour</small>
+                                <div class="fw-semibold" id="agentNegotiationDisplayId">—</div>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <small class="text-muted d-block">Current Amount</small>
+                                <div class="fw-semibold text-primary" id="agentNegotiationCurrentAmount">—</div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Last Agent Offer</small>
+                                <div class="fw-semibold text-warning" id="agentNegotiationLastAmount">—</div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Last Remarks</small>
+                                <div class="text-muted" id="agentNegotiationLastRemark">—</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agentNegotiationAmount" class="form-label">Amount</label>
+                        <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
+                        <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agentNegotiationRemark" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                    </div>
+                    <div class="alert alert-warning py-2 px-3 d-none" id="agentNegotiationWarning">
+                        Negotiated amount cannot exceed the current amount.
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
+                            Confirm
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="agentNegotiationSubmitBtn" onclick="submitAgentNegotiation('negotiate')">
+                        Negotiate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Service Modals for each tour -->
     @foreach($tours as $tour)
     @php
@@ -3373,15 +3500,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const countryFilter = document.getElementById('countryFilter');
     const agentFilter = document.getElementById('agentFilter');
-    const dateRange = document.getElementById('dateRange');
-    const dateRangeStart = document.getElementById('dateRangeStart');
-    const dateRangeEnd = document.getElementById('dateRangeEnd');
+    const startDateFilter = document.getElementById('startDateFilter');
+    const endDateFilter = document.getElementById('endDateFilter');
+    const today = new Date().toISOString().split('T')[0];
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
     if (countryFilter) countryFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
-    // Date range picker will be initialized in scripts section where jQuery is available
+    if (startDateFilter) {
+        startDateFilter.setAttribute('max', today);
+        startDateFilter.addEventListener('change', function() {
+            if (endDateFilter) {
+                if (startDateFilter.value) {
+                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                        endDateFilter.value = startDateFilter.value;
+                    }
+                } else {
+                    endDateFilter.removeAttribute('min');
+                }
+            }
+            filterTable();
+        });
+    }
+    if (endDateFilter) {
+        endDateFilter.setAttribute('max', today);
+        if (startDateFilter && startDateFilter.value) {
+            endDateFilter.setAttribute('min', startDateFilter.value);
+        }
+        endDateFilter.addEventListener('change', function() {
+            if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                startDateFilter.value = endDateFilter.value;
+                startDateFilter.dispatchEvent(new Event('change'));
+                return;
+            }
+            filterTable();
+        });
+    }
     
     // Select all functionality
     const selectAllCheckbox = document.getElementById('selectAll');
@@ -3402,14 +3558,17 @@ function filterTable() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const countryFilter = document.getElementById('countryFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const dateStart = document.getElementById('dateRangeStart')?.value || '';
-    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    const startDateValue = document.getElementById('startDateFilter')?.value || '';
+    const endDateValue = document.getElementById('endDateFilter')?.value || '';
     
     const rows = document.querySelectorAll('#toursTable tbody tr');
-    table.rows('.dt-hasChild').every(function() {
-        if (this.child.isShown()) this.child.hide();
-        $(this.node()).removeClass('dt-hasChild');
-    });
+    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
+    if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
+        table.rows('.dt-hasChild').every(function() {
+            if (this.child.isShown()) this.child.hide();
+            $(this.node()).removeClass('dt-hasChild');
+        });
+    }
     let visibleCount = 0;
     
     rows.forEach(row => {
@@ -3417,7 +3576,6 @@ function filterTable() {
         
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
-        const city = row.cells[2]?.querySelector('.text-muted')?.textContent || '';
         const agent = row.cells[4]?.querySelector('.fw-medium')?.textContent || '';
         const createdAt = row.getAttribute('data-created-at');
         const updatedAt = row.getAttribute('data-updated-at');
@@ -3446,16 +3604,16 @@ function filterTable() {
             show = false;
         }
         
-        // Date range filtering (check both created_at and updated_at)
-        if (dateStart && dateEnd && (createdAt || updatedAt)) {
-            const s = new Date(dateStart + 'T00:00:00');
-            const e = new Date(dateEnd + 'T23:59:59');
+        // Date filtering (check both created_at and updated_at)
+        if ((startDateValue || endDateValue) && (createdAt || updatedAt)) {
+            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
             let dateInRange = false;
             
             // Check created_at if available
             if (createdAt) {
                 const createdDate = new Date(createdAt + 'T00:00:00');
-                if (createdDate >= s && createdDate <= e) {
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
                     dateInRange = true;
                 }
             }
@@ -3463,7 +3621,7 @@ function filterTable() {
             // Check updated_at if available and created_at didn't match
             if (!dateInRange && updatedAt) {
                 const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if (updatedDate >= s && updatedDate <= e) {
+                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
                     dateInRange = true;
                 }
             }
@@ -3512,49 +3670,63 @@ function filterTable() {
     if (statInfants) statInfants.textContent = infants;
 
     // Update filter results badge
-    updateFilterResults(visibleCount, rows.length - 1); // -1 to exclude empty state row if present
+    updateFilterResults(visibleCount, totalRows);
 
-    if (dateStart && dateEnd) {
-        const start = new Date(dateStart);
-        const end = new Date(dateEnd);
-        
-        // Format the date range label
-        let label;
-        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-            // Same month
-            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
-                // Full month
-                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+    if (startDateValue || endDateValue) {
+        const start = startDateValue ? new Date(startDateValue) : null;
+        const end = endDateValue ? new Date(endDateValue) : null;
+        let label = '';
+
+        if (start && end) {
+            if (start.getTime() === end.getTime()) {
+                label = start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' });
+            } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                    label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                } else {
+                    label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                }
             } else {
-                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
-        } else {
-            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        } else if (start) {
+            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+        } else if (end) {
+            label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
-        
-        if (labelEl) labelEl.textContent = label;
-        if (statEnquiriesLabel) statEnquiriesLabel.textContent = `Enquiries - ${label}`;
-        if (statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
-        if (statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
+
+        if (label && labelEl) labelEl.textContent = label;
+        if (label && statEnquiriesLabel) statEnquiriesLabel.textContent = `Enquiries - ${label}`;
+        if (label && statAdultsLabel) statAdultsLabel.textContent = `Adults - ${label}`;
+        if (label && statChildrenLabel) statChildrenLabel.textContent = `Children - ${label}`;
+        if (label && statInfantsLabel) statInfantsLabel.textContent = `Infants - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
         if (statEnquiriesLabel) statEnquiriesLabel.textContent = `${month} Enquiries`;
         if (statAdultsLabel) statAdultsLabel.textContent = `${month} Adults`;
         if (statChildrenLabel) statChildrenLabel.textContent = `${month} Children`;
+        if (statInfantsLabel) statInfantsLabel.textContent = `${month} Infants`;
     }
 }
 
 function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('countryFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
+    const searchInput = document.getElementById('searchInput');
+    const countrySelect = document.getElementById('countryFilter');
+    const agentSelect = document.getElementById('agentFilter');
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (countrySelect) countrySelect.value = '';
+    if (agentSelect) agentSelect.value = '';
+    if (startDateInput) {
+        startDateInput.value = '';
+    }
+    if (endDateInput) {
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
+    }
     filterTable();
     
     // Show success message
@@ -3861,88 +4033,16 @@ function testServices() {
 </script>
 @endsection
 @section('scripts')
-<!-- Date Range Picker JS - Load after jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
-            initializeDateRangePicker();
             initializeDataTable();
+            filterTable();
         }, 200);
     });
-    
-    function initializeDateRangePicker() {
-        // Initialize date range picker first
-        const dateRange = document.getElementById('dateRange');
-        const dateRangeStart = document.getElementById('dateRangeStart');
-        const dateRangeEnd = document.getElementById('dateRangeEnd');
-        
-        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
-            // Set default to current month
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            
-            $(dateRange).daterangepicker({
-                opens: 'left',
-                autoUpdateInput: true,
-                maxDate: moment(), // No future dates
-                startDate: startOfMonth,
-                endDate: endOfMonth,
-                locale: {
-                    cancelLabel: 'Clear',
-                    format: 'MMM DD, YYYY'
-                }
-            });
-
-            // Set initial values for current month
-            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
-            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-
-            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
-                const start = picker.startDate.clone().startOf('day');
-                const end = picker.endDate.clone().endOf('day');
-                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
-                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
-                filterTable();
-            });
-
-            $(dateRange).on('cancel.daterangepicker', function() {
-                $(this).val('');
-                if (dateRangeStart) dateRangeStart.value = '';
-                if (dateRangeEnd) dateRangeEnd.value = '';
-                filterTable();
-            });
-            
-            // Apply initial filter with current month data
-            setTimeout(function() {
-                filterTable();
-            }, 100);
-        } else {
-            console.error('Date range picker could not be initialized. Missing dependencies:', {
-                dateRange: !!dateRange,
-                moment: typeof moment !== 'undefined',
-                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
-                jquery: typeof $ !== 'undefined'
-            });
-            
-            // Fallback: still set initial date values for current month
-            if (dateRange && typeof moment !== 'undefined') {
-                const startOfMonth = moment().startOf('month');
-                const endOfMonth = moment().endOf('month');
-                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-                setTimeout(function() {
-                    filterTable();
-                }, 100);
-            }
-        }
-    }
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
@@ -4061,6 +4161,426 @@ function testServices() {
                 }, 3000);
             }
         };
+
+        let agentNegotiationModalInstance = null;
+        let agentNegotiationActionsDisabled = false;
+
+        function toggleAgentNegotiationActions(disabled) {
+            agentNegotiationActionsDisabled = !!disabled;
+            const buttons = [
+                document.getElementById('agentNegotiationCancelBtn'),
+                document.getElementById('agentNegotiationConfirmBtn'),
+                document.getElementById('agentNegotiationSubmitBtn')
+            ];
+            buttons.forEach(btn => {
+                if (btn) {
+                    btn.disabled = agentNegotiationActionsDisabled;
+                    btn.classList.toggle('disabled', agentNegotiationActionsDisabled);
+                }
+            });
+        }
+
+        window.openAgentNegotiationModal = function(button) {
+            const modalEl = document.getElementById('agentNegotiationModal');
+            if (!modalEl) return;
+
+            if (!agentNegotiationModalInstance) {
+                agentNegotiationModalInstance = new bootstrap.Modal(modalEl);
+            }
+
+            const form = document.getElementById('agentNegotiationForm');
+            const tourIdInput = document.getElementById('agent_negotiation_tour_id');
+            const actionInput = document.getElementById('agent_negotiation_action');
+            const actualInput = document.getElementById('agent_negotiation_actual_amount');
+            const amountInput = document.getElementById('agentNegotiationAmount');
+            const remarkInput = document.getElementById('agentNegotiationRemark');
+            const warning = document.getElementById('agentNegotiationWarning');
+            const displayEl = document.getElementById('agentNegotiationDisplayId');
+            const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
+            const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
+            const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
+            const maxValueEl = document.getElementById('agentNegotiationMaxValue');
+
+            const tourId = button.getAttribute('data-tour-id');
+            const displayId = button.getAttribute('data-display-id') || '—';
+            const tourStatus = button.getAttribute('data-tour-status') || '';
+            const actualAttr = button.getAttribute('data-actual');
+            const lastAttr = button.getAttribute('data-last-amount');
+            const isLocked = button.getAttribute('data-negotiation-locked') === '1';
+            const actualAmount = actualAttr !== null && actualAttr !== '' ? parseFloat(actualAttr) : null;
+            const lastAmount = lastAttr !== null && lastAttr !== '' ? parseFloat(lastAttr) : null;
+            const lastRemark = button.getAttribute('data-last-comment') || '';
+
+            form.dataset.currentStatus = tourStatus;
+            tourIdInput.value = tourId;
+            actualInput.value = Number.isFinite(actualAmount) ? actualAmount : '';
+            actionInput.value = 'negotiate';
+            displayEl.textContent = displayId;
+            warning.classList.add('d-none');
+
+            // Determine the maximum allowed amount
+            // If there's a last negotiated amount, use that as max; otherwise use current amount
+            let maxAllowedAmount = null;
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                maxAllowedAmount = lastAmount;
+            } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                maxAllowedAmount = actualAmount;
+            }
+
+            // Set max attribute and display max value
+            if (maxAllowedAmount !== null && maxAllowedAmount > 0) {
+                amountInput.setAttribute('max', maxAllowedAmount);
+                maxValueEl.textContent = formatNegotiationAmount(maxAllowedAmount);
+            } else {
+                amountInput.removeAttribute('max');
+                maxValueEl.textContent = '—';
+            }
+
+            // Display current amount
+            if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            } else {
+                currentAmountEl.textContent = '—';
+            }
+
+            // Set last amount value and display
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                amountInput.value = lastAmount;
+                lastAmountEl.textContent = formatNegotiationAmount(lastAmount);
+            } else {
+                amountInput.value = '';
+                lastAmountEl.textContent = '—';
+            }
+
+            remarkInput.value = '';
+            lastRemarkEl.textContent = lastRemark || '—';
+            toggleAgentNegotiationActions(isLocked);
+
+            // Add real-time validation for amount input (remove old listener first)
+            const oldHandler = amountInput.oninput;
+            amountInput.oninput = null;
+            amountInput.addEventListener('input', function validateAmount() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxValue)}.`;
+                } else {
+                    warning.classList.add('d-none');
+                }
+            });
+            
+            // Auto-revert to max value when user leaves the field (blur event)
+            amountInput.addEventListener('blur', function revertToMax() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    this.value = maxValue;
+                    warning.classList.add('d-none');
+                }
+            });
+
+            agentNegotiationModalInstance.show();
+        };
+
+        window.submitAgentNegotiation = function(action) {
+            if (agentNegotiationActionsDisabled) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Negotiation locked',
+                    text: 'Please respond via Check Negotiation.'
+                });
+                return;
+            }
+
+            const form = document.getElementById('agentNegotiationForm');
+            const actionInput = document.getElementById('agent_negotiation_action');
+            const amountInput = document.getElementById('agentNegotiationAmount');
+            const remarkInput = document.getElementById('agentNegotiationRemark');
+            const warning = document.getElementById('agentNegotiationWarning');
+            warning.classList.add('d-none');
+
+            if (action === 'negotiate') {
+                const amountValue = parseFloat(amountInput.value);
+                if (isNaN(amountValue) || amountValue <= 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Amount required',
+                        text: 'Please enter a valid negotiation amount.'
+                    });
+                    return;
+                }
+
+                if (!remarkInput.value.trim()) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Remarks required',
+                        text: 'Please enter remarks for this negotiation.'
+                    });
+                    return;
+                }
+
+                const max = parseFloat(amountInput.getAttribute('max'));
+                if (!isNaN(max) && max > 0 && amountValue > max) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(max)}.`;
+                    return;
+                }
+
+                // Disable submit button to prevent double submission
+                const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+                }
+
+                // Prepare form data
+                const formData = new FormData(form);
+                formData.append('action', action);
+
+                // Get the form action URL as a string from data attribute
+                const formActionUrl = form.getAttribute('data-action-url') || form.getAttribute('action');
+                if (!formActionUrl || typeof formActionUrl !== 'string') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Invalid form action. Please refresh the page and try again.',
+                        confirmButtonText: 'OK'
+                    });
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Negotiate';
+                    }
+                    return;
+                }
+
+                // Submit via AJAX
+                fetch(formActionUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || formData.get('_token'),
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    }
+                    
+                    // If redirected (status 302/301), treat as success
+                    if (response.status === 302 || response.status === 301 || response.redirected) {
+                        return { success: true, message: 'Negotiation submitted successfully.' };
+                    }
+                    
+                    // If successful HTML response (status 200), treat as success
+                    if (response.ok && response.status === 200) {
+                        return { success: true, message: 'Negotiation submitted successfully.' };
+                    }
+                    
+                    // If error status, try to parse JSON error
+                    if (response.status >= 400) {
+                        return response.text().then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                throw new Error(data.message || 'Failed to submit negotiation');
+                            } catch (e) {
+                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                            }
+                        });
+                    }
+                    
+                    return { success: true, message: 'Negotiation submitted successfully.' };
+                })
+                .then(data => {
+                    // Close modal
+                    if (agentNegotiationModalInstance) {
+                        agentNegotiationModalInstance.hide();
+                    }
+
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message || data.success || 'Negotiation submitted successfully.',
+                        confirmButtonText: 'OK',
+                        timer: 3000,
+                        timerProgressBar: true
+                    }).then(() => {
+                        // Reload page to show updated data
+                        window.location.reload();
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    
+                    // Re-enable submit button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Negotiate';
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'An error occurred while submitting the negotiation. Please try again.',
+                        confirmButtonText: 'OK'
+                    });
+                });
+
+                return;
+            }
+
+            const prompts = {
+                cancel: {
+                    title: 'Cancel this tour?',
+                    text: 'Status will be updated to Cancel - New Enquiry.',
+                    icon: 'warning',
+                    confirmButtonText: 'Yes, cancel it',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: 'Keep tour'
+                },
+                confirm: {
+                    title: 'Confirm this tour?',
+                    text: 'This will move the tour to Confirmed status.',
+                    icon: 'question',
+                    confirmButtonText: 'Yes, confirm it',
+                    confirmButtonColor: '#198754',
+                    cancelButtonText: 'Review again'
+                }
+            };
+
+            const prompt = prompts[action];
+            if (!prompt) return;
+
+            if (agentNegotiationModalInstance) {
+                agentNegotiationModalInstance.hide();
+            }
+
+            Swal.fire({
+                ...prompt,
+                showCancelButton: true
+            }).then(result => {
+                if (result.isConfirmed) {
+                    // Disable buttons to prevent double submission
+                    const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
+                    const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
+                    if (cancelBtn) cancelBtn.disabled = true;
+                    if (confirmBtn) confirmBtn.disabled = true;
+
+                    // Prepare form data - for cancel/confirm, amount and remarks are optional
+                    const formData = new FormData(form);
+                    formData.set('action', action); // Use the actual action (cancel or confirm)
+                    
+                    // Remove amount and remarks if they're empty (optional for cancel/confirm)
+                    const amountValue = amountInput.value.trim();
+                    const remarkValue = remarkInput.value.trim();
+                    if (!amountValue) {
+                        formData.delete('amount');
+                    }
+                    if (!remarkValue) {
+                        formData.delete('comment');
+                    }
+                    
+                    // Get the form action URL
+                    const formActionUrl = form.getAttribute('data-action-url') || form.getAttribute('action');
+                    
+                    // Determine success message based on action
+                    const successMessage = action === 'cancel' 
+                        ? 'Tour cancelled successfully.' 
+                        : 'Tour confirmed successfully.';
+                    
+                    // Submit via AJAX
+                    fetch(formActionUrl, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || formData.get('_token'),
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        // Check if response is JSON
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        }
+                        
+                        // If redirected (status 302/301), treat as success
+                        if (response.status === 302 || response.status === 301 || response.redirected) {
+                            return { success: true, message: successMessage };
+                        }
+                        
+                        // If successful HTML response (status 200), treat as success
+                        if (response.ok && response.status === 200) {
+                            return { success: true, message: successMessage };
+                        }
+                        
+                        // If error status, try to parse JSON error
+                        if (response.status >= 400) {
+                            return response.text().then(text => {
+                                try {
+                                    const data = JSON.parse(text);
+                                    throw new Error(data.message || `Failed to ${action} tour`);
+                                } catch (e) {
+                                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                                }
+                            });
+                        }
+                        
+                        return { success: true, message: successMessage };
+                    })
+                    .then(data => {
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: data.message || successMessage,
+                            confirmButtonText: 'OK',
+                            timer: 3000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            // Reload page to show updated data
+                            window.location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        
+                        // Re-enable buttons
+                        if (cancelBtn) cancelBtn.disabled = false;
+                        if (confirmBtn) confirmBtn.disabled = false;
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || `An error occurred while ${action === 'cancel' ? 'cancelling' : 'confirming'} the tour. Please try again.`,
+                            confirmButtonText: 'OK'
+                        });
+                    });
+                } else if (agentNegotiationModalInstance) {
+                    agentNegotiationModalInstance.show();
+                }
+            });
+        };
+
+        function formatNegotiationAmount(value) {
+            if (isNaN(value)) {
+                return '—';
+            }
+            return new Intl.NumberFormat(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        }
         
         // Tour cancellation function
         window.cancelTour = function(encryptedTourId, displayId) {

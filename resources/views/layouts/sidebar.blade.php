@@ -771,7 +771,7 @@
                 @endif
                 @if(in_array(auth()->user()->role_id, [1,2,11,12,26,33,34,36,37,38,49,50,51,52,53,64,65,66,67,68,69,70,71,72,73,80,81,87,89,90,96,98,99,105,107,108,114,116,117,123,124,125,126,127,128,129,131,132,133,134,135,136,137,138]))
                     <li class="menu-item @if(Request::is('bookings/confirmed')) active @endif">
-                        <a href="{{ route('bookings.confirmed') }}" class="menu-link" title="On Hold Bookings">
+                        <a href="{{ route('bookings.confirmed') }}" class="menu-link" title="Confirmed Bookings">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span data-i18n="Confirmed">Confirmed</span>
                                 @if(isset($bookingCounts) && $bookingCounts['confirmed'] > 0) 

@@ -2,8 +2,6 @@
 @section('title', 'Follow Ups')
 @extends('layouts.datatablecss')
 
-<!-- Date Range Picker CSS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <!-- Add SweetAlert2 JS -->
@@ -22,6 +20,62 @@
 </style>
 
 @section('content')
+@php
+    if (!function_exists('extractOrderTotals')) {
+        function extractOrderTotals($payload)
+        {
+            if (is_object($payload)) {
+                $payload = (array) $payload;
+            }
+
+            if (!is_array($payload)) {
+                return 0;
+            }
+
+            $priorityKeys = ['totalPrice', 'total_price', 'price', 'amount'];
+            foreach ($priorityKeys as $key) {
+                if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                    return (float) $payload[$key];
+                }
+            }
+
+            $sum = 0;
+            foreach ($payload as $value) {
+                if (is_array($value) || is_object($value)) {
+                    $sum += extractOrderTotals($value);
+                }
+            }
+
+            return $sum;
+        }
+    }
+@endphp
+@if(session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: {!! json_encode(session('success')) !!},
+                timer: 2500,
+                showConfirmButton: false
+            });
+        });
+    </script>
+@endif
+@if(session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops',
+                text: {!! json_encode(session('error')) !!},
+                timer: 3000,
+                showConfirmButton: false
+            });
+        });
+    </script>
+@endif
 <div class="container-xxl flex-grow-1 container-p-y">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -199,11 +253,13 @@
                         <option value="on_track">On Track</option>
                     </select>
                 </div> --}}
-                <div class="col-md-3">
-                    <label class="form-label">Date Range</label>
-                    <input type="text" class="form-control" id="dateRange" placeholder="Select date range" readonly>
-                    <input type="hidden" id="dateRangeStart">
-                    <input type="hidden" id="dateRangeEnd">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -250,6 +306,7 @@
                             <th>Status</th>
                             <th>Follow Up Status</th>
                             <th>Last Contact</th>
+                            <th>Agent Negotiation</th>
                             <th>Negotiation</th>
                             <th>Actions</th>
                             <th>Created At</th>
@@ -333,6 +390,7 @@
                                             'local_transport' => 0,
                                         ];
                                         $serviceData = [];
+                                        $ordersTotalAmount = 0;
                                         
                                         foreach($orders as $order) {
                                             if(isset($svc[$order->type])) {
@@ -342,7 +400,10 @@
                                                 }
                                                 $serviceData[$order->type][] = $order;
                                             }
+                                            $orderPayload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                                            $ordersTotalAmount += extractOrderTotals($orderPayload);
                                         }
+                                        $ordersTotalAmount = round($ordersTotalAmount, 2);
                                         
                                         $icons = [
                                             'hotel' => 'ri-hotel-line',
@@ -427,21 +488,47 @@
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
                             </td>
+                            @php
+                                $latestCommentAmount = $tour->enquiry_comment_amount ?? null;
+                                $latestCommentRemark = $tour->enquiry_comment ?? '';
+                                $hasAgentComment = $tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === 'agent';
+                                $currentActualAmount = $tour->actual_amount ?? ($latestCommentAmount ?? $ordersTotalAmount);
+                                $lastAgentAmount = $hasAgentComment ? $latestCommentAmount : null;
+                                $lastOfferAmount = $lastAgentAmount ?? $latestCommentAmount;
+                                $lastOfferRemark = $latestCommentRemark;
+                            @endphp
                             <td>
-                                @if($tour->enquiry_comment && $tour->enquiry_comment_sender_type == "agent")
+                                <button 
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-tour-id="{{ $tour->tour_id }}"
+                                    data-display-id="{{ e($tour->display_id) }}"
+                                    data-actual="{{ $currentActualAmount ?? 0 }}"
+                                    data-last-amount="{{ $lastOfferAmount ?? '' }}"
+                                    data-last-comment="{{ e($lastOfferRemark) }}"
+                                    data-tour-status="{{ e($tour->tour_status) }}"
+                                    data-negotiation-locked="{{ $hasAgentComment ? '1' : '0' }}"
+                                    onclick="openAgentNegotiationModal(this)"
+                                    {{ $hasAgentComment ? 'disabled' : '' }}
+                                >
+                                    Negotiate by Agent
+                                </button>
+                            </td>
+                            <td>
+                                @if($hasAgentComment)
                                     <button 
                                         type="button"
                                         class="btn btn-sm btn-warning"
                                         data-tour-id="{{ $tour->tour_id }}"
                                         data-enquiry-id="{{ $tour->enquiry_id ?? '' }}"
                                         data-price="{{ $tour->enquiry_comment_amount ?? 0 }}"
-                                        data-actual="{{ $tour->actual_amount ?? 0 }}"
-                                        data-comment="{{ $tour->enquiry_comment ?? '' }}"
+                                        data-actual="{{ $currentActualAmount ?? 0 }}"
+                                        data-comment="{{ e($tour->enquiry_comment ?? '') }}"
                                         onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
                                     >
                                         Check Negotiation
                                     </button>
-                                @elseif($tour->enquiry_comment && $tour->enquiry_comment_sender_type == "OM")
+                                @elseif($tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === "om")
                                     <span class="badge bg-warning">Waiting for agent response</span>
                                 @else
                                     <span class="text-muted">No negotiation</span>
@@ -503,6 +590,10 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-2">
+                                    <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
+                                       class="btn btn-outline-success btn-sm rounded-pill">
+                                        <i class="ri-pencil-line"></i> Edit
+                                    </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> View
@@ -618,6 +709,69 @@
         </div>
     </div>
     
+    <!-- Negotiate by Agent Modal -->
+    <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}">
+                @csrf
+                <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
+                <input type="hidden" name="action" id="agent_negotiation_action" value="negotiate">
+                <input type="hidden" name="actual_amount" id="agent_negotiation_actual_amount">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agentNegotiationModalLabel">Negotiate by Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Tour</small>
+                                <div class="fw-semibold" id="agentNegotiationDisplayId">—</div>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <small class="text-muted d-block">Current Amount</small>
+                                <div class="fw-semibold text-primary" id="agentNegotiationCurrentAmount">—</div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Last Agent Offer</small>
+                                <div class="fw-semibold text-warning" id="agentNegotiationLastAmount">—</div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Last Remarks</small>
+                                <div class="text-muted" id="agentNegotiationLastRemark">—</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agentNegotiationAmount" class="form-label">Amount</label>
+                        <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
+                        <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agentNegotiationRemark" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                    </div>
+                    <div class="alert alert-warning py-2 px-3 d-none" id="agentNegotiationWarning">
+                        Negotiated amount cannot exceed the current amount.
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
+                            Confirm
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="agentNegotiationSubmitBtn" onclick="submitAgentNegotiation('negotiate')">
+                        Negotiate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 <!-- Service Modals for each tour -->
 @foreach($tours as $tour)
     @php
@@ -3735,9 +3889,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const destinationFilter = document.getElementById('destinationFilter');
     const agentFilter = document.getElementById('agentFilter');
     // const followUpFilter = document.getElementById('followUpFilter'); // Commented out since element is not available
-    const dateRange = document.getElementById('dateRange');
-    const dateRangeStart = document.getElementById('dateRangeStart');
-    const dateRangeEnd = document.getElementById('dateRangeEnd');
+    const startDateFilter = document.getElementById('startDateFilter');
+    const endDateFilter = document.getElementById('endDateFilter');
+    const today = new Date().toISOString().split('T')[0];
     
     // Add event listeners
     if (searchInput) searchInput.addEventListener('input', filterTable);
@@ -3745,7 +3899,36 @@ document.addEventListener('DOMContentLoaded', function() {
     if (destinationFilter) destinationFilter.addEventListener('change', filterTable);
     if (agentFilter) agentFilter.addEventListener('change', filterTable);
     // if (followUpFilter) followUpFilter.addEventListener('change', filterTable); // Commented out since element is not available
-    // Date range picker will be initialized in scripts section where jQuery is available
+    if (startDateFilter) {
+        startDateFilter.setAttribute('max', today);
+        startDateFilter.addEventListener('change', function() {
+            if (endDateFilter) {
+                if (startDateFilter.value) {
+                    endDateFilter.setAttribute('min', startDateFilter.value);
+                    if (endDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                        endDateFilter.value = startDateFilter.value;
+                    }
+                } else {
+                    endDateFilter.removeAttribute('min');
+                }
+            }
+            filterTable();
+        });
+    }
+    if (endDateFilter) {
+        endDateFilter.setAttribute('max', today);
+        if (startDateFilter && startDateFilter.value) {
+            endDateFilter.setAttribute('min', startDateFilter.value);
+        }
+        endDateFilter.addEventListener('change', function() {
+            if (startDateFilter && endDateFilter.value && startDateFilter.value && endDateFilter.value < startDateFilter.value) {
+                startDateFilter.value = endDateFilter.value;
+                startDateFilter.dispatchEvent(new Event('change'));
+                return;
+            }
+            filterTable();
+        });
+    }
     
     // Select all functionality
     const selectAllCheckbox = document.getElementById('selectAll');
@@ -3763,117 +3946,97 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function filterTable() {
-    console.log('🔍 Filter function called');
-    
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const dateStart = document.getElementById('dateRangeStart')?.value || '';
-    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
-    
-    console.log('🔍 Filter values:', { searchTerm, statusFilter, destinationFilter, agentFilter });
-    
+    const startDateValue = document.getElementById('startDateFilter')?.value || '';
+    const endDateValue = document.getElementById('endDateFilter')?.value || '';
+
     const rows = document.querySelectorAll('#toursTable tbody tr');
-        
-    // Collapse any open child rows before filtering
-    table.rows('.dt-hasChild').every(function() {
-        if (this.child.isShown()) this.child.hide();
-        $(this.node()).removeClass('dt-hasChild');
-    });
+    const totalRows = Array.from(rows).filter(r => r.cells.length > 1).length;
+    if (typeof table !== 'undefined' && table && typeof table.rows === 'function') {
+        table.rows('.dt-hasChild').every(function() {
+            if (this.child.isShown()) this.child.hide();
+            $(this.node()).removeClass('dt-hasChild');
+        });
+    }
 
     let visibleCount = 0;
-    
-    console.log('🔍 Total rows found:', rows.length);
-    
-    rows.forEach((row, index) => {
+
+    rows.forEach(row => {
         if (row.cells.length === 1) return; // Skip empty state row
-        
-        // Correct column indices based on table structure:
-        // 0: #, 1: Tour Details, 2: Destination, 3: Travel Dates, 4: Guests, 5: Services, 6: Agent, 7: Status, 8: Follow Up Status
+
         const tourDetails = row.cells[1]?.textContent.toLowerCase() || '';
         const destination = row.cells[2]?.querySelector('.fw-medium')?.textContent || '';
         const agent = row.cells[6]?.querySelector('.fw-medium')?.textContent || '';
         const status = row.cells[7]?.querySelector('.badge')?.textContent || '';
-        const followUpStatus = row.cells[8]?.querySelector('.badge')?.textContent.toLowerCase() || '';
         const updatedAt = row.getAttribute('data-updated-at');
-        
-        if (index === 0) {
-            console.log('🔍 First row data:', { tourDetails, destination, agent, status });
-        }
-        
+        const createdAt = row.getAttribute('data-created-at');
+
         let show = true;
-        
-        // Enhanced search - check tour details, destination, and agent
-        if (searchTerm && 
-            !tourDetails.includes(searchTerm) && 
-            !destination.toLowerCase().includes(searchTerm) && 
+
+        if (searchTerm &&
+            !tourDetails.includes(searchTerm) &&
+            !destination.toLowerCase().includes(searchTerm) &&
             !agent.toLowerCase().includes(searchTerm)) {
             show = false;
         }
-        
+
         if (statusFilter && !status.toLowerCase().includes(statusFilter.toLowerCase())) {
             show = false;
         }
-        
+
         if (destinationFilter && destination !== destinationFilter) {
             show = false;
         }
-        
+
         if (agentFilter && agent !== agentFilter) {
             show = false;
         }
-        
-        // Date range filtering (check both created_at and updated_at)
-        if (dateStart && dateEnd && (updatedAt || row.getAttribute('data-created-at'))) {
-            const createdAt = row.getAttribute('data-created-at');
-            const s = new Date(dateStart + 'T00:00:00');
-            const e = new Date(dateEnd + 'T23:59:59');
+
+        if ((startDateValue || endDateValue) && (updatedAt || createdAt)) {
+            const startDate = startDateValue ? new Date(startDateValue + 'T00:00:00') : null;
+            const endDate = endDateValue ? new Date(endDateValue + 'T23:59:59') : null;
             let dateInRange = false;
-            
-            // Check updated_at if available
+
             if (updatedAt) {
                 const updatedDate = new Date(updatedAt + 'T00:00:00');
-                if (updatedDate >= s && updatedDate <= e) {
+                if ((!startDate || updatedDate >= startDate) && (!endDate || updatedDate <= endDate)) {
                     dateInRange = true;
                 }
             }
-            
-            // Check created_at if available and updated_at didn't match
+
             if (!dateInRange && createdAt) {
                 const createdDate = new Date(createdAt + 'T00:00:00');
-                if (createdDate >= s && createdDate <= e) {
+                if ((!startDate || createdDate >= startDate) && (!endDate || createdDate <= endDate)) {
                     dateInRange = true;
                 }
             }
-            
+
             if (!dateInRange) {
                 show = false;
             }
+        } else if (startDateValue || endDateValue) {
+            // If dates are selected but no timestamps available, hide row
+            show = false;
         }
-        
+
         row.style.display = show ? '' : 'none';
         if (show) visibleCount++;
-        
-        if (index === 0) {
-            console.log('🔍 First row show:', show);
-        }
     });
 
-    // Update header/cards counts based on visible rows
     const visibleRows = Array.from(document.querySelectorAll('#toursTable tbody tr')).filter(r => r.style.display !== 'none' && r.cells.length > 1);
     const rangeCount = visibleCount;
     const prospectCount = visibleRows.filter(r => r.getAttribute('data-tour-status') === 'Prospect').length;
     const tentativeCount = visibleRows.filter(r => r.getAttribute('data-tour-status') === 'Tentative').length;
-    
-    // Count overdue items from visible rows (updated_at < 7 days ago)
+
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const overdueCount = visibleRows.filter(r => {
-        const updatedAt = r.getAttribute('data-updated-at');
-        return updatedAt && updatedAt < sevenDaysAgo;
+        const updated = r.getAttribute('data-updated-at');
+        return updated && updated < sevenDaysAgo;
     }).length;
 
-    // Update counts and labels
     const countEl = document.getElementById('rangeCount');
     const labelEl = document.getElementById('rangeLabel');
     const statFollowUps = document.getElementById('statFollowUpsCount');
@@ -3891,34 +4054,36 @@ function filterTable() {
     if (statTentative) statTentative.textContent = tentativeCount;
     if (statOverdue) statOverdue.textContent = overdueCount;
 
-    // Update filter results badge
-    updateFilterResults(visibleCount, rows.length - 1); // -1 to exclude empty state row if present
+    updateFilterResults(visibleCount, totalRows);
 
-    console.log('🔍 Filter complete. Visible:', visibleCount, 'Total:', rows.length);
+    if (startDateValue || endDateValue) {
+        const start = startDateValue ? new Date(startDateValue) : null;
+        const end = endDateValue ? new Date(endDateValue) : null;
+        let label = '';
 
-    if (dateStart && dateEnd) {
-        const start = new Date(dateStart);
-        const end = new Date(dateEnd);
-        
-        // Format the date range label
-        let label;
-        if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-            // Same month
-            if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
-                // Full month
-                label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+        if (start && end) {
+            if (start.getTime() === end.getTime()) {
+                label = start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' });
+            } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+                if (start.getDate() === 1 && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()) {
+                    label = start.toLocaleString('default', { month: 'long', year: 'numeric' });
+                } else {
+                    label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                }
             } else {
-                label = `${start.getDate()}-${end.getDate()} ${start.toLocaleString('default', { month: 'short' })}, ${start.getFullYear()}`;
+                label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
             }
-        } else {
-            label = `${start.toLocaleString('default', { month: 'short' })} ${start.getDate()} - ${end.toLocaleString('default', { month: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
+        } else if (start) {
+            label = `From ${start.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
+        } else if (end) {
+            label = `Up to ${end.toLocaleString('default', { month: 'short', day: '2-digit', year: 'numeric' })}`;
         }
-        
-        if (labelEl) labelEl.textContent = label;
-        if (statFollowUpsLabel) statFollowUpsLabel.textContent = `Follow Ups - ${label}`;
-        if (statProspectsLabel) statProspectsLabel.textContent = `Prospects - ${label}`;
-        if (statTentativeLabel) statTentativeLabel.textContent = `Tentative - ${label}`;
-        if (statOverdueLabel) statOverdueLabel.textContent = `Overdue - ${label}`;
+
+        if (labelEl && label) labelEl.textContent = label;
+        if (statFollowUpsLabel && label) statFollowUpsLabel.textContent = `Follow Ups - ${label}`;
+        if (statProspectsLabel && label) statProspectsLabel.textContent = `Prospects - ${label}`;
+        if (statTentativeLabel && label) statTentativeLabel.textContent = `Tentative - ${label}`;
+        if (statOverdueLabel && label) statOverdueLabel.textContent = `Overdue - ${label}`;
     } else {
         const month = new Date().toLocaleString('default', { month: 'long' });
         if (labelEl) labelEl.textContent = month;
@@ -3930,17 +4095,22 @@ function filterTable() {
 }
 
 function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('destinationFilter').value = '';
-    document.getElementById('agentFilter').value = '';
-    // document.getElementById('followUpFilter').value = ''; // Commented out since element is not available
-    const dr = document.getElementById('dateRange');
-    const ds = document.getElementById('dateRangeStart');
-    const de = document.getElementById('dateRangeEnd');
-    if (dr) dr.value = '';
-    if (ds) ds.value = '';
-    if (de) de.value = '';
+    const searchInput = document.getElementById('searchInput');
+    const statusSelect = document.getElementById('statusFilter');
+    const destinationSelect = document.getElementById('destinationFilter');
+    const agentSelect = document.getElementById('agentFilter');
+    const startDateInput = document.getElementById('startDateFilter');
+    const endDateInput = document.getElementById('endDateFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (statusSelect) statusSelect.value = '';
+    if (destinationSelect) destinationSelect.value = '';
+    if (agentSelect) agentSelect.value = '';
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) {
+        endDateInput.value = '';
+        endDateInput.removeAttribute('min');
+    }
     filterTable();
     
     // Show success message
@@ -3966,8 +4136,8 @@ function checkActiveFilters() {
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const destinationFilter = document.getElementById('destinationFilter')?.value || '';
     const agentFilter = document.getElementById('agentFilter')?.value || '';
-    const dateStart = document.getElementById('dateRangeStart')?.value || '';
-    const dateEnd = document.getElementById('dateRangeEnd')?.value || '';
+    const dateStart = document.getElementById('startDateFilter')?.value || '';
+    const dateEnd = document.getElementById('endDateFilter')?.value || '';
     
     return searchInput || statusFilter || destinationFilter || agentFilter || dateStart || dateEnd;
 }
@@ -3996,88 +4166,17 @@ function showFilterResetMessage() {
 @endsection
 
 @section('scripts')
-<!-- Date Range Picker JS - Load after jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     // Wait for all scripts to load before initializing
     $(document).ready(function() {
         // Small delay to ensure all scripts are loaded
         setTimeout(function() {
-            initializeDateRangePicker();
             initializeDataTable();
+            filterTable();
         }, 200);
     });
     
-    function initializeDateRangePicker() {
-        // Initialize date range picker first
-        const dateRange = document.getElementById('dateRange');
-        const dateRangeStart = document.getElementById('dateRangeStart');
-        const dateRangeEnd = document.getElementById('dateRangeEnd');
-        
-        if (dateRange && typeof moment !== 'undefined' && typeof $.fn.daterangepicker !== 'undefined') {
-            // Set default to current month
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            
-            $(dateRange).daterangepicker({
-                opens: 'left',
-                autoUpdateInput: true,
-                maxDate: moment(), // No future dates
-                startDate: startOfMonth,
-                endDate: endOfMonth,
-                locale: {
-                    cancelLabel: 'Clear',
-                    format: 'MMM DD, YYYY'
-                }
-            });
-
-            // Set initial values for current month
-            $(dateRange).val(startOfMonth.format('MMM DD') + ' - ' + endOfMonth.format('MMM DD, YYYY'));
-            if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-            if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-
-            $(dateRange).on('apply.daterangepicker', function(ev, picker) {
-                const start = picker.startDate.clone().startOf('day');
-                const end = picker.endDate.clone().endOf('day');
-                $(this).val(start.format('MMM DD') + ' - ' + end.format('MMM DD, YYYY'));
-                if (dateRangeStart) dateRangeStart.value = start.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = end.format('YYYY-MM-DD');
-                filterTable();
-            });
-
-            $(dateRange).on('cancel.daterangepicker', function() {
-                $(this).val('');
-                if (dateRangeStart) dateRangeStart.value = '';
-                if (dateRangeEnd) dateRangeEnd.value = '';
-                filterTable();
-            });
-            
-            // Apply initial filter with current month data
-            setTimeout(function() {
-                filterTable();
-            }, 100);
-        } else {
-            console.error('Date range picker could not be initialized. Missing dependencies:', {
-                dateRange: !!dateRange,
-                moment: typeof moment !== 'undefined',
-                daterangepicker: typeof $.fn.daterangepicker !== 'undefined',
-                jquery: typeof $ !== 'undefined'
-            });
-            
-            // Fallback: still set initial date values for current month
-            if (dateRange && typeof moment !== 'undefined') {
-                const startOfMonth = moment().startOf('month');
-                const endOfMonth = moment().endOf('month');
-                if (dateRangeStart) dateRangeStart.value = startOfMonth.format('YYYY-MM-DD');
-                if (dateRangeEnd) dateRangeEnd.value = endOfMonth.format('YYYY-MM-DD');
-                setTimeout(function() {
-                    filterTable();
-                }, 100);
-            }
-        }
-    }
     var table;
     function initializeDataTable() {
         // Check if DataTable is already initialized
@@ -4116,7 +4215,7 @@ function showFilterResetMessage() {
             // order: [[8, 'desc']], // Sort by Last Contact column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [10, 11], // Update Price and Actions columns (indices 10 and 11)
+                    targets: [11, 12], // Negotiation and Actions columns (indices 11 and 12)
                     orderable: false,
                     searchable: false
                 },
@@ -4200,6 +4299,227 @@ function showFilterResetMessage() {
                 }, 3000);
             }
         };
+
+        let agentNegotiationModalInstance = null;
+        let agentNegotiationActionsDisabled = false;
+
+        function toggleAgentNegotiationActions(disabled) {
+            agentNegotiationActionsDisabled = !!disabled;
+            const buttons = [
+                document.getElementById('agentNegotiationCancelBtn'),
+                document.getElementById('agentNegotiationConfirmBtn'),
+                document.getElementById('agentNegotiationSubmitBtn')
+            ];
+            buttons.forEach(btn => {
+                if (btn) {
+                    btn.disabled = agentNegotiationActionsDisabled;
+                    btn.classList.toggle('disabled', agentNegotiationActionsDisabled);
+                }
+            });
+        }
+
+        window.openAgentNegotiationModal = function(button) {
+            const modalEl = document.getElementById('agentNegotiationModal');
+            if (!modalEl) return;
+
+            if (!agentNegotiationModalInstance) {
+                agentNegotiationModalInstance = new bootstrap.Modal(modalEl);
+            }
+
+            const form = document.getElementById('agentNegotiationForm');
+            const tourIdInput = document.getElementById('agent_negotiation_tour_id');
+            const actionInput = document.getElementById('agent_negotiation_action');
+            const actualInput = document.getElementById('agent_negotiation_actual_amount');
+            const amountInput = document.getElementById('agentNegotiationAmount');
+            const remarkInput = document.getElementById('agentNegotiationRemark');
+            const warning = document.getElementById('agentNegotiationWarning');
+            const displayEl = document.getElementById('agentNegotiationDisplayId');
+            const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
+            const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
+            const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
+            const maxValueEl = document.getElementById('agentNegotiationMaxValue');
+
+            const tourId = button.getAttribute('data-tour-id');
+            const displayId = button.getAttribute('data-display-id') || '—';
+            const tourStatus = button.getAttribute('data-tour-status') || '';
+            const actualAttr = button.getAttribute('data-actual');
+            const lastAttr = button.getAttribute('data-last-amount');
+            const isLocked = button.getAttribute('data-negotiation-locked') === '1';
+            const actualAmount = actualAttr !== null && actualAttr !== '' ? parseFloat(actualAttr) : null;
+            const lastAmount = lastAttr !== null && lastAttr !== '' ? parseFloat(lastAttr) : null;
+            const lastRemark = button.getAttribute('data-last-comment') || '';
+
+            form.dataset.currentStatus = tourStatus;
+            tourIdInput.value = tourId;
+            actualInput.value = Number.isFinite(actualAmount) ? actualAmount : '';
+            actionInput.value = 'negotiate';
+            displayEl.textContent = displayId;
+            warning.classList.add('d-none');
+
+            // Determine the maximum allowed amount
+            // If there's a last negotiated amount, use that as max; otherwise use current amount
+            let maxAllowedAmount = null;
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                maxAllowedAmount = lastAmount;
+            } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                maxAllowedAmount = actualAmount;
+            }
+
+            // Set max attribute and display max value
+            if (maxAllowedAmount !== null && maxAllowedAmount > 0) {
+                amountInput.setAttribute('max', maxAllowedAmount);
+                maxValueEl.textContent = formatNegotiationAmount(maxAllowedAmount);
+            } else {
+                amountInput.removeAttribute('max');
+                maxValueEl.textContent = '—';
+            }
+
+            // Display current amount
+            if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            } else {
+                currentAmountEl.textContent = '—';
+            }
+
+            // Set last amount value and display
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                amountInput.value = lastAmount;
+                lastAmountEl.textContent = formatNegotiationAmount(lastAmount);
+            } else {
+                amountInput.value = '';
+                lastAmountEl.textContent = '—';
+            }
+
+            remarkInput.value = '';
+            lastRemarkEl.textContent = lastRemark || '—';
+            toggleAgentNegotiationActions(isLocked);
+
+            // Add real-time validation for amount input (remove old listener first)
+            const oldHandler = amountInput.oninput;
+            amountInput.oninput = null;
+            amountInput.addEventListener('input', function validateAmount() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxValue)}.`;
+                } else {
+                    warning.classList.add('d-none');
+                }
+            });
+            
+            // Auto-revert to max value when user leaves the field (blur event)
+            amountInput.addEventListener('blur', function revertToMax() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    this.value = maxValue;
+                    warning.classList.add('d-none');
+                }
+            });
+
+            agentNegotiationModalInstance.show();
+        };
+
+        window.submitAgentNegotiation = function(action) {
+            if (agentNegotiationActionsDisabled) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Negotiation locked',
+                    text: 'Please respond via Check Negotiation.'
+                });
+                return;
+            }
+
+            const form = document.getElementById('agentNegotiationForm');
+            const actionInput = document.getElementById('agent_negotiation_action');
+            const amountInput = document.getElementById('agentNegotiationAmount');
+            const remarkInput = document.getElementById('agentNegotiationRemark');
+            const warning = document.getElementById('agentNegotiationWarning');
+            warning.classList.add('d-none');
+
+            if (action === 'negotiate') {
+                const amountValue = parseFloat(amountInput.value);
+                if (isNaN(amountValue) || amountValue <= 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Amount required',
+                        text: 'Please enter a valid negotiation amount.'
+                    });
+                    return;
+                }
+
+                if (!remarkInput.value.trim()) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Remarks required',
+                        text: 'Please enter remarks for this negotiation.'
+                    });
+                    return;
+                }
+
+                const max = parseFloat(amountInput.getAttribute('max'));
+                if (!isNaN(max) && max > 0 && amountValue > max) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(max)}.`;
+                    return;
+                }
+
+                actionInput.value = action;
+                form.submit();
+                return;
+            }
+
+            const prompts = {
+                cancel: {
+                    title: 'Cancel this tour?',
+                    text: 'Status will be updated to a cancelled state.',
+                    icon: 'warning',
+                    confirmButtonText: 'Yes, cancel it',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: 'Keep tour'
+                },
+                confirm: {
+                    title: 'Confirm this tour?',
+                    text: 'This will move the tour to Confirmed status.',
+                    icon: 'question',
+                    confirmButtonText: 'Yes, confirm it',
+                    confirmButtonColor: '#198754',
+                    cancelButtonText: 'Review again'
+                }
+            };
+
+            const prompt = prompts[action];
+            if (!prompt) return;
+
+            if (agentNegotiationModalInstance) {
+                agentNegotiationModalInstance.hide();
+            }
+
+            Swal.fire({
+                ...prompt,
+                showCancelButton: true
+            }).then(result => {
+                if (result.isConfirmed) {
+                    actionInput.value = action;
+                    form.submit();
+                } else if (agentNegotiationModalInstance) {
+                    agentNegotiationModalInstance.show();
+                }
+            });
+        };
+
+        function formatNegotiationAmount(value) {
+            if (isNaN(value)) {
+                return '—';
+            }
+            return new Intl.NumberFormat(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        }
     };
 </script>
 @endsection
