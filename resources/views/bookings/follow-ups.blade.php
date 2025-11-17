@@ -745,7 +745,7 @@
                     <div class="mb-3">
                         <label for="agentNegotiationAmount" class="form-label">Amount</label>
                         <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
-                        <div class="form-text">Agent offer cannot exceed the current amount.</div>
+                        <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
                     </div>
                     <div class="mb-3">
                         <label for="agentNegotiationRemark" class="form-label">Remarks</label>
@@ -4337,6 +4337,7 @@ function showFilterResetMessage() {
             const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
             const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
             const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
+            const maxValueEl = document.getElementById('agentNegotiationMaxValue');
 
             const tourId = button.getAttribute('data-tour-id');
             const displayId = button.getAttribute('data-display-id') || '—';
@@ -4355,14 +4356,32 @@ function showFilterResetMessage() {
             displayEl.textContent = displayId;
             warning.classList.add('d-none');
 
-            if (Number.isFinite(actualAmount) && actualAmount > 0) {
-                amountInput.setAttribute('max', actualAmount);
-                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            // Determine the maximum allowed amount
+            // If there's a last negotiated amount, use that as max; otherwise use current amount
+            let maxAllowedAmount = null;
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                maxAllowedAmount = lastAmount;
+            } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                maxAllowedAmount = actualAmount;
+            }
+
+            // Set max attribute and display max value
+            if (maxAllowedAmount !== null && maxAllowedAmount > 0) {
+                amountInput.setAttribute('max', maxAllowedAmount);
+                maxValueEl.textContent = formatNegotiationAmount(maxAllowedAmount);
             } else {
                 amountInput.removeAttribute('max');
+                maxValueEl.textContent = '—';
+            }
+
+            // Display current amount
+            if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            } else {
                 currentAmountEl.textContent = '—';
             }
 
+            // Set last amount value and display
             if (Number.isFinite(lastAmount) && lastAmount > 0) {
                 amountInput.value = lastAmount;
                 lastAmountEl.textContent = formatNegotiationAmount(lastAmount);
@@ -4374,6 +4393,32 @@ function showFilterResetMessage() {
             remarkInput.value = '';
             lastRemarkEl.textContent = lastRemark || '—';
             toggleAgentNegotiationActions(isLocked);
+
+            // Add real-time validation for amount input (remove old listener first)
+            const oldHandler = amountInput.oninput;
+            amountInput.oninput = null;
+            amountInput.addEventListener('input', function validateAmount() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxValue)}.`;
+                } else {
+                    warning.classList.add('d-none');
+                }
+            });
+            
+            // Auto-revert to max value when user leaves the field (blur event)
+            amountInput.addEventListener('blur', function revertToMax() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    this.value = maxValue;
+                    warning.classList.add('d-none');
+                }
+            });
 
             agentNegotiationModalInstance.show();
         };
@@ -4418,6 +4463,7 @@ function showFilterResetMessage() {
                 const max = parseFloat(amountInput.getAttribute('max'));
                 if (!isNaN(max) && max > 0 && amountValue > max) {
                     warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(max)}.`;
                     return;
                 }
 
