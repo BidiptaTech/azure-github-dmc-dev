@@ -615,7 +615,7 @@
     <!-- Negotiate by Agent Modal -->
     <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}">
+            <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}" data-action-url="{{ route('tours.agent-negotiation') }}">
                 @csrf
                 <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
                 <input type="hidden" name="action" id="agent_negotiation_action" value="negotiate">
@@ -648,7 +648,7 @@
                     <div class="mb-3">
                         <label for="agentNegotiationAmount" class="form-label">Amount</label>
                         <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
-                        <div class="form-text">Agent offer cannot exceed the current amount.</div>
+                        <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
                     </div>
                     <div class="mb-3">
                         <label for="agentNegotiationRemark" class="form-label">Remarks</label>
@@ -4199,6 +4199,7 @@ function testServices() {
             const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
             const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
             const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
+            const maxValueEl = document.getElementById('agentNegotiationMaxValue');
 
             const tourId = button.getAttribute('data-tour-id');
             const displayId = button.getAttribute('data-display-id') || '—';
@@ -4217,14 +4218,32 @@ function testServices() {
             displayEl.textContent = displayId;
             warning.classList.add('d-none');
 
-            if (Number.isFinite(actualAmount) && actualAmount > 0) {
-                amountInput.setAttribute('max', actualAmount);
-                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            // Determine the maximum allowed amount
+            // If there's a last negotiated amount, use that as max; otherwise use current amount
+            let maxAllowedAmount = null;
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                maxAllowedAmount = lastAmount;
+            } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                maxAllowedAmount = actualAmount;
+            }
+
+            // Set max attribute and display max value
+            if (maxAllowedAmount !== null && maxAllowedAmount > 0) {
+                amountInput.setAttribute('max', maxAllowedAmount);
+                maxValueEl.textContent = formatNegotiationAmount(maxAllowedAmount);
             } else {
                 amountInput.removeAttribute('max');
+                maxValueEl.textContent = '—';
+            }
+
+            // Display current amount
+            if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            } else {
                 currentAmountEl.textContent = '—';
             }
 
+            // Set last amount value and display
             if (Number.isFinite(lastAmount) && lastAmount > 0) {
                 amountInput.value = lastAmount;
                 lastAmountEl.textContent = formatNegotiationAmount(lastAmount);
@@ -4236,6 +4255,32 @@ function testServices() {
             remarkInput.value = '';
             lastRemarkEl.textContent = lastRemark || '—';
             toggleAgentNegotiationActions(isLocked);
+
+            // Add real-time validation for amount input (remove old listener first)
+            const oldHandler = amountInput.oninput;
+            amountInput.oninput = null;
+            amountInput.addEventListener('input', function validateAmount() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxValue)}.`;
+                } else {
+                    warning.classList.add('d-none');
+                }
+            });
+            
+            // Auto-revert to max value when user leaves the field (blur event)
+            amountInput.addEventListener('blur', function revertToMax() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    this.value = maxValue;
+                    warning.classList.add('d-none');
+                }
+            });
 
             agentNegotiationModalInstance.show();
         };
@@ -4280,18 +4325,122 @@ function testServices() {
                 const max = parseFloat(amountInput.getAttribute('max'));
                 if (!isNaN(max) && max > 0 && amountValue > max) {
                     warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(max)}.`;
                     return;
                 }
 
-                actionInput.value = action;
-                form.submit();
+                // Disable submit button to prevent double submission
+                const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+                }
+
+                // Prepare form data
+                const formData = new FormData(form);
+                formData.append('action', action);
+
+                // Get the form action URL as a string from data attribute
+                const formActionUrl = form.getAttribute('data-action-url') || form.getAttribute('action');
+                if (!formActionUrl || typeof formActionUrl !== 'string') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Invalid form action. Please refresh the page and try again.',
+                        confirmButtonText: 'OK'
+                    });
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Negotiate';
+                    }
+                    return;
+                }
+
+                // Submit via AJAX
+                fetch(formActionUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || formData.get('_token'),
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    }
+                    
+                    // If redirected (status 302/301), treat as success
+                    if (response.status === 302 || response.status === 301 || response.redirected) {
+                        return { success: true, message: 'Negotiation submitted successfully.' };
+                    }
+                    
+                    // If successful HTML response (status 200), treat as success
+                    if (response.ok && response.status === 200) {
+                        return { success: true, message: 'Negotiation submitted successfully.' };
+                    }
+                    
+                    // If error status, try to parse JSON error
+                    if (response.status >= 400) {
+                        return response.text().then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                throw new Error(data.message || 'Failed to submit negotiation');
+                            } catch (e) {
+                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                            }
+                        });
+                    }
+                    
+                    return { success: true, message: 'Negotiation submitted successfully.' };
+                })
+                .then(data => {
+                    // Close modal
+                    if (agentNegotiationModalInstance) {
+                        agentNegotiationModalInstance.hide();
+                    }
+
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message || data.success || 'Negotiation submitted successfully.',
+                        confirmButtonText: 'OK',
+                        timer: 3000,
+                        timerProgressBar: true
+                    }).then(() => {
+                        // Reload page to show updated data
+                        window.location.reload();
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    
+                    // Re-enable submit button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Negotiate';
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'An error occurred while submitting the negotiation. Please try again.',
+                        confirmButtonText: 'OK'
+                    });
+                });
+
                 return;
             }
 
             const prompts = {
                 cancel: {
                     title: 'Cancel this tour?',
-                    text: 'Status will be updated to a cancelled state.',
+                    text: 'Status will be updated to Cancel - New Enquiry.',
                     icon: 'warning',
                     confirmButtonText: 'Yes, cancel it',
                     confirmButtonColor: '#d33',
@@ -4319,8 +4468,104 @@ function testServices() {
                 showCancelButton: true
             }).then(result => {
                 if (result.isConfirmed) {
-                    actionInput.value = action;
-                    form.submit();
+                    // Disable buttons to prevent double submission
+                    const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
+                    const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
+                    if (cancelBtn) cancelBtn.disabled = true;
+                    if (confirmBtn) confirmBtn.disabled = true;
+
+                    // Prepare form data - for cancel/confirm, amount and remarks are optional
+                    const formData = new FormData(form);
+                    formData.set('action', action); // Use the actual action (cancel or confirm)
+                    
+                    // Remove amount and remarks if they're empty (optional for cancel/confirm)
+                    const amountValue = amountInput.value.trim();
+                    const remarkValue = remarkInput.value.trim();
+                    if (!amountValue) {
+                        formData.delete('amount');
+                    }
+                    if (!remarkValue) {
+                        formData.delete('comment');
+                    }
+                    
+                    // Get the form action URL
+                    const formActionUrl = form.getAttribute('data-action-url') || form.getAttribute('action');
+                    
+                    // Determine success message based on action
+                    const successMessage = action === 'cancel' 
+                        ? 'Tour cancelled successfully.' 
+                        : 'Tour confirmed successfully.';
+                    
+                    // Submit via AJAX
+                    fetch(formActionUrl, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || formData.get('_token'),
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        // Check if response is JSON
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        }
+                        
+                        // If redirected (status 302/301), treat as success
+                        if (response.status === 302 || response.status === 301 || response.redirected) {
+                            return { success: true, message: successMessage };
+                        }
+                        
+                        // If successful HTML response (status 200), treat as success
+                        if (response.ok && response.status === 200) {
+                            return { success: true, message: successMessage };
+                        }
+                        
+                        // If error status, try to parse JSON error
+                        if (response.status >= 400) {
+                            return response.text().then(text => {
+                                try {
+                                    const data = JSON.parse(text);
+                                    throw new Error(data.message || `Failed to ${action} tour`);
+                                } catch (e) {
+                                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                                }
+                            });
+                        }
+                        
+                        return { success: true, message: successMessage };
+                    })
+                    .then(data => {
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: data.message || successMessage,
+                            confirmButtonText: 'OK',
+                            timer: 3000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            // Reload page to show updated data
+                            window.location.reload();
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        
+                        // Re-enable buttons
+                        if (cancelBtn) cancelBtn.disabled = false;
+                        if (confirmBtn) confirmBtn.disabled = false;
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || `An error occurred while ${action === 'cancel' ? 'cancelling' : 'confirming'} the tour. Please try again.`,
+                            confirmButtonText: 'OK'
+                        });
+                    });
                 } else if (agentNegotiationModalInstance) {
                     agentNegotiationModalInstance.show();
                 }
