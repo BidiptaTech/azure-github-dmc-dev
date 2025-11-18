@@ -46,6 +46,7 @@ import {setSelectedCity} from "@/slice/common/commonSlice";
 import { resetAllServiceResponses } from "../../../slice/common/stepperButtonSlice";
 import { setCity } from "../../../slice/common/citySlice";
 import { clearSelectedDmc } from "@/slice/dmc/dmcSlice";
+import { fetchCitiesByCountry } from "../../../slice/common/citiesSlice";
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -210,6 +211,9 @@ const MainFilterSearchBox = () => {
     // Convert country code to full name for destination
     const destinationName = countryCodeToName[selectedLocation] || selectedLocation;
     
+    // Fetch cities from API based on selected country name and wait for response
+    const citiesResult = await dispatch(fetchCitiesByCountry(destinationName));
+    
     // Step 2: Dispatch Redux actions to update the search state
     dispatch(setSearchLocation(selectedLocation));
     dispatch(setCheckIn(formattedCheckIn));
@@ -306,9 +310,17 @@ const MainFilterSearchBox = () => {
     );
     dispatch(setId(0));
 
-    // Populate city list and selected city for hotel listing UI
-    dispatch(setCity([destinationName]));
-    dispatch(setSelectedCity(destinationName));
+    // Set cities from API response
+    if (citiesResult.payload && Array.isArray(citiesResult.payload)) {
+      console.log("Cities fetched from API:", citiesResult.payload);
+      dispatch(setCity(citiesResult.payload));
+      // Optionally set first city as selected, or keep null for user to select
+      // dispatch(setSelectedCity(citiesResult.payload[0]));
+    } else {
+      console.log("No cities fetched, clearing city state");
+      dispatch(setCity([]));
+    }
+    dispatch(setSelectedCity(null));
 
     // Step 4: Navigate to the hotel search results page without creating a tour
     const searchParams = new URLSearchParams({
