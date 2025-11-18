@@ -93,6 +93,7 @@ const stepsSlice = createSlice({
     active_status: 0,
     loading: false, // API call loading state
     error: null, // API call error
+    triggerSearch: null, // Step name to trigger search for (hotel, port, attraction, guide, restaurent, travel)
   },
   reducers: {
     // Set tour ID
@@ -104,6 +105,7 @@ const stepsSlice = createSlice({
     updateStepStatus: (state, action) => {
       const { key, status } = action.payload;
       state.stepStatus = { [key]: status }; // Override with the new key-value pair
+      console.log(state.stepStatus, "stepStatus");
     },
     setType: (state, action) => {
       state.type = action.payload;
@@ -111,11 +113,13 @@ const stepsSlice = createSlice({
     // Set local current step (for navigation before tour exists)
     setLocalCurrentStep: (state, action) => {
       state.localCurrentStep = action.payload;
+      console.log(state.localCurrentStep, "localCurrentStep");
     },
     // Update local step status (for colors before tour exists)
     updateLocalStepStatus: (state, action) => {
       const { key, status } = action.payload;
       state.localStepStatus[key] = status;
+      console.log(state.localStepStatus, "localStepStatus");
     },
     // Reset all states
     resetSteps: (state) => {
@@ -144,6 +148,15 @@ const stepsSlice = createSlice({
       state.active_status = 0;
       state.loading = false;
       state.error = null;
+      state.triggerSearch = null;
+    },
+    // Trigger search for a specific step
+    triggerSearch: (state, action) => {
+      state.triggerSearch = action.payload; // step name (hotel, port, attraction, guide, restaurent, travel)
+    },
+    // Clear trigger search after it's been handled
+    clearTriggerSearch: (state) => {
+      state.triggerSearch = null;
     },
   },
   extraReducers: (builder) => {
@@ -190,6 +203,6 @@ const stepsSlice = createSlice({
 });
 
 // Export actions and reducer
-export const { setTourId, updateStepStatus, resetSteps, setType, setLocalCurrentStep, updateLocalStepStatus } =
+export const { setTourId, updateStepStatus, resetSteps, setType, setLocalCurrentStep, updateLocalStepStatus, triggerSearch, clearTriggerSearch } =
   stepsSlice.actions;
 export default stepsSlice.reducer;

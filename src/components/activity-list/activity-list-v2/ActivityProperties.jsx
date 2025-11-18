@@ -43,7 +43,7 @@ const ActivityProperties = ({
     (state) => state.auth.usdCurrencySymbol
   );
   const usdCurrencyCode = useSelector((state) => state.auth.usdCurrencyCode);
-
+console.log("vehicles123", vehicles);
 
 
   return (
