@@ -8,8 +8,10 @@ import {
   fetchAttractions,
 } from "../../../slice/attractions/attractionSlice";
 import { setSelectedCity } from "@/slice/common/commonSlice";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = () => {
+  console.log('🔍 Attraction MainFilterSearchBox - Component rendered/mounted');
   const dispatch = useDispatch();
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
@@ -78,6 +80,25 @@ const MainFilterSearchBox = () => {
       })
     );
   };
+
+  // Listen for triggerSearch from Redux and call handleSearch when attraction step is triggered
+  const searchTrigger = useSelector((state) => {
+    const trigger = state.steps.triggerSearch;
+    console.log('🔍 Attraction MainFilterSearchBox - Selector called, searchTrigger:', trigger);
+    return trigger;
+  });
+  
+  useEffect(() => {
+    console.log('🔍 Attraction MainFilterSearchBox - useEffect triggered, searchTrigger:', searchTrigger);
+    console.log('🔍 Attraction MainFilterSearchBox - Component is mounted and listening for triggers');
+    
+    if (searchTrigger === 'attraction') {
+      console.log('🔍 Attraction MainFilterSearchBox - Trigger search received for attraction, calling handleSearch');
+      handleSearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <div className="mainSearch -col-3-big bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">

@@ -14,11 +14,19 @@ import {
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchDMCsByCountry, setSelectedDmcId } from '../../../slice/dmc/dmcSlice';
+import { triggerSearch } from '../../../slice/common/stepsSlice';
 import BusinessIcon from '@mui/icons-material/Business';
+import { resetHotels } from '@/slice/hotel/hotelSlice';
+import { resetVehicles } from '@/slice/port/pickupDropSlice';
+import { clearAttractions } from '@/slice/attractions/attractionSlice';
+import { resetguide } from '@/slice/tourguide/guideslice';
+import { clearRestaurants } from '@/slice/restaurant/RestaurantsSlice';
+import { resetVehicles1 } from '@/slice/localtour/Localslice';
 
 const DmcFilter = () => {
   const dispatch = useDispatch();
-  
+  const step = useSelector((state) => state.steps.localStepStatus);
+  console.log(step, "step");
   // Get destination from bookings slice with proper null checking
   const destination = useSelector((state) => {
     // Try hotels.tourdetails first (single object, not array)
@@ -155,6 +163,50 @@ const DmcFilter = () => {
       
       // Dispatch to Redux (will set Cookies for PriceHide and zone_on)
       dispatch(setSelectedDmcId({ dmcId: parseInt(dmcId), dmcData }));
+      
+
+      // Determine current step based on step status
+      // Hierarchy: hotel -> port -> attraction -> guide -> restaurant -> travel
+      // Find the first step that is NOT completed (value !== 1)
+      // If hotel: 1 and port: 0, current step is port
+      // If hotel: 1 and port: 1 and attraction: 0, current step is attraction
+      // If hotel: 1 and port: 1 and attraction: 1 and guide: 0, current step is guide
+      // etc.
+      
+      let currentStep = null;
+      
+      // Check in order: find the first step that is not completed (not 1)
+      if (step?.hotel !== 1) {
+        dispatch(resetHotels());
+        currentStep = 'hotel';
+      } else if (step?.port !== 1) {
+        dispatch(resetVehicles());
+        currentStep = 'port';
+      } else if (step?.attraction !== 1) {
+        dispatch(clearAttractions());
+        currentStep = 'attraction';
+      } else if (step?.guide !== 1) {
+        dispatch(resetguide());
+        currentStep = 'guide';
+      } else if (step?.restaurent !== 1) {
+        dispatch(clearRestaurants());
+        currentStep = 'restaurent';
+      } else if (step?.travel !== 1) {
+        dispatch(resetVehicles1());
+        currentStep = 'travel';
+      } else {
+        // All steps are completed, default to travel (last step)
+        currentStep = 'travel';
+      }
+      
+      console.log('🔍 DMC Filter - Step status:', step);
+      console.log('🔍 DMC Filter - Determined current step:', currentStep);
+
+      // Trigger search for the current step
+      if (currentStep) {
+        console.log('🔍 DMC Filter - Triggering search for step:', currentStep);
+        dispatch(triggerSearch(currentStep));
+      }
     }
   };
 
