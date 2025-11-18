@@ -32,6 +32,7 @@ export const fetchCitiesByCountry = createAsyncThunk(
           }
         }
       );
+      console.log("response from citiesSlice", response.data);
 
       // Check if the response is successful and has the expected format
       if (response.data && response.data.cities) {
