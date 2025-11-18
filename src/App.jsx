@@ -23,11 +23,6 @@ import Home_1 from "./pages/homes/home_1";
 import Home_2 from "./pages/homes/home_2";
 import NotFoundPage from "./pages/not-found";
 import DBDashboard from "./pages/dashboard/dashboard/db-dashboard";
-import DBBooking from "./pages/dashboard/dashboard/db-booking";
-import DBWishlist from "./pages/dashboard/dashboard/db-wishlist";
-import DBSettings from "./pages/dashboard/dashboard/db-settings";
-
-
 import HotelListPage1 from "./pages/hotel/hotel-list-v1";
 import HotelSingleV1Dynamic from "./pages/hotel/hotel-single-v1";
 import BookingPage from "./pages/hotel/booking-page";
