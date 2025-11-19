@@ -1539,4 +1539,123 @@ class CommonHelper
         }
         return root_url('login');
     }
+
+    /**
+     * Send negotiation update email to agent
+     * Date: Current
+     * 
+     * @param int $agentId - Agent ID
+     * @param int $tourId - Tour ID
+     * @param string $tourDisplayId - Tour Display ID
+     * @param array $negotiationData - Negotiation details (prices, comment, status, etc.)
+     * @return bool|string - true on success, error message on failure
+     */
+    public static function sendNegotiationEmail($agentId, $tourId, $tourDisplayId, $negotiationData = [])
+    {
+        try {
+            // Get agent details
+            $agent = Agent::where('agent_id', $agentId)->first();
+            if (!$agent) {
+                Log::error("Agent not found for negotiation email", ['agent_id' => $agentId]);
+                return "Agent not found";
+            }
+
+            // Check if agent has valid email
+            if (empty($agent->email)) {
+                Log::error("Agent email not found", ['agent_id' => $agentId]);
+                return "Agent email not found";
+            }
+
+            // Get agent's agency details
+            $agency = Agency::where('agency_id', $agent->agency_id)->first();
+            $agencyName = $agency ? $agency->agency_name : 'Your Travel Agency';
+
+            // Get DMC details
+            $dmcId = $negotiationData['dmc_id'] ?? null;
+            if (!$dmcId && isset($negotiationData['tour'])) {
+                $dmcId = $negotiationData['tour']->dmc_id ?? null;
+            }
+            
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
+            $dmcEmail = $dmc ? ($dmc->email ?? null) : null;
+            $dmcPhone = $dmc ? ($dmc->phone_number ?? null) : null;
+
+            // Get tour details if available
+            $tour = $negotiationData['tour'] ?? Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour ? $tour->tour_status : 'N/A';
+            $destination = $tour ? ($tour->tour_destination ?? $tour->destination ?? null) : null;
+            $city = $tour ? ($tour->tour_city ?? $tour->city ?? null) : null;
+
+            // Prepare email data
+            $emailData = [
+                'agent_name' => $agent->name ?? 'Valued Partner',
+                'agency_name' => $agencyName,
+                'dmc_name' => $dmcName,
+                'dmc_logo' => $dmcLogo,
+                'dmc_email' => $dmcEmail,
+                'dmc_phone' => $dmcPhone,
+                'tour_display_id' => $tourDisplayId,
+                'tour_status' => $tourStatus,
+                'destination' => $destination,
+                'city' => $city,
+                'actual_amount' => $negotiationData['actual_amount'] ?? 0,
+                'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0,
+                'previous_negotiated_amount' => $negotiationData['previous_negotiated_amount'] ?? null,
+                'comment' => $negotiationData['comment'] ?? null,
+                'currency' => $negotiationData['currency'] ?? '$',
+                'dashboard_link' => self::url(),
+                'submission_date' => now()->format('M d, Y'),
+            ];
+
+            // Email subject
+            $subject = "💰 Price Negotiation Submitted - Tour {$tourDisplayId}";
+
+            // Render the email template
+            try {
+                $html = view('mails.negotiation_update_agent', $emailData)->render();
+            } catch (\Exception $e) {
+                Log::error("Error rendering negotiation email template", [
+                    'error' => $e->getMessage(),
+                    'tour_id' => $tourId,
+                    'agent_id' => $agentId
+                ]);
+                return "Error rendering email template: " . $e->getMessage();
+            }
+
+            // Send the email
+            try {
+                Mail::to($agent->email)->send(new DmcMail($html, $subject));
+                
+                // Log successful email sending
+                Log::info("Negotiation email sent successfully", [
+                    'agent_id' => $agentId,
+                    'agent_email' => $agent->email,
+                    'tour_id' => $tourId,
+                    'tour_display_id' => $tourDisplayId,
+                    'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0
+                ]);
+                
+                return true;
+            } catch (\Exception $e) {
+                Log::error("Failed to send negotiation email", [
+                    'error' => $e->getMessage(),
+                    'agent_id' => $agentId,
+                    'agent_email' => $agent->email,
+                    'tour_id' => $tourId
+                ]);
+                return "Failed to send email: " . $e->getMessage();
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Negotiation email sending failed', [
+                'error' => $e->getMessage(),
+                'agent_id' => $agentId,
+                'tour_id' => $tourId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return "Email sending failed: " . $e->getMessage();
+        }
+    }
 }

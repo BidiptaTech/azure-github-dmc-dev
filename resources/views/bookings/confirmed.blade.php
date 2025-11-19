@@ -471,7 +471,7 @@
                                                                       onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                                       title="{{ e($restaurantName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $restaurantName }}
+                                                                    <strong>Restaurant {{ $globalRestaurantCounter }} :</strong> {{ \Illuminate\Support\Str::limit($restaurantName, 12) }}
                                                                     @if($restaurantOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -507,7 +507,7 @@
                                                                       onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                                       title="{{ e($guideName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $guideName }}
+                                                                    <strong>Guide {{ $globalGuideCounter }} :</strong> {{ \Illuminate\Support\Str::limit($guideName, 12) }}
                                                                     @if($guideOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -547,7 +547,7 @@
                                                                       onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                                       title="{{ e($hotelName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $hotelName }}
+                                                                    <strong>Hotel {{ $globalHotelCounter }} :</strong> {{ \Illuminate\Support\Str::limit($hotelName, 12) }}
                                                                     @if($hotelOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -580,7 +580,7 @@
                                                                       onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                                       title="{{ e($attractionName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $attractionName }}
+                                                                    <strong>Attraction {{ $globalAttractionCounter }} :</strong> {{ \Illuminate\Support\Str::limit($attractionName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -609,7 +609,7 @@
                                                                       onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $vehicleName }}
+                                                                    <strong>Local-Tour Hourly {{ $globalTravelHourlyCounter }} :</strong>{{ \Illuminate\Support\Str::limit($vehicleName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -638,7 +638,7 @@
                                                                       onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $vehicleName }}
+                                                                    <strong>Local-Tour Point to Point {{ $globalTravelPointCounter }} :</strong> {{ \Illuminate\Support\Str::limit($vehicleName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -667,7 +667,7 @@
                                                                       onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $vehicleName }}
+                                                                    <strong>Local Transport {{ $globalLocalTransportCounter }} :</strong> {{ \Illuminate\Support\Str::limit($vehicleName, 12) }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif

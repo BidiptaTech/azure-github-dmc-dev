@@ -197,10 +197,9 @@ class BookingsController extends Controller
             'tour_id' => 'required|integer|exists:tours,tour_id',
             'action' => 'required|in:negotiate,cancel,confirm',
             'amount' => 'required_if:action,negotiate|numeric|min:0.01',
-            'comment' => 'required_if:action,negotiate|string|max:1000',
+            'comment' => 'nullable|string|max:1000',
         ], [
             'amount.required_if' => 'Please enter a negotiation amount.',
-            'comment.required_if' => 'Please add remarks for this negotiation.',
         ]);
 
         $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
@@ -243,7 +242,7 @@ class BookingsController extends Controller
                 'current_position' => 'OM',
                 'amount' => $amountOffered,
                 'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
-                'comment' => $validated['comment'],
+                'comment' => $validated['comment'] ?? '',
             ]);
 
             if ($enquiry && $activeEnquiry && $activeEnquiry->id !== $enquiry->id) {
@@ -251,7 +250,7 @@ class BookingsController extends Controller
             }
 
             if ($enquiry) {
-                return back()->with('success', 'Negotiation submitted successfully.');
+                return back()->with('success', 'Agent negotiation submitted successfully!');
             }
 
             return back()->with('error', 'Unable to submit negotiation. Please try again.');
@@ -268,7 +267,7 @@ class BookingsController extends Controller
 
             $tour->update(['tour_status' => $newStatus]);
 
-            return back()->with('success', 'Tour cancelled successfully.');
+            return back()->with('success', 'Tour cancelled successfully! Status has been updated to ' . $newStatus . '.');
         }
 
         if ($action === 'confirm') {
@@ -296,7 +295,7 @@ class BookingsController extends Controller
                     ->update(['deleted_at' => now()]);
             }
 
-            return back()->with('success', 'Tour confirmed successfully.');
+            return back()->with('success', 'Tour confirmed successfully! Status has been updated to Confirmed and booking has been finalized.');
         }
 
         return back()->with('error', 'Unsupported action requested.');
