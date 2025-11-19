@@ -4104,6 +4104,64 @@
                                 </div>
                                 @endif
 
+                                @if($enquiry && ($enquiry->local_transfer || $enquiry->entry_port || $enquiry->exit_port))
+                                <div class="service-item mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="bg-success rounded-circle p-1 me-2">
+                                            <i class="ri-map-pin-line text-white small"></i>
+                                        </div>
+                                        <strong class="text-success">Transfer & Port Information</strong>
+                                    </div>
+                                    
+                                    @if($enquiry->local_transfer)
+                                    <div class="bg-light rounded p-2 mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ri-checkbox-circle-fill text-success me-2"></i>
+                                            <div class="small fw-semibold text-dark">Local Transfer</div>
+                                        </div>
+                                    </div>
+                                    @endif
+
+                                    @if($enquiry->entry_port)
+                                    <div class="bg-light rounded p-2 mb-2">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="ri-checkbox-circle-fill text-success me-2"></i>
+                                            <div class="small fw-semibold text-dark">Arrival</div>
+                                        </div>
+                                        @if($enquiry->entry_port_address)
+                                        <div class="small text-muted ms-4 mb-1">
+                                            <strong>Pickup location:</strong> {{ $enquiry->entry_port_address }}
+                                        </div>
+                                        @endif
+                                        @if($entryDropoffLocation)
+                                        <div class="small text-muted ms-4">
+                                            <strong>Dropoff location:</strong> {{ $entryDropoffLocation }}
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endif
+
+                                    @if($enquiry->exit_port)
+                                    <div class="bg-light rounded p-2 mb-2">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="ri-checkbox-circle-fill text-success me-2"></i>
+                                            <div class="small fw-semibold text-dark">Departure</div>
+                                        </div>
+                                        @if($enquiry->exit_port_address)
+                                        <div class="small text-muted ms-4 mb-1">
+                                            <strong>Pickup location:</strong> {{ $enquiry->exit_port_address }}
+                                        </div>
+                                        @endif
+                                        @if($exitPickupLocation)
+                                        <div class="small text-muted ms-4">
+                                            <strong>Pickup from:</strong> {{ $exitPickupLocation }}
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endif
+                                </div>
+                                @endif
+
                                 @if($guides->count() > 0)
                                 <div class="service-item mb-3">
                                     <div class="d-flex align-items-center mb-2">
