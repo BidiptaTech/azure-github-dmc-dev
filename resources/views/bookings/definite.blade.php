@@ -501,7 +501,7 @@
                                                                       onclick="openIndividualRestaurantModal({{ $tour->tour_id }}, {{ $restaurantOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                                       title="{{ e($restaurantName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $restaurantName }}
+                                                                    <strong>Restaurant {{ $globalRestaurantCounter }}</strong> : {{ $restaurantName }}
                                                                     @if($restaurantOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -533,7 +533,7 @@
                                                                       onclick="openIndividualGuideModal({{ $tour->tour_id }}, {{ $guideOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($guideName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $guideName }}
+                                                                    <strong>Guide {{ $globalGuideCounter }}</strong> : {{ $guideName }}
                                                                     @if($guideOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -570,7 +570,7 @@
                                                                       onclick="openIndividualHotelModal({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                                       title="{{ e($hotelName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $hotelName }}
+                                                                    <strong>Hotel {{ $globalHotelCounter }}</strong> : {{ $hotelName }}
                                                                     @if($hotelOrder->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -603,7 +603,7 @@
                                                                       onclick="openIndividualAttractionModal({{ $tour->tour_id }}, {{ $attractionOrderIndex }}, {{ $bookingIndex }}, '{{$actualCancelDateStr}}')"
                                                                       title="{{ e($attractionName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $attractionName }}
+                                                                    <strong>Attraction {{ $globalAttractionCounter }}</strong> : {{ $attractionName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -632,7 +632,7 @@
                                                                       onclick="openIndividualTravelHourlyModal({{ $tour->tour_id }}, {{ $travelHourlyOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $vehicleName }}
+                                                                    <strong>Local-Tour Hourly {{ $globalTravelHourlyCounter }}</strong> : {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -661,7 +661,7 @@
                                                                       onclick="openIndividualTravelPointModal({{ $tour->tour_id }}, {{ $travelPointOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $vehicleName }}
+                                                                    <strong>Local-Tour Point to Point {{ $globalTravelPointCounter }}</strong> : {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
@@ -690,7 +690,7 @@
                                                                       onclick="openIndividualLocalTransportModal({{ $tour->tour_id }}, {{ $localTransportOrderIndex }}, {{ $bookingIndex }})"
                                                                       title="{{ e($vehicleName) }}">
                                                                     <i class="{{ $icons[$key] }} me-1"></i>
-                                                                    {{ $vehicleName }}
+                                                                    <strong>Local Transport {{ $globalLocalTransportCounter }}</strong> : {{ $vehicleName }}
                                                                     @if($order->is_approve == 1)
                                                                         <i class="ri-check-line ms-1"></i>
                                                                     @endif
