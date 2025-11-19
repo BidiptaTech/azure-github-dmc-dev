@@ -20,6 +20,62 @@
 </style>
 
 @section('content')
+@php
+    if (!function_exists('extractOrderTotals')) {
+        function extractOrderTotals($payload)
+        {
+            if (is_object($payload)) {
+                $payload = (array) $payload;
+            }
+
+            if (!is_array($payload)) {
+                return 0;
+            }
+
+            $priorityKeys = ['totalPrice', 'total_price', 'price', 'amount'];
+            foreach ($priorityKeys as $key) {
+                if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                    return (float) $payload[$key];
+                }
+            }
+
+            $sum = 0;
+            foreach ($payload as $value) {
+                if (is_array($value) || is_object($value)) {
+                    $sum += extractOrderTotals($value);
+                }
+            }
+
+            return $sum;
+        }
+    }
+@endphp
+@if(session('success'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: {!! json_encode(session('success')) !!},
+                timer: 2500,
+                showConfirmButton: false
+            });
+        });
+    </script>
+@endif
+@if(session('error'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops',
+                text: {!! json_encode(session('error')) !!},
+                timer: 3000,
+                showConfirmButton: false
+            });
+        });
+    </script>
+@endif
 <div class="container-xxl flex-grow-1 container-p-y">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -250,6 +306,7 @@
                             <th>Status</th>
                             <th>Follow Up Status</th>
                             <th>Last Contact</th>
+                            <th>Agent Negotiation</th>
                             <th>Negotiation</th>
                             <th>Actions</th>
                             <th>Created At</th>
@@ -333,6 +390,7 @@
                                             'local_transport' => 0,
                                         ];
                                         $serviceData = [];
+                                        $ordersTotalAmount = 0;
                                         
                                         foreach($orders as $order) {
                                             if(isset($svc[$order->type])) {
@@ -342,7 +400,10 @@
                                                 }
                                                 $serviceData[$order->type][] = $order;
                                             }
+                                            $orderPayload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                                            $ordersTotalAmount += extractOrderTotals($orderPayload);
                                         }
+                                        $ordersTotalAmount = round($ordersTotalAmount, 2);
                                         
                                         $icons = [
                                             'hotel' => 'ri-hotel-line',
@@ -427,21 +488,47 @@
                                     <small class="text-muted">{{ $tour->updated_at->diffForHumans() }}</small>
                                 </div>
                             </td>
+                            @php
+                                $latestCommentAmount = $tour->enquiry_comment_amount ?? null;
+                                $latestCommentRemark = $tour->enquiry_comment ?? '';
+                                $hasAgentComment = $tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === 'agent';
+                                $currentActualAmount = $tour->actual_amount ?? ($latestCommentAmount ?? $ordersTotalAmount);
+                                $lastAgentAmount = $hasAgentComment ? $latestCommentAmount : null;
+                                $lastOfferAmount = $lastAgentAmount ?? $latestCommentAmount;
+                                $lastOfferRemark = $latestCommentRemark;
+                            @endphp
                             <td>
-                                @if($tour->enquiry_comment && $tour->enquiry_comment_sender_type == "agent")
+                                <button 
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-tour-id="{{ $tour->tour_id }}"
+                                    data-display-id="{{ e($tour->display_id) }}"
+                                    data-actual="{{ $currentActualAmount ?? 0 }}"
+                                    data-last-amount="{{ $lastOfferAmount ?? '' }}"
+                                    data-last-comment="{{ e($lastOfferRemark) }}"
+                                    data-tour-status="{{ e($tour->tour_status) }}"
+                                    data-negotiation-locked="{{ $hasAgentComment ? '1' : '0' }}"
+                                    onclick="openAgentNegotiationModal(this)"
+                                    {{ $hasAgentComment ? 'disabled' : '' }}
+                                >
+                                    Negotiate by Agent
+                                </button>
+                            </td>
+                            <td>
+                                @if($hasAgentComment)
                                     <button 
                                         type="button"
                                         class="btn btn-sm btn-warning"
                                         data-tour-id="{{ $tour->tour_id }}"
                                         data-enquiry-id="{{ $tour->enquiry_id ?? '' }}"
                                         data-price="{{ $tour->enquiry_comment_amount ?? 0 }}"
-                                        data-actual="{{ $tour->actual_amount ?? 0 }}"
-                                        data-comment="{{ $tour->enquiry_comment ?? '' }}"
+                                        data-actual="{{ $currentActualAmount ?? 0 }}"
+                                        data-comment="{{ e($tour->enquiry_comment ?? '') }}"
                                         onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
                                     >
                                         Check Negotiation
                                     </button>
-                                @elseif($tour->enquiry_comment && $tour->enquiry_comment_sender_type == "OM")
+                                @elseif($tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === "om")
                                     <span class="badge bg-warning">Waiting for agent response</span>
                                 @else
                                     <span class="text-muted">No negotiation</span>
@@ -614,14 +701,77 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="followup_cancel_btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="followup_submit_btn">Submit</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     
+    <!-- Negotiate by Agent Modal -->
+    <div class="modal fade" id="agentNegotiationModal" tabindex="-1" aria-labelledby="agentNegotiationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form class="modal-content" id="agentNegotiationForm" method="POST" action="{{ route('tours.agent-negotiation') }}">
+                @csrf
+                <input type="hidden" name="tour_id" id="agent_negotiation_tour_id">
+                <input type="hidden" name="action" id="agent_negotiation_action" value="negotiate">
+                <input type="hidden" name="actual_amount" id="agent_negotiation_actual_amount">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="agentNegotiationModalLabel">Negotiate by Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="border rounded p-3 bg-light mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <small class="text-muted d-block">Tour</small>
+                                <div class="fw-semibold" id="agentNegotiationDisplayId">—</div>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <small class="text-muted d-block">Current Amount</small>
+                                <div class="fw-semibold text-primary" id="agentNegotiationCurrentAmount">—</div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Last Agent Offer</small>
+                                <div class="fw-semibold text-warning" id="agentNegotiationLastAmount">—</div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted d-block">Last Remarks</small>
+                                <div class="text-muted" id="agentNegotiationLastRemark">—</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agentNegotiationAmount" class="form-label">Amount</label>
+                        <input type="number" class="form-control" id="agentNegotiationAmount" name="amount" min="0" step="0.01" placeholder="Enter negotiated amount">
+                        <div class="form-text text-primary fw-semibold" id="agentNegotiationMaxMessage">Maximum allowed amount: <span id="agentNegotiationMaxValue">—</span></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="agentNegotiationRemark" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="agentNegotiationRemark" name="comment" rows="3" placeholder="Add remarks for this negotiation"></textarea>
+                    </div>
+                    <div class="alert alert-warning py-2 px-3 d-none" id="agentNegotiationWarning">
+                        Negotiated amount cannot exceed the current amount.
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-danger" id="agentNegotiationCancelBtn" onclick="submitAgentNegotiation('cancel')">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-outline-success" id="agentNegotiationConfirmBtn" onclick="submitAgentNegotiation('confirm')">
+                            Confirm
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="agentNegotiationSubmitBtn" onclick="submitAgentNegotiation('negotiate')">
+                        Negotiate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 <!-- Service Modals for each tour -->
 @foreach($tours as $tour)
     @php
@@ -4065,7 +4215,7 @@ function showFilterResetMessage() {
             // order: [[8, 'desc']], // Sort by Last Contact column (index 8) in descending order
             columnDefs: [
                 {
-                    targets: [10, 11], // Update Price and Actions columns (indices 10 and 11)
+                    targets: [11, 12], // Negotiation and Actions columns (indices 11 and 12)
                     orderable: false,
                     searchable: false
                 },
@@ -4149,6 +4299,263 @@ function showFilterResetMessage() {
                 }, 3000);
             }
         };
+
+        // Add form submission handler with loader
+        $(document).ready(function() {
+            $('#followupUpdateForm').on('submit', function(e) {
+                const submitBtn = document.getElementById('followup_submit_btn');
+                const cancelBtn = document.getElementById('followup_cancel_btn');
+                
+                // Show loader
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                
+                // Form will submit naturally, no need to prevent default
+            });
+        });
+
+        let agentNegotiationModalInstance = null;
+        let agentNegotiationActionsDisabled = false;
+
+        function toggleAgentNegotiationActions(disabled) {
+            agentNegotiationActionsDisabled = !!disabled;
+            const buttons = [
+                document.getElementById('agentNegotiationCancelBtn'),
+                document.getElementById('agentNegotiationConfirmBtn'),
+                document.getElementById('agentNegotiationSubmitBtn')
+            ];
+            buttons.forEach(btn => {
+                if (btn) {
+                    btn.disabled = agentNegotiationActionsDisabled;
+                    btn.classList.toggle('disabled', agentNegotiationActionsDisabled);
+                }
+            });
+        }
+
+        window.openAgentNegotiationModal = function(button) {
+            const modalEl = document.getElementById('agentNegotiationModal');
+            if (!modalEl) return;
+
+            if (!agentNegotiationModalInstance) {
+                agentNegotiationModalInstance = new bootstrap.Modal(modalEl);
+            }
+
+            const form = document.getElementById('agentNegotiationForm');
+            const tourIdInput = document.getElementById('agent_negotiation_tour_id');
+            const actionInput = document.getElementById('agent_negotiation_action');
+            const actualInput = document.getElementById('agent_negotiation_actual_amount');
+            const amountInput = document.getElementById('agentNegotiationAmount');
+            const remarkInput = document.getElementById('agentNegotiationRemark');
+            const warning = document.getElementById('agentNegotiationWarning');
+            const displayEl = document.getElementById('agentNegotiationDisplayId');
+            const currentAmountEl = document.getElementById('agentNegotiationCurrentAmount');
+            const lastAmountEl = document.getElementById('agentNegotiationLastAmount');
+            const lastRemarkEl = document.getElementById('agentNegotiationLastRemark');
+            const maxValueEl = document.getElementById('agentNegotiationMaxValue');
+
+            const tourId = button.getAttribute('data-tour-id');
+            const displayId = button.getAttribute('data-display-id') || '—';
+            const tourStatus = button.getAttribute('data-tour-status') || '';
+            const actualAttr = button.getAttribute('data-actual');
+            const lastAttr = button.getAttribute('data-last-amount');
+            const isLocked = button.getAttribute('data-negotiation-locked') === '1';
+            const actualAmount = actualAttr !== null && actualAttr !== '' ? parseFloat(actualAttr) : null;
+            const lastAmount = lastAttr !== null && lastAttr !== '' ? parseFloat(lastAttr) : null;
+            const lastRemark = button.getAttribute('data-last-comment') || '';
+
+            form.dataset.currentStatus = tourStatus;
+            tourIdInput.value = tourId;
+            actualInput.value = Number.isFinite(actualAmount) ? actualAmount : '';
+            actionInput.value = 'negotiate';
+            displayEl.textContent = displayId;
+            warning.classList.add('d-none');
+
+            // Determine the maximum allowed amount
+            // If there's a last negotiated amount, use that as max; otherwise use current amount
+            let maxAllowedAmount = null;
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                maxAllowedAmount = lastAmount;
+            } else if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                maxAllowedAmount = actualAmount;
+            }
+
+            // Set max attribute and display max value
+            if (maxAllowedAmount !== null && maxAllowedAmount > 0) {
+                amountInput.setAttribute('max', maxAllowedAmount);
+                maxValueEl.textContent = formatNegotiationAmount(maxAllowedAmount);
+            } else {
+                amountInput.removeAttribute('max');
+                maxValueEl.textContent = '—';
+            }
+
+            // Display current amount
+            if (Number.isFinite(actualAmount) && actualAmount > 0) {
+                currentAmountEl.textContent = formatNegotiationAmount(actualAmount);
+            } else {
+                currentAmountEl.textContent = '—';
+            }
+
+            // Set last amount value and display
+            if (Number.isFinite(lastAmount) && lastAmount > 0) {
+                amountInput.value = lastAmount;
+                lastAmountEl.textContent = formatNegotiationAmount(lastAmount);
+            } else {
+                amountInput.value = '';
+                lastAmountEl.textContent = '—';
+            }
+
+            remarkInput.value = '';
+            lastRemarkEl.textContent = lastRemark || '—';
+            toggleAgentNegotiationActions(isLocked);
+
+            // Add real-time validation for amount input (remove old listener first)
+            const oldHandler = amountInput.oninput;
+            amountInput.oninput = null;
+            amountInput.addEventListener('input', function validateAmount() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(maxValue)}.`;
+                } else {
+                    warning.classList.add('d-none');
+                }
+            });
+            
+            // Auto-revert to max value when user leaves the field (blur event)
+            amountInput.addEventListener('blur', function revertToMax() {
+                const enteredValue = parseFloat(this.value);
+                const maxValue = parseFloat(this.getAttribute('max'));
+                
+                if (!isNaN(enteredValue) && !isNaN(maxValue) && enteredValue > maxValue) {
+                    this.value = maxValue;
+                    warning.classList.add('d-none');
+                }
+            });
+
+            agentNegotiationModalInstance.show();
+        };
+
+        window.submitAgentNegotiation = function(action) {
+            if (agentNegotiationActionsDisabled) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Negotiation locked',
+                    text: 'Please respond via Check Negotiation.'
+                });
+                return;
+            }
+
+            const form = document.getElementById('agentNegotiationForm');
+            const actionInput = document.getElementById('agent_negotiation_action');
+            const amountInput = document.getElementById('agentNegotiationAmount');
+            const remarkInput = document.getElementById('agentNegotiationRemark');
+            const warning = document.getElementById('agentNegotiationWarning');
+            const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
+            const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
+            const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
+            warning.classList.add('d-none');
+
+            if (action === 'negotiate') {
+                const amountValue = parseFloat(amountInput.value);
+                if (isNaN(amountValue) || amountValue <= 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Amount required',
+                        text: 'Please enter a valid negotiation amount.'
+                    });
+                    return;
+                }
+
+                const max = parseFloat(amountInput.getAttribute('max'));
+                if (!isNaN(max) && max > 0 && amountValue > max) {
+                    warning.classList.remove('d-none');
+                    warning.textContent = `Negotiated amount cannot exceed ${formatNegotiationAmount(max)}.`;
+                    return;
+                }
+
+                // Show loader on negotiate button
+                const originalSubmitText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                confirmBtn.disabled = true;
+
+                actionInput.value = action;
+                form.submit();
+                return;
+            }
+
+            // For Cancel and Confirm actions - no validation needed for amount/remarks
+            const prompts = {
+                cancel: {
+                    title: 'Cancel this tour?',
+                    text: 'Status will be updated to a cancelled state.',
+                    icon: 'warning',
+                    confirmButtonText: 'Yes, cancel it',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: 'Keep tour'
+                },
+                confirm: {
+                    title: 'Confirm this tour?',
+                    text: 'This will move the tour to Confirmed status.',
+                    icon: 'question',
+                    confirmButtonText: 'Yes, confirm it',
+                    confirmButtonColor: '#198754',
+                    cancelButtonText: 'Review again'
+                }
+            };
+
+            const prompt = prompts[action];
+            if (!prompt) return;
+
+            if (agentNegotiationModalInstance) {
+                agentNegotiationModalInstance.hide();
+            }
+
+            Swal.fire({
+                ...prompt,
+                showCancelButton: true,
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return new Promise((resolve) => {
+                        // Clear amount and remarks fields if they're empty for cancel/confirm
+                        // This ensures backend doesn't validate empty fields
+                        if (!amountInput.value.trim()) {
+                            amountInput.removeAttribute('name');
+                        }
+                        if (!remarkInput.value.trim()) {
+                            remarkInput.removeAttribute('name');
+                        }
+                        
+                        actionInput.value = action;
+                        form.submit();
+                        resolve();
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then(result => {
+                if (!result.isConfirmed && agentNegotiationModalInstance) {
+                    // Restore name attributes if user cancels
+                    amountInput.setAttribute('name', 'amount');
+                    remarkInput.setAttribute('name', 'comment');
+                    agentNegotiationModalInstance.show();
+                }
+            });
+        };
+
+        function formatNegotiationAmount(value) {
+            if (isNaN(value)) {
+                return '—';
+            }
+            return new Intl.NumberFormat(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+        }
     };
 </script>
 @endsection

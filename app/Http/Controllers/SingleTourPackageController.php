@@ -97,6 +97,8 @@ class SingleTourPackageController extends Controller
         $meals = collect();
         $tickets = collect();
         $zones = collect();
+        $entryDropoffLocation = null;
+        $exitPickupLocation = null;
         
         if($enquiry_id){
             $enquiry_id = Crypt::decrypt($enquiry_id);
@@ -126,6 +128,35 @@ class SingleTourPackageController extends Controller
                     if($enquiry->local_transport_vehicle_ids){
                         $vehicle_ids = json_decode($enquiry->local_transport_vehicle_ids, true);
                         $vehicles = Vehicle::whereIn('vehicle_id', $vehicle_ids)->get();
+                    }
+                    
+                    // Get port and transfer information
+                    // Handle entry port dropoff location
+                    if($enquiry->entry_port && $enquiry->entry_dropoff_type && $enquiry->entry_dropoff_location_id){
+                        $dropoffType = $enquiry->entry_dropoff_type;
+                        $dropoffLocationId = $enquiry->entry_dropoff_location_id;
+                        
+                        if($dropoffType == 'hotel'){
+                            $entryDropoffLocation = Hotel::where('hotel_unique_id', $dropoffLocationId)->value('name');
+                        } elseif($dropoffType == 'attraction'){
+                            $entryDropoffLocation = Attraction::where('attraction_id', $dropoffLocationId)->value('name');
+                        } elseif($dropoffType == 'restaurant'){
+                            $entryDropoffLocation = Restaurant::where('restaurant_id', $dropoffLocationId)->value('name');
+                        }
+                    }
+                    
+                    // Handle exit port pickup location
+                    if($enquiry->exit_port && $enquiry->exit_pickup_type && $enquiry->exit_pickup_location_id){
+                        $pickupType = $enquiry->exit_pickup_type;
+                        $pickupLocationId = $enquiry->exit_pickup_location_id;
+                        
+                        if($pickupType == 'hotel'){
+                            $exitPickupLocation = Hotel::where('hotel_unique_id', $pickupLocationId)->value('name');
+                        } elseif($pickupType == 'attraction'){
+                            $exitPickupLocation = Attraction::where('attraction_id', $pickupLocationId)->value('name');
+                        } elseif($pickupType == 'restaurant'){
+                            $exitPickupLocation = Restaurant::where('restaurant_id', $pickupLocationId)->value('name');
+                        }
                     }
                     
                     // Get restaurants as meals
@@ -176,7 +207,7 @@ class SingleTourPackageController extends Controller
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
         
-        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data'));
+        return view('single-tour-package.create', compact('countries', 'agents', 'ports', 'selectedCountry', 'enquiry', 'hotels', 'attractions', 'guides', 'vehicles', 'meals', 'tickets', 'zones', 'agency', 'restaurants', 'UserDmc', 'restaurant_data', 'entryDropoffLocation', 'exitPickupLocation'));
     }
     
     /**

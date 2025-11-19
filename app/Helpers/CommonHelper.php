@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Guide;
 use App\Models\Hotel;
+use App\Models\Bed;
 use App\Models\Agent;
 use App\Models\Attraction;
 use App\Models\Restaurant;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\DmcMail;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 use Illuminate\Support\Facades\Log;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
@@ -1538,5 +1540,752 @@ class CommonHelper
             }
         }
         return root_url('login');
+    }
+
+    /**
+     * Send negotiation update email to agent
+     * Date: Current
+     * 
+     * @param int $agentId - Agent ID
+     * @param int $tourId - Tour ID
+     * @param string $tourDisplayId - Tour Display ID
+     * @param array $negotiationData - Negotiation details (prices, comment, status, etc.)
+     * @return bool|string - true on success, error message on failure
+     */
+    public static function sendNegotiationEmail($agentId, $tourId, $tourDisplayId, $negotiationData = [])
+    {
+        try {
+            // Get agent details
+            $agent = Agent::where('agent_id', $agentId)->first();
+            if (!$agent) {
+                Log::error("Agent not found for negotiation email", ['agent_id' => $agentId]);
+                return "Agent not found";
+            }
+
+            // Check if agent has valid email
+            if (empty($agent->email)) {
+                Log::error("Agent email not found", ['agent_id' => $agentId]);
+                return "Agent email not found";
+            }
+
+            // Get agent's agency details
+            $agency = Agency::where('agency_id', $agent->agency_id)->first();
+            $agencyName = $agency ? $agency->agency_name : 'Your Travel Agency';
+
+            // Get DMC details
+            $dmcId = $negotiationData['dmc_id'] ?? null;
+            if (!$dmcId && isset($negotiationData['tour'])) {
+                $dmcId = $negotiationData['tour']->dmc_id ?? null;
+            }
+            
+            $dmc = User::where('userId', $dmcId)->first();
+            $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
+            $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
+            $dmcEmail = $dmc ? ($dmc->email ?? null) : null;
+            $dmcPhone = $dmc ? ($dmc->phone_number ?? null) : null;
+
+            // Get tour details if available
+            $tour = $negotiationData['tour'] ?? Tour::where('tour_id', $tourId)->first();
+            $tourStatus = $tour ? $tour->tour_status : 'N/A';
+            $destination = $tour ? ($tour->tour_destination ?? $tour->destination ?? null) : null;
+            $city = $tour ? ($tour->tour_city ?? $tour->city ?? null) : null;
+
+            // Prepare email data
+            $emailData = [
+                'agent_name' => $agent->name ?? 'Valued Partner',
+                'agency_name' => $agencyName,
+                'dmc_name' => $dmcName,
+                'dmc_logo' => $dmcLogo,
+                'dmc_email' => $dmcEmail,
+                'dmc_phone' => $dmcPhone,
+                'tour_display_id' => $tourDisplayId,
+                'tour_status' => $tourStatus,
+                'destination' => $destination,
+                'city' => $city,
+                'actual_amount' => $negotiationData['actual_amount'] ?? 0,
+                'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0,
+                'previous_negotiated_amount' => $negotiationData['previous_negotiated_amount'] ?? null,
+                'comment' => $negotiationData['comment'] ?? null,
+                'currency' => $negotiationData['currency'] ?? '$',
+                'dashboard_link' => self::url(),
+                'submission_date' => now()->format('M d, Y'),
+            ];
+
+            // Email subject
+            $subject = "💰 Price Negotiation Submitted - Tour {$tourDisplayId}";
+
+            // Render the email template
+            try {
+                $html = view('mails.negotiation_update_agent', $emailData)->render();
+            } catch (\Exception $e) {
+                Log::error("Error rendering negotiation email template", [
+                    'error' => $e->getMessage(),
+                    'tour_id' => $tourId,
+                    'agent_id' => $agentId
+                ]);
+                return "Error rendering email template: " . $e->getMessage();
+            }
+
+            // Send the email
+            try {
+                Mail::to($agent->email)->send(new DmcMail($html, $subject));
+                
+                // Log successful email sending
+                Log::info("Negotiation email sent successfully", [
+                    'agent_id' => $agentId,
+                    'agent_email' => $agent->email,
+                    'tour_id' => $tourId,
+                    'tour_display_id' => $tourDisplayId,
+                    'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0
+                ]);
+                
+                return true;
+            } catch (\Exception $e) {
+                Log::error("Failed to send negotiation email", [
+                    'error' => $e->getMessage(),
+                    'agent_id' => $agentId,
+                    'agent_email' => $agent->email,
+                    'tour_id' => $tourId
+                ]);
+                return "Failed to send email: " . $e->getMessage();
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Negotiation email sending failed', [
+                'error' => $e->getMessage(),
+                'agent_id' => $agentId,
+                'tour_id' => $tourId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return "Email sending failed: " . $e->getMessage();
+        }
+    }
+
+    public static function downloadTourPdf($tourId)
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (!$tour) {
+            return null;
+        }
+
+        $orders = Order::where('tour_id', $tourId)
+            ->where('status', 1)
+            ->orderBy('booking_id')
+            ->get();
+
+        $servicesByDate = self::groupServicesByDate($orders);
+        ksort($servicesByDate);
+
+        $servicesByType = self::groupServicesByType($orders);
+
+        // Fetch DMC user data for logo and company name
+        $dmcUser = null;
+        $dmcLogo = null;
+        $dmcCompanyName = null;
+        
+        if (!empty($tour->dmc_id)) {
+            $dmcUser = User::where('userId', $tour->dmc_id)->first();
+            if ($dmcUser) {
+                $logoUrl = $dmcUser->logo ?? null;
+                $dmcCompanyName = $dmcUser->company_name ?? null;
+                
+                // Convert logo URL to base64 for PDF display
+                if (!empty($logoUrl)) {
+                    try {
+                        // Determine MIME type from URL extension
+                        $mimeType = 'image/png'; // default
+                        $urlPath = parse_url($logoUrl, PHP_URL_PATH);
+                        if ($urlPath) {
+                            $extension = strtolower(pathinfo($urlPath, PATHINFO_EXTENSION));
+                            $mimeMap = [
+                                'jpg' => 'image/jpeg',
+                                'jpeg' => 'image/jpeg',
+                                'png' => 'image/png',
+                                'gif' => 'image/gif',
+                                'webp' => 'image/webp',
+                                'svg' => 'image/svg+xml',
+                            ];
+                            $mimeType = $mimeMap[$extension] ?? 'image/png';
+                        }
+                        
+                        // Try using Laravel HTTP client first
+                        $response = Http::timeout(10)->get($logoUrl);
+                        if ($response->successful()) {
+                            $imageContent = $response->body();
+                            if (!empty($imageContent) && strlen($imageContent) > 100) {
+                                // Try to get MIME type from response headers if available
+                                $contentType = $response->header('Content-Type');
+                                if ($contentType && strpos($contentType, 'image/') !== false) {
+                                    $mimeType = explode(';', $contentType)[0]; // Remove charset if present
+                                }
+                                $base64 = base64_encode($imageContent);
+                                $dmcLogo = 'data:' . $mimeType . ';base64,' . $base64;
+                                Log::info('DMC Logo converted to base64', [
+                                    'url' => $logoUrl,
+                                    'mime_type' => $mimeType,
+                                    'base64_length' => strlen($base64)
+                                ]);
+                            }
+                        } else {
+                            // Fallback to file_get_contents
+                            $imageContent = @file_get_contents($logoUrl);
+                            if ($imageContent !== false && !empty($imageContent) && strlen($imageContent) > 100) {
+                                $base64 = base64_encode($imageContent);
+                                $dmcLogo = 'data:' . $mimeType . ';base64,' . $base64;
+                                Log::info('DMC Logo converted to base64 (fallback method)', [
+                                    'url' => $logoUrl,
+                                    'mime_type' => $mimeType,
+                                    'base64_length' => strlen($base64)
+                                ]);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to fetch DMC logo for PDF', [
+                            'logo_url' => $logoUrl,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
+        }
+
+        try {
+            // Configure DomPDF options to work without GD if possible
+            $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
+                'tour' => $tour,
+                'servicesByDate' => $servicesByDate,
+                'servicesByType' => $servicesByType,
+                'generatedAt' => now(),
+                'dmcLogo' => $dmcLogo,
+                'dmcCompanyName' => $dmcCompanyName,
+            ]);
+            
+            $pdf->setPaper('a4');
+            $pdf->setOption('enable-php', false);
+            $pdf->setOption('isHtml5ParserEnabled', true);
+            $pdf->setOption('isRemoteEnabled', false);
+            
+            return $pdf->download("tour-{$tourId}-itinerary.pdf");
+        } catch (\Exception $e) {
+            // If GD is required and not available, try without logo
+            if (strpos($e->getMessage(), 'GD extension') !== false && !empty($dmcLogo)) {
+                Log::warning('PDF generation failed with logo, retrying without logo', [
+                    'error' => $e->getMessage()
+                ]);
+                
+                // Retry without logo
+                $pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
+                    'tour' => $tour,
+                    'servicesByDate' => $servicesByDate,
+                    'servicesByType' => $servicesByType,
+                    'generatedAt' => now(),
+                    'dmcLogo' => null, // Remove logo
+                    'dmcCompanyName' => $dmcCompanyName,
+                ]);
+                
+                $pdf->setPaper('a4');
+                $pdf->setOption('enable-php', false);
+                $pdf->setOption('isHtml5ParserEnabled', true);
+                $pdf->setOption('isRemoteEnabled', false);
+                
+                return $pdf->download("tour-{$tourId}-itinerary.pdf");
+            }
+            
+            // Re-throw if it's a different error
+            throw $e;
+        }
+    }
+
+    protected static function groupServicesByDate($orders)
+    {
+        $grouped = [];
+
+        foreach ($orders as $order) {
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+
+            if (empty($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) ? $rawData : [$rawData];
+
+            foreach ($items as $item) {
+                $dates = self::extractDatesFromItem($item, $order->type);
+                foreach ($dates as $date) {
+                    if (!$date) {
+                        continue;
+                    }
+
+                    $grouped[$date][] = self::formatServiceItem($order->type, $item);
+                }
+            }
+        }
+
+        // sort services inside each day by time
+        foreach ($grouped as $date => $services) {
+            usort($services, function ($a, $b) {
+                return strcmp($a['time_sort'], $b['time_sort']);
+            });
+            $grouped[$date] = $services;
+        }
+
+        return $grouped;
+    }
+
+    protected static function groupServicesByType($orders)
+    {
+        $grouped = [];
+
+        foreach ($orders as $order) {
+            $typeKey = strtolower(str_replace('_', ' ', $order->type ?? 'other'));
+            $rawData = $order->data;
+
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+
+            if (empty($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) ? $rawData : [$rawData];
+
+            foreach ($items as $item) {
+                $card = self::formatServiceCard($order->type, $item);
+                if ($card) {
+                    $grouped[$typeKey][] = $card;
+                }
+            }
+        }
+
+        foreach ($grouped as $type => $cards) {
+            usort($cards, function ($a, $b) {
+                return strcmp($a['date_sort'], $b['date_sort']);
+            });
+            $grouped[$type] = $cards;
+        }
+
+        // Custom order for service types
+        $serviceOrder = [
+            'entry port' => 1,      // Arrivals
+            'hotel' => 2,
+            'attraction' => 3,
+            'attraction package' => 3,  // Group with attractions
+            'restaurant' => 3,       // Group with attractions
+            'point to point' => 4,  // Local transfers
+            'hourly' => 4,
+            'local transport' => 4,
+            'local transfer' => 4,
+            'port transport' => 4,
+            'local transfer vehicle' => 4,
+            'travel point' => 4,
+            'travel hourly' => 4,
+            'guide' => 5,
+            'exit port' => 6,       // Departures
+        ];
+
+        uksort($grouped, function ($a, $b) use ($serviceOrder) {
+            $orderA = $serviceOrder[strtolower($a)] ?? 999;
+            $orderB = $serviceOrder[strtolower($b)] ?? 999;
+            
+            if ($orderA === $orderB) {
+                return strcmp($a, $b);
+            }
+            
+            return $orderA <=> $orderB;
+        });
+
+        return $grouped;
+    }
+
+    protected static function extractDatesFromItem($item, $type)
+    {
+        $dates = [];
+        $bookingDate = $item['bookingDate'] ?? null;
+
+        if ($bookingDate) {
+            if (is_array($bookingDate) && count($bookingDate) === 2) {
+                try {
+                    $start = Carbon::parse($bookingDate[0]);
+                    $end = Carbon::parse($bookingDate[1]);
+
+                    while ($start->lte($end)) {
+                        // skip checkout day for hotels
+                        if (!($type === 'hotel' && $start->isSameDay($end))) {
+                            $dates[] = $start->format('Y-m-d');
+                        }
+                        $start->addDay();
+                    }
+                } catch (\Exception $e) {
+                    $dates = $bookingDate;
+                }
+            } else {
+                $bookingDate = is_array($bookingDate) ? ($bookingDate[0] ?? null) : $bookingDate;
+                if ($bookingDate) {
+                    $dates[] = $bookingDate;
+                }
+            }
+        } elseif (!empty($item['pickupdate'])) {
+            $dates[] = $item['pickupdate'];
+        } elseif (!empty($item['exitpickupdate'])) {
+            $dates[] = $item['exitpickupdate'];
+        } elseif (!empty($item['date'])) {
+            $dates[] = $item['date'];
+        }
+
+        return $dates;
+    }
+
+    protected static function formatServiceItem($type, $item)
+    {
+        $serviceType = ucwords(str_replace('_', ' ', $type));
+        $title = $item['name']
+            ?? $item['hotelname']
+            ?? $item['AttractionName']
+            ?? $item['restaurantName']
+            ?? $serviceType;
+
+        $time = $item['entrytime']
+            ?? $item['visitTime']
+            ?? $item['time']
+            ?? $item['pickuptime']
+            ?? $item['exitpickuptime']
+            ?? null;
+
+        $location = $item['entrypickup']
+            ?? $item['entrydropoff']
+            ?? $item['location']
+            ?? $item['city']
+            ?? null;
+
+        $pax = $item['pax']
+            ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+            ?? null;
+
+        $timeSort = '99:99';
+        if ($time) {
+            try {
+                $timeSort = Carbon::parse($time)->format('H:i');
+            } catch (\Exception $e) {
+                $timeSort = '99:99';
+            }
+        }
+
+        return [
+            'type' => $serviceType,
+            'title' => $title,
+            'time' => $time,
+            'time_sort' => $timeSort,
+            'location' => $location,
+            'pax' => $pax,
+            'notes' => $item['guide_name'] ?? $item['vehicle'] ?? null,
+        ];
+    }
+
+    protected static function formatServiceCard($type, $item)
+    {
+        $serviceType = ucwords(str_replace('_', ' ', $type ?? 'Service'));
+        $normalizedType = strtolower(str_replace(' ', '_', $type ?? ''));
+        if ($normalizedType === 'entry_port') {
+            $serviceType = 'Arrival';
+        } elseif ($normalizedType === 'exit_port') {
+            $serviceType = 'Departure';
+        }
+        $title = $item['name']
+            ?? $item['hotelname']
+            ?? $item['AttractionName']
+            ?? $item['restaurantName']
+            ?? $serviceType;
+
+        $dates = self::extractDatesFromItem($item, $type);
+        $dateLabel = '';
+        $dateSort = '9999-12-31';
+
+        if (!empty($dates)) {
+            $formatted = array_map(function ($date) {
+                try {
+                    return Carbon::parse($date)->format('d M Y');
+                } catch (\Exception $e) {
+                    return $date;
+                }
+            }, $dates);
+
+            $dateLabel = count($formatted) > 1
+                ? $formatted[0] . ' - ' . end($formatted)
+                : $formatted[0];
+
+            try {
+                $dateSort = Carbon::parse($dates[0])->format('Y-m-d');
+            } catch (\Exception $e) {
+                $dateSort = $dates[0];
+            }
+        }
+
+        $time = $item['entrytime']
+            ?? $item['visitTime']
+            ?? $item['time']
+            ?? $item['pickuptime']
+            ?? $item['exitpickuptime']
+            ?? null;
+
+        $location = $item['entrypickup']
+            ?? $item['entrydropoff']
+            ?? $item['location']
+            ?? $item['city']
+            ?? $item['address']
+            ?? null;
+
+        $pax = $item['pax']
+            ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
+            ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
+            ?? null;
+
+        $notes = $item['guide_name']
+            ?? $item['vehicle']
+            ?? $item['ticketName']
+            ?? null;
+
+        $chips = [];
+        if ($dateLabel) {
+            $chips[] = ['label' => 'Date', 'value' => $dateLabel];
+        }
+
+        if ($time) {
+            $chips[] = ['label' => 'Time', 'value' => $time];
+        }
+
+        if ($pax) {
+            $chips[] = ['label' => 'Pax', 'value' => $pax];
+        }
+
+        $pickup = $item['entrypickup']
+            ?? $item['pickup']
+            ?? $item['pickup_location']
+            ?? $item['pickuplocation']
+            ?? $item['exitpickup']
+            ?? $item['exit_pickup']
+            ?? null;
+
+        $dropoff = $item['entrydropoff']
+            ?? $item['dropoff']
+            ?? $item['dropoff_location']
+            ?? $item['dropofflocation']
+            ?? $item['exitdropoff']
+            ?? $item['exit_dropoff']
+            ?? null;
+
+        if ($pickup) {
+            $chips[] = ['label' => 'Pickup', 'value' => $pickup];
+        }
+
+        if ($dropoff) {
+            $chips[] = ['label' => 'Dropoff', 'value' => $dropoff];
+        }
+
+        $roomsSummary = [];
+        if (strtolower($type) === 'hotel' && !empty($item['rooms']) && is_array($item['rooms'])) {
+            foreach ($item['rooms'] as $room) {
+                $bedSummary = [];
+                if (!empty($room['beds']) && is_array($room['beds'])) {
+                    foreach ($room['beds'] as $bed) {
+                        // Fetch bed type from beds table using bed_id
+                        $bedType = 'Bed'; // default
+                        if (!empty($bed['bed_id'])) {
+                            try {
+                                $bedRecord = Bed::where('bed_id', $bed['bed_id'])->first();
+                                if ($bedRecord && !empty($bedRecord->room_type)) {
+                                    $bedType = $bedRecord->room_type;
+                                }
+                            } catch (\Exception $e) {
+                                Log::warning('Failed to fetch bed from beds table', [
+                                    'bed_id' => $bed['bed_id'],
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
+                        }
+                        
+                        // Fallback to bed_type if bed_id lookup fails
+                        if ($bedType === 'Bed' && !empty($bed['bed_type'])) {
+                            $bedType = self::friendlyLabel($bed['bed_type'], 'Bed');
+                        }
+                        
+                        $bedSummary[] = [
+                            'type' => $bedType,
+                            'occupancy' => $bed['head_count'] ?? null,
+                            'meal' => $bed['selectedMeals']['meal_plan']['type']
+                                ?? $bed['selectedMeals']['meal_1']['type']
+                                ?? ($bed['mealTypes'][0] ?? null)
+                                ?? $bed['mealType']
+                                ?? null,
+                            'meal_price' => $bed['selectedMeals']['meal_plan']['price']
+                                ?? $bed['selectedMeals']['meal_1']['price']
+                                ?? null,
+                            'price' => $bed['price'] ?? null,
+                        ];
+                    }
+                }
+
+                $roomsSummary[] = [
+                    'name' => self::friendlyLabel($room['room_type'] ?? null, 'Room'),
+                    'beds' => $bedSummary,
+                ];
+            }
+        }
+
+        $transferTypes = [
+            'entry_port',
+            'exit_port',
+            'point_to_point',
+            'hourly',
+            'local_transport',
+            'local_transfer',
+            'port_transport',
+            'local_transfer_vehicle',
+        ];
+
+        $vehicleDetails = null;
+        if (in_array(strtolower($type), $transferTypes, true)) {
+            $vehicleDetails = [
+                'name' => $item['vehicles_name'] ?? null,
+                'type' => $item['type'] ?? null,
+                'vehicle_type' => $item['vehicle_type'] ?? null,
+                'vehicle_model' => $item['vehicle_model'] ?? null,
+                'model_year' => $item['model_year'] ?? null,
+                'seating_capacity' => $item['seating_capacity'] ?? null,
+                'travel_type' => $item['travel_type'] ?? null,
+                'mode' => $item['Mode'] ?? $item['mode'] ?? null,
+            ];
+        }
+
+        // Attraction details
+        $attractionDetails = null;
+        if (in_array(strtolower($type), ['attraction', 'attraction_package'], true)) {
+            $adultCount = $item['adultCount'] ?? $item['adult'] ?? 0;
+            $childCount = $item['childCount'] ?? $item['child'] ?? 0;
+            $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
+            
+            $selection = $item['Selection'] ?? null;
+            $transportNote = null;
+            if (strtolower($selection) === 'withouttransport') {
+                $transportNote = 'Transport not included';
+            }
+            
+            $attractionDetails = [
+                'ticket_name' => $item['ticketName'] ?? null,
+                'adult_count' => $adultCount > 0 ? $adultCount : null,
+                'child_count' => $childCount > 0 ? $childCount : null,
+                'senior_count' => $seniorCount > 0 ? $seniorCount : null,
+                'visit_time' => $item['visitTime'] ?? null,
+                'transport_note' => $transportNote,
+            ];
+        }
+
+        // Restaurant details (similar structure to attractions)
+        $restaurantDetails = null;
+        if (strtolower($type) === 'restaurant') {
+            $adultCount = $item['adultCount'] ?? $item['adult'] ?? 0;
+            $childCount = $item['childCount'] ?? $item['child'] ?? 0;
+            $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
+            
+            $mealItems = [];
+            if (!empty($item['MealDescription']) && is_array($item['MealDescription'])) {
+                foreach ($item['MealDescription'] as $mealItem) {
+                    $itemName = $mealItem['item_name'] ?? $mealItem['name'] ?? null;
+                    if ($itemName) {
+                        $mealItems[] = [
+                            'item_name' => $itemName,
+                            'name' => $mealItem['name'] ?? null,
+                            'quantity' => $mealItem['quantity'] ?? 1,
+                        ];
+                    }
+                }
+            }
+            
+            $restaurantDetails = [
+                'ticket_name' => $item['ticketName'] ?? null,
+                'adult_count' => $adultCount > 0 ? $adultCount : null,
+                'child_count' => $childCount > 0 ? $childCount : null,
+                'senior_count' => $seniorCount > 0 ? $seniorCount : null,
+                'visit_time' => $item['visitTime'] ?? null,
+                'meal_type' => $item['mealType'] ?? null,
+                'meal_items' => $mealItems,
+            ];
+        }
+
+        // Guide details
+        $guideDetails = null;
+        if (strtolower($type) === 'guide') {
+            $languages = $item['languages'] ?? [];
+            if (is_string($languages)) {
+                $languages = json_decode($languages, true) ?? [];
+            }
+            if (!is_array($languages)) {
+                $languages = [];
+            }
+            
+            $guideDetails = [
+                'guide_name' => $item['guide_name'] ?? null,
+                'languages' => array_filter($languages),
+                'hours' => $item['hours'] ?? null,
+                'entry_time' => $item['entrytime'] ?? null,
+            ];
+        }
+
+        return [
+            'type' => $serviceType,
+            'title' => $title,
+            'subtitle' => $location,
+            'time' => $time,
+            'pax' => $pax,
+            'notes' => $notes,
+            'chips' => $chips,
+            'icon' => self::serviceIcon($type),
+            'date_sort' => $dateSort,
+            'rooms' => $roomsSummary,
+            'hotel_info' => [
+                'name' => $item['hotelDetails']['hotel_name'] ?? null,
+                'location' => $item['hotelDetails']['location'] ?? null,
+                'check_in_time' => $item['hotelDetails']['checkInTime'] ?? null,
+                'check_out_time' => $item['hotelDetails']['checkOutTime'] ?? null,
+            ],
+            'vehicle' => $vehicleDetails,
+            'attraction' => $attractionDetails,
+            'restaurant' => $restaurantDetails,
+            'guide' => $guideDetails,
+        ];
+    }
+
+    protected static function serviceIcon($type)
+    {
+        $map = [
+            'hotel' => '🏨',
+            'guide' => '👤',
+            'restaurant' => '🍽️',
+            'attraction' => '🎯',
+            'entry_port' => '✈️',
+            'exit_port' => '🛫',
+            'travel_point' => '🚐',
+            'travel_hourly' => '🚗',
+            'local_transport' => '🚕',
+        ];
+
+        $key = strtolower($type ?? '');
+        return $map[$key] ?? '🧭';
+    }
+
+    protected static function friendlyLabel($value, $fallback = 'N/A')
+    {
+        if (empty($value)) {
+            return $fallback;
+        }
+
+        if (is_string($value) && preg_match('/^\s*\d+\s*$/', $value)) {
+            return $fallback;
+        }
+
+        return $value;
     }
 }

@@ -62,6 +62,7 @@ class EnquiryListController extends Controller
                 ->whereHas('agent.agency', function($query) use ($dmc_id) {
                     $query->whereRaw("dmc_id::jsonb @> ?::jsonb", [ json_encode([$dmc_id]) ]);
                 })
+                ->where('dmc_id', $dmc_id)
                 ->whereNull('unique_tour_id')
                 ->orderBy('created_at', 'desc')
                 ->get();
