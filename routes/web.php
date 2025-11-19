@@ -51,6 +51,7 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
 use App\Http\Controllers\GuestController;
+use App\Http\Controllers\EditTourController;
 use App\Http\Controllers\TaxController;
 use Illuminate\Support\Facades\Artisan;
 use App\Services\AzureKeyVaultService;
@@ -165,7 +166,14 @@ Route::get('/clear', function () {
             Route::post('/single-tour-package', [SingleTourPackageController::class, 'store'])->name('single-tour-package.store');
             Route::post('/package-store-orders', [SingleTourPackageController::class, 'storeServiceOrders'])->name('single-tour-package.store-orders');
             Route::post('/single-tour-package/orders/{order}/update', [SingleTourPackageController::class, 'updateServiceOrder'])->name('single-tour-package.orders.update');
-            Route::post('/single-tour-package/{tour}/info', [SingleTourPackageController::class, 'updateTourInformation'])->name('single-tour-package.update-info');
+            Route::post('/single-tour-package/{tour}/info', [EditTourController::class, 'updateTour'])->name('single-tour-package.update-info');
+            
+            // Service update routes via EditTourController
+            Route::post('/edit-tour/hotel/{order}', [EditTourController::class, 'updateHotel'])->name('edit-tour.update-hotel');
+            Route::post('/edit-tour/attraction/{order}', [EditTourController::class, 'updateAttraction'])->name('edit-tour.update-attraction');
+            Route::post('/edit-tour/guide/{order}', [EditTourController::class, 'updateGuide'])->name('edit-tour.update-guide');
+            Route::post('/edit-tour/restaurant/{order}', [EditTourController::class, 'updateRestaurant'])->name('edit-tour.update-restaurant');
+            Route::post('/edit-tour/transport/{order}', [EditTourController::class, 'updateTransport'])->name('edit-tour.update-transport');
             Route::get('/single-tour-package/{id}', [SingleTourPackageController::class, 'show'])->name('single-tour-package.show');
             Route::get('/single-tour-package/{id}/edit', [SingleTourPackageController::class, 'edit'])->name('single-tour-package.edit');
             Route::put('/single-tour-package/{id}', [SingleTourPackageController::class, 'update'])->name('single-tour-package.update');
