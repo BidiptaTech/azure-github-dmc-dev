@@ -826,19 +826,32 @@ class SingleTourPackageController extends Controller
             $hotels = collect();
         }
 
-        $guides = Guide::with(['languages'])->where('dmc_id', $userDmcId)->get();
+        // Load guides filtered by DMC and country (tour destination)
+        $guidesQuery = Guide::with(['languages'])->where('dmc_id', $userDmcId);
+        if ($tour->destination) {
+            $guidesQuery->where('country', $tour->destination);
+        }
+        $guides = $guidesQuery->get();
 
-        $restaurants = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
+        // Load restaurants filtered by DMC and country (tour destination)
+        $restaurantsQuery = Restaurant::with(['meals' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
-            ->whereJsonContains('dmc_id', $userDmcId)
-            ->get();
+            ->whereJsonContains('dmc_id', $userDmcId);
+        if ($tour->destination) {
+            $restaurantsQuery->where('country', $tour->destination);
+        }
+        $restaurants = $restaurantsQuery->get();
 
-        $attractions = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
+        // Load attractions filtered by DMC and country (tour destination)
+        $attractionsQuery = Attraction::with(['tickets' => function ($query) use ($userDmcId) {
             $query->where('dmc_id', $userDmcId);
         }])
-            ->whereJsonContains('dmc_id', $userDmcId)
-            ->get();
+            ->whereJsonContains('dmc_id', $userDmcId);
+        if ($tour->destination) {
+            $attractionsQuery->where('country', $tour->destination);
+        }
+        $attractions = $attractionsQuery->get();
 
         $vehicles = Vehicle::where('dmc_id', $userDmcId)->get();
 
@@ -1038,64 +1051,64 @@ class SingleTourPackageController extends Controller
     /**
      * Update top-level tour information from the edit services page.
      */
-    public function updateTourInformation(Request $request, Tour $tour)
-    {
-        $validated = $request->validate([
-            'display_id' => 'nullable|string|max:255',
-            'user_country' => 'required|string|max:255',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'adults' => 'required|integer|min:1',
-            'children' => 'required|integer|min:0',
-            'infants' => 'required|integer|min:0',
-            'male' => 'required|integer|min:0',
-            'female' => 'required|integer|min:0',
-            'agent_id' => 'required|exists:agents,agent_id',
-            'child_ages' => 'nullable|string|max:255',
-        ]);
+    // public function updateTourInformation(Request $request, Tour $tour)
+    // {
+    //     $validated = $request->validate([
+    //         'display_id' => 'nullable|string|max:255',
+    //         'user_country' => 'required|string|max:255',
+    //         'start_date' => 'required|date',
+    //         'end_date' => 'required|date|after_or_equal:start_date',
+    //         'adults' => 'required|integer|min:1',
+    //         'children' => 'required|integer|min:0',
+    //         'infants' => 'required|integer|min:0',
+    //         'male' => 'required|integer|min:0',
+    //         'female' => 'required|integer|min:0',
+    //         'agent_id' => 'required|exists:agents,agent_id',
+    //         'child_ages' => 'nullable|string|max:255',
+    //     ]);
 
-        try {
-            $checkIn = Carbon::createFromFormat('Y-m-d', $validated['start_date']);
-            $checkOut = Carbon::createFromFormat('Y-m-d', $validated['end_date']);
+    //     try {
+    //         $checkIn = Carbon::createFromFormat('Y-m-d', $validated['start_date']);
+    //         $checkOut = Carbon::createFromFormat('Y-m-d', $validated['end_date']);
 
-            if (!empty($validated['display_id'])) {
-                $tour->display_id = $validated['display_id'];
-            }
+    //         if (!empty($validated['display_id'])) {
+    //             $tour->display_id = $validated['display_id'];
+    //         }
 
-            $tour->destination = $validated['user_country'];
-            $tour->check_in_time = $checkIn;
-            $tour->check_out_time = $checkOut;
-            $tour->adult = $validated['adults'];
-            $tour->child = $validated['children'];
-            $tour->infant = $validated['infants'];
-            $tour->male_count = $validated['male'];
-            $tour->female_count = $validated['female'];
-            $tour->agent_id = $validated['agent_id'];
-            $tour->child_ages = $validated['child_ages'] ?: null;
-            $tour->save();
+    //         $tour->destination = $validated['user_country'];
+    //         $tour->check_in_time = $checkIn;
+    //         $tour->check_out_time = $checkOut;
+    //         $tour->adult = $validated['adults'];
+    //         $tour->child = $validated['children'];
+    //         $tour->infant = $validated['infants'];
+    //         $tour->male_count = $validated['male'];
+    //         $tour->female_count = $validated['female'];
+    //         $tour->agent_id = $validated['agent_id'];
+    //         $tour->child_ages = $validated['child_ages'] ?: null;
+    //         $tour->save();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Tour information updated successfully.',
-                'data' => [
-                    'display_id' => $tour->display_id,
-                    'destination' => $tour->destination,
-                    'check_in_time' => $tour->check_in_time?->toDateString(),
-                    'check_out_time' => $tour->check_out_time?->toDateString(),
-                ],
-            ]);
-        } catch (\Throwable $exception) {
-            \Log::error('Failed to update tour information', [
-                'tour_id' => $tour->tour_id,
-                'error' => $exception->getMessage(),
-            ]);
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Tour information updated successfully.',
+    //             'data' => [
+    //                 'display_id' => $tour->display_id,
+    //                 'destination' => $tour->destination,
+    //                 'check_in_time' => $tour->check_in_time?->toDateString(),
+    //                 'check_out_time' => $tour->check_out_time?->toDateString(),
+    //             ],
+    //         ]);
+    //     } catch (\Throwable $exception) {
+    //         \Log::error('Failed to update tour information', [
+    //             'tour_id' => $tour->tour_id,
+    //             'error' => $exception->getMessage(),
+    //         ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Unable to save tour information right now.',
-            ], 500);
-        }
-    }
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Unable to save tour information right now.',
+    //         ], 500);
+    //     }
+    // }
 
     /**
      * Remove the specified single tour package from storage.

@@ -1,4 +1,49 @@
 @extends('layouts.layout')
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    #toast-container { z-index: 999999 !important; }
+    #toast-container.toast-top-right { top: 70px; right: 12px; }
+    #toast-container .toast { 
+        padding: 12px 15px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        color: #fff !important;
+        background-image: none !important;
+        padding-left: 15px !important;
+    }
+    #toast-container .toast-success { background-color: #28a745 !important; background-image: none !important; }
+    #toast-container .toast-error { background-color: #dc3545 !important; background-image: none !important; }
+    #toast-container .toast-info { background-color: #17a2b8 !important; background-image: none !important; }
+    #toast-container .toast-warning { background-color: #ffc107 !important; color: #212529 !important; background-image: none !important; }
+    
+    /* Select2 Custom Styling for Child Ages */
+    #child_ages + .select2-container {
+        width: 100% !important;
+    }
+    #child_ages + .select2-container .select2-selection {
+        min-height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+    #child_ages + .select2-container .select2-selection__choice {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+        padding: 2px 8px;
+        margin: 2px;
+    }
+    #child_ages + .select2-container .select2-selection__choice__remove {
+        color: #fff;
+        margin-right: 5px;
+    }
+    #child_ages + .select2-container .select2-selection__choice__remove:hover {
+        color: #fff;
+    }
+</style>
 @section('content')
     @php
         // Get current user information
@@ -256,7 +301,7 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-hashtag me-1"></i>Tour ID
                                     </label>
-                                    <input type="text" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference">
+                                    <input type="text" class="form-control" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}" placeholder="Enter tour reference" disabled>
                                     <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
                                     
                                     <!-- DMC Information -->
@@ -272,7 +317,14 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-earth-line me-1"></i>Country
                                     </label>
-                                    <input type="text" class="form-control" name="user_country" id="user_country" value="{{ $tour->destination ?? '' }}" placeholder="Destination country">
+                                    <select class="form-select" name="user_country" id="user_country" required disabled>
+                                        <option value="">Select Country</option >
+                                        @foreach($countries as $country)
+                                            <option value="{{ $country->name }}" {{ ($tour->destination ?? '') == $country->name ? 'selected' : '' }}>
+                                                {{ $country->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 </div>
 
                                 <!-- Travel Dates -->
@@ -318,7 +370,15 @@
                                         </div>
                                         <div class="col-6">
                                             <small class="text-muted">Child Ages</small>
-                                            <input type="text" class="form-control" name="child_ages" id="child_ages" value="{{ $tour->child_ages ?? '' }}" placeholder="e.g. 4,6">
+                                            <select class="form-control" name="child_ages[]" id="child_ages" multiple>
+                                                @php
+                                                    $selectedAges = isset($tour->child_ages) ? explode(',', $tour->child_ages) : [];
+                                                    $selectedAges = array_map('trim', $selectedAges);
+                                                @endphp
+                                                @for($i = 0; $i <= 15; $i++)
+                                                    <option value="{{ $i }}" {{ in_array((string)$i, $selectedAges) ? 'selected' : '' }}>{{ $i }}</option>
+                                                @endfor
+                                            </select>
                                         </div>
                                         <div class="col-6">
                                             <small class="text-muted">Male</small>
@@ -348,7 +408,7 @@
                             </div>
                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                 <div class="text-muted small" id="tour_info_feedback"></div>
-                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="saveTourInformation(event)">
+                                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="UpdateTourInformation(event)">
                                     <span class="spinner-border spinner-border-sm d-none" id="tour_info_spinner"></span>
                                     <span>Save Tour Information</span>
                                 </button>
@@ -406,11 +466,44 @@
                                     $checkInValue = $checkIn ? \Carbon\Carbon::parse($checkIn)->format('Y-m-d') : '';
                                     $checkOutValue = $checkOut ? \Carbon\Carbon::parse($checkOut)->format('Y-m-d') : '';
                                     $roomsJson = isset($hotelInfo['rooms']) ? json_encode($hotelInfo['rooms'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '';
+                                    
+                                    // Extract room details from rooms array
+                                    $rooms = $hotelInfo['rooms'] ?? [];
+                                    $numberOfRooms = 0;
+                                    $roomType = '';
+                                    $bedType = '';
+                                    $mealPlan = '';
+                                    $numberOfPersons = 0;
+                                    $hotelId = $hotelDetails['hotel_id'] ?? '';
+                                    
+                                    if (!empty($rooms) && is_array($rooms)) {
+                                        $firstRoom = $rooms[0] ?? [];
+                                        $numberOfRooms = count($rooms);
+                                        $roomType = $firstRoom['room_type'] ?? '';
+                                        
+                                        // Get bed details from first room
+                                        $beds = $firstRoom['beds'] ?? [];
+                                        if (!empty($beds) && is_array($beds)) {
+                                            $firstBed = $beds[0] ?? [];
+                                            $bedType = $firstBed['bed_type'] ?? '';
+                                            $numberOfPersons = $firstBed['head_count'] ?? $firstBed['max_occupancy'] ?? 0;
+                                            
+                                            // Get meal plan
+                                            $mealTypes = $firstBed['mealTypes'] ?? [];
+                                            if (!empty($mealTypes) && is_array($mealTypes)) {
+                                                $mealPlan = $mealTypes[0] ?? '';
+                                            } elseif (isset($firstBed['selectedMeals']) && is_array($firstBed['selectedMeals'])) {
+                                                $firstMeal = reset($firstBed['selectedMeals']);
+                                                $mealPlan = $firstMeal['type'] ?? '';
+                                            }
+                                        }
+                                    }
                                 @endphp
                                 <div class="col-12 mb-4">
-                                    <form class="border border-warning rounded-3 p-4 shadow-sm hotel-edit-form" data-update-url="{{ route('single-tour-package.orders.update', $hotelOrder->booking_id) }}" onsubmit="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
+                                    <div class="border border-warning rounded-3 p-4 shadow-sm hotel-edit-form" data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}">
                                         @csrf
                                         <input type="hidden" name="type" value="hotel">
+                                        <input type="hidden" name="hotel_id" id="hotel_id_{{ $hotelOrder->booking_id }}" value="{{ $hotelId }}">
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <div>
                                                 <h6 class="card-title mb-1 fw-bold text-warning"><i class="ri-hotel-line me-2"></i>Hotel Booking #{{ $loop->iteration }}</h6>
@@ -422,12 +515,568 @@
                                         </div>
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Hotel Name</label>
-                                                <input type="text" class="form-control" name="hotel_name" value="{{ $hotelDetails['hotel_name'] ?? '' }}" placeholder="e.g. The Fullerton Hotel" required>
+                                                <label class="form-label fw-semibold">Location</label>
+                                                <input type="text" class="form-control" value="{{ $hotelDetails['location'] ?? '' }}" placeholder="City / Area" disabled>
+                                                <input type="hidden" name="hotel_location" value="{{ $hotelDetails['location'] ?? '' }}">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Location</label>
-                                                <input type="text" class="form-control" name="hotel_location" value="{{ $hotelDetails['location'] ?? '' }}" placeholder="City / Area">
+                                                <label class="form-label fw-semibold">Hotel Name</label>
+                                                @php
+                                                    $currentLocation = $hotelDetails['location'] ?? '';
+                                                    $currentHotelName = $hotelDetails['hotel_name'] ?? '';
+                                                    $currentHotelId = $hotelDetails['hotel_id'] ?? '';
+                                                    
+                                                    // Filter hotels by location (city)
+                                                    $locationFilteredHotels = $hotels->filter(function($hotel) use ($currentLocation) {
+                                                        if (empty($currentLocation)) {
+                                                            return false;
+                                                        }
+                                                        $hotelCity = strtolower(trim($hotel->city ?? ''));
+                                                        $hotelAddress = strtolower(trim($hotel->address ?? ''));
+                                                        $locationLower = strtolower(trim($currentLocation));
+                                                        
+                                                        return $hotelCity === $locationLower || $hotelAddress === $locationLower;
+                                                    });
+                                                @endphp
+                                                <select class="form-select" name="hotel_name" id="hotel_name_{{ $hotelOrder->booking_id }}" onchange="updateHotelId_{{ $hotelOrder->booking_id }}(this.value)" required>
+                                                    <option value="">Select Hotel</option>
+                                                    @foreach($locationFilteredHotels as $hotel)
+                                                        <option value="{{ $hotel->name }}" 
+                                                            data-hotel-id="{{ $hotel->hotel_unique_id }}"
+                                                            {{ ($hotel->name == $currentHotelName || $hotel->hotel_unique_id == $currentHotelId) ? 'selected' : '' }}>
+                                                            {{ $hotel->name }}
+                                                        </option>
+                                                    @endforeach
+                                                    @if($currentHotelName && !$locationFilteredHotels->contains('name', $currentHotelName))
+                                                        <option value="{{ $currentHotelName }}" selected>{{ $currentHotelName }}</option>
+                                                    @endif
+                                                </select>
+                                                <script>
+                                                    // Store room data for this hotel booking
+                                                    window.roomData_{{ $hotelOrder->booking_id }} = null;
+                                                    
+                                                    function updateHotelId_{{ $hotelOrder->booking_id }}(selectedValue) {
+                                                        const select = document.getElementById('hotel_name_{{ $hotelOrder->booking_id }}');
+                                                        const selectedOption = select.options[select.selectedIndex];
+                                                        const hotelIdInput = document.getElementById('hotel_id_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        if (selectedOption && selectedOption.dataset.hotelId) {
+                                                            hotelIdInput.value = selectedOption.dataset.hotelId;
+                                                            // Load rooms for the selected hotel
+                                                            loadRoomsForHotel_{{ $hotelOrder->booking_id }}(selectedOption.dataset.hotelId);
+                                                        } else {
+                                                            hotelIdInput.value = '';
+                                                            // Reset room and bed options
+                                                            resetHotelFormFields_{{ $hotelOrder->booking_id }}();
+                                                        }
+                                                    }
+                                                    
+                                                    function loadRoomsForHotel_{{ $hotelOrder->booking_id }}(hotelId) {
+                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        if (!hotelId) {
+                                                            resetHotelFormFields_{{ $hotelOrder->booking_id }}();
+                                                            return;
+                                                        }
+                                                        
+                                                        console.log('Loading rooms for hotel:', hotelId, 'Booking ID:', {{ $hotelOrder->booking_id }});
+                                                        
+                                                        // Show loading state
+                                                        roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
+                                                        roomTypeSelect.disabled = true;
+                                                        bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                        bedTypeSelect.disabled = true;
+                                                        mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                        mealPlanSelect.disabled = true;
+                                                        
+                                                        // Get DMC ID
+                                                        const dmcIdInput = document.getElementById('dmc_id');
+                                                        const currentDmcId = dmcIdInput ? dmcIdInput.value : '';
+                                                        
+                                                        // Fetch rooms for the selected hotel
+                                                        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${currentDmcId}`)
+                                                            .then(response => {
+                                                                if (!response.ok) {
+                                                                    throw new Error('Network response was not ok');
+                                                                }
+                                                                return response.json();
+                                                            })
+                                                            .then(response => {
+                                                                console.log('Rooms API Response for booking {{ $hotelOrder->booking_id }}:', response);
+                                                                
+                                                                roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                                                                
+                                                                if (response.success && response.rooms && response.rooms.length > 0) {
+                                                                    // Filter rooms by DMC ID
+                                                                    let dmcFilteredRooms = response.rooms.filter(room => {
+                                                                        const roomDmcId = room.created_by;
+                                                                        return roomDmcId && roomDmcId == currentDmcId;
+                                                                    });
+                                                                    
+                                                                    if (dmcFilteredRooms.length === 0) {
+                                                                        roomTypeSelect.innerHTML = '<option value="">No rooms available for your DMC</option>';
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    // Store room data for this booking
+                                                                    window.roomData_{{ $hotelOrder->booking_id }} = dmcFilteredRooms;
+                                                                    
+                                                                    // Extract unique room types
+                                                                    const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
+                                                                    
+                                                                    // Get existing room type value to preserve selection
+                                                                    const existingRoomType = roomTypeSelect.value || '{{ $roomType ?? "" }}';
+                                                                    
+                                                                    // Populate room types
+                                                                    roomTypes.forEach(roomType => {
+                                                                        const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
+                                                                        
+                                                                        if (sampleRoom) {
+                                                                            const option = document.createElement('option');
+                                                                            option.value = roomType;
+                                                                            option.textContent = roomType;
+                                                                            option.dataset.roomId = sampleRoom.room_id;
+                                                                            // Preserve existing selection if it matches
+                                                                            if (roomType === existingRoomType) {
+                                                                                option.selected = true;
+                                                                                // Trigger bed loading if room type was already selected
+                                                                                setTimeout(() => {
+                                                                                    loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType);
+                                                                                }, 100);
+                                                                            }
+                                                                            roomTypeSelect.appendChild(option);
+                                                                        }
+                                                                    });
+                                                                    
+                                                                    roomTypeSelect.disabled = false;
+                                                                    console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
+                                                                } else {
+                                                                    roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
+                                                                }
+                                                            })
+                                                            .catch(error => {
+                                                                console.error('Error loading rooms:', error);
+                                                                roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
+                                                            });
+                                                    }
+                                                    
+                                                    function loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType) {
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        if (!roomType) {
+                                                            bedTypeSelect.disabled = true;
+                                                            bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                            mealPlanSelect.disabled = true;
+                                                            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                            return;
+                                                        }
+                                                        
+                                                        console.log('Loading beds for room type:', roomType, 'Booking ID:', {{ $hotelOrder->booking_id }});
+                                                        
+                                                        // Show loading state
+                                                        bedTypeSelect.innerHTML = '<option value="">Loading bed types...</option>';
+                                                        bedTypeSelect.disabled = true;
+                                                        mealPlanSelect.innerHTML = '<option value="">Select bed type first</option>';
+                                                        mealPlanSelect.disabled = true;
+                                                        
+                                                        // Find rooms of the selected type
+                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }};
+                                                        if (!roomData) {
+                                                            bedTypeSelect.innerHTML = '<option value="">No room data available</option>';
+                                                            return;
+                                                        }
+                                                        
+                                                        const selectedRooms = roomData.filter(room => room.room_type === roomType);
+                                                        
+                                                        if (selectedRooms.length === 0) {
+                                                            bedTypeSelect.innerHTML = '<option value="">No rooms of this type</option>';
+                                                            return;
+                                                        }
+                                                        
+                                                        // Get the first room ID to fetch beds
+                                                        const firstRoom = selectedRooms[0];
+                                                        const roomId = firstRoom.room_id;
+                                                        
+                                                        // Fetch beds from API
+                                                        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
+                                                            .then(response => {
+                                                                if (!response.ok) {
+                                                                    throw new Error('Network response was not ok');
+                                                                }
+                                                                return response.json();
+                                                            })
+                                                            .then(data => {
+                                                                console.log('Beds API Response for booking {{ $hotelOrder->booking_id }}:', data);
+                                                                
+                                                                bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                                                                
+                                                                if (data.success && data.beds && data.beds.length > 0) {
+                                                                    data.beds.forEach(bed => {
+                                                                        let bedTypeText = bed.room_type || bed.bed_type || 'Standard Bed';
+                                                                        
+                                                                        if (bed.max_occupancy) {
+                                                                            bedTypeText += ` - Max ${bed.max_occupancy} guests`;
+                                                                        }
+                                                                        
+                                                                        if (bed.adult_count && bed.child_count) {
+                                                                            bedTypeText += ` (${bed.adult_count}A+${bed.child_count}C)`;
+                                                                        }
+                                                                        
+                                                                        if (bed.extra_bed) {
+                                                                            bedTypeText += ` + Extra Bed`;
+                                                                            if (bed.extra_bed_price) {
+                                                                                bedTypeText += ` ($${bed.extra_bed_price})`;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        if (bed.baby_cot) {
+                                                                            bedTypeText += ` + Baby Cot`;
+                                                                            if (bed.baby_cot_price) {
+                                                                                bedTypeText += ` ($${bed.baby_cot_price})`;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        const option = document.createElement('option');
+                                                                        option.value = bed.bed_type || bed.room_type || bed.bed_id;
+                                                                        option.textContent = bedTypeText;
+                                                                        option.setAttribute('data-bed', JSON.stringify(bed));
+                                                                        option.setAttribute('data-bed-id', bed.bed_id);
+                                                                        option.setAttribute('data-room-id', bed.room_id);
+                                                                        
+                                                                        // Preserve existing bed selection if it matches
+                                                                        const existingBedType = '{{ $bedType ?? "" }}';
+                                                                        if (existingBedType) {
+                                                                            // More flexible matching: check bed_type, room_type, or if the value/text contains the existing bed type
+                                                                            const bedTypeMatch = bed.bed_type === existingBedType || 
+                                                                                                bed.room_type === existingBedType ||
+                                                                                                (bed.bed_type && bed.bed_type.toLowerCase().includes(existingBedType.toLowerCase())) ||
+                                                                                                (bed.room_type && bed.room_type.toLowerCase().includes(existingBedType.toLowerCase())) ||
+                                                                                                (option.value && option.value.toLowerCase().includes(existingBedType.toLowerCase()));
+                                                                            if (bedTypeMatch) {
+                                                                                option.selected = true;
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        bedTypeSelect.appendChild(option);
+                                                                    });
+                                                                    
+                                                                    bedTypeSelect.disabled = false;
+                                                                    console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
+                                                                    
+                                                                    // If a bed type was selected, trigger meal plan loading
+                                                                    const selectedBedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                                                                    if (selectedBedOption && selectedBedOption.value && selectedBedOption.dataset.roomId) {
+                                                                        const roomId = selectedBedOption.dataset.roomId;
+                                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                                        const room = roomData.find(r => r.room_id == roomId);
+                                                                        if (room) {
+                                                                            setTimeout(() => {
+                                                                                loadMealPlansForBed_{{ $hotelOrder->booking_id }}(room);
+                                                                            }, 100);
+                                                                        } else {
+                                                                            // Try to get room from room type
+                                                                            const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                                            if (roomTypeSelect && roomTypeSelect.value) {
+                                                                                const selectedRooms = roomData.filter(r => r.room_type === roomTypeSelect.value);
+                                                                                if (selectedRooms.length > 0) {
+                                                                                    setTimeout(() => {
+                                                                                        loadMealPlansForBed_{{ $hotelOrder->booking_id }}(selectedRooms[0]);
+                                                                                    }, 100);
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    } else {
+                                                                        // Load meal plans based on room data
+                                                                        loadMealPlansForBed_{{ $hotelOrder->booking_id }}(selectedRooms[0]);
+                                                                    }
+                                                                } else {
+                                                                    bedTypeSelect.innerHTML = '<option value="">No bed types available</option>';
+                                                                }
+                                                            })
+                                                            .catch(error => {
+                                                                console.error('Error fetching beds:', error);
+                                                                bedTypeSelect.innerHTML = '<option value="">Error loading bed types</option>';
+                                                            });
+                                                    }
+                                                    
+                                                    function loadMealPlansForBed_{{ $hotelOrder->booking_id }}(bedDataOrRoom) {
+                                                        const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
+                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        console.log('Loading meal plans for booking {{ $hotelOrder->booking_id }}', bedDataOrRoom);
+                                                        
+                                                        // Get room from selected bed or passed room data
+                                                        let room = null;
+                                                        let maxOccupancy = null;
+                                                        
+                                                        // First, try to get room from selected bed
+                                                        if (bedTypeSelect && bedTypeSelect.value) {
+                                                            const selectedBedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                                                            if (selectedBedOption && selectedBedOption.dataset.roomId) {
+                                                                const roomId = selectedBedOption.dataset.roomId;
+                                                                room = roomData.find(r => r.room_id == roomId);
+                                                                
+                                                                // Get max occupancy from bed data
+                                                                const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
+                                                                maxOccupancy = bedData.max_occupancy || null;
+                                                            }
+                                                        }
+                                                        
+                                                        // If no room from bed, try from passed parameter
+                                                        if (!room && bedDataOrRoom) {
+                                                            if (bedDataOrRoom.room_id) {
+                                                                room = roomData.find(r => r.room_id == bedDataOrRoom.room_id);
+                                                            } else if (bedDataOrRoom.room_type) {
+                                                                room = bedDataOrRoom;
+                                                            }
+                                                        }
+                                                        
+                                                        // If still no room, try to get from selected room type
+                                                        if (!room && roomData.length > 0) {
+                                                            const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                            if (roomTypeSelect && roomTypeSelect.value) {
+                                                                const selectedRooms = roomData.filter(r => r.room_type === roomTypeSelect.value);
+                                                                if (selectedRooms.length > 0) {
+                                                                    room = selectedRooms[0];
+                                                                }
+                                                            }
+                                                        }
+                                                        
+                                                        if (!room) {
+                                                            console.log('No room found for meal plans');
+                                                            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                            mealPlanSelect.disabled = true;
+                                                            return;
+                                                        }
+                                                        
+                                                        console.log('Room found for meal plans:', room);
+                                                        console.log('Room meal data:', {
+                                                            breakfast: room.breakfast,
+                                                            lunch: room.lunch,
+                                                            dinner: room.dinner,
+                                                            breakfast_included: room.breakfast_included,
+                                                            lunch_included: room.lunch_included,
+                                                            dinner_included: room.dinner_included
+                                                        });
+                                                        
+                                                        mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+                                                        
+                                                        // Check meal availability - check actual room fields (0/1 or boolean)
+                                                        const hasBreakfast = room.breakfast == 1 || room.breakfast === true || room.breakfast === '1' || 
+                                                                             room.breakfast_included == 1 || room.breakfast_included === true;
+                                                        const hasLunch = room.lunch == 1 || room.lunch === true || room.lunch === '1' || 
+                                                                         room.lunch_included == 1 || room.lunch_included === true;
+                                                        const hasDinner = room.dinner == 1 || room.dinner === true || room.dinner === '1' || 
+                                                                         room.dinner_included == 1 || room.dinner_included === true;
+                                                        
+                                                        console.log('Meal availability check result:', { 
+                                                            hasBreakfast, 
+                                                            hasLunch, 
+                                                            hasDinner,
+                                                            maxOccupancy
+                                                        });
+                                                        
+                                                        // Get pax info - try from bed first, then room
+                                                        const paxInfo = maxOccupancy ? ` (Max ${maxOccupancy} pax)` : '';
+                                                        
+                                                        const mealPlans = [];
+                                                        
+                                                        // Always add Room Only
+                                                        mealPlans.push({ value: 'room_only', text: `Room Only${paxInfo}` });
+                                                        
+                                                        // Add meal plans only if available in room data
+                                                        if (hasBreakfast) {
+                                                            mealPlans.push({ value: 'bed_&_breakfast', text: `Bed & Breakfast${paxInfo}` });
+                                                            mealPlans.push({ value: 'breakfast_only', text: `Breakfast Only${paxInfo}` });
+                                                        }
+                                                        if (hasLunch) {
+                                                            mealPlans.push({ value: 'lunch_only', text: `Lunch Only${paxInfo}` });
+                                                        }
+                                                        if (hasDinner) {
+                                                            mealPlans.push({ value: 'dinner_only', text: `Dinner Only${paxInfo}` });
+                                                        }
+                                                        if (hasBreakfast && hasLunch) {
+                                                            mealPlans.push({ value: 'half_board_breakfast_lunch', text: `Half Board (Breakfast + Lunch)${paxInfo}` });
+                                                        }
+                                                        if (hasBreakfast && hasDinner) {
+                                                            mealPlans.push({ value: 'half_board_breakfast_dinner', text: `Half Board (Breakfast + Dinner)${paxInfo}` });
+                                                        }
+                                                        if (hasLunch && hasDinner) {
+                                                            mealPlans.push({ value: 'half_board_lunch_dinner', text: `Half Board (Lunch + Dinner)${paxInfo}` });
+                                                        }
+                                                        if (hasBreakfast && hasLunch && hasDinner) {
+                                                            mealPlans.push({ value: 'full_board_all_meals', text: `Full Board (All Meals)${paxInfo}` });
+                                                            mealPlans.push({ value: 'all_inclusive', text: `All Inclusive${paxInfo}` });
+                                                        }
+                                                        
+                                                        // Populate meal plans dynamically
+                                                        if (mealPlans.length > 0) {
+                                                            const existingMealPlan = '{{ $mealPlan ?? "" }}';
+                                                            let mealPlanSelected = false;
+                                                            
+                                                            mealPlans.forEach(plan => {
+                                                                const option = document.createElement('option');
+                                                                option.value = plan.value;
+                                                                option.textContent = plan.text;
+                                                                
+                                                                // Preserve existing meal plan selection if it matches
+                                                                if (existingMealPlan && !mealPlanSelected) {
+                                                                    // Normalize both values for comparison
+                                                                    const existingValue = existingMealPlan.toLowerCase().trim();
+                                                                    const planValue = plan.value.toLowerCase().trim();
+                                                                    const planText = plan.text.toLowerCase().trim();
+                                                                    
+                                                                    // Try multiple matching strategies
+                                                                    const match1 = planValue === existingValue;
+                                                                    const match2 = planValue.includes(existingValue.replace(/\s+/g, '_'));
+                                                                    const match3 = planText.includes(existingValue);
+                                                                    const match4 = existingValue.includes(planValue);
+                                                                    const match5 = existingValue.replace(/\s+/g, '_') === planValue;
+                                                                    const match6 = existingValue.replace(/\s+/g, '') === planValue.replace(/_/g, '');
+                                                                    
+                                                                    // Also check common meal plan variations
+                                                                    const mealPlanVariations = {
+                                                                        'room only': ['room_only'],
+                                                                        'bed & breakfast': ['bed_&_breakfast', 'bed_and_breakfast'],
+                                                                        'breakfast only': ['breakfast_only'],
+                                                                        'lunch only': ['lunch_only'],
+                                                                        'dinner only': ['dinner_only'],
+                                                                        'half board': ['half_board_breakfast_lunch', 'half_board_breakfast_dinner', 'half_board_lunch_dinner'],
+                                                                        'full board': ['full_board_all_meals'],
+                                                                        'all inclusive': ['all_inclusive']
+                                                                    };
+                                                                    
+                                                                    let variationMatch = false;
+                                                                    for (const [key, values] of Object.entries(mealPlanVariations)) {
+                                                                        if (existingValue.includes(key) && values.includes(planValue)) {
+                                                                            variationMatch = true;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    if (match1 || match2 || match3 || match4 || match5 || match6 || variationMatch) {
+                                                                        option.selected = true;
+                                                                        mealPlanSelected = true;
+                                                                    }
+                                                                }
+                                                                
+                                                                mealPlanSelect.appendChild(option);
+                                                            });
+                                                            
+                                                            mealPlanSelect.disabled = false;
+                                                            console.log(`Loaded ${mealPlans.length} meal plan options dynamically from room data with pax info`);
+                                                            if (existingMealPlan && mealPlanSelected) {
+                                                                console.log(`Meal plan "${existingMealPlan}" was automatically selected`);
+                                                            }
+                                                        } else {
+                                                            mealPlanSelect.innerHTML = '<option value="">No meal plans available for this room</option>';
+                                                            mealPlanSelect.disabled = true;
+                                                        }
+                                                    }
+                                                    
+                                                    function onBedTypeChange_{{ $hotelOrder->booking_id }}(bedTypeValue) {
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                                                        
+                                                        // Update pax info when bed is selected
+                                                        if (selectedOption) {
+                                                            const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
+                                                            const maxOccupancy = bedData.max_occupancy;
+                                                            const paxInfoEl = document.getElementById('pax_info_{{ $hotelOrder->booking_id }}');
+                                                            
+                                                            if (maxOccupancy && paxInfoEl) {
+                                                                paxInfoEl.textContent = `Max occupancy: ${maxOccupancy} pax`;
+                                                                paxInfoEl.style.color = '#198754';
+                                                            }
+                                                        }
+                                                        
+                                                        // Load meal plans
+                                                        if (selectedOption && selectedOption.dataset.roomId) {
+                                                            const roomId = selectedOption.dataset.roomId;
+                                                            const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                            const room = roomData.find(r => r.room_id == roomId);
+                                                            
+                                                            if (room) {
+                                                                loadMealPlansForBed_{{ $hotelOrder->booking_id }}(room);
+                                                            } else {
+                                                                // Try to get room from room type
+                                                                const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                                if (roomTypeSelect && roomTypeSelect.value) {
+                                                                    const selectedRooms = roomData.filter(r => r.room_type === roomTypeSelect.value);
+                                                                    if (selectedRooms.length > 0) {
+                                                                        loadMealPlansForBed_{{ $hotelOrder->booking_id }}(selectedRooms[0]);
+                                                                    }
+                                                                }
+                                                            }
+                                                        } else {
+                                                            // Fallback: try to get room from room type
+                                                            const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                            const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                            if (roomTypeSelect && roomTypeSelect.value && roomData.length > 0) {
+                                                                const selectedRooms = roomData.filter(r => r.room_type === roomTypeSelect.value);
+                                                                if (selectedRooms.length > 0) {
+                                                                    loadMealPlansForBed_{{ $hotelOrder->booking_id }}(selectedRooms[0]);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    function updatePaxInfo_{{ $hotelOrder->booking_id }}(paxValue) {
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const paxInfoEl = document.getElementById('pax_info_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        if (bedTypeSelect && bedTypeSelect.value && paxInfoEl) {
+                                                            const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                                                            if (selectedOption) {
+                                                                const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
+                                                                const maxOccupancy = bedData.max_occupancy;
+                                                                
+                                                                if (maxOccupancy) {
+                                                                    if (parseInt(paxValue) > parseInt(maxOccupancy)) {
+                                                                        paxInfoEl.textContent = `Warning: Exceeds max occupancy of ${maxOccupancy} pax`;
+                                                                        paxInfoEl.style.color = '#dc3545';
+                                                                    } else {
+                                                                        paxInfoEl.textContent = `Max occupancy: ${maxOccupancy} pax`;
+                                                                        paxInfoEl.style.color = '#198754';
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    
+                                                    function resetHotelFormFields_{{ $hotelOrder->booking_id }}() {
+                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                        const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        if (roomTypeSelect) {
+                                                            roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                                                            roomTypeSelect.disabled = true;
+                                                        }
+                                                        if (bedTypeSelect) {
+                                                            bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                            bedTypeSelect.disabled = true;
+                                                        }
+                                                        if (mealPlanSelect) {
+                                                            mealPlanSelect.innerHTML = '<option value="">Select bed type first</option>';
+                                                            mealPlanSelect.disabled = true;
+                                                        }
+                                                        
+                                                        window.roomData_{{ $hotelOrder->booking_id }} = null;
+                                                    }
+                                                    
+                                                    // Initialize hotel_id and load rooms on page load if hotel is already selected
+                                                    document.addEventListener('DOMContentLoaded', function() {
+                                                        const hotelSelect = document.getElementById('hotel_name_{{ $hotelOrder->booking_id }}');
+                                                        if (hotelSelect && hotelSelect.value) {
+                                                            updateHotelId_{{ $hotelOrder->booking_id }}(hotelSelect.value);
+                                                        }
+                                                    });
+                                                </script>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Check-in Date</label>
@@ -438,42 +1087,70 @@
                                                 <input type="date" class="form-control" name="check_out_date" value="{{ $checkOutValue }}" required>
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Check-in Time</label>
-                                                <input type="time" class="form-control" name="check_in_time" value="{{ isset($hotelDetails['checkInTime']) ? \Illuminate\Support\Str::substr($hotelDetails['checkInTime'], 0, 5) : '' }}">
+                                                <label class="form-label fw-semibold">Number of Rooms</label>
+                                                <input type="number" class="form-control" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1">
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label fw-semibold">Check-out Time</label>
-                                                <input type="time" class="form-control" name="check_out_time" value="{{ isset($hotelDetails['checkOutTime']) ? \Illuminate\Support\Str::substr($hotelDetails['checkOutTime'], 0, 5) : '' }}">
+                                                <label class="form-label fw-semibold">Room Type</label>
+                                                <select class="form-select" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value)">
+                                                    <option value="">Select Room Type</option>
+                                                    @if($roomType)
+                                                        <option value="{{ $roomType }}" selected>{{ $roomType }}</option>
+                                                    @endif
+                                                </select>
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Stay Covers</label>
-                                                <input type="text" class="form-control" name="days_display" value="{{ implode(', ', $hotelDays) }}" placeholder="e.g. Day 1, Day 2">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">Bed Type</label>
+                                                <select class="form-select" name="bed_type" id="bed_type_{{ $hotelOrder->booking_id }}" onchange="onBedTypeChange_{{ $hotelOrder->booking_id }}(this.value)">
+                                                    <option value="">Select Bed Type</option>
+                                                    @if($bedType)
+                                                        <option value="{{ $bedType }}" selected>{{ $bedType }}</option>
+                                                    @endif
+                                                </select>
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-semibold">Notes</label>
-                                                <textarea class="form-control" name="notes" rows="1" placeholder="Special requests, comments">{{ $hotelInfo['notes'] ?? '' }}</textarea>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">Meal Plan</label>
+                                                <select class="form-select" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}">
+                                                    <option value="">Select Meal Plan</option>
+                                                    @if($mealPlan)
+                                                        <option value="{{ $mealPlan }}" selected>{{ $mealPlan }}</option>
+                                                    @endif
+                                                </select>
                                             </div>
-                                            <div class="col-12">
-                                                <label class="form-label fw-semibold d-flex align-items-center gap-2">
-                                                    Room Configuration
-                                                    <small class="text-muted fw-normal">(JSON format from create form)</small>
-                                                </label>
-                                                <textarea class="form-control font-monospace" name="rooms_json" rows="4" placeholder='[{"room_type":"Deluxe","no_of_rooms":1}]'>{{ $roomsJson }}</textarea>
-                                                <small class="text-muted">Update the JSON to adjust room types, meal plans, occupancy, etc.</small>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">Number of Persons (Pax)</label>
+                                                <input type="number" class="form-control" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value)">
+                                                <small class="text-muted" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-4">
                                             <div class="text-muted small" id="hotel_feedback_{{ $hotelOrder->booking_id }}"></div>
-                                            <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-2" onclick="updateExistingHotel(event, {{ $hotelOrder->booking_id }})">
                                                 <span class="spinner-border spinner-border-sm d-none" id="hotel_spinner_{{ $hotelOrder->booking_id }}"></span>
-                                                <span>Save Changes</span>
+                                                <span> Save Changes </span>
                                             </button>
                                         </div>
-                                    </form>
+                                    </div>
                                 </div>
                                 @endforeach
                             </div>
                         </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="text-center py-3">
+                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addHotelService()" style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            border: none;
+                            color: white;
+                            font-weight: 600;
+                            letter-spacing: 0.5px;
+                            transition: all 0.3s ease;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Hotels
+                        </button>
                     </div>
                 </div>
             </div>
@@ -481,28 +1158,60 @@
 
             <!-- Day-based Service Sections -->
             @if(isset($tourDays) && count($tourDays) > 0)
+                @php
+                    // Check if any day has services
+                    $hasAnyServices = false;
+                    foreach($tourDays as $dayInfo) {
+                        if(count($dayInfo['orders']) > 0) {
+                            $hasAnyServices = true;
+                            break;
+                        }
+                    }
+                @endphp
+                @if($hasAnyServices)
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-gradient-primary text-white">
-                            <h6 class="mb-0 fw-bold">
-                                <i class="ri-calendar-line me-2"></i>Tour Itinerary
-                            </h6>
-                        </div>
                         <div class="card-body mb-4">
+                            @php
+                                // Collect all attractions, guides, and transport services from all days
+                                $allAttractions = [];
+                                $allGuides = [];
+                                $allTransportHourly = [];
+                                $allTransportPoint = [];
+                                $allLocalTransport = [];
+                                foreach($tourDays as $dateKey => $dayInfo) {
+                                    foreach($dayInfo['orders'] as $order) {
+                                        if ($order->type === 'attraction') {
+                                            $allAttractions[] = $order;
+                                        } elseif ($order->type === 'guide') {
+                                            $allGuides[] = $order;
+                                        } elseif ($order->type === 'travel_hourly') {
+                                            $allTransportHourly[] = $order;
+                                        } elseif ($order->type === 'travel_point') {
+                                            $allTransportPoint[] = $order;
+                                        } elseif ($order->type === 'local_transport') {
+                                            $allLocalTransport[] = $order;
+                                        }
+                                    }
+                                }
+                            @endphp
                             @foreach($tourDays as $dateKey => $dayInfo)
+                                @if(count($dayInfo['orders']) > 0)
                             <!-- Day {{ $dayInfo['day_number'] }} Services -->
                             <div class="day-services mb-4">
                                 <!-- <h6 class="fw-bold text-primary mb-3">
                                     <i class="ri-calendar-check-line me-2"></i>Day {{ $dayInfo['day_number'] }} ({{ $dayInfo['date']->format('l, jS F Y') }})
                                 </h6> -->
-                                
-                                @if(count($dayInfo['orders']) > 0)
                                     @php
-                                        // Group this day's orders by type
+                                        // Group this day's orders by type (excluding attractions and guides)
                                         $dayOrdersByType = [];
                                         foreach($dayInfo['orders'] as $order) {
                                             $type = $order->type;
+                                            // Skip attractions and guides as they will be shown separately
+                                            if ($type === 'attraction' || $type === 'guide') {
+                                                continue;
+                                            }
                                             if (!isset($dayOrdersByType[$type])) {
                                                 $dayOrdersByType[$type] = [];
                                             }
@@ -540,7 +1249,7 @@
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
                                                 @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="entry_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="entry_port">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -615,10 +1324,6 @@
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
                                                             <input type="number" class="form-control border-2" name="passenger_count" min="1" value="{{ $passengers }}" placeholder="Count">
                                                         </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1">Notes</label>
-                                                            <input type="text" class="form-control border-2" name="notes" value="{{ $transportData['notes'] ?? '' }}" placeholder="Any remarks">
-                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_entry_port"></div>
@@ -631,10 +1336,752 @@
                                             @endforeach
                                         </div>
                                     </div>
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addArrivalService()" style="
+                                                background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(17, 153, 142, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(17, 153, 142, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Arrival Services
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 @endif
 
-                                @if(isset($dayOrdersByType['exit_port']))
+                                <!-- Restaurant Services Section -->
+                                @if(isset($dayOrdersByType['restaurant']))
+                                <div class="service-section mb-3">
+                                    <div class="card border-success shadow-sm">
+                                        <div class="card-header bg-success text-white">
+                                            <div class="d-flex align-items-center">
+                                                <span class="service-icon me-3">
+                                                    <i class="ri-restaurant-2-line fs-4"></i>
+                                                </span>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold">Book Restaurant Services</h6>
+                                                    <small class="opacity-75">Select restaurants and configure your dining experience</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body mt-3">
+                                            @foreach($dayOrdersByType['restaurant'] as $index => $order)
+                                            @php
+                                                $restaurantData = $order->processed_data;
+                                                $payload = [];
+                                                if (is_array($restaurantData)) {
+                                                    $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
+                                                }
+                                                $restaurantName = $payload['restaurantName'] ?? 'N/A';
+                                                $mealType = $payload['mealType'] ?? '';
+                                                $mealSpecificType = $payload['mealSpecificType'] ?? '';
+                                                $timeSlot = $payload['visitTime'] ?? '';
+                                                $adultCount = $payload['adultCount'] ?? 0;
+                                                $childCount = $payload['childCount'] ?? 0;
+                                                $totalPrice = $payload['totalPrice'] ?? 0;
+                                                $mealDescription = $payload['MealDescription'] ?? null;
+                                                $restaurantNotes = $payload['notes'] ?? '';
+
+                                                if ($totalPrice <= 0 && is_array($mealDescription)) {
+                                                    $calculatedTotal = 0;
+                                                    foreach ($mealDescription as $meal) {
+                                                        $mealPrice = $meal['price'] ?? 0;
+                                                        $quantity = $meal['quantity'] ?? 1;
+                                                        $calculatedTotal += $mealPrice * $quantity;
+                                                    }
+                                                    if ($calculatedTotal > 0) {
+                                                        $totalPrice = $calculatedTotal;
+                                                    }
+                                                }
+                                            @endphp
+                                            <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                                @csrf
+                                                <input type="hidden" name="type" value="restaurant">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
+                                                    <div class="d-flex gap-2">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
+                                                        <select class="form-select border-2" name="restaurant_name" id="restaurant_name_{{ $order->booking_id }}" required>
+                                                            <option value="">Select Restaurant</option>
+                                                            @php
+                                                                $tourCountry = $tour->destination ?? '';
+                                                                $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
+                                                                    // Check if restaurant has country field directly
+                                                                    if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
+                                                                        return true;
+                                                                    }
+                                                                    // If no country filter available, include all restaurants
+                                                                    return empty($tourCountry);
+                                                                });
+                                                            @endphp
+                                                            @foreach($filteredRestaurants as $restaurant)
+                                                                <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name ? 'selected' : '' }} 
+                                                                    data-restaurant-id="{{ $restaurant->restaurant_id ?? '' }}"
+                                                                    data-restaurant-data="{{ json_encode($restaurant) }}">
+                                                                    {{ $restaurant->name }}
+                                                                    @if(isset($restaurant->city))
+                                                                        - {{ $restaurant->city }}
+                                                                    @endif
+                                                                    @if(isset($restaurant->cuisine))
+                                                                        ({{ $restaurant->cuisine }})
+                                                                    @endif
+                                                                </option>
+                                                            @endforeach
+                                                            @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName))
+                                                                <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
+                                                            @endif
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
+                                                        <input type="text" class="form-control border-2" name="meal_type" value="{{ $mealType }}" placeholder="Lunch, Dinner">
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Specific Type</label>
+                                                        <input type="text" class="form-control border-2" name="meal_specific_type" value="{{ $mealSpecificType }}" placeholder="Buffet, À la carte">
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
+                                                        <input type="text" class="form-control border-2" name="time_slot" value="{{ $timeSlot }}" placeholder="e.g. 07:00 AM">
+                                                        <small class="text-muted">Available time slots</small>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                        <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                        <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                        <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format($totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                    <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
+                                                    <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                        <span class="spinner-border spinner-border-sm d-none" id="restaurant_spinner_{{ $order->booking_id }}"></span>
+                                                        <span>Save Changes</span>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
+                                                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Restaurants
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
+                            </div>
+                                @endif
+                            @endforeach
+                            
+                            <!-- Other Transport Services Section (Unified) -->
+                            @if(count($allTransportHourly) > 0 || count($allTransportPoint) > 0 || count($allLocalTransport) > 0)
+                            <div class="service-section mb-3">
+                                <div class="card border-warning shadow-sm">
+                                    <div class="card-header bg-warning text-dark">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-car-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">Other Transport Services</h6>
+                                                <small class="opacity-75">Local transfers and other transport services from all days</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body mt-3">
+                                        @if(count($allTransportHourly) > 0)
+                                            @foreach($allTransportHourly as $index => $order)
+                                                @php
+                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                                    if (isset($transportData[0])) {
+                                                        $transportData = $transportData[0];
+                                                    }
+                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
+                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? '';
+                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
+                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleType = $transportData['type'] ?? '';
+                                                    $selectedHours = $transportData['selectedHours'] ?? $transportData['hours'] ?? '';
+                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
+                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
+                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
+                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                @endphp
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                    @csrf
+                                                    <input type="hidden" name="type" value="travel_hourly">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
+                                                            <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup location" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location (optional)</label>
+                                                            <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff location">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
+                                                            <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
+                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
+                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2" name="vehicle_type">
+                                                                <option value="">Select type</option>
+                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
+                                                            <input type="number" class="form-control border-2" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
+                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_hourly"></span>
+                                                            <span>Save Changes</span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endforeach
+                                        @endif
+
+                                        @if(count($allTransportPoint) > 0)
+                                            @foreach($allTransportPoint as $index => $order)
+                                                @php
+                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                                    if (isset($transportData[0])) {
+                                                        $transportData = $transportData[0];
+                                                    }
+                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
+                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? '';
+                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
+                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleType = $transportData['type'] ?? '';
+                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
+                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
+                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
+                                                    $distance = $transportData['distance'] ?? 0;
+                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                @endphp
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                    @csrf
+                                                    <input type="hidden" name="type" value="travel_point">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
+                                                            <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup location" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location</label>
+                                                            <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff location" required>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
+                                                            <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
+                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
+                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2" name="vehicle_type">
+                                                                <option value="">Select type</option>
+                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-roadster-line me-1 text-info"></i>Distance (km)</label>
+                                                            <input type="number" class="form-control border-2" name="distance" step="0.01" min="0" value="{{ $distance }}" placeholder="0">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_point"></div>
+                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_point"></span>
+                                                            <span>Save Changes</span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endforeach
+                                        @endif
+
+                                        @if(count($allLocalTransport) > 0)
+                                            @foreach($allLocalTransport as $index => $order)
+                                                @php
+                                                    $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
+                                                    if (isset($transportData[0])) {
+                                                        $transportData = $transportData[0];
+                                                    }
+                                                    $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
+                                                    $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
+                                                    $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
+                                                    $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
+                                                    $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
+                                                    $pickupDate = '';
+                                                    if ($pickupDateRaw) {
+                                                        try {
+                                                            $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
+                                                        } catch (\Exception $exception) {
+                                                            $pickupDate = $pickupDateRaw;
+                                                        }
+                                                    }
+                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleType = $transportData['type'] ?? '';
+                                                    $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
+                                                    $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
+                                                    $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
+                                                    $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
+                                                @endphp
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="local_transport" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                    @csrf
+                                                    <input type="hidden" name="type" value="local_transport">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
+                                                                <i class="ri-delete-bin-line"></i> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Zone/Location</label>
+                                                            <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup zone" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Zone/Location</label>
+                                                            <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff zone" required>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
+                                                            <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
+                                                            <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
+                                                            <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
+                                                            <select class="form-select border-2" name="vehicle_type">
+                                                                <option value="">Select type</option>
+                                                                <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
+                                                                <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                            <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                        <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_local_transport"></div>
+                                                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                            <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_local_transport"></span>
+                                                            <span>Save Changes</span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <div class="text-center py-3">
+                                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
+                                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                            border: none;
+                                            color: white;
+                                            font-weight: 600;
+                                            letter-spacing: 0.5px;
+                                            transition: all 0.3s ease;
+                                            border-radius: 8px;
+                                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                            
+                            <!-- All Attractions Section (Unified) -->
+                            @if(count($allAttractions) > 0)
+                            <div class="service-section mb-3">
+                                <div class="card border-danger shadow-sm">
+                                    <div class="card-header bg-danger text-white">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-ticket-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">All Attraction Tickets</h6>
+                                                <small class="opacity-75">All attractions from all days in one place</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body mt-3">
+                                        @foreach($allAttractions as $index => $order)
+                                        @php
+                                            $attractionData = $order->processed_data;
+                                            $payload = [];
+                                            if (is_array($attractionData)) {
+                                                $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
+                                            }
+                                            $attractionName = $payload['AttractionName'] ?? 'N/A';
+                                            $timeSlot = $payload['visitTime'] ?? 'N/A';
+                                            $ticket = $payload['ticketName'] ?? 'N/A';
+                                            $adultCount = $payload['adultCount'] ?? 0;
+                                            $childCount = $payload['childCount'] ?? 0;
+                                            $seniorCount = $payload['seniorCount'] ?? 0;
+                                            $totalPrice = $payload['totalPrice'] ?? 0;
+                                            $attractionNotes = $payload['notes'] ?? '';
+                                        @endphp
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
+                                            @csrf
+                                            <input type="hidden" name="type" value="attraction">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
+                                                    <select class="form-select border-2" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Attraction</option>
+                                                        @php
+                                                            $tourCountry = $tour->destination ?? '';
+                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourCountry) {
+                                                                // Check if attraction has country field directly
+                                                                if (isset($attraction->country) && $attraction->country == $tourCountry) {
+                                                                    return true;
+                                                                }
+                                                                // If no country filter available, include all attractions
+                                                                return empty($tourCountry);
+                                                            });
+                                                        @endphp
+                                                        @foreach($filteredAttractions as $attraction)
+                                                            <option value="{{ $attraction->name }}" {{ $attractionName == $attraction->name ? 'selected' : '' }} 
+                                                                data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
+                                                                data-attraction-data="{{ json_encode($attraction) }}">
+                                                                {{ $attraction->name }}
+                                                                @if(isset($attraction->location))
+                                                                    - {{ $attraction->location }}
+                                                                @endif
+                                                            </option>
+                                                        @endforeach
+                                                        @if($attractionName && !$filteredAttractions->pluck('name')->contains($attractionName))
+                                                            <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
+                                                        @endif
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
+                                                    <input type="text" class="form-control border-2" name="ticket_name" value="{{ $ticket }}" placeholder="Ticket name">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
+                                                    <input type="text" class="form-control border-2" name="visit_time" value="{{ $timeSlot }}" placeholder="e.g. 11:00 - 13:00">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
+                                                    <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format($totalPrice, 2, '.', '') }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
+                                                    <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
+                                                    <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
+                                                    <input type="number" class="form-control border-2" name="senior_count" min="0" value="{{ $seniorCount }}" required>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
+                                                <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="attraction_spinner_{{ $order->booking_id }}"></span>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </div>
+                                        </form>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <div class="text-center py-3">
+                                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
+                                            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+                                            border: none;
+                                            color: white;
+                                            font-weight: 600;
+                                            letter-spacing: 0.5px;
+                                            transition: all 0.3s ease;
+                                            border-radius: 8px;
+                                            box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+                                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
+                                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Attractions
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- All Guides Section (Unified) -->
+                            @if(count($allGuides) > 0)
+                            <div class="service-section mb-3">
+                                <div class="card border-info shadow-sm">
+                                    <div class="card-header bg-info text-white">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon me-3">
+                                                <i class="ri-user-star-line fs-4"></i>
+                                            </span>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">All Tour Guide Services</h6>
+                                                <small class="opacity-75">All guides from all days in one place</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-body mt-3">
+                                        @foreach($allGuides as $index => $order)
+                                        @php
+                                            $guideData = $order->processed_data;
+                                            $payload = [];
+                                            if (is_array($guideData)) {
+                                                $payload = isset($guideData[0]) ? $guideData[0] : $guideData;
+                                            }
+                                            $guideName = $payload['guide_name'] ?? 'N/A';
+                                            $packageHours = $payload['hours'] ?? '';
+                                            $pickupTime = $payload['entrytime'] ?? '';
+                                            $guestSummary = $payload['fullName'] ?? '';
+                                            $guideNotes = $payload['notes'] ?? '';
+                                        @endphp
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
+                                            @csrf
+                                            <input type="hidden" name="type" value="guide">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
+                                                <div class="d-flex gap-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
+                                                    <select class="form-select border-2" name="guide_name" id="guide_name_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Guide</option>
+                                                        @php
+                                                            $tourCountry = $tour->destination ?? '';
+                                                            $filteredGuides = collect($guides ?? [])->filter(function($guide) use ($tourCountry) {
+                                                                // Check if guide has country field directly
+                                                                if (isset($guide->country) && $guide->country == $tourCountry) {
+                                                                    return true;
+                                                                }
+                                                                // Check if guide has city relationship with country
+                                                                if (isset($guide->city) && is_object($guide->city) && isset($guide->city->country)) {
+                                                                    return $guide->city->country == $tourCountry;
+                                                                }
+                                                                // If no country filter available, include all guides
+                                                                return empty($tourCountry);
+                                                            });
+                                                        @endphp
+                                                        @foreach($filteredGuides as $guide)
+                                                            @php
+                                                                $guideLanguages = [];
+                                                                if (isset($guide->languages) && is_iterable($guide->languages)) {
+                                                                    foreach ($guide->languages as $lang) {
+                                                                        if (is_object($lang) && isset($lang->language)) {
+                                                                            $guideLanguages[] = $lang->language;
+                                                                        } elseif (is_array($lang) && isset($lang['language'])) {
+                                                                            $guideLanguages[] = $lang['language'];
+                                                                        }
+                                                                    }
+                                                                }
+                                                                $languagesText = !empty($guideLanguages) ? ' - ' . implode(', ', $guideLanguages) : '';
+                                                            @endphp
+                                                            <option value="{{ $guide->name }}" {{ $guideName == $guide->name ? 'selected' : '' }} 
+                                                                data-guide-id="{{ $guide->guide_id ?? '' }}"
+                                                                data-guide-data="{{ json_encode($guide) }}">
+                                                                {{ $guide->name }}{{ $languagesText }}
+                                                            </option>
+                                                        @endforeach
+                                                        @if($guideName && !$filteredGuides->pluck('name')->contains($guideName))
+                                                            <option value="{{ $guideName }}" selected>{{ $guideName }}</option>
+                                                        @endif
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
+                                                    <input type="text" class="form-control border-2" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
+                                                    <input type="text" class="form-control border-2" name="pickup_time" value="{{ $pickupTime }}" placeholder="HH:MM or text">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-group-line me-1 text-secondary"></i>Guests</label>
+                                                    <input type="text" class="form-control border-2" name="guest_name" value="{{ $guestSummary }}" placeholder="Guest name(s)">
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
+                                                <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
+                                                <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
+                                                    <span class="spinner-border spinner-border-sm d-none" id="guide_spinner_{{ $order->booking_id }}"></span>
+                                                    <span>Save Changes</span>
+                                                </button>
+                                            </div>
+                                        </form>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <div class="text-center py-3">
+                                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
+                                            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                                            border: none;
+                                            color: white;
+                                            font-weight: 600;
+                                            letter-spacing: 0.5px;
+                                            transition: all 0.3s ease;
+                                            border-radius: 8px;
+                                            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+                                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
+                                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Guides
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            <!-- Departure Transport Services Section -->
+                            @if(isset($dayOrdersByType['exit_port']))
                                 <div class="service-section mb-3">
                                     <div class="card border-danger shadow-sm">
                                         <div class="card-header bg-danger text-white">
@@ -663,7 +2110,7 @@
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
                                                 @endphp
-                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="exit_port" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
+                                                <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="exit_port" data-update-url="{{ route('edit-tour.update-transport', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
                                                     @csrf
                                                     <input type="hidden" name="type" value="exit_port">
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -738,10 +2185,6 @@
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
                                                             <input type="number" class="form-control border-2" name="passenger_count" min="1" value="{{ $passengers }}" placeholder="Count">
                                                         </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label fw-semibold text-muted mb-1">Notes</label>
-                                                            <input type="text" class="form-control border-2" name="notes" value="{{ $transportData['notes'] ?? '' }}" placeholder="Any remarks">
-                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_exit_port"></div>
@@ -754,677 +2197,29 @@
                                             @endforeach
                                         </div>
                                     </div>
-                                </div>
-                                @endif
-                                    
-                                <!-- Attractions Section -->
-                                @if(isset($dayOrdersByType['attraction']))
-                                <div class="service-section mb-3">
-                                    <div class="card border-danger shadow-sm">
-                                        <div class="card-header bg-danger text-white">
-                                            <div class="d-flex align-items-center">
-                                                <span class="service-icon me-3">
-                                                    <i class="ri-ticket-line fs-4"></i>
-                                                </span>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Book Attraction Tickets</h6>
-                                                    <small class="opacity-75">Select attractions and configure your perfect tour package</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @foreach($dayOrdersByType['attraction'] as $index => $order)
-                                            @php
-                                                $attractionData = $order->processed_data;
-                                                $payload = [];
-                                                if (is_array($attractionData)) {
-                                                    $payload = isset($attractionData[0]) ? $attractionData[0] : $attractionData;
-                                                }
-                                                $attractionName = $payload['AttractionName'] ?? 'N/A';
-                                                $timeSlot = $payload['visitTime'] ?? 'N/A';
-                                                $ticket = $payload['ticketName'] ?? 'N/A';
-                                                $adultCount = $payload['adultCount'] ?? 0;
-                                                $childCount = $payload['childCount'] ?? 0;
-                                                $seniorCount = $payload['seniorCount'] ?? 0;
-                                                $totalPrice = $payload['totalPrice'] ?? 0;
-                                                $attractionNotes = $payload['notes'] ?? '';
-                                            @endphp
-                                            <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
-                                                @csrf
-                                                <input type="hidden" name="type" value="attraction">
-                                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
-                                                    <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
-                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
-                                                        <input type="text" class="form-control border-2" name="attraction_name" value="{{ $attractionName }}" required>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-ticket-line me-1 text-info"></i>Ticket</label>
-                                                        <input type="text" class="form-control border-2" name="ticket_name" value="{{ $ticket }}" placeholder="Ticket name">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                        <input type="text" class="form-control border-2" name="visit_time" value="{{ $timeSlot }}" placeholder="e.g. 11:00 - 13:00">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                        <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format($totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                        <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                        <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-heart-line me-1 text-secondary"></i>Seniors</label>
-                                                        <input type="number" class="form-control border-2" name="senior_count" min="0" value="{{ $seniorCount }}" required>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-file-text-line me-1 text-muted"></i>Notes</label>
-                                                        <textarea class="form-control border-2" name="notes" rows="2" placeholder="Special requests, reminders">{{ $attractionNotes }}</textarea>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                    <div class="text-muted small" id="attraction_feedback_{{ $order->booking_id }}"></div>
-                                                    <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                        <span class="spinner-border spinner-border-sm d-none" id="attraction_spinner_{{ $order->booking_id }}"></span>
-                                                        <span>Save Changes</span>
-                                                    </button>
-                                                </div>
-                                            </form>
-                                            @endforeach
+                                    <div class="card-footer bg-light">
+                                        <div class="text-center py-3">
+                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addDepartureService()" style="
+                                                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                                                border: none;
+                                                color: white;
+                                                font-weight: 600;
+                                                letter-spacing: 0.5px;
+                                                transition: all 0.3s ease;
+                                                border-radius: 8px;
+                                                box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 87, 108, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 87, 108, 0.4)';">
+                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Departure Services
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                                 @endif
-
-                                <!-- Guide Services Section -->
-                                @if(isset($dayOrdersByType['guide']))
-                                <div class="service-section mb-3">
-                                    <div class="card border-info shadow-sm">
-                                        <div class="card-header bg-info text-white">
-                                            <div class="d-flex align-items-center">
-                                                <span class="service-icon me-3">
-                                                    <i class="ri-user-star-line fs-4"></i>
-                                                </span>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Book Tour Guide Services</h6>
-                                                    <small class="opacity-75">Select professional guides and configure your tour package</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @foreach($dayOrdersByType['guide'] as $index => $order)
-                                            @php
-                                                $guideData = $order->processed_data;
-                                                $payload = [];
-                                                if (is_array($guideData)) {
-                                                    $payload = isset($guideData[0]) ? $guideData[0] : $guideData;
-                                                }
-                                                $guideName = $payload['guide_name'] ?? 'N/A';
-                                                $packageHours = $payload['hours'] ?? '';
-                                                $pickupTime = $payload['entrytime'] ?? '';
-                                                $guestSummary = $payload['fullName'] ?? '';
-                                                $guideNotes = $payload['notes'] ?? '';
-                                            @endphp
-                                            <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
-                                                @csrf
-                                                <input type="hidden" name="type" value="guide">
-                                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
-                                                    <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
-                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-star-line me-1 text-primary"></i>Guide Name</label>
-                                                        <input type="text" class="form-control border-2" name="guide_name" value="{{ $guideName }}" required>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Package (Hours)</label>
-                                                        <input type="text" class="form-control border-2" name="package_hours" value="{{ $packageHours }}" placeholder="e.g. 4">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
-                                                        <input type="text" class="form-control border-2" name="pickup_time" value="{{ $pickupTime }}" placeholder="HH:MM or text">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-group-line me-1 text-secondary"></i>Guests</label>
-                                                        <input type="text" class="form-control border-2" name="guest_name" value="{{ $guestSummary }}" placeholder="Guest name(s)">
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-file-text-line me-1 text-muted"></i>Notes</label>
-                                                        <textarea class="form-control border-2" name="notes" rows="2" placeholder="Special instructions">{{ $guideNotes }}</textarea>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                    <div class="text-muted small" id="guide_feedback_{{ $order->booking_id }}"></div>
-                                                    <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                        <span class="spinner-border spinner-border-sm d-none" id="guide_spinner_{{ $order->booking_id }}"></span>
-                                                        <span>Save Changes</span>
-                                                    </button>
-                                                </div>
-                                            </form>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                </div>
-                                @endif
-
-                                    <!-- Restaurant Services Section -->
-                                    @if(isset($dayOrdersByType['restaurant']))
-                                <div class="service-section mb-3">
-                                    <div class="card border-success shadow-sm">
-                                        <div class="card-header bg-success text-white">
-                                            <div class="d-flex align-items-center">
-                                                <span class="service-icon me-3">
-                                                    <i class="ri-restaurant-2-line fs-4"></i>
-                                                </span>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Book Restaurant Services</h6>
-                                                    <small class="opacity-75">Select restaurants and configure your dining experience</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @foreach($dayOrdersByType['restaurant'] as $index => $order)
-                                            @php
-                                                $restaurantData = $order->processed_data;
-                                                $payload = [];
-                                                if (is_array($restaurantData)) {
-                                                    $payload = isset($restaurantData[0]) ? $restaurantData[0] : $restaurantData;
-                                                }
-                                                $restaurantName = $payload['restaurantName'] ?? 'N/A';
-                                                $mealType = $payload['mealType'] ?? '';
-                                                $mealSpecificType = $payload['mealSpecificType'] ?? '';
-                                                $adultCount = $payload['adultCount'] ?? 0;
-                                                $childCount = $payload['childCount'] ?? 0;
-                                                $totalPrice = $payload['totalPrice'] ?? 0;
-                                                $mealDescription = $payload['MealDescription'] ?? null;
-                                                $restaurantNotes = $payload['notes'] ?? '';
-
-                                                if ($totalPrice <= 0 && is_array($mealDescription)) {
-                                                    $calculatedTotal = 0;
-                                                    foreach ($mealDescription as $meal) {
-                                                        $mealPrice = $meal['price'] ?? 0;
-                                                        $quantity = $meal['quantity'] ?? 1;
-                                                        $calculatedTotal += $mealPrice * $quantity;
-                                                    }
-                                                    if ($calculatedTotal > 0) {
-                                                        $totalPrice = $calculatedTotal;
-                                                    }
-                                                }
-                                            @endphp
-                                            <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
-                                                @csrf
-                                                <input type="hidden" name="type" value="restaurant">
-                                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                                    <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
-                                                    <div class="d-flex gap-2">
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
-                                                            <i class="ri-delete-bin-line"></i> Remove
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-restaurant-line me-1 text-primary"></i>Restaurant Name</label>
-                                                        <input type="text" class="form-control border-2" name="restaurant_name" value="{{ $restaurantName }}" required>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-warning"></i>Meal Type</label>
-                                                        <input type="text" class="form-control border-2" name="meal_type" value="{{ $mealType }}" placeholder="Lunch, Dinner">
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Specific Type</label>
-                                                        <input type="text" class="form-control border-2" name="meal_specific_type" value="{{ $mealSpecificType }}" placeholder="Buffet, À la carte">
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                        <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}" required>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                        <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}" required>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                        <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format($totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-file-text-line me-1 text-muted"></i>Notes</label>
-                                                        <textarea class="form-control border-2" name="notes" rows="2" placeholder="Special dining requests">{{ $restaurantNotes }}</textarea>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-braces-line me-1 text-secondary"></i>Meal Details (JSON)</label>
-                                                        <textarea class="form-control border-2 font-monospace" name="meal_description_json" rows="3" placeholder='[{"item_name":"Starter","quantity":1,"price":25}]'>{{ is_array($mealDescription) ? json_encode($mealDescription) : '' }}</textarea>
-                                                        <small class="text-muted">Leave blank to keep current detailed meal items.</small>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                    <div class="text-muted small" id="restaurant_feedback_{{ $order->booking_id }}"></div>
-                                                    <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                        <span class="spinner-border spinner-border-sm d-none" id="restaurant_spinner_{{ $order->booking_id }}"></span>
-                                                        <span>Save Changes</span>
-                                                    </button>
-                                                </div>
-                                            </form>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                </div>
-                                @endif
-
-                                    <!-- Departure Transport Services Section -->
-                                    @if(isset($dayOrdersByType['exit_port']))
-                                <div class="service-section mb-3">
-                                    <div class="card border-danger shadow-sm">
-                                        <div class="card-header bg-danger text-white">
-                                            <div class="d-flex align-items-center">
-                                                <span class="service-icon me-3">
-                                                    <i class="ri-logout-circle-line fs-4"></i>
-                                                </span>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Departure Transport Services</h6>
-                                                    <small class="opacity-75">Exit port transfers and departure transport</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                                @foreach($dayOrdersByType['exit_port'] as $index => $order)
-                                                <div class="service-item mb-3 p-3 border rounded shadow-sm bg-white">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h6 class="mb-0">Exit Port Transfer #{{ $index + 1 }}</h6>
-                                                        <div class="d-flex gap-2">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                <i class="ri-delete-bin-line"></i> Remove
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    @php
-                                                        $transportData = $order->processed_data;
-                                                        $pickupLocation = '';
-                                                        $dropoffLocation = '';
-                                                        $pickupTime = '';
-                                                        $vehicleName = '';
-                                                        $vehicleType = '';
-                                                        
-                                                        if (is_array($transportData)) {
-                                                            if (isset($transportData[0])) {
-                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
-                                                                $pickupLocation = $transportData[0]['exitpickup'] ?? $transportData[0]['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData[0]['exitdropoff'] ?? $transportData[0]['entrydropoff'] ?? 'N/A';
-                                                                $pickupTime = $transportData[0]['entrytime'] ?? 'N/A';
-                                                                $vehicleName = $transportData[0]['vehicles_name'] ?? 'N/A';
-                                                                $vehicleType = $transportData[0]['type'] ?? 'N/A';
-                                                            } else {
-                                                                // For exit port, use exitpickup and exitdropoff fields first, fallback to entry fields
-                                                                $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? 'N/A';
-                                                                $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? 'N/A';
-                                                                $pickupTime = $transportData['entrytime'] ?? 'N/A';
-                                                                $vehicleName = $transportData['vehicles_name'] ?? 'N/A';
-                                                                $vehicleType = $transportData['type'] ?? 'N/A';
-                                                            }
-                                                        }
-                                                    @endphp
-                                                    <div class="service-details">
-                                                        <div class="row g-2">
-                                                            <div class="col-md-6">
-                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-line me-2 text-primary"></i><strong>Pickup:</strong> <span class="text-dark">{{ $pickupLocation }}</span></p>
-                                                                <p class="small mb-2 text-muted"><i class="ri-map-pin-2-line me-2 text-success"></i><strong>Dropoff:</strong> <span class="text-dark">{{ $dropoffLocation }}</span></p>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <p class="small mb-2 text-muted"><i class="ri-time-line me-2 text-warning"></i><strong>Time:</strong> <span class="text-dark">{{ $pickupTime }}</span></p>
-                                                                <p class="small mb-2 text-muted"><i class="ri-car-line me-2 text-info"></i><strong>Vehicle:</strong> <span class="text-dark">{{ $vehicleName }}</span></p>
-                                                                <p class="small mb-0 text-muted"><i class="ri-group-line me-2 text-secondary"></i><strong>Type:</strong> <span class="text-dark">{{ $vehicleType }}</span></p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                @endforeach
-                                        </div>
-                                    </div>
-                                </div>
-                                    @endif
-
-                                    <!-- Other Transport Services Section -->
-                                    @if(isset($dayOrdersByType['travel_hourly']) || isset($dayOrdersByType['travel_point']) || isset($dayOrdersByType['local_transport']))
-                                <div class="service-section mb-3">
-                                    <div class="card border-warning shadow-sm">
-                                        <div class="card-header bg-warning text-dark">
-                                            <div class="d-flex align-items-center">
-                                                <span class="service-icon me-3">
-                                                    <i class="ri-car-line fs-4"></i>
-                                                </span>
-                                                <div>
-                                                    <h6 class="mb-0 fw-bold">Other Transport Services</h6>
-                                                    <small class="opacity-75">Local transfers and other transport services</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body mt-3">
-                                            @if(isset($dayOrdersByType['travel_hourly']))
-                                                @foreach($dayOrdersByType['travel_hourly'] as $index => $order)
-                                                    @php
-                                                        $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                        if (isset($transportData[0])) {
-                                                            $transportData = $transportData[0];
-                                                        }
-                                                        $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
-                                                        $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
-                                                        $pickupTime = $transportData['entrytime'] ?? '';
-                                                        $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                        $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
-                                                        $pickupDate = '';
-                                                        if ($pickupDateRaw) {
-                                                            try {
-                                                                $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
-                                                            } catch (\Exception $exception) {
-                                                                $pickupDate = $pickupDateRaw;
-                                                            }
-                                                        }
-                                                        $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                        $vehicleType = $transportData['type'] ?? '';
-                                                        $selectedHours = $transportData['selectedHours'] ?? $transportData['hours'] ?? '';
-                                                        $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
-                                                        $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
-                                                        $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
-                                                        $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
-                                                    @endphp
-                                                    <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_hourly" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                        @csrf
-                                                        <input type="hidden" name="type" value="travel_hourly">
-                                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                                            <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
-                                                            <div class="d-flex gap-2">
-                                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                    <i class="ri-delete-bin-line"></i> Remove
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div class="row g-3">
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
-                                                                <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup location" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location (optional)</label>
-                                                                <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff location">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                                <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                                <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                                <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                                <select class="form-select border-2" name="vehicle_type">
-                                                                    <option value="">Select type</option>
-                                                                    <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                    <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
-                                                                <input type="number" class="form-control border-2" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                                <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                                <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                                <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
-                                                            </div>
-                                                            <div class="col-12">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-file-text-line me-1 text-muted"></i>Notes</label>
-                                                                <textarea class="form-control border-2" name="notes" rows="2" placeholder="Special instructions or reminders">{{ $notes }}</textarea>
-                                                            </div>
-                                                        </div>
-                                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                            <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
-                                                            <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                                <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_hourly"></span>
-                                                                <span>Save Changes</span>
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                @endforeach
-                                            @endif
-
-                                            @if(isset($dayOrdersByType['travel_point']))
-                                                @foreach($dayOrdersByType['travel_point'] as $index => $order)
-                                                    @php
-                                                        $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                        if (isset($transportData[0])) {
-                                                            $transportData = $transportData[0];
-                                                        }
-                                                        $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
-                                                        $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
-                                                        $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
-                                                        $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                        $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
-                                                        $pickupDate = '';
-                                                        if ($pickupDateRaw) {
-                                                            try {
-                                                                $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
-                                                            } catch (\Exception $exception) {
-                                                                $pickupDate = $pickupDateRaw;
-                                                            }
-                                                        }
-                                                        $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                        $vehicleType = $transportData['type'] ?? '';
-                                                        $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
-                                                        $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
-                                                        $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
-                                                        $distance = $transportData['distance'] ?? 0;
-                                                        $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
-                                                    @endphp
-                                                    <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="travel_point" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                        @csrf
-                                                        <input type="hidden" name="type" value="travel_point">
-                                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                                            <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
-                                                            <div class="d-flex gap-2">
-                                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                    <i class="ri-delete-bin-line"></i> Remove
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div class="row g-3">
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Location</label>
-                                                                <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup location" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Location</label>
-                                                                <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff location" required>
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                                <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                                <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                                <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                                <select class="form-select border-2" name="vehicle_type">
-                                                                    <option value="">Select type</option>
-                                                                    <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                    <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-roadster-line me-1 text-info"></i>Distance (km)</label>
-                                                                <input type="number" class="form-control border-2" name="distance" step="0.01" min="0" value="{{ $distance }}" placeholder="0">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                                <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                                <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                                <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
-                                                            </div>
-                                                            <div class="col-12">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-file-text-line me-1 text-muted"></i>Notes</label>
-                                                                <textarea class="form-control border-2" name="notes" rows="2" placeholder="Driver instructions, special requests">{{ $notes }}</textarea>
-                                                            </div>
-                                                        </div>
-                                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                            <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_point"></div>
-                                                            <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                                <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_travel_point"></span>
-                                                                <span>Save Changes</span>
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                @endforeach
-                                            @endif
-
-                                            @if(isset($dayOrdersByType['local_transport']))
-                                                @foreach($dayOrdersByType['local_transport'] as $index => $order)
-                                                    @php
-                                                        $transportData = is_array($order->processed_data) ? $order->processed_data : json_decode($order->processed_data, true);
-                                                        if (isset($transportData[0])) {
-                                                            $transportData = $transportData[0];
-                                                        }
-                                                        $pickupLocation = $transportData['entrypickup'] ?? $transportData['pickupLocation'] ?? '';
-                                                        $dropoffLocation = $transportData['entrydropoff'] ?? $transportData['dropoffLocation'] ?? '';
-                                                        $pickupTime = $transportData['entrytime'] ?? $transportData['time'] ?? '';
-                                                        $pickupTimeValue = $pickupTime ? date('H:i', strtotime($pickupTime)) : '';
-                                                        $pickupDateRaw = $transportData['pickupdate'] ?? $transportData['bookingDate'] ?? '';
-                                                        $pickupDate = '';
-                                                        if ($pickupDateRaw) {
-                                                            try {
-                                                                $pickupDate = \Carbon\Carbon::parse($pickupDateRaw)->format('Y-m-d');
-                                                            } catch (\Exception $exception) {
-                                                                $pickupDate = $pickupDateRaw;
-                                                            }
-                                                        }
-                                                        $vehicleName = $transportData['vehicles_name'] ?? '';
-                                                        $vehicleType = $transportData['type'] ?? '';
-                                                        $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
-                                                        $adultCount = $transportData['adultCount'] ?? $transportData['adults'] ?? 0;
-                                                        $childCount = $transportData['childCount'] ?? $transportData['children'] ?? 0;
-                                                        $notes = $transportData['notes'] ?? $transportData['specialRequests'] ?? '';
-                                                    @endphp
-                                                    <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white transport-edit-form" data-form-type="local_transport" data-update-url="{{ route('single-tour-package.orders.update', $order->booking_id) }}" onsubmit="updateExistingTransport(event, {{ $order->booking_id }})">
-                                                        @csrf
-                                                        <input type="hidden" name="type" value="local_transport">
-                                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                                            <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
-                                                            <div class="d-flex gap-2">
-                                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
-                                                                    <i class="ri-delete-bin-line"></i> Remove
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div class="row g-3">
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-line me-1 text-primary"></i>Pickup Zone/Location</label>
-                                                                <input type="text" class="form-control border-2" name="pickup_location" value="{{ $pickupLocation }}" placeholder="Enter pickup zone" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-map-pin-2-line me-1 text-success"></i>Dropoff Zone/Location</label>
-                                                                <input type="text" class="form-control border-2" name="dropoff_location" value="{{ $dropoffLocation }}" placeholder="Enter dropoff zone" required>
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-calendar-line me-1 text-secondary"></i>Pickup Date</label>
-                                                                <input type="date" class="form-control border-2" name="pickup_date" value="{{ $pickupDate }}">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Pickup Time</label>
-                                                                <input type="time" class="form-control border-2" name="pickup_time" value="{{ $pickupTimeValue }}" required>
-                                                            </div>
-                                                            <div class="col-md-4">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-car-line me-1 text-info"></i>Vehicle Name</label>
-                                                                <input type="text" class="form-control border-2" name="vehicle_name" value="{{ $vehicleName }}" placeholder="Vehicle name">
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-settings-line me-1 text-secondary"></i>Service Type</label>
-                                                                <select class="form-select border-2" name="vehicle_type">
-                                                                    <option value="">Select type</option>
-                                                                    <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
-                                                                    <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-md-3">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
-                                                                <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                                <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                            </div>
-                                                            <div class="col-md-2">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                                <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
-                                                            </div>
-                                                            <div class="col-12">
-                                                                <label class="form-label fw-semibold text-muted mb-1"><i class="ri-file-text-line me-1 text-muted"></i>Notes</label>
-                                                                <textarea class="form-control border-2" name="notes" rows="2" placeholder="Driver instructions, special requests">{{ $notes }}</textarea>
-                                                            </div>
-                                                        </div>
-                                                        <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
-                                                            <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_local_transport"></div>
-                                                            <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-2">
-                                                                <span class="spinner-border spinner-border-sm d-none" id="transport_spinner_{{ $order->booking_id }}_local_transport"></span>
-                                                                <span>Save Changes</span>
-                                                            </button>
-                                                        </div>
-                                                    </form>
-                                                @endforeach
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                                @endif
-                                @else
-                                    <div class="alert alert-light text-muted">
-                                        <i class="ri-information-line me-2"></i>No services booked for this day
-                                    </div>
-                                @endif
-                            </div>
-                            @endforeach
                         </div>
                     </div>
                 </div>
             </div>
+                @endif
             @endif
         </form>
     </div>
@@ -2249,6 +3044,7 @@
                     <input type="hidden" id="modal_transport_city" name="city">
                     <input type="hidden" id="modal_transport_start_date" name="start_date">
                     <input type="hidden" id="modal_transport_end_date" name="end_date">
+                    <input type="hidden" id="modal_transport_type" name="transport_type" value="entry_port">
                     
                     <div class="card border-primary shadow-sm mb-4">
                         <div class="card-header bg-primary text-white">
@@ -3249,6 +4045,39 @@
 @endsection
 
 @section('scripts')
+<!-- Toastr JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // Initialize toastr with default options
+    if (typeof toastr !== 'undefined') {
+        toastr.options = {
+            closeButton: true,
+            progressBar: true,
+            positionClass: 'toast-top-right',
+            timeOut: 3000,
+            extendedTimeOut: 1000,
+            showMethod: 'fadeIn',
+            hideMethod: 'fadeOut',
+            preventDuplicates: true,
+            tapToDismiss: true
+        };
+    }
+
+    // Initialize Select2 for Child Ages multi-select
+    $(document).ready(function() {
+        if ($('#child_ages').length) {
+            $('#child_ages').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select child ages',
+                allowClear: true,
+                width: '100%',
+                closeOnSelect: false
+            });
+        }
+    });
+</script>
 <script>
     // Accessibility and Focus Management Utilities
     function handleModalClose(modalId) {
@@ -3617,7 +4446,16 @@
             infants: infants.toString(),
             male_count: maleCount.toString(),
             female_count: femaleCount.toString(),
-            child_ages: document.getElementById('child_ages')?.value || ''
+            child_ages: (function() {
+                const select = document.getElementById('child_ages');
+                if (!select) return '';
+                // Check if Select2 is initialized
+                if ($(select).data('select2')) {
+                    return $(select).val() ? $(select).val().join(',') : '';
+                }
+                // Fallback for regular select
+                return Array.from(select.selectedOptions || []).map(option => option.value).join(',') || '';
+            })()
         };
     }
     
@@ -3991,16 +4829,27 @@
     }
     
     // Transport Modal Functions
-    function showTransportSelectionModal(tourId, country, startDate, endDate) {
-        console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate });
+    function showTransportSelectionModal(tourId, country, startDate, endDate, transportType = 'entry_port') {
+        console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate, transportType });
         
         // Set hidden fields
         document.getElementById('modal_transport_tour_id').value = tourId;
         document.getElementById('modal_transport_country').value = country;
+        document.getElementById('modal_transport_type').value = transportType;
         // City field removed
         document.getElementById('modal_transport_start_date').value = startDate;
         document.getElementById('modal_transport_end_date').value = endDate;
         // Pickup date is now hardcoded and readonly in the HTML
+        
+        // Update modal title based on type
+        const modalTitle = document.getElementById('transportSelectionModalLabel');
+        if (transportType === 'exit_port') {
+            modalTitle.innerHTML = '<i class="ri-logout-circle-line me-2"></i>Departure Transport Service Selection';
+            modalTitle.closest('.modal-header').className = 'modal-header bg-danger text-white';
+        } else {
+            modalTitle.innerHTML = '<i class="ri-login-circle-line me-2"></i>Arrival Transport Service Selection';
+            modalTitle.closest('.modal-header').className = 'modal-header bg-success text-white';
+        }
         
         // Initialize the modal
         const transportModal = new bootstrap.Modal(document.getElementById('transportSelectionModal'));
@@ -4012,11 +4861,42 @@
         }, 100);
     }
     
-    function showLocalTransferSelectionModal(tourId, country, startDate, endDate) {
-        console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate });
+    // Function to add arrival service
+    function addArrivalService() {
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return;
+        }
+        
+        showTransportSelectionModal(tourId, country, startDate, endDate, 'entry_port');
+    }
+    
+    // Function to add departure service
+    function addDepartureService() {
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return;
+        }
+        
+        showTransportSelectionModal(tourId, country, startDate, endDate, 'exit_port');
+    }
+    
+    function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
+        console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate, serviceType });
         
         // Get the city value from the form
-        const city = document.getElementById('modal_local_transfer_city').value;
+        const cityElement = document.getElementById('modal_local_transfer_city');
+        const city = cityElement ? cityElement.value : '';
         
         // Initialize the modal
         const localTransferModal = new bootstrap.Modal(document.getElementById('localTransferSelectionModal'));
@@ -4025,14 +4905,60 @@
         // Set hidden fields
         document.getElementById('local_transfer_tour_id').value = tourId;
         document.getElementById('local_transfer_country').value = country;
-        document.getElementById('local_transfer_city').value = city;
+        if (cityElement) {
+            document.getElementById('local_transfer_city').value = city;
+        }
         document.getElementById('local_transfer_start_date').value = startDate;
         document.getElementById('local_transfer_end_date').value = endDate;
+        
+        // Pre-select service type if provided
+        if (serviceType) {
+            setTimeout(() => {
+                let radioId = '';
+                if (serviceType === 'travel_hourly' || serviceType === 'hourly') {
+                    radioId = 'local_transfer_service_type_hourly';
+                } else if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
+                    radioId = 'local_transfer_service_type_point';
+                } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
+                    radioId = 'local_transfer_service_type_local';
+                }
+                
+                if (radioId) {
+                    const radioButton = document.getElementById(radioId);
+                    if (radioButton) {
+                        radioButton.checked = true;
+                        // Trigger the change event to update the form
+                        if (serviceType === 'travel_hourly' || serviceType === 'hourly') {
+                            handleLocalTransferServiceTypeChange('hourly');
+                        } else if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
+                            handleLocalTransferServiceTypeChange('point_to_point');
+                        } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
+                            handleLocalTransferServiceTypeChange('local_transfer');
+                        }
+                    }
+                }
+            }, 200);
+        }
         
         // Initialize the local transfer modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeLocalTransferModal();
         }, 100);
+    }
+    
+    // Function to add more transport service (opens local transfer modal)
+    function addMoreTransportService() {
+        const tourId = document.getElementById('tour_id').value;
+        const country = document.getElementById('user_country').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        
+        if (!tourId) {
+            showNotification('Tour ID is required', 'error');
+            return;
+        }
+        
+        showLocalTransferSelectionModal(tourId, country, startDate, endDate);
     }
 
     function showDropoffTransportSelectionModal(tourId, country, startDate, endDate) {
@@ -6206,6 +7132,9 @@
         const actualPickupPlaceId = pickupValue || null;
         const actualDropoffPlaceId = dropoffValue || null;
 
+        // Get transport type from hidden field (entry_port or exit_port)
+        const transportType = document.getElementById('modal_transport_type').value || 'entry_port';
+        
         // Build the transport booking data (updated format)
         const transportData = {
             fullName: customer_info.fullName,
@@ -6223,11 +7152,8 @@
             vehicles_name: vehicleData.vehicle_name || 'Vehicle',
             Mode: "dmc",
             type: serviceType,
-            entrypickup: pickupZoneName,
-            entrydropoff: dropoffZoneName,
             bookingDate: pickupDate,
             pickupdate: pickupDate,
-            entrytime: pickupTime,
             PickupPlaceid: actualPickupPlaceId,
             DropoffPlaceid: actualDropoffPlaceId,
             adults: parseInt(passengers),
@@ -6239,13 +7165,25 @@
             Night_End_Time: null,
             city: vehicleData.city || "Singapore",
             country: vehicleData.country || "Singapore",
-            id: `entry-${Date.now()}`,
             vehicle_type: vehicleData.vehicle_type || "",
             vehicle_model: vehicleData.vehicle_model || "",
             model_year: vehicleData.model_year || null,
             seating_capacity: vehicleData.seating_capacity || 0,
             booking_id: null
         };
+        
+        // Update transport data based on type (entry_port or exit_port)
+        if (transportType === 'exit_port') {
+            transportData.exitpickup = pickupZoneName;
+            transportData.exitdropoff = dropoffZoneName;
+            transportData.exitpickupdate = pickupTime;
+            transportData.id = `exit-${Date.now()}`;
+        } else {
+            transportData.entrypickup = pickupZoneName;
+            transportData.entrydropoff = dropoffZoneName;
+            transportData.entrytime = pickupTime;
+            transportData.id = `entry-${Date.now()}`;
+        }
         
         console.log('Transport booking data:', transportData);
         
@@ -6271,7 +7209,7 @@
         // Add basic form fields
         const basicData = {
             tour_id: tourId,
-            type: "entry_port",
+            type: transportType,
             agent_id: document.getElementById('agent_id').value,
             pickup_zone_id: pickupZoneId,
             dropoff_zone_id: dropoffZoneId,
@@ -6876,8 +7814,8 @@
             return false;
         }
         
-        // Show transport selection modal
-        showTransportSelectionModal(tourId, country, startDate, endDate);
+        // Show transport selection modal (default to entry_port for arrival)
+        showTransportSelectionModal(tourId, country, startDate, endDate, 'entry_port');
         return false;
     }
     
@@ -8651,7 +9589,16 @@
             infants: infants.toString(),
             male_count: maleCount.toString(),
             female_count: femaleCount.toString(),
-            child_ages: document.getElementById('child_ages')?.value || ''
+            child_ages: (function() {
+                const select = document.getElementById('child_ages');
+                if (!select) return '';
+                // Check if Select2 is initialized
+                if ($(select).data('select2')) {
+                    return $(select).val() ? $(select).val().join(',') : '';
+                }
+                // Fallback for regular select
+                return Array.from(select.selectedOptions || []).map(option => option.value).join(',') || '';
+            })()
         };
     }
     
@@ -9866,79 +10813,28 @@
         }
     });
 
-    async function saveTourInformation(event) {
-        const button = event.currentTarget;
-        const spinner = document.getElementById('tour_info_spinner');
-        const feedback = document.getElementById('tour_info_feedback');
-        const form = document.getElementById('singleTourPackageForm');
-        const updateUrl = form?.dataset?.updateInfoUrl;
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-        feedback.textContent = '';
-        feedback.classList.remove('text-success', 'text-danger');
-
-        if (!updateUrl) {
-            feedback.textContent = 'Unable to determine update endpoint.';
-            feedback.classList.add('text-danger');
-            return;
-        }
-
-        const payload = {
-            display_id: document.getElementById('display_id')?.value || '',
-            user_country: document.getElementById('user_country')?.value || '',
-            start_date: document.getElementById('start_date')?.value || '',
-            end_date: document.getElementById('end_date')?.value || '',
-            adults: document.getElementById('adults')?.value || 0,
-            children: document.getElementById('children')?.value || 0,
-            infants: document.getElementById('infants')?.value || 0,
-            male: document.getElementById('male')?.value || 0,
-            female: document.getElementById('female')?.value || 0,
-            agent_id: document.getElementById('agent_id')?.value || '',
-            child_ages: document.getElementById('child_ages')?.value || ''
-        };
-
-        try {
-            button.disabled = true;
-            spinner?.classList.remove('d-none');
-
-            const response = await fetch(updateUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                const errorMessage = data?.message || 'Unable to save tour information.';
-                throw new Error(errorMessage);
-            }
-
-            feedback.textContent = data.message || 'Tour information saved.';
-            feedback.classList.add('text-success');
-        } catch (error) {
-            feedback.textContent = error.message;
-            feedback.classList.add('text-danger');
-        } finally {
-            button.disabled = false;
-            spinner?.classList.add('d-none');
-        }
-    }
-
     async function updateExistingHotel(event, bookingId) {
         event.preventDefault();
-        const form = event.target;
-        const url = form.dataset.updateUrl;
+        const button = event.target.closest('button');
+        const formDiv = button.closest('.hotel-edit-form');
+        const url = formDiv.dataset.updateUrl;
         const feedback = document.getElementById(`hotel_feedback_${bookingId}`);
         const spinner = document.getElementById(`hotel_spinner_${bookingId}`);
-        const submitButton = form.querySelector('button[type="submit"]');
+        const submitButton = button;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-        const formData = new FormData(form);
+        // Create FormData from all inputs in the hotel form div
+        const formData = new FormData();
+        const inputs = formDiv.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            if (input.type === 'checkbox' || input.type === 'radio') {
+                if (input.checked) {
+                    formData.append(input.name, input.value);
+                }
+            } else {
+                formData.append(input.name, input.value);
+            }
+        });
 
         feedback.textContent = '';
         feedback.classList.remove('text-success', 'text-danger');
@@ -9951,6 +10847,7 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
                 },
                 body: formData
             });
@@ -9958,14 +10855,26 @@
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to save changes right now.');
+                const errorMessage = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to save changes right now.');
+                throw new Error(errorMessage);
             }
 
-            feedback.textContent = data.message || 'Changes saved.';
+            feedback.textContent = data.message || 'Hotel service updated successfully.';
             feedback.classList.add('text-success');
+            
+            // Show success toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('success', data.message || 'Hotel service updated successfully.');
+            }
         } catch (error) {
-            feedback.textContent = error.message;
+            const errorMessage = error.message || 'Failed to update hotel service. Please try again.';
+            feedback.textContent = errorMessage;
             feedback.classList.add('text-danger');
+            
+            // Show error toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('error', errorMessage);
+            }
         } finally {
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
@@ -9996,6 +10905,7 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
                 },
                 body: formData
             });
@@ -10003,14 +10913,26 @@
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to save changes right now.');
+                const errorMessage = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to save changes right now.');
+                throw new Error(errorMessage);
             }
 
-            feedback.textContent = data.message || 'Changes saved.';
+            feedback.textContent = data.message || 'Transport service updated successfully.';
             feedback.classList.add('text-success');
+            
+            // Show success toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('success', data.message || 'Transport service updated successfully.');
+            }
         } catch (error) {
-            feedback.textContent = error.message;
+            const errorMessage = error.message || 'Failed to update transport service. Please try again.';
+            feedback.textContent = errorMessage;
             feedback.classList.add('text-danger');
+            
+            // Show error toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('error', errorMessage);
+            }
         } finally {
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
@@ -10039,6 +10961,7 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
                 },
                 body: formData
             });
@@ -10046,14 +10969,26 @@
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to save changes right now.');
+                const errorMessage = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to save changes right now.');
+                throw new Error(errorMessage);
             }
 
-            feedback.textContent = data.message || 'Changes saved.';
+            feedback.textContent = data.message || 'Guide service updated successfully.';
             feedback.classList.add('text-success');
+            
+            // Show success toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('success', data.message || 'Guide service updated successfully.');
+            }
         } catch (error) {
-            feedback.textContent = error.message;
+            const errorMessage = error.message || 'Failed to update guide service. Please try again.';
+            feedback.textContent = errorMessage;
             feedback.classList.add('text-danger');
+            
+            // Show error toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('error', errorMessage);
+            }
         } finally {
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
@@ -10082,6 +11017,7 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
                 },
                 body: formData
             });
@@ -10089,14 +11025,26 @@
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to save changes right now.');
+                const errorMessage = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to save changes right now.');
+                throw new Error(errorMessage);
             }
 
-            feedback.textContent = data.message || 'Changes saved.';
+            feedback.textContent = data.message || 'Restaurant service updated successfully.';
             feedback.classList.add('text-success');
+            
+            // Show success toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('success', data.message || 'Restaurant service updated successfully.');
+            }
         } catch (error) {
-            feedback.textContent = error.message;
+            const errorMessage = error.message || 'Failed to update restaurant service. Please try again.';
+            feedback.textContent = errorMessage;
             feedback.classList.add('text-danger');
+            
+            // Show error toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('error', errorMessage);
+            }
         } finally {
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
@@ -10125,6 +11073,7 @@
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
                 },
                 body: formData
             });
@@ -10132,17 +11081,159 @@
             const data = await response.json();
 
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to save changes right now.');
+                const errorMessage = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to save changes right now.');
+                throw new Error(errorMessage);
             }
 
-            feedback.textContent = data.message || 'Changes saved.';
+            feedback.textContent = data.message || 'Attraction service updated successfully.';
             feedback.classList.add('text-success');
+            
+            // Show success toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('success', data.message || 'Attraction service updated successfully.');
+            }
         } catch (error) {
-            feedback.textContent = error.message;
+            const errorMessage = error.message || 'Failed to update attraction service. Please try again.';
+            feedback.textContent = errorMessage;
             feedback.classList.add('text-danger');
+            
+            // Show error toastr notification
+            if (typeof showToastr !== 'undefined') {
+                showToastr('error', errorMessage);
+            }
         } finally {
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
+        }
+    }
+
+    async function UpdateTourInformation(event) {
+        event.preventDefault();
+        
+        const form = document.getElementById('singleTourPackageForm');
+        const url = form.dataset.updateInfoUrl;
+        const feedback = document.getElementById('tour_info_feedback');
+        const spinner = document.getElementById('tour_info_spinner');
+        const submitButton = event.target.closest('button');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        if (!url) {
+            feedback.textContent = 'Tour update URL not found.';
+            feedback.classList.add('text-danger');
+            showToastr('error', 'Tour update URL not found.');
+            return;
+        }
+
+        // Collect form data
+        const formData = new FormData();
+        formData.append('display_id', document.getElementById('display_id').value || '');
+        formData.append('user_country', document.getElementById('user_country').value);
+        formData.append('start_date', document.getElementById('start_date').value);
+        formData.append('end_date', document.getElementById('end_date').value);
+        formData.append('adults', document.getElementById('adults').value);
+        formData.append('children', document.getElementById('children').value);
+        formData.append('infants', document.getElementById('infants').value);
+        formData.append('male', document.getElementById('male').value);
+        formData.append('female', document.getElementById('female').value);
+        formData.append('agent_id', document.getElementById('agent_id').value);
+        const childAgesSelect = document.getElementById('child_ages');
+        let childAges = '';
+        if (childAgesSelect) {
+            // Check if Select2 is initialized
+            if ($(childAgesSelect).data('select2')) {
+                const selectedValues = $(childAgesSelect).val();
+                childAges = selectedValues ? selectedValues.join(',') : '';
+            } else {
+                // Fallback for regular select
+                childAges = Array.from(childAgesSelect.selectedOptions).map(option => option.value).join(',') || '';
+            }
+        }
+        formData.append('child_ages', childAges);
+
+        // Clear previous feedback
+        feedback.textContent = '';
+        feedback.classList.remove('text-success', 'text-danger');
+
+        try {
+            submitButton.disabled = true;
+            spinner?.classList.remove('d-none');
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                const errorMessage = data.message || data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to update tour information right now.';
+                throw new Error(errorMessage);
+            }
+
+            // Show success feedback
+            feedback.textContent = data.message || 'Tour information updated successfully.';
+            feedback.classList.add('text-success');
+            
+            // Show success toastr notification
+            showToastr('success', data.message || 'Tour information updated successfully.');
+        } catch (error) {
+            const errorMessage = error.message || 'Failed to update tour information. Please try again.';
+            feedback.textContent = errorMessage;
+            feedback.classList.add('text-danger');
+            
+            // Show error toastr notification
+            showToastr('error', errorMessage);
+        } finally {
+            submitButton.disabled = false;
+            spinner?.classList.add('d-none');
+        }
+    }
+
+    // Toastr notification helper function
+    function showToastr(type, message) {
+        // Check if toastr is available
+        if (typeof toastr !== 'undefined') {
+            if (type === 'success') {
+                toastr.success(message, 'Success', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 3000,
+                    positionClass: 'toast-top-right'
+                });
+            } else if (type === 'error') {
+                toastr.error(message, 'Error', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 5000,
+                    positionClass: 'toast-top-right'
+                });
+            } else if (type === 'warning') {
+                toastr.warning(message, 'Warning', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 4000,
+                    positionClass: 'toast-top-right'
+                });
+            } else {
+                toastr.info(message, 'Info', {
+                    closeButton: true,
+                    progressBar: true,
+                    timeOut: 3000,
+                    positionClass: 'toast-top-right'
+                });
+            }
+        } else {
+            // Fallback to showNotification if toastr is not available
+            if (typeof showNotification === 'function') {
+                showNotification(message, type);
+            } else {
+                // Final fallback to alert
+                alert(message);
+            }
         }
     }
 </script>
