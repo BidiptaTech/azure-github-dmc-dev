@@ -701,8 +701,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="followup_cancel_btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="followup_submit_btn">Submit</button>
                     </div>
                 </form>
             </div>
@@ -4300,6 +4300,22 @@ function showFilterResetMessage() {
             }
         };
 
+        // Add form submission handler with loader
+        $(document).ready(function() {
+            $('#followupUpdateForm').on('submit', function(e) {
+                const submitBtn = document.getElementById('followup_submit_btn');
+                const cancelBtn = document.getElementById('followup_cancel_btn');
+                
+                // Show loader
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                
+                // Form will submit naturally, no need to prevent default
+            });
+        });
+
         let agentNegotiationModalInstance = null;
         let agentNegotiationActionsDisabled = false;
 
@@ -4438,6 +4454,9 @@ function showFilterResetMessage() {
             const amountInput = document.getElementById('agentNegotiationAmount');
             const remarkInput = document.getElementById('agentNegotiationRemark');
             const warning = document.getElementById('agentNegotiationWarning');
+            const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
+            const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
+            const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
             warning.classList.add('d-none');
 
             if (action === 'negotiate') {
@@ -4451,15 +4470,6 @@ function showFilterResetMessage() {
                     return;
                 }
 
-                if (!remarkInput.value.trim()) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Remarks required',
-                        text: 'Please enter remarks for this negotiation.'
-                    });
-                    return;
-                }
-
                 const max = parseFloat(amountInput.getAttribute('max'));
                 if (!isNaN(max) && max > 0 && amountValue > max) {
                     warning.classList.remove('d-none');
@@ -4467,11 +4477,19 @@ function showFilterResetMessage() {
                     return;
                 }
 
+                // Show loader on negotiate button
+                const originalSubmitText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                confirmBtn.disabled = true;
+
                 actionInput.value = action;
                 form.submit();
                 return;
             }
 
+            // For Cancel and Confirm actions - no validation needed for amount/remarks
             const prompts = {
                 cancel: {
                     title: 'Cancel this tour?',
@@ -4500,12 +4518,30 @@ function showFilterResetMessage() {
 
             Swal.fire({
                 ...prompt,
-                showCancelButton: true
+                showCancelButton: true,
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return new Promise((resolve) => {
+                        // Clear amount and remarks fields if they're empty for cancel/confirm
+                        // This ensures backend doesn't validate empty fields
+                        if (!amountInput.value.trim()) {
+                            amountInput.removeAttribute('name');
+                        }
+                        if (!remarkInput.value.trim()) {
+                            remarkInput.removeAttribute('name');
+                        }
+                        
+                        actionInput.value = action;
+                        form.submit();
+                        resolve();
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
             }).then(result => {
-                if (result.isConfirmed) {
-                    actionInput.value = action;
-                    form.submit();
-                } else if (agentNegotiationModalInstance) {
+                if (!result.isConfirmed && agentNegotiationModalInstance) {
+                    // Restore name attributes if user cancels
+                    amountInput.setAttribute('name', 'amount');
+                    remarkInput.setAttribute('name', 'comment');
                     agentNegotiationModalInstance.show();
                 }
             });

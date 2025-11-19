@@ -466,6 +466,16 @@
                             <th>AGENCY DETAILS</th>
                             <th>CONTACT INFO</th>
                             <th>LOCATION</th>
+                            @php
+                                $roleId = auth()->user()->role_id;
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+                            @endphp
+                            @if($roleId == 10 || $roleId == 19)
+                                <th>DMC</th>
+                            @elseif(!in_array($roleId, $hideRoles))
+                                <th>MASTER DMC</th>
+                                <th>DMC</th>
+                            @endif
                             <th>OFFICES</th>
                             {{-- <th>STATUS</th>
                             <th>CREATED BY</th> --}}
@@ -509,6 +519,75 @@
                                     <small class="text-muted">{{ $agency->country }}</small>
                                 </div>
                             </td>
+
+                            @php
+                                $roleId = auth()->user()->role_id;
+                                $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+                            @endphp
+
+                            @if($roleId == 10 || $roleId == 19) {{-- Master DMC or Virtual Master DMC --}}
+                                @php
+                                    $dmcIds = [];
+                                    if (!empty($agency->dmc_id)) {
+                                        $dmcIds = is_array($agency->dmc_id) ? $agency->dmc_id : json_decode($agency->dmc_id, true);
+                                        $dmcIds = is_array($dmcIds) ? $dmcIds : [];
+                                    }
+                                    $dmcUsers = !empty($dmcIds) ? App\Models\User::whereIn('userId', $dmcIds)->get() : collect();
+                                @endphp
+                                <td>
+                                    @if($dmcUsers->count() > 0)
+                                        {{ $dmcUsers->first()->company_name }}
+                                        @if($dmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="text-primary" 
+                                                   onclick="showDmcModal('{{ $agency->agency_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                            @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
+                                @php
+                                    $dmcIds = [];
+                                    if (!empty($agency->dmc_id)) {
+                                        $dmcIds = is_array($agency->dmc_id) ? $agency->dmc_id : json_decode($agency->dmc_id, true);
+                                        $dmcIds = is_array($dmcIds) ? $dmcIds : [];
+                                    }
+                                    $dmcUsers = !empty($dmcIds) ? App\Models\User::whereIn('userId', $dmcIds)->get() : collect();
+                                    $masterDmcIds = $dmcUsers->pluck('master_dmc_id')->filter()->unique();
+                                    $masterDmcUsers = App\Models\User::whereIn('userId', $masterDmcIds)->get();
+                                @endphp
+                                <td>
+                                    @if($masterDmcUsers->count() > 0)
+                                        <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
+                                        @if($masterDmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="btn btn-primary btn-sm text-white" 
+                                                   onclick="showDmcModal('{{ $agency->agency_id }}', 'master_dmc', {{ $masterDmcUsers->toJson() }})">
+                                                <small>+{{ $masterDmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No DMC assigned</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($dmcUsers->count() > 0)
+                                        <span class="text-primary">{{ $dmcUsers->first()->company_name }}</span>
+                                        @if($dmcUsers->count() > 1)
+                                            <br><a href="javascript:void(0)" 
+                                                   class="btn btn-primary btn-sm text-white" 
+                                                   onclick="showDmcModal('{{ $agency->agency_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
+                                                <small>+{{ $dmcUsers->count() - 1 }} More</small>
+                                            </a>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No DMC assigned</span>
+                                    @endif
+                                </td>
+                            @endif
                             <td>
                                 <span class="badge bg-label-{{ $agency->hasBranches() ? 'success' : 'secondary' }} rounded-pill">
                                     {{ $agency->total_branches }} 
@@ -552,6 +631,24 @@
                 </table>
             </div>
         </div>
+
+        <!-- DMC Modal -->
+        <div class="modal fade" id="dmcModal" tabindex="-1" role="dialog" aria-labelledby="dmcModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dmcModalLabel">DMC List</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="dmcList"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
@@ -560,13 +657,30 @@
 <script>
 $(document).ready(function() {
     // Initialize DataTable
+    @php
+        $roleId = auth()->user()->role_id;
+        $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+        
+        // Determine column indices based on role
+        if ($roleId == 10 || $roleId == 19) {
+            $actionsColumnIndex = 6;
+            $officesColumnIndex = 5;
+        } elseif (!in_array($roleId, $hideRoles)) {
+            $actionsColumnIndex = 7;
+            $officesColumnIndex = 6;
+        } else {
+            $actionsColumnIndex = 5;
+            $officesColumnIndex = 4;
+        }
+    @endphp
+    
     const table = $('#agenciesTable').DataTable({
         responsive: true,
         order: [[0, 'asc']],
         pageLength: 10,
         columnDefs: [
-            { targets: [5], orderable: false },
-            { targets: [0, 4, 5], className: 'text-center' }
+            { targets: [{{ $actionsColumnIndex }}], orderable: false },
+            { targets: [0, {{ $officesColumnIndex }}, {{ $actionsColumnIndex }}], className: 'text-center' }
         ],
         language: {
             search: "_INPUT_",
@@ -624,7 +738,7 @@ $(document).ready(function() {
         }
     });
 
-    // Country Filter
+    // Country Filter (column index is always 3 for LOCATION)
     $('#countryFilter').on('change', function() {
         const selectedCountry = this.value;
         table.column(3).search(selectedCountry).draw();
@@ -652,5 +766,29 @@ $(document).ready(function() {
         }
     });
 });
+
+// Show DMC modal with details
+function showDmcModal(agencyId, type, users) {
+    let listHtml = '<ul class="list-group">';
+    users.forEach(function(user) {
+        listHtml += `<li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${user.company_name}</strong>
+                    <br><small>${user.email || 'No email'}</small>
+                    ${user.phone ? `<br><small>${user.phone}</small>` : ''}
+                </div>
+            </div>
+        </li>`;
+    });
+    listHtml += '</ul>';
+    
+    $('#dmcList').html(listHtml);
+    $('#dmcModalLabel').text(type === 'dmc' ? 'DMC List' : 'Master DMC List');
+    
+    // Use Bootstrap 5 modal show method
+    var myModal = new bootstrap.Modal(document.getElementById('dmcModal'));
+    myModal.show();
+}
 </script>
 @endsection 
