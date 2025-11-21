@@ -392,10 +392,14 @@ use Illuminate\Support\Facades\Auth;
                                                 @endif
                                             </td>
                                             <td>
-                                                <div class="d-flex flex-column">
-                                                    <span class="fw-semibold">{{ $row->customer_name ?? 'N/A' }}</span>
-                                                    <small class="text-muted">{{ $row->customer_email ?? 'N/A' }}</small>
-                                                </div>
+                                                @if($row->customer_name != 'N/A')
+                                                    <div class="d-flex flex-column">
+                                                        <span class="fw-semibold">{{ $row->customer_name ?? 'N/A' }}</span>
+                                                        <small class="text-muted">{{ $row->customer_email ?? 'N/A' }}</small>
+                                                    </div>
+                                                @else
+                                                    <span class="text-muted">N/A</span>
+                                                @endif
                                             </td>
                                             <td style="text-align: right;">
                                                 <div class="d-flex flex-column align-items-end">

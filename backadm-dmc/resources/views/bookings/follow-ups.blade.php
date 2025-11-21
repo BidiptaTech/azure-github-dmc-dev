@@ -306,8 +306,13 @@
                             <th>Status</th>
                             <th>Follow Up Status</th>
                             <th>Last Contact</th>
-                            <th>Agent Negotiation</th>
-                            <th>Negotiation</th>
+                            @php
+                                $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $role))
+                                <th>Agent Negotiation</th>
+                                <th>Negotiation</th>
+                            @endif
                             <th>Actions</th>
                             <th>Created At</th>
                             <th>Auto Cancel Date</th>
@@ -497,6 +502,7 @@
                                 $lastOfferAmount = $lastAgentAmount ?? $latestCommentAmount;
                                 $lastOfferRemark = $latestCommentRemark;
                             @endphp
+                            @if(in_array(auth()->user()->role_id, $role))
                             <td>
                                 <button 
                                     type="button"
@@ -534,6 +540,7 @@
                                     <span class="text-muted">No negotiation</span>
                                 @endif
                             </td>
+                            @endif
                             {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -596,7 +603,7 @@
                                     </a>
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
-                                        <i class="ri-eye-line"></i> View
+                                        <i class="ri-eye-line"></i> Audit Trail
                                     </a>
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 

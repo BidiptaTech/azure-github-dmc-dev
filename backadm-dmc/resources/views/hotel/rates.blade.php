@@ -12,6 +12,8 @@
 @extends('layouts.datatablecss')
 @include('hotel.tapview', ['hotel' => $hotel])
 <link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet">
+<!-- Add Select2 CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet">
 
 <style>
 /* DMC Filter Styles */
@@ -45,6 +47,73 @@
     font-size: 0.875rem;
     color: #6c757d;
     font-style: italic;
+}
+
+/* Select2 Custom Styles */
+.select2-container .select2-selection--single {
+    height: 50px !important;
+    line-height: 38px !important;
+    padding: 0 12px;
+    border: 1px solid #d9dee3;
+    border-radius: 0.375rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px !important;
+    padding-left: 0;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px !important;
+}
+
+/* Increase the height of the dropdown items */
+.select2-container .select2-results__option {
+    padding: 8px 12px;
+}
+
+/* Focus state */
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #696cff;
+    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+}
+
+/* Dropdown styling */
+.select2-dropdown {
+    border: 1px solid #d9dee3;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Search box styling */
+.select2-search--dropdown .select2-search__field {
+    border: 1px solid #d9dee3;
+    border-radius: 0.375rem;
+    padding: 6px 12px;
+    outline: none;
+}
+
+.select2-search--dropdown .select2-search__field:focus {
+    border-color: #696cff;
+    box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+}
+
+/* Highlighted option */
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #696cff;
+    color: white;
+}
+
+/* Selected option */
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #e7e7ff;
+    color: #696cff;
+}
+
+/* Dropdown width */
+.select2-container {
+    width: 100% !important;
 }
 
 /* DataTable Responsive Styles */
@@ -106,21 +175,33 @@
             <!-- DMC Selection (Required for Admin and Role 20) -->
             <div class="row mb-3">
                 <div class="col-md-12">
-                    <div class="alert alert-info">
-                        <strong>Note:</strong> As an admin/manager, you must select a DMC to add events on their behalf.
-                    </div>
+                    <div style="
+                    background: #e8f4ff;
+                    border-left: 5px solid #0d6efd;
+                    padding: 12px 15px;
+                    border-radius: 4px;
+                    font-size: 15px;
+                    color: #084298;
+                    margin-bottom: 15px;
+                ">
+                    <strong>Note:</strong> As an admin/manager, you must select a DMC to add seasons on their behalf.
+                </div>
                 </div>
             </div>
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <label for="dmc_selection" class="form-label"><strong>Select DMC</strong><span class="text-danger">*</span></label>
+                    <label for="dmc_selection" class="form-label">
+                        <strong><i class="ri-building-line"></i> Select DMC</strong><span class="text-danger">*</span>
+                    </label>
                     <select id="dmc_selection" class="form-control" name="dmc_id" required>
                         <option value="">Select DMC</option>
                         @foreach($dmcUsers as $dmc)
                             <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
                         @endforeach
                     </select>
-                    <small class="text-muted">You are adding events on behalf of the selected DMC.</small>
+                    <small class="text-muted">
+                        <i class="ri-information-line"></i> You are adding events on behalf of the selected DMC.
+                    </small>
                 </div>
             </div>
             @endif
@@ -208,7 +289,9 @@
                   @if($auth_user->role_id == 1)
                   <!-- DMC Filter Dropdown for Admin -->
                   <div class="d-flex align-items-center gap-2">
-                     <label for="dmcFilter" class="form-label mb-0 text-nowrap"><strong>Filter by DMC:</strong></label>
+                     <label for="dmcFilter" class="form-label mb-0 text-nowrap">
+                        <strong><i class="ri-filter-line"></i> Filter by DMC:</strong>
+                     </label>
                      <select class="form-select" id="dmcFilter" style="min-width: 220px;">
                         <option value="">All DMCs</option>
                         @foreach($dmcUsers as $dmc)
@@ -308,9 +391,29 @@
 
 <!-- DataTable JS -->
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<!-- Add Select2 JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
+        // Initialize Select2 for DMC Selection in Form
+        @if($auth_user->role_id == 1 || $auth_user->role_id == 20)
+        $('#dmc_selection').select2({
+            placeholder: "Search and Select DMC",
+            allowClear: true,
+            width: '100%'
+        });
+        @endif
+
+        // Initialize Select2 for DMC Filter (Admin only)
+        @if($auth_user->role_id == 1)
+        $('#dmcFilter').select2({
+            placeholder: "Search and Select DMC",
+            allowClear: true,
+            width: '220px'
+        });
+        @endif
+
         // Initialize DataTable with export buttons
         var dataTable = $('.datatables-basic').DataTable({
             responsive: true,

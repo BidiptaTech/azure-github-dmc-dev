@@ -137,13 +137,17 @@ class FinanceReportController extends Controller
                     0
                 ) as amount,
                 COALESCE(
-                    o.data->>'fullName',
-                    o.data->0->>'fullName',
+                    NULLIF(o.data->>'fullName', ''),
+                    NULLIF(o.data->>'name', ''),
+                    NULLIF(o.data->>'customer_name', ''),
+                    NULLIF(o.data->0->>'fullName', ''),
+                    NULLIF(o.data->0->>'name', ''),
+                    NULLIF(o.data->0->>'customer_name', ''),
                     'N/A'
                 ) as customer_name,
                 COALESCE(
-                    o.data->>'email',
-                    o.data->0->>'email',
+                    NULLIF(o.data->>'email', ''),
+                    NULLIF(o.data->0->>'email', ''),
                     'N/A'
                 ) as customer_email
                   FROM orders o
