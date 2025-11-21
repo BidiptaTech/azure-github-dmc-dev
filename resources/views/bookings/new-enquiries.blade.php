@@ -242,8 +242,13 @@
                             <th>Check-in/Check-out</th>
                             <th>Created At</th>
                             <th>Auto Cancel Date</th>
+                            @php
+                                $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $role))
                             <th>Agent Negotiation</th>
                             <th>Negotiation</th>
+                            @endif
                             <th>Actions</th>
                             
                         </tr>
@@ -449,6 +454,10 @@
                                 $lastAgentRemark = $latestAgentComment->comment ?? '';
                                 $canCheckNegotiation = $latestAgentComment !== null;
                             @endphp
+                            @php
+                                $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $role))
                             <td>
                                 <button 
                                     type="button"
@@ -484,6 +493,7 @@
                                     <small class="text-muted d-block mt-1">Awaiting agent negotiation</small>
                                 @endif
                             </td>
+                            @endif
                             {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -525,7 +535,7 @@
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
                                        style="width: 32px; height: 32px;"
-                                       title="View Tour Details">
+                                       title="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 

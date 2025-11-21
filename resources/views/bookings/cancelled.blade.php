@@ -291,7 +291,7 @@
                             <td>
                                 <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                    class="btn btn-outline-danger btn-sm rounded-pill">
-                                    <i class="ri-eye-line"></i> View
+                                    <i class="ri-eye-line"></i> Audit Trail
                                 </a>
                             </td>
                             <td>
