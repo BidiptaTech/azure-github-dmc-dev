@@ -2,13 +2,63 @@
 @section('content')
 
 <style>
-    .select2-container .select2-selection--single {
-        height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
     }
-    .select2-container .select2-results__option {
-        padding: 12px 10px;
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #697a8d !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff !important;
+        color: white !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
 </style>
 
@@ -47,7 +97,7 @@
                             @if(in_array(auth()->user()->role_id, [1, 2, 3, 4, 23, 25, 62, 46, 109, 110]))
                                 <!-- Select DMC Name -->
                                 <div class="mb-3 col-md-3" id="dmc-container">
-                                    <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                    <label for="dmc" class="form-label"><strong><i class="ri-building-line"></i> DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
                                     <select id="dmc" name="dmc" class="form-control" required>
                                         <option value="">Select DMC</option>
                                         @foreach ($dmcs as $dmc)
@@ -136,7 +186,7 @@
                                 
                                 <!-- Country -->
                                 <div class="mb-3 col-md-3">
-                                    <label for="country" class="form-label"><strong>Country</strong>
+                                    <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
@@ -161,7 +211,7 @@
 
                             <!-- City -->
                             <div class="col-md-3 mb-3">
-                                <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
+                                <label for="city" class="form-label"><strong><i class="ri-building-2-line"></i> City</strong><span class="text-danger">*</span></label>
 
                                 @php
                                     $roleId = auth()->user()->role_id;
@@ -579,6 +629,22 @@ document.addEventListener('DOMContentLoaded', () => {
     $(document).ready(function() {
         // Assuming you have a way to get the user's role ID
         var userRoleId = {{ auth()->user()->role_id }}; // Adjust this line based on your authentication method
+
+        // Initialize Select2 for DMC dropdown
+        $('#dmc').select2({
+            placeholder: "Search and Select DMC",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for Country dropdown (only for role_id 1 and 20)
+        @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+        @endif
 
         // Check if the user role is one of the specified IDs that should see DMC dropdown
         if ([1, 2, 3, 4, 23, 25, 62, 46, 109, 110].includes(userRoleId)) {
@@ -1042,7 +1108,7 @@ $(document).ready(function() {
                     
                     // Set the country value
                     if (response.country) {
-                        $('#country').val(response.country);
+                        $('#country').val(response.country).trigger('change');
                     }
 
                     // Trigger change to refresh Select2
@@ -1128,7 +1194,7 @@ $(document).ready(function() {
             } else {
                 // Clear city select and country
                 $('#citySelect').empty().append('<option value="">Select a DMC first</option>').trigger('change');
-                $('#country').val('');
+                $('#country').val('').trigger('change');
             }
         });
         

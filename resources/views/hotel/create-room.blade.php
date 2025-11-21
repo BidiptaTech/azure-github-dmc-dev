@@ -6,6 +6,9 @@
 <!-- Add DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap5.min.css">
+<!-- Add Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 
 <style>
     /* DataTable Styles */
@@ -97,6 +100,132 @@
     .drop-area.highlight {
         background-color: #e7e7ff;
         border-color: #696cff;
+    }
+
+    /* Select2 Custom Styles */
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 38px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        line-height: 1.5;
+        padding-left: 0;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    .select2-container--bootstrap-5.select2-container--open .select2-selection {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+
+    .select2-container--bootstrap-5 .select2-dropdown {
+        border-color: #d9dee3;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .select2-container--bootstrap-5 .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .select2-container--bootstrap-5 .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+
+    .select2-container--bootstrap-5 .select2-results__option--highlighted {
+        background-color: #696cff;
+        color: #fff;
+    }
+
+    .select2-container--bootstrap-5 .select2-results__option {
+        padding: 0.5rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .select2-container--bootstrap-5 .select2-results__option:hover {
+        background-color: #e7e7ff;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection__placeholder {
+        color: #a1acb8;
+    }
+
+    /* DMC Filter Specific Styles */
+    .select2-dmc + .select2-container {
+        width: 280px !important;
+    }
+
+    .select2-container--bootstrap-5 .select2-results__option[aria-selected="true"] {
+        background-color: #e7e7ff;
+        color: #696cff;
+        font-weight: 600;
+    }
+
+    /* Enhanced Select2 Styles */
+    .select2-container--bootstrap-5 .select2-selection__clear {
+        float: right;
+        font-size: 1.2rem;
+        color: #ff3e1d;
+        margin-right: 5px;
+        padding: 0 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection__clear:hover {
+        color: #d32f2f;
+        transform: scale(1.2);
+    }
+
+    .select2-container--bootstrap-5 .select2-search__field {
+        font-size: 14px;
+    }
+
+    .select2-container--bootstrap-5 .select2-search__field::placeholder {
+        color: #a1acb8;
+        font-style: italic;
+    }
+
+    /* Loading State */
+    .select2-container--bootstrap-5 .select2-results__option--loading {
+        color: #696cff;
+        font-style: italic;
+    }
+
+    /* No Results State */
+    .select2-container--bootstrap-5 .select2-results__message {
+        color: #ff3e1d;
+        font-style: italic;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    /* Option Icons */
+    .select2-results__option .fas {
+        margin-right: 8px;
+        font-size: 14px;
+    }
+
+    /* Smooth Transitions */
+    .select2-container--bootstrap-5 .select2-dropdown,
+    .select2-container--bootstrap-5 .select2-selection {
+        transition: all 0.2s ease;
+    }
+
+    /* Selected Option Badge */
+    .select2-container--bootstrap-5 .select2-selection__rendered {
+        font-weight: 500;
     }
 
     .preview-container {
@@ -698,14 +827,18 @@
 
                     <div class="d-flex justify-content-between gap-3">
                         @if($auth_user->role_id == 1)
-                        <!-- DMC Filter Dropdown for Admin -->
+                        <!-- DMC Filter Dropdown for Admin with Search -->
                         <div class="d-flex align-items-center gap-2">
-                            <label for="dmcFilter" class="form-label mb-0 text-nowrap"><strong>Filter by DMC:</strong></label>
-                            <select class="form-select" id="dmcFilter" style="min-width: 220px;">
-                                <option value="">All DMCs</option>
-                                <option value="admin">Admin Base Rooms</option>
+                            <label for="dmcFilter" class="form-label mb-0 text-nowrap">
+                                <strong><i class="fas fa-filter"></i> Filter by DMC:</strong>
+                            </label>
+                            <select class="form-select select2-dmc" id="dmcFilter" style="min-width: 280px;">
+                                <option value="">🔍 Search or Select DMC...</option>
+                                <option value="admin">🏢 Admin Base Rooms</option>
                                 @foreach($dmcUsers as $dmc)
-                                    <option value="{{ $dmc->userId }}">{{ $dmc->company_name }} ({{ $dmc->name }})</option>
+                                    <option value="{{ $dmc->userId }}" data-company="{{ $dmc->company_name }}" data-name="{{ $dmc->name }}">
+                                        {{ $dmc->company_name }} ({{ $dmc->name }})
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -920,6 +1053,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<!-- Add Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
@@ -939,6 +1074,81 @@
             },
             lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
         });
+
+        // Initialize Select2 for DMC Filter with search functionality
+        @if($auth_user->role_id == 1)
+        $('#dmcFilter').select2({
+            theme: 'bootstrap-5',
+            placeholder: '🔍 Search or Select DMC...',
+            allowClear: true,
+            width: '280px',
+            minimumResultsForSearch: 0, // Always show search box
+            language: {
+                noResults: function() {
+                    return "No DMC found";
+                },
+                searching: function() {
+                    return "Searching...";
+                }
+            },
+            templateResult: formatDmcOption,
+            templateSelection: formatDmcSelection,
+            matcher: matchCustom
+        });
+
+        // Custom format for dropdown options
+        function formatDmcOption(option) {
+            if (!option.id) {
+                return option.text;
+            }
+            
+            var $option = $(
+                '<div class="d-flex align-items-center gap-2">' +
+                    '<i class="fas fa-building" style="color: #696cff;"></i>' +
+                    '<span>' + option.text + '</span>' +
+                '</div>'
+            );
+            return $option;
+        }
+
+        // Custom format for selected option
+        function formatDmcSelection(option) {
+            if (!option.id) {
+                return option.text;
+            }
+            
+            if (option.element && option.element.value === 'admin') {
+                return '🏢 ' + option.text;
+            }
+            
+            return option.text;
+        }
+
+        // Custom search matcher
+        function matchCustom(params, data) {
+            // If there are no search terms, return all data
+            if ($.trim(params.term) === '') {
+                return data;
+            }
+
+            // Search in text
+            if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                return data;
+            }
+
+            // Search in company name attribute
+            if ($(data.element).data('company') && $(data.element).data('company').toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                return data;
+            }
+
+            // Search in name attribute
+            if ($(data.element).data('name') && $(data.element).data('name').toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                return data;
+            }
+
+            return null;
+        }
+        @endif
 
         // DMC Filter functionality (only for admin users)
         @if($auth_user->role_id == 1)

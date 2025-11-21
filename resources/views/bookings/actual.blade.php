@@ -584,7 +584,7 @@
                                 <div class="d-flex flex-column gap-2">
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
-                                        <i class="ri-eye-line"></i> View
+                                        <i class="ri-eye-line"></i> Audit Trail
                                     </a>
                                     
                                     @php

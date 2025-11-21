@@ -1,13 +1,63 @@
 @extends('layouts.layout')
 @section('content')
 <style>
-    .select2-container .select2-selection--single {
-        height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
     }
-    .select2-container .select2-results__option {
-        padding: 12px 10px;
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #697a8d !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff !important;
+        color: white !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
@@ -69,7 +119,7 @@
                             <!-- Select DMC Name -->
                         @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 62 || auth()->user()->role_id == 46 || auth()->user()->role_id == 109 || auth()->user()->role_id == 110)
                             <div class="mb-3 col-md-3" id="dmc-container">
-                                <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                <label for="dmc" class="form-label"><strong><i class="ri-building-line"></i> DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
                                 <select id="dmc" name="dmc" class="form-control" required>
                                     <option value="">Select DMC</option>
                                     @foreach ($dmcs as $dmc)
@@ -81,7 +131,7 @@
                             <!--
                              -->
                             <div class="col-md-3">
-                                <label for="driver_id" class="form-label"><strong>Select Driver</strong></label>
+                                <label for="driver_id" class="form-label"><strong><i class="ri-steering-2-line"></i> Select Driver</strong></label>
                                 <select id="driver" type="text" class="form-select" name="driver_id" placeholder="">
                                     <option value="">Select driver</option>
                                 </select>
@@ -168,7 +218,7 @@
                             </div>
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
-                                <label for="city_name" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
+                                <label for="city_name" class="form-label"><strong><i class="ri-map-pin-line"></i> City Name</strong><span class="text-danger">*</span></label>
                                 @php
                                     $roleId = auth()->user()->role_id;
                                     $placeholder = $roleId == 11 ? 'Select City' : 'Select DMC First';
@@ -814,6 +864,21 @@
 </script>
 <script>
     $(document).ready(function() {
+        // Initialize Select2 for DMC dropdown
+        $('#dmc').select2({
+            placeholder: "Search and Select DMC",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for Driver dropdown
+        $('#driver').select2({
+            placeholder: "Search and Select Driver",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for City dropdown
         $('#city_name').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
@@ -989,8 +1054,8 @@ function updateMoreBadge() {
         $('#dmc').change(function () {
             const selectedDmcId = $(this).val();
             console.log(selectedDmcId);
-            $('#city_name').html('<option value="">Loading...</option>');
-            $('#driver').html('<option value="">Loading drivers...</option>');
+            $('#city_name').html('<option value="">Loading...</option>').trigger('change');
+            $('#driver').html('<option value="">Loading drivers...</option>').trigger('change');
 
             if (selectedDmcId) {
                 // Load cities
@@ -1003,21 +1068,22 @@ function updateMoreBadge() {
                         $.each(response, function (key, city) {
                             $('#city_name').append('<option value="' + city.name + '">' + city.name + '</option>');
                         });
+                        $('#city_name').trigger('change');
                     }
                 });
 
                 // Load drivers
                 loadDriversForDmc(selectedDmcId);
             } else {
-                $('#city_name').html('<option value="">Select a DMC first</option>');
-                $('#driver').html('<option value="">Select a DMC first</option>');
+                $('#city_name').html('<option value="">Select a DMC first</option>').trigger('change');
+                $('#driver').html('<option value="">Select a DMC first</option>').trigger('change');
             }
         });
 
         function loadDriversForDmc(dmcId) {
             if (!dmcId) return;
 
-            $('#driver').html('<option value="">Loading drivers...</option>');
+            $('#driver').html('<option value="">Loading drivers...</option>').trigger('change');
 
             $.ajax({
                 url: "{{ route('fetch.dmc_drivers') }}",
@@ -1036,9 +1102,10 @@ function updateMoreBadge() {
                             $('#driver').append('<option value="' + id + '">' + driver.name + ' - ' + (driver.license_no ?? '') + '</option>');
                         });
                     }
+                    $('#driver').trigger('change');
                 },
                 error: function () {
-                    $('#driver').html('<option value="">Error loading drivers</option>');
+                    $('#driver').html('<option value="">Error loading drivers</option>').trigger('change');
                 }
             });
         }
