@@ -410,7 +410,7 @@
                                 <div class="text-muted small" id="tour_info_feedback"></div>
                                 <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="UpdateTourInformation(event)">
                                     <span class="spinner-border spinner-border-sm d-none" id="tour_info_spinner"></span>
-                                    <span>Save Tour Information</span>
+                                    <span>Update Tour Information</span>
                                 </button>
                             </div>
                         </div>
@@ -1137,27 +1137,27 @@
                         </div>
                     </div>
                 </div>
-                <div class="card-footer bg-light">
-                    <div class="text-center py-3">
-                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addHotelService()" style="
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            border: none;
-                            color: white;
-                            font-weight: 600;
-                            letter-spacing: 0.5px;
-                            transition: all 0.3s ease;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
-                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Hotels
-                        </button>
-                    </div>
-                </div>
+                
             </div>
             @endif
-
+            <div class="card-footer bg-light">
+                <div class="text-center py-3">
+                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addHotelService()" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border: none;
+                        color: white;
+                        font-weight: 600;
+                        letter-spacing: 0.5px;
+                        transition: all 0.3s ease;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Hotels
+                    </button>
+                </div>
+            </div>
+            
             <!-- Day-based Service Sections -->
-            @if(isset($tourDays) && count($tourDays) > 0)
                 @php
                     // Check if any day has services
                     $hasAnyServices = false;
@@ -1168,7 +1168,6 @@
                         }
                     }
                 @endphp
-                @if($hasAnyServices)
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
@@ -1219,8 +1218,8 @@
                                         }
                                     @endphp
                                     
-                                    <!-- Arrival Transport Services Section -->
-                                    @if(isset($dayOrdersByType['entry_port']))
+                                <!-- Arrival Transport Services Section -->
+                                @if(isset($dayOrdersByType['entry_port']))
                                 <div class="service-section mb-3">
                                     <div class="card border-success shadow-sm">
                                         <div class="card-header bg-success text-white">
@@ -1335,21 +1334,22 @@
                                                 </form>
                                             @endforeach
                                         </div>
-                                    </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addArrivalService()" style="
-                                                background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(17, 153, 142, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(17, 153, 142, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Arrival Services
-                                            </button>
+                                        <!-- Arrival Services Add More Section (Static) -->
+                                        <div class="card-footer bg-light">
+                                            <div class="text-center py-3">
+                                                <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addArrivalService()" style="
+                                                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                                                    border: none;
+                                                    color: white;
+                                                    font-weight: 600;
+                                                    letter-spacing: 0.5px;
+                                                    transition: all 0.3s ease;
+                                                    border-radius: 8px;
+                                                    box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+                                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(17, 153, 142, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(17, 153, 142, 0.4)';">
+                                                    <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Arrival Services
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1482,27 +1482,31 @@
                                             @endforeach
                                         </div>
                                     </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
-                                                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Restaurants
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
                                 @endif
                             </div>
                                 @endif
                             @endforeach
+                            
+                            
+                            
+                            <!-- Restaurant Services Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addRestaurantService()" style="
+                                        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(67, 233, 123, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(67, 233, 123, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Restaurants
+                                    </button>
+                                </div>
+                            </div>
                             
                             <!-- Other Transport Services Section (Unified) -->
                             @if(count($allTransportHourly) > 0 || count($allTransportPoint) > 0 || count($allLocalTransport) > 0)
@@ -1804,24 +1808,25 @@
                                         @endif
                                     </div>
                                 </div>
-                                <div class="card-footer bg-light">
-                                    <div class="text-center py-3">
-                                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
-                                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                            border: none;
-                                            color: white;
-                                            font-weight: 600;
-                                            letter-spacing: 0.5px;
-                                            transition: all 0.3s ease;
-                                            border-radius: 8px;
-                                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-                                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
-                                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                             @endif
+                            <!-- Other Transport Services Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addMoreTransportService()" style="
+                                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Transport Service
+                                    </button>
+                                </div>
+                            </div>
                             
                             <!-- All Attractions Section (Unified) -->
                             @if(count($allAttractions) > 0)
@@ -1933,24 +1938,25 @@
                                         @endforeach
                                     </div>
                                 </div>
-                                <div class="card-footer bg-light">
-                                    <div class="text-center py-3">
-                                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
-                                            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-                                            border: none;
-                                            color: white;
-                                            font-weight: 600;
-                                            letter-spacing: 0.5px;
-                                            transition: all 0.3s ease;
-                                            border-radius: 8px;
-                                            box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
-                                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
-                                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Attractions
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                             @endif
+                            <!-- All Attractions Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addAttractionService()" style="
+                                        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(250, 112, 154, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(250, 112, 154, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(250, 112, 154, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Attractions
+                                    </button>
+                                </div>
+                            </div>
 
                             <!-- All Guides Section (Unified) -->
                             @if(count($allGuides) > 0)
@@ -2061,24 +2067,25 @@
                                         @endforeach
                                     </div>
                                 </div>
-                                <div class="card-footer bg-light">
-                                    <div class="text-center py-3">
-                                        <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
-                                            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-                                            border: none;
-                                            color: white;
-                                            font-weight: 600;
-                                            letter-spacing: 0.5px;
-                                            transition: all 0.3s ease;
-                                            border-radius: 8px;
-                                            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-                                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
-                                            <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Guides
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                             @endif
+                            <!-- All Guides Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addGuideService()" style="
+                                        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(79, 172, 254, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(79, 172, 254, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Guides
+                                    </button>
+                                </div>
+                            </div>
 
                             <!-- Departure Transport Services Section -->
                             @if(isset($dayOrdersByType['exit_port']))
@@ -2197,30 +2204,30 @@
                                             @endforeach
                                         </div>
                                     </div>
-                                    <div class="card-footer bg-light">
-                                        <div class="text-center py-3">
-                                            <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addDepartureService()" style="
-                                                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                                                border: none;
-                                                color: white;
-                                                font-weight: 600;
-                                                letter-spacing: 0.5px;
-                                                transition: all 0.3s ease;
-                                                border-radius: 8px;
-                                                box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
-                                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 87, 108, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 87, 108, 0.4)';">
-                                                <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Departure Services
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
                                 @endif
+                            
+                            <!-- Departure Transport Services Add More Section (Static) -->
+                            <div class="card-footer bg-light">
+                                <div class="text-center py-3">
+                                    <button type="button" class="btn btn-gradient-primary btn-lg shadow-sm px-5 py-3" onclick="addDepartureService()" style="
+                                        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                                        border: none;
+                                        color: white;
+                                        font-weight: 600;
+                                        letter-spacing: 0.5px;
+                                        transition: all 0.3s ease;
+                                        border-radius: 8px;
+                                        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 87, 108, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 87, 108, 0.4)';">
+                                        <i class="ri-add-circle-line me-2" style="font-size: 1.2em;"></i>Add More Departure Services
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-                @endif
-            @endif
         </form>
     </div>
 </div>
@@ -4076,7 +4083,125 @@
                 closeOnSelect: false
             });
         }
+
+        // Initialize Select2 for all select boxes with class 'form-select' and 'form-control'
+        // This makes all select boxes searchable without breaking existing functionality
+        initializeAllSelect2();
     });
+
+    // Function to initialize Select2 on all select boxes
+    function initializeAllSelect2(container = null) {
+        const $container = container || $(document);
+        
+        // Find all select boxes with form-select or form-control class that are not already initialized
+        $container.find('select.form-select, select.form-control').each(function() {
+            const $select = $(this);
+            
+            // Skip if already initialized with Select2
+            if ($select.data('select2')) {
+                return;
+            }
+            
+            // Get placeholder from first option if it exists
+            const firstOption = $select.find('option:first');
+            let placeholder = 'Select an option';
+            if (firstOption.length && firstOption.val() === '') {
+                placeholder = firstOption.text() || 'Select an option';
+            }
+            
+            // Check if it's a multiple select
+            const isMultiple = $select.prop('multiple');
+            
+            // Get the closest modal for dropdown parent (fixes z-index issues in modals)
+            const $modal = $select.closest('.modal');
+            const dropdownParent = $modal.length ? $modal : $('body');
+            
+            // Initialize Select2
+            // Note: Select2 automatically triggers native 'change' events, so onchange handlers will work
+            $select.select2({
+                theme: 'bootstrap-5',
+                placeholder: placeholder,
+                allowClear: !isMultiple && !$select.prop('required'),
+                width: '100%',
+                closeOnSelect: isMultiple ? false : true,
+                dropdownParent: dropdownParent
+            });
+            
+            // Mark as initialized to avoid re-initialization
+            $select.attr('data-select2-initialized', 'true');
+        });
+    }
+
+    // Reinitialize Select2 when modals are shown (for dynamically loaded content)
+    $(document).on('shown.bs.modal', '.modal', function() {
+        const $modal = $(this);
+        // Small delay to ensure content is fully rendered
+        setTimeout(function() {
+            initializeAllSelect2($modal);
+        }, 100);
+    });
+
+    // Reinitialize Select2 when select boxes are enabled (they might be disabled initially)
+    $(document).on('DOMSubtreeModified', function() {
+        // This is a fallback for very dynamic content
+        // Use MutationObserver in modern browsers for better performance
+    });
+
+    // Use MutationObserver for better performance (modern browsers)
+    if (typeof MutationObserver !== 'undefined') {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length) {
+                    $(mutation.addedNodes).find('select.form-select, select.form-control').each(function() {
+                        const $select = $(this);
+                        if (!$select.data('select2') && !$select.attr('data-select2-initialized')) {
+                            setTimeout(function() {
+                                initializeAllSelect2($select.parent());
+                            }, 50);
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Start observing
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // Make initializeAllSelect2 available globally so it can be called manually when needed
+    window.initializeAllSelect2 = initializeAllSelect2;
+    
+    // Helper function to refresh Select2 after options are updated (call this after innerHTML changes)
+    window.refreshSelect2 = function(selectElementOrId) {
+        const $select = typeof selectElementOrId === 'string' 
+            ? $('#' + selectElementOrId) 
+            : $(selectElementOrId);
+        
+        if ($select.length && $select.data('select2')) {
+            // Destroy existing Select2
+            $select.select2('destroy');
+            $select.removeAttr('data-select2-initialized');
+            // Reinitialize
+            initializeAllSelect2($select.parent());
+        } else if ($select.length) {
+            // Just initialize if not already initialized
+            initializeAllSelect2($select.parent());
+        }
+    };
+    
+    // Watch for selects that become enabled (check periodically)
+    setInterval(function() {
+        $('select.form-select:not([data-select2-initialized]):not(:disabled), select.form-control:not([data-select2-initialized]):not(:disabled)').each(function() {
+            const $select = $(this);
+            if (!$select.data('select2')) {
+                initializeAllSelect2($select.parent());
+                $select.attr('data-select2-initialized', 'true');
+            }
+        });
+    }, 1000);
 </script>
 <script>
     // Accessibility and Focus Management Utilities
@@ -9018,6 +9143,9 @@
         const selectedHotelOption = hotelSelect.options[hotelSelect.selectedIndex];
         const hotelData = selectedHotelOption ? JSON.parse(selectedHotelOption.getAttribute('data-hotel') || '{}') : {};
         
+        // Get country from tour form (fallback if hotel location is not available)
+        const country = document.getElementById('user_country') ? document.getElementById('user_country').value : '';
+        
         // Get selected room and bed data
         const roomType = document.getElementById('room_type');
         const bedType = document.getElementById('bed_type');
@@ -9124,7 +9252,7 @@
                 hotel_name: hotelData.name || "Hotel",
                 checkInTime: checkInTime,
                 checkOutTime: checkOutTime,
-                location: hotelData.location || null,
+                location: hotelData.location || hotelData.city || country || null,
                 image: hotelData.master_image || hotelData.image || "",
                 cancellation_charge: null
             },
@@ -11107,6 +11235,95 @@
         }
     }
 
+    /**
+     * Show alert for affected services and get user confirmation
+     */
+    async function showAffectedServicesAlert(affectedServices, newStartDate, newEndDate) {
+        return new Promise((resolve) => {
+            // Validate inputs
+            if (!affectedServices || !Array.isArray(affectedServices) || affectedServices.length === 0) {
+                console.error('Invalid affectedServices:', affectedServices);
+                resolve(false);
+                return;
+            }
+            
+            newStartDate = newStartDate || '';
+            newEndDate = newEndDate || '';
+            
+            // Build message for confirmation dialog
+            const formattedStartDate = formatDate(newStartDate);
+            const formattedEndDate = formatDate(newEndDate);
+            
+            // Build service list
+            const servicesList = affectedServices.map((service, i) => {
+                if (!service) return '';
+                const serviceType = service.type || 'Unknown';
+                const serviceName = service.name || 'N/A';
+                let datesStr = 'N/A';
+                
+                if (service.dates) {
+                    if (Array.isArray(service.dates)) {
+                        datesStr = service.dates.filter(d => d).join(', ');
+                    } else if (typeof service.dates === 'string') {
+                        datesStr = service.dates;
+                    }
+                }
+                
+                const serviceTypeName = getServiceTypeName(serviceType);
+                return `${i + 1}. ${serviceTypeName}: ${serviceName} (Dates: ${datesStr})`;
+            }).filter(item => item !== '').join('\n');
+            
+            // Use browser's confirm dialog
+            const message = `Warning: ${affectedServices.length} service(s) are outside the new tour date range (${formattedStartDate} to ${formattedEndDate}).\n\nThese services will be deleted if you proceed:\n\n${servicesList}\n\nDo you want to proceed and delete these services?`;
+            
+            const confirmed = confirm(message);
+            resolve(confirmed);
+        });
+    }
+
+    /**
+     * Get service type display name
+     */
+    function getServiceTypeName(type) {
+        if (!type || typeof type !== 'string') {
+            return 'Unknown Service';
+        }
+        
+        const typeNames = {
+            'hotel': 'Hotel',
+            'attraction': 'Attraction',
+            'guide': 'Guide',
+            'restaurant': 'Restaurant',
+            'entry_port': 'Entry Port Transfer',
+            'exit_port': 'Exit Port Transfer',
+            'travel_hourly': 'Hourly Transport',
+            'travel_point': 'Point-to-Point Transport',
+            'local_transport': 'Local Transport'
+        };
+        return typeNames[type] || type || 'Unknown Service';
+    }
+
+    /**
+     * Format date for display
+     */
+    function formatDate(dateStr) {
+        if (!dateStr || dateStr === 'undefined' || dateStr === 'null') {
+            return 'N/A';
+        }
+        
+        try {
+            const date = new Date(dateStr);
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return String(dateStr);
+            }
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch (e) {
+            console.error('Error formatting date:', e, dateStr);
+            return String(dateStr || 'N/A');
+        }
+    }
+
     async function UpdateTourInformation(event) {
         event.preventDefault();
         
@@ -11167,10 +11384,130 @@
                 body: formData
             });
 
-            const data = await response.json();
+            let data;
+            try {
+                const responseText = await response.text();
+                if (!responseText) {
+                    throw new Error('Empty response from server');
+                }
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response:', parseError);
+                throw new Error('Invalid response from server. Please try again.');
+            }
+
+            // Ensure data is an object
+            if (!data || typeof data !== 'object') {
+                throw new Error('Invalid response format from server.');
+            }
+
+            // Check if confirmation is required for affected services
+            if (data.requires_confirmation === true && data.affected_services && Array.isArray(data.affected_services) && data.affected_services.length > 0) {
+                submitButton.disabled = false;
+                spinner?.classList.add('d-none');
+                
+                // Show confirmation dialog with affected services
+                const confirmed = await showAffectedServicesAlert(data.affected_services, data.new_start_date, data.new_end_date);
+                
+                if (confirmed) {
+                    // User confirmed, proceed with deletion
+                    formData.append('delete_affected_services', '1');
+                    
+                    // Call update again with delete flag
+                    submitButton.disabled = true;
+                    spinner?.classList.remove('d-none');
+                    
+                    const confirmResponse = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                        },
+                        body: formData
+                    });
+                    
+                    let confirmData;
+                    try {
+                        const confirmResponseText = await confirmResponse.text();
+                        if (!confirmResponseText) {
+                            throw new Error('Empty response from server');
+                        }
+                        confirmData = JSON.parse(confirmResponseText);
+                    } catch (parseError) {
+                        console.error('Error parsing confirm response:', parseError);
+                        throw new Error('Invalid response from server. Please try again.');
+                    }
+
+                    // Ensure confirmData is an object
+                    if (!confirmData || typeof confirmData !== 'object') {
+                        throw new Error('Invalid response format from server.');
+                    }
+                    
+                    if (!confirmResponse.ok || !confirmData.success) {
+                        let errorMessage = confirmData.message || 'Unable to update tour information right now.';
+                        
+                        // Safely handle errors object
+                        if (confirmData.errors && typeof confirmData.errors === 'object') {
+                            try {
+                                const errorValues = Object.values(confirmData.errors);
+                                if (Array.isArray(errorValues) && errorValues.length > 0) {
+                                    const flatErrors = errorValues.flat().filter(e => e);
+                                    if (flatErrors.length > 0) {
+                                        errorMessage = flatErrors.join(', ');
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error processing errors:', e);
+                            }
+                        }
+                        
+                        throw new Error(errorMessage);
+                    }
+                    
+                    // Show success feedback with deleted services count
+                    const deletedCount = confirmData.deleted_services_count || 0;
+                    const successMsg = confirmData.message || 'Tour information updated successfully.';
+                    const finalMessage = deletedCount > 0 
+                        ? `${successMsg} ${deletedCount} service(s) outside the new date range have been removed.`
+                        : successMsg;
+                    
+                    feedback.textContent = finalMessage;
+                    feedback.classList.add('text-success');
+                    
+                    // Show success toastr notification
+                    showToastr('success', finalMessage);
+                    
+                    // Reload page to reflect deleted services
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    // User cancelled, don't update
+                    feedback.textContent = 'Tour update cancelled. No changes were made.';
+                    feedback.classList.add('text-warning');
+                    showToastr('info', 'Tour update cancelled. No changes were made.');
+                }
+                return;
+            }
 
             if (!response.ok || !data.success) {
-                const errorMessage = data.message || data.errors ? Object.values(data.errors).flat().join(', ') : 'Unable to update tour information right now.';
+                let errorMessage = data.message || 'Unable to update tour information right now.';
+                
+                // Safely handle errors object
+                if (data.errors && typeof data.errors === 'object') {
+                    try {
+                        const errorValues = Object.values(data.errors);
+                        if (Array.isArray(errorValues) && errorValues.length > 0) {
+                            const flatErrors = errorValues.flat().filter(e => e);
+                            if (flatErrors.length > 0) {
+                                errorMessage = flatErrors.join(', ');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error processing errors:', e);
+                    }
+                }
+                
                 throw new Error(errorMessage);
             }
 
