@@ -32,6 +32,7 @@ class EditTourController extends Controller
             'female' => 'required|integer|min:0',
             'agent_id' => 'required|exists:agents,agent_id',
             'child_ages' => 'nullable|string|max:255',
+            'delete_affected_services' => 'nullable|boolean', // Flag to delete services outside date range
         ]);
 
         try {
@@ -39,6 +40,49 @@ class EditTourController extends Controller
 
             $checkIn = Carbon::createFromFormat('Y-m-d', $validated['start_date']);
             $checkOut = Carbon::createFromFormat('Y-m-d', $validated['end_date']);
+            
+            // Check if dates are changing
+            $oldCheckIn = $tour->check_in_time ? Carbon::parse($tour->check_in_time) : null;
+            $oldCheckOut = $tour->check_out_time ? Carbon::parse($tour->check_out_time) : null;
+            $datesChanged = false;
+            
+            if ($oldCheckIn && $oldCheckOut) {
+                $datesChanged = !$checkIn->equalTo($oldCheckIn) || !$checkOut->equalTo($oldCheckOut);
+            } else {
+                $datesChanged = true;
+            }
+            
+            // If dates changed, check for affected services
+            $affectedServices = [];
+            $deletedServicesCount = 0;
+            if ($datesChanged) {
+                $affectedServices = $this->getServicesOutsideDateRange($tour->tour_id, $checkIn, $checkOut);
+                
+                // If delete flag is set, delete affected services
+                // Handle boolean values from form (can be '1', 'true', 'on', or actual boolean)
+                $shouldDelete = $request->has('delete_affected_services') && 
+                               ($request->delete_affected_services === true || 
+                                $request->delete_affected_services === '1' || 
+                                $request->delete_affected_services === 'true' || 
+                                $request->delete_affected_services === 'on');
+                
+                if ($shouldDelete && !empty($affectedServices)) {
+                    $deletedServicesCount = count($affectedServices);
+                    $this->deleteServicesOutsideDateRange($affectedServices);
+                    $affectedServices = []; // Clear after deletion
+                } else if (!empty($affectedServices)) {
+                    // Return affected services for frontend alert (don't update tour yet)
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'requires_confirmation' => true,
+                        'message' => 'Changing tour dates will affect services outside the new date range.',
+                        'affected_services' => $affectedServices,
+                        'new_start_date' => $checkIn->format('Y-m-d'),
+                        'new_end_date' => $checkOut->format('Y-m-d'),
+                    ], 200);
+                }
+            }
 
             if (!empty($validated['display_id'])) {
                 $tour->display_id = $validated['display_id'];
@@ -77,6 +121,7 @@ class EditTourController extends Controller
                     'female' => $tour->female_count,
                     'agent_id' => $tour->agent_id,
                 ],
+                'deleted_services_count' => $deletedServicesCount,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
@@ -107,10 +152,10 @@ class EditTourController extends Controller
     public function updateHotel(Request $request, $orderId)
     {
         $order = Order::where('booking_id', $orderId)->firstOrFail();
-        
         $validated = $request->validate([
             'hotel_name' => 'nullable|string|max:255',
             'hotel_location' => 'nullable|string|max:255',
+            'hotel_id' => 'nullable|string|max:255',
             'check_in_date' => 'nullable|date',
             'check_out_date' => 'nullable|date|after_or_equal:check_in_date',
             'check_in_time' => 'nullable|string|max:20',
@@ -127,6 +172,13 @@ class EditTourController extends Controller
 
         try {
             DB::beginTransaction();
+
+            // Log incoming request data for debugging
+            Log::info('updateHotel called', [
+                'order_id' => $orderId,
+                'request_data' => $request->except(['_token']),
+                'validated' => $validated,
+            ]);
 
             // Step 1: Get existing data from database FIRST (before clearing) to preserve structure
             $existingDataRaw = $order->data;
@@ -248,21 +300,26 @@ class EditTourController extends Controller
             
             $existingHotelDetails = $originalPayload['hotelDetails'] ?? [];
             
-            // Update hotelDetails fields only if provided in request, otherwise preserve existing
-            if (!empty($validated['hotel_name'])) {
-                $currentPayload['hotelDetails']['hotel_name'] = $validated['hotel_name'];
+            // Update hotelDetails fields if provided in request (even if empty to allow clearing)
+            if (array_key_exists('hotel_name', $validated)) {
+                $currentPayload['hotelDetails']['hotel_name'] = $validated['hotel_name'] ?? '';
             }
             
-            if (isset($validated['hotel_location'])) {
+            if (array_key_exists('hotel_location', $validated)) {
                 $currentPayload['hotelDetails']['location'] = $validated['hotel_location'] ?? null;
             }
             
-            if (!empty($validated['check_in_time'])) {
-                $currentPayload['hotelDetails']['checkInTime'] = $validated['check_in_time'];
+            if (array_key_exists('check_in_time', $validated)) {
+                $currentPayload['hotelDetails']['checkInTime'] = $validated['check_in_time'] ?? null;
             }
             
-            if (!empty($validated['check_out_time'])) {
-                $currentPayload['hotelDetails']['checkOutTime'] = $validated['check_out_time'];
+            if (array_key_exists('check_out_time', $validated)) {
+                $currentPayload['hotelDetails']['checkOutTime'] = $validated['check_out_time'] ?? null;
+            }
+            
+            // Update hotel_id if provided (from hidden input)
+            if ($request->has('hotel_id')) {
+                $currentPayload['hotelDetails']['hotel_id'] = $request->input('hotel_id', '');
             }
             
             // Ensure all hotelDetails fields exist - only add if missing
@@ -296,8 +353,11 @@ class EditTourController extends Controller
                 ];
             }
 
-            // Step 7: Update rooms only if provided, otherwise preserve existing structure
+            // Step 7: Update rooms - construct from individual fields if rooms_json not provided
+            $roomsUpdated = false;
+            
             if (!empty($validated['rooms_json'])) {
+                // Use provided rooms_json
                 $rooms = json_decode($validated['rooms_json'], true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     // If JSON decode fails, log error but preserve existing rooms
@@ -336,18 +396,118 @@ class EditTourController extends Controller
                         }
                     }
                     
-                    $currentPayload['rooms'] = !empty($uniqueRooms) ? $uniqueRooms : $rooms;
+                    $currentPayload['rooms'] = $uniqueRooms;
+                    $roomsUpdated = true;
+                }
+            } elseif ($request->has('room_type') || $request->has('bed_type') || $request->has('meal_plan')) {
+                // Construct rooms from individual form fields
+                $roomType = $validated['room_type'] ?? '';
+                $bedType = $validated['bed_type'] ?? '';
+                $mealPlan = $validated['meal_plan'] ?? '';
+                $numberOfRooms = $validated['number_of_rooms'] ?? 1;
+                $numberOfPersons = $validated['number_of_persons'] ?? 1;
+                $hotelId = $request->input('hotel_id', '');
+                
+                // Get existing room structure to preserve bed_id and room_id
+                $existingRooms = $currentPayload['rooms'] ?? [];
+                $existingRoom = null;
+                $existingBed = null;
+                
+                if (!empty($existingRooms) && is_array($existingRooms) && isset($existingRooms[0])) {
+                    $existingRoom = $existingRooms[0];
+                    if (isset($existingRoom['beds']) && is_array($existingRoom['beds']) && isset($existingRoom['beds'][0])) {
+                        $existingBed = $existingRoom['beds'][0];
+                    }
+                }
+                
+                // Build new room structure
+                $newRooms = [];
+                if (!empty($roomType) && !empty($bedType)) {
+                    // Extract room_id and bed_id from existing data if available
+                    $roomId = $existingRoom['room_id'] ?? null;
+                    $bedId = $existingBed['bed_id'] ?? null;
+                    
+                    // Build meal types array from meal plan
+                    $mealTypes = [];
+                    if (!empty($mealPlan)) {
+                        $mealTypes[] = $mealPlan;
+                    }
+                    
+                    // Build selected meals structure (simplified - one meal per night)
+                    $selectedMeals = [];
+                    if (!empty($validated['check_in_date']) && !empty($validated['check_out_date'])) {
+                        $checkIn = \Carbon\Carbon::parse($validated['check_in_date']);
+                        $checkOut = \Carbon\Carbon::parse($validated['check_out_date']);
+                        $numberOfNights = $checkIn->diffInDays($checkOut);
+                        
+                        for ($i = 1; $i <= $numberOfNights; $i++) {
+                            $selectedMeals["meal_{$i}"] = [
+                                'type' => $mealPlan ?: 'room_only',
+                                'price' => 0 // Price would need to be calculated from room/bed data
+                            ];
+                        }
+                    }
+                    
+                    $newRooms[] = [
+                        'room_id' => $roomId ?? 0,
+                        'room_type' => $roomType,
+                        'beds' => [
+                            [
+                                'bed_id' => $bedId ?? 0,
+                                'bed_type' => $bedType,
+                                'max_occupancy' => $numberOfPersons,
+                                'mealTypes' => $mealTypes,
+                                'selectedMeals' => $selectedMeals,
+                                'head_count' => $numberOfPersons,
+                                'price' => 0, // Price would need to be calculated
+                                'room_type' => $roomType
+                            ]
+                        ]
+                    ];
+                    
+                    // If multiple rooms, duplicate the structure
+                    if ($numberOfRooms > 1) {
+                        $baseRoom = $newRooms[0];
+                        $newRooms = [];
+                        for ($i = 0; $i < $numberOfRooms; $i++) {
+                            $newRooms[] = $baseRoom;
+                        }
+                    }
+                    
+                    $currentPayload['rooms'] = $newRooms;
+                    $roomsUpdated = true;
+                    
+                    Log::info('Rooms constructed from individual fields', [
+                        'order_id' => $orderId,
+                        'rooms' => $newRooms,
+                        'room_type' => $roomType,
+                        'bed_type' => $bedType,
+                        'meal_plan' => $mealPlan,
+                    ]);
+                } else {
+                    Log::warning('Cannot construct rooms - missing room_type or bed_type', [
+                        'order_id' => $orderId,
+                        'room_type' => $roomType,
+                        'bed_type' => $bedType,
+                    ]);
                 }
             }
-
-            // Step 8: Update specialRequests (mapped from notes field) only if provided
-            if (!empty($validated['notes'])) {
-                $currentPayload['specialRequests'] = $validated['notes'];
+            
+            if (!$roomsUpdated) {
+                Log::info('Rooms not updated - preserving existing', [
+                    'order_id' => $orderId,
+                    'existing_rooms_count' => is_array($currentPayload['rooms'] ?? []) ? count($currentPayload['rooms']) : 0,
+                ]);
             }
 
-            // Step 9: Update days_display only if provided, otherwise preserve existing
-            if (!empty($validated['days_display'])) {
-                $currentPayload['days_display'] = $validated['days_display'];
+            // Step 8: Update specialRequests (mapped from notes field) if provided
+            if (array_key_exists('notes', $validated)) {
+                $currentPayload['specialRequests'] = $validated['notes'] ?? '';
+            }
+
+            // Step 9: Update days_display if provided
+            if (array_key_exists('days_display', $validated)) {
+                $currentPayload['days_display'] = $validated['days_display'] ?? '';
             }
 
             // Step 10: Restructure payload to match desired order (same as SingleTourPackageController)
@@ -1104,6 +1264,274 @@ class EditTourController extends Controller
                 'message' => 'Unable to save transport service right now.',
                 'error' => config('app.debug') ? $exception->getMessage() : null,
             ], 500);
+        }
+    }
+
+    /**
+     * Get services that are outside the new tour date range
+     */
+    private function getServicesOutsideDateRange($tourId, Carbon $newStartDate, Carbon $newEndDate)
+    {
+        $affectedServices = [];
+        
+        // Get all orders for this tour (SoftDeletes automatically excludes soft-deleted records)
+        $orders = Order::where('tour_id', $tourId)->get();
+        
+        foreach ($orders as $order) {
+            $serviceData = $order->data;
+            if (empty($serviceData) || !is_array($serviceData)) {
+                continue;
+            }
+            
+            // Handle array of service data
+            $serviceArray = isset($serviceData[0]) ? $serviceData : [$serviceData];
+            
+            foreach ($serviceArray as $index => $service) {
+                if (!is_array($service)) {
+                    continue;
+                }
+                
+                $rawServiceDates = $this->extractServiceDates($service, $order->type);
+                if (empty($rawServiceDates)) {
+                    continue;
+                }
+                
+                // Check if any service date is outside the new tour date range
+                $isOutsideRange = false;
+                $validDates = [];
+                
+                foreach ($rawServiceDates as $dateStr) {
+                    try {
+                        // Parse date and normalize to date only (ignore time)
+                        $serviceDate = Carbon::parse($dateStr)->startOfDay();
+                        $dateStrFormatted = $serviceDate->format('Y-m-d');
+                        $validDates[] = $dateStrFormatted;
+                        
+                        // Check if date is completely outside the range
+                        // Date is outside if it's before start date or after end date
+                        $newStart = $newStartDate->copy()->startOfDay();
+                        $newEnd = $newEndDate->copy()->startOfDay();
+                        
+                        if ($serviceDate->lt($newStart) || $serviceDate->gt($newEnd)) {
+                            $isOutsideRange = true;
+                        }
+                    } catch (\Exception $e) {
+                        // Skip invalid dates
+                        Log::warning('Invalid service date', [
+                            'date' => $dateStr,
+                            'service_type' => $order->type,
+                            'error' => $e->getMessage(),
+                        ]);
+                        continue;
+                    }
+                }
+                
+                if ($isOutsideRange && !empty($validDates)) {
+                    $serviceName = $this->getServiceName($order->type, $service);
+                    $affectedServices[] = [
+                        'order_id' => $order->booking_id,
+                        'type' => $order->type,
+                        'name' => $serviceName,
+                        'dates' => array_unique($validDates),
+                        'index' => $index,
+                    ];
+                }
+            }
+        }
+        
+        return $affectedServices;
+    }
+
+    /**
+     * Extract dates from service data based on service type
+     */
+    private function extractServiceDates(array $service, string $serviceType)
+    {
+        $dates = [];
+        
+        switch ($serviceType) {
+            case 'hotel':
+                // Hotels have bookingDate array [check_in, check_out]
+                if (isset($service['bookingDate']) && is_array($service['bookingDate'])) {
+                    $dates = array_merge($dates, $service['bookingDate']);
+                }
+                break;
+                
+            case 'attraction':
+                // Attractions have visitTime
+                if (isset($service['visitTime'])) {
+                    $dates[] = $service['visitTime'];
+                }
+                break;
+                
+            case 'guide':
+                // Guides have pickupdate and entrytime
+                if (isset($service['pickupdate'])) {
+                    $dates[] = $service['pickupdate'];
+                }
+                if (isset($service['entrytime'])) {
+                    // entrytime might be datetime, extract date
+                    try {
+                        $parsed = Carbon::parse($service['entrytime']);
+                        $dates[] = $parsed->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $dates[] = $service['entrytime'];
+                    }
+                }
+                if (isset($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
+                }
+                break;
+                
+            case 'restaurant':
+                // Restaurants have visitTime
+                if (isset($service['visitTime'])) {
+                    $dates[] = $service['visitTime'];
+                }
+                break;
+                
+            case 'entry_port':
+            case 'exit_port':
+            case 'travel_hourly':
+            case 'travel_point':
+            case 'local_transport':
+                // Transport services have pickupdate and bookingDate
+                if (isset($service['pickupdate'])) {
+                    $dates[] = $service['pickupdate'];
+                }
+                if (isset($service['bookingDate'])) {
+                    $dates[] = $service['bookingDate'];
+                }
+                break;
+        }
+        
+        // Filter out empty dates and normalize format
+        $dates = array_filter(array_map(function($date) {
+            if (empty($date)) {
+                return null;
+            }
+            try {
+                // Try to parse and return in Y-m-d format
+                $parsed = Carbon::parse($date);
+                return $parsed->format('Y-m-d');
+            } catch (\Exception $e) {
+                return $date;
+            }
+        }, $dates));
+        
+        return array_unique(array_values($dates));
+    }
+
+    /**
+     * Get service name from service data
+     */
+    private function getServiceName(string $serviceType, array $service)
+    {
+        switch ($serviceType) {
+            case 'hotel':
+                return $service['hotelDetails']['hotel_name'] ?? 'Hotel Booking';
+            case 'attraction':
+                return $service['AttractionName'] ?? 'Attraction';
+            case 'guide':
+                return $service['guide_name'] ?? 'Guide Service';
+            case 'restaurant':
+                return $service['restaurantName'] ?? 'Restaurant';
+            case 'entry_port':
+                return 'Entry Port Transfer';
+            case 'exit_port':
+                return 'Exit Port Transfer';
+            case 'travel_hourly':
+                return 'Hourly Transport';
+            case 'travel_point':
+                return 'Point-to-Point Transport';
+            case 'local_transport':
+                return 'Local Transport';
+            default:
+                return ucfirst($serviceType) . ' Service';
+        }
+    }
+
+    /**
+     * Soft delete services that are outside the date range
+     * Uses SoftDeletes trait - sets deleted_at timestamp instead of hard deleting
+     */
+    private function deleteServicesOutsideDateRange(array $affectedServices)
+    {
+        // Group services by order_id to handle multiple services in the same order
+        $servicesByOrder = [];
+        foreach ($affectedServices as $service) {
+            $orderId = $service['order_id'];
+            if (!isset($servicesByOrder[$orderId])) {
+                $servicesByOrder[$orderId] = [];
+            }
+            $servicesByOrder[$orderId][] = $service;
+        }
+        
+        // Process each order
+        foreach ($servicesByOrder as $orderId => $services) {
+            try {
+                $order = Order::where('booking_id', $orderId)->first();
+                if (!$order) {
+                    continue;
+                }
+                
+                $serviceData = $order->data;
+                if (empty($serviceData) || !is_array($serviceData)) {
+                    continue;
+                }
+                
+                // Check if it's an array with multiple services
+                if (isset($serviceData[0])) {
+                    // Multiple services in array - collect indexes to delete
+                    $indexesToDelete = array_map(function($service) {
+                        return $service['index'];
+                    }, $services);
+                    
+                    // Sort indexes in descending order to avoid index shifting issues
+                    rsort($indexesToDelete);
+                    
+                    // Remove services starting from highest index
+                    foreach ($indexesToDelete as $index) {
+                        if (isset($serviceData[$index])) {
+                            unset($serviceData[$index]);
+                        }
+                    }
+                    
+                    // Re-index array
+                    $serviceData = array_values($serviceData);
+                    
+                    // If no services left, soft delete the order (sets deleted_at timestamp), otherwise update it
+                    if (empty($serviceData)) {
+                        $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                        Log::info('Soft deleted entire order - all services outside date range', [
+                            'order_id' => $orderId,
+                            'deleted_at' => $order->deleted_at ? $order->deleted_at->toDateTimeString() : 'N/A',
+                        ]);
+                    } else {
+                        $order->data = $serviceData;
+                        $order->save();
+                        Log::info('Updated order - removed services outside date range', [
+                            'order_id' => $orderId,
+                            'remaining_services' => count($serviceData),
+                            'deleted_count' => count($indexesToDelete),
+                        ]);
+                    }
+                } else {
+                    // Single service, soft delete the entire order (sets deleted_at timestamp)
+                    $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
+                    Log::info('Soft deleted order - single service outside date range', [
+                        'order_id' => $orderId,
+                        'service_type' => $services[0]['type'],
+                        'service_name' => $services[0]['name'],
+                        'deleted_at' => $order->deleted_at ? $order->deleted_at->toDateTimeString() : 'N/A',
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to delete service outside date range', [
+                    'order_id' => $orderId ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }
