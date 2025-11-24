@@ -2205,7 +2205,7 @@ export default function Pending({ filters = {} }) {
         }
       });
 
-      setEnquiryAmount(Math.ceil(totalPrice) || 0);
+      setEnquiryAmount(0);
 
       // Directly fetch enquiry history
       const authToken = Cookies.get("authToken");
@@ -2230,9 +2230,9 @@ export default function Pending({ filters = {} }) {
 
           setEnquiryHistory(historyData);
 
-          if (historyData.length > 0) {
-            setEnquiryAmount(historyData[0].current_price);
-          }
+          // if (historyData.length > 0) {
+          //   setEnquiryAmount(historyData[0].current_price);
+          // }
 
           // Check for processed status
           const hasProcessedStatus = historyData.some(
