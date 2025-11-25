@@ -225,16 +225,37 @@ use Illuminate\Support\Facades\Auth;
                                     </div>
                                 @endif
                                 <div class="col-md-3">
+                                    <label for="agency_id" class="form-label fw-semibold">Agency</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="ri-building-2-line"></i></span>
+                                        <select name="agency_id" id="agency_id" class="form-select" aria-label="Agency">
+                                            <option value="">All Agencies</option>
+                                            @if(isset($agenciesForDropdown) && $agenciesForDropdown->count() > 0)
+                                                @foreach($agenciesForDropdown as $agency)
+                                                    <option value="{{ $agency->agency_id }}" data-dmc="{{ json_encode($agency->dmc_id ?? []) }}" {{ (request('agency_id') == $agency->agency_id) ? 'selected' : '' }}>
+                                                        {{ $agency->agency_name }}
+                                                    </option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
                                     <label for="agent_id" class="form-label fw-semibold">Agent</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
                                         @if(isset($agentsForDropdown) && $agentsForDropdown->count() > 0)
                                             <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent">
                                                 <option value="">All Agents</option>
+                                                @php
+                                                    $selectedAgencyId = request('agency_id');
+                                                @endphp
                                                 @foreach($agentsForDropdown as $agent)
-                                                    <option value="{{ $agent->agent_id }}" data-dmc="{{ $agent->root_dmc_id ?? $agent->sales_manager_dmc ?? '' }}" {{ $agentId == $agent->agent_id ? 'selected' : '' }}>
-                                                        {{ $agent->name }}
-                                                    </option>
+                                                    @if(!$selectedAgencyId || $agent->agency_id == $selectedAgencyId)
+                                                        <option value="{{ $agent->agent_id }}" data-agency="{{ $agent->agency_id ?? '' }}" {{ $agentId == $agent->agent_id ? 'selected' : '' }}>
+                                                            {{ $agent->name }}
+                                                        </option>
+                                                    @endif
                                                 @endforeach
                                             </select>
                                         @else
@@ -949,6 +970,7 @@ use Illuminate\Support\Facades\Auth;
         const endInput = document.getElementById('end_date');
         const masterDmcSelect = document.getElementById('master_dmc_id');
         const dmcSelect = document.getElementById('dmc_id');
+        const agencySelect = document.getElementById('agency_id');
         const agentSelect = document.getElementById('agent_id');
         const currencySelect = document.getElementById('currency');
 
@@ -996,25 +1018,171 @@ use Illuminate\Support\Facades\Auth;
             }
         }
 
-        function filterAgentsByDmc() {
-            const selectedDmc = dmcSelect.value;
+        // Function to load agencies by DMC
+        function loadAgenciesByDmc(dmcId) {
+            if (!agencySelect) return;
+            
+            if (!dmcId) {
+                // Clear agencies if no DMC selected
+                const currentValue = agencySelect.value;
+                agencySelect.innerHTML = '<option value="">All Agencies</option>';
+                agencySelect.value = '';
+                
+                // Clear agents if agency was cleared
+                if (currentValue) {
+                    clearAgents();
+                }
+                return;
+            }
+
+            // Show loading state
+            agencySelect.innerHTML = '<option value="">Loading agencies...</option>';
+            agencySelect.disabled = true;
+
+            // Fetch agencies for the selected DMC
+            fetch(`{{ url('/reports/fetch-agencies-by-dmc') }}?dmc_id=${dmcId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const previousAgencyValue = agencySelect.value;
+                    agencySelect.innerHTML = '<option value="">All Agencies</option>';
+                    
+                    if (data.success && data.agencies && data.agencies.length > 0) {
+                        data.agencies.forEach(agency => {
+                            const option = document.createElement('option');
+                            option.value = agency.agency_id;
+                            option.textContent = agency.agency_name;
+                            option.setAttribute('data-dmc', JSON.stringify(agency.dmc_id || []));
+                            agencySelect.appendChild(option);
+                        });
+                    }
+                    
+                    agencySelect.disabled = false;
+                    
+                    // If there was a previous agency selected and it still exists, keep it selected
+                    // Otherwise, clear agents
+                    if (previousAgencyValue) {
+                        const optionExists = Array.from(agencySelect.options).some(opt => opt.value === previousAgencyValue);
+                        if (optionExists) {
+                            agencySelect.value = previousAgencyValue;
+                            // Manually trigger agent loading for this agency
+                            loadAgentsByAgency(previousAgencyValue);
+                        } else {
+                            agencySelect.value = '';
+                            clearAgents();
+                        }
+                    } else {
+                        clearAgents();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading agencies:', error);
+                    agencySelect.innerHTML = '<option value="">Error loading agencies</option>';
+                    agencySelect.disabled = false;
+                    clearAgents();
+                });
+        }
+        
+        // Helper function to clear agents dropdown - show all agents
+        function clearAgents() {
+            if (!agentSelect) return;
+            
+            // Show all agents - no filtering by DMC or agency
             const agentOptions = agentSelect.querySelectorAll('option');
             
             agentOptions.forEach(option => {
-                if (option.value === '') {
-                    option.style.display = 'block';
-                } else {
-                    const dmcId = option.getAttribute('data-dmc');
-                    option.style.display = (!selectedDmc || dmcId === selectedDmc) ? 'block' : 'none';
-                }
+                option.style.display = 'block';
             });
             
-            // Reset agent selection if current selection is not valid
-            if (selectedDmc && agentSelect.value) {
-                const currentAgentOption = agentSelect.querySelector(`option[value="${agentSelect.value}"]`);
-                if (currentAgentOption && currentAgentOption.getAttribute('data-dmc') !== selectedDmc) {
-                    agentSelect.value = '';
+            // Reset agent selection
+            agentSelect.value = '';
+        }
+
+        function filterAgentsByDmc() {
+            const selectedDmc = dmcSelect ? dmcSelect.value : '';
+            
+            // Load agencies for the selected DMC
+            if (selectedDmc) {
+                loadAgenciesByDmc(selectedDmc);
+            } else {
+                // Clear agencies if no DMC selected
+                if (agencySelect) {
+                    const currentAgencyValue = agencySelect.value;
+                    agencySelect.innerHTML = '<option value="">All Agencies</option>';
+                    agencySelect.value = '';
+                    
+                    // If agency was cleared, also clear agents
+                    if (currentAgencyValue) {
+                        clearAgents();
+                    }
                 }
+            }
+        }
+
+        // Function to load agents by agency - ONLY filter by agency_id
+        function loadAgentsByAgency(agencyId) {
+            if (!agentSelect) return;
+            
+            if (!agencyId) {
+                // If no agency selected, clear and show all agents
+                clearAgents();
+                return;
+            }
+
+            // Show loading state
+            agentSelect.innerHTML = '<option value="">Loading agents...</option>';
+            agentSelect.disabled = true;
+
+            // Build URL with ONLY agency_id - no DMC filtering
+            let url = `{{ url('/reports/fetch-agents-by-agency') }}?agency_id=${agencyId}`;
+
+            // Fetch agents for the selected agency - ONLY by agency_id
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const previousAgentValue = agentSelect.value;
+                    agentSelect.innerHTML = '<option value="">All Agents</option>';
+                    
+                    if (data.success && data.agents && data.agents.length > 0) {
+                        data.agents.forEach(agent => {
+                            const option = document.createElement('option');
+                            option.value = agent.agent_id;
+                            option.textContent = agent.name;
+                            option.setAttribute('data-agency', agent.agency_id || '');
+                            agentSelect.appendChild(option);
+                        });
+                        
+                        // If there was a previous agent selected and it still exists, keep it selected
+                        if (previousAgentValue) {
+                            const optionExists = Array.from(agentSelect.options).some(opt => opt.value === previousAgentValue);
+                            if (optionExists) {
+                                agentSelect.value = previousAgentValue;
+                            }
+                        }
+                    } else {
+                        // No agents found for this agency
+                        agentSelect.innerHTML = '<option value="">No agents found</option>';
+                    }
+                    
+                    agentSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error loading agents:', error);
+                    agentSelect.innerHTML = '<option value="">Error loading agents</option>';
+                    agentSelect.disabled = false;
+                });
+        }
+
+        function filterAgentsByAgency() {
+            if (!agentSelect) return;
+            
+            const selectedAgency = agencySelect ? agencySelect.value : '';
+            
+            // If agency is selected, load agents for that agency
+            if (selectedAgency) {
+                loadAgentsByAgency(selectedAgency);
+            } else {
+                // If no agency selected, show all agents (filtered by DMC if selected)
+                clearAgents();
             }
         }
 
@@ -1087,14 +1255,76 @@ use Illuminate\Support\Facades\Auth;
 
         // Event listeners
         startInput.addEventListener('change', setEndDateLimits);
-        masterDmcSelect.addEventListener('change', filterDmcsByMaster);
-        dmcSelect.addEventListener('change', filterAgentsByDmc);
+        if (masterDmcSelect) {
+            masterDmcSelect.addEventListener('change', filterDmcsByMaster);
+        }
+        if (dmcSelect) {
+            dmcSelect.addEventListener('change', filterAgentsByDmc);
+        }
+        if (agencySelect) {
+            agencySelect.addEventListener('change', filterAgentsByAgency);
+        }
         currencySelect.addEventListener('change', updateExchangeRate);
 
         // Initialize on page load
         setEndDateLimits();
-        filterDmcsByMaster();
-        filterAgentsByDmc();
+        if (masterDmcSelect) {
+            filterDmcsByMaster();
+        }
+        
+        // For DMC, Sales Head, Sales Manager, and Assistant Sales Manager, load their agencies on page load
+        @php
+            $user = Auth::user();
+            $userDmcId = null;
+            
+            if ($user->role_id == 11) {
+                // DMC - use their own ID
+                $userDmcId = $user->userId;
+            } elseif (in_array($user->role_id, [33, 128, 129, 130, 134, 135, 136, 138])) {
+                // Sales Head - DMC is their creator
+                $userDmcId = $user->created_by;
+            } elseif ($user->role_id == 37) {
+                // Sales Manager - get DMC through Sales Head
+                $salesHead = \App\Models\User::where('userId', $user->created_by)->first();
+                if ($salesHead) {
+                    $userDmcId = $salesHead->created_by;
+                }
+            } elseif ($user->role_id == 38) {
+                // Assistant Sales Manager - get DMC through Sales Manager -> Sales Head
+                $salesManager = \App\Models\User::where('userId', $user->created_by)->first();
+                if ($salesManager) {
+                    $salesHead = \App\Models\User::where('userId', $salesManager->created_by)->first();
+                    if ($salesHead) {
+                        $userDmcId = $salesHead->created_by;
+                    }
+                }
+            }
+        @endphp
+        
+        @if($userDmcId)
+            if (dmcSelect) {
+                // Set DMC to user's DMC (only if not already set from request)
+                if (!dmcSelect.value) {
+                    dmcSelect.value = '{{ $userDmcId }}';
+                    loadAgenciesByDmc('{{ $userDmcId }}');
+                } else if (dmcSelect.value === '{{ $userDmcId }}') {
+                    // If already set to user's DMC, just load agencies
+                    loadAgenciesByDmc('{{ $userDmcId }}');
+                }
+            }
+        @else
+            // For other users, if DMC is pre-selected, load agencies
+            if (dmcSelect && dmcSelect.value) {
+                loadAgenciesByDmc(dmcSelect.value);
+            }
+        @endif
+        
+        // If agency is pre-selected (from request), load agents for that agency ONLY
+        @if(request('agency_id'))
+            if (agencySelect && agencySelect.value) {
+                loadAgentsByAgency(agencySelect.value);
+            }
+        @endif
         
         // Debug: Check if elements exist before calling updateExchangeRate
         console.log('currencySelect element:', currencySelect);
@@ -1159,6 +1389,10 @@ use Illuminate\Support\Facades\Auth;
         document.getElementById('end_date').value = '';
         document.getElementById('master_dmc_id').value = '';
         document.getElementById('dmc_id').value = '';
+        const agencySelect = document.getElementById('agency_id');
+        if (agencySelect) {
+            agencySelect.innerHTML = '<option value="">All Agencies</option>';
+        }
         document.getElementById('agent_id').value = '';
         document.getElementById('service_type').value = '';
         document.getElementById('currency').value = 'SGD';

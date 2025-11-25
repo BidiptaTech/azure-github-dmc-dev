@@ -168,6 +168,7 @@ class EditTourController extends Controller
             'bed_type' => 'nullable|string|max:255',
             'meal_plan' => 'nullable|string|max:255',
             'number_of_persons' => 'nullable|integer|min:1',
+            'total_price' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -251,7 +252,10 @@ class EditTourController extends Controller
             if (!array_key_exists('priceModeId', $currentPayload)) {
                 $currentPayload['priceModeId'] = $originalPayload['priceModeId'] ?? 0;
             }
-            if (!array_key_exists('totalPrice', $currentPayload)) {
+            // Update totalPrice if provided in request (always update if key exists, even if value is 0)
+            if (array_key_exists('total_price', $validated)) {
+                $currentPayload['totalPrice'] = (float) ($validated['total_price'] ?? 0);
+            } elseif (!array_key_exists('totalPrice', $currentPayload)) {
                 $currentPayload['totalPrice'] = $originalPayload['totalPrice'] ?? 0;
             }
             if (!array_key_exists('price', $currentPayload)) {
@@ -372,6 +376,74 @@ class EditTourController extends Controller
                         $rooms = [];
                     }
                     
+                    // Preserve structure: ensure each room has proper mealTypes array and selectedMeals object
+                    foreach ($rooms as &$room) {
+                        if (!is_array($room) || !isset($room['beds']) || !is_array($room['beds'])) {
+                            continue;
+                        }
+                        
+                        foreach ($room['beds'] as &$bed) {
+                            if (!is_array($bed)) {
+                                continue;
+                            }
+                            
+                            // Ensure mealTypes is an array
+                            if (!isset($bed['mealTypes']) || !is_array($bed['mealTypes'])) {
+                                // Try to get from selectedMeals if mealTypes is missing
+                                if (isset($bed['selectedMeals']) && is_array($bed['selectedMeals'])) {
+                                    $firstMeal = reset($bed['selectedMeals']);
+                                    if ($firstMeal && isset($firstMeal['type'])) {
+                                        $bed['mealTypes'] = [$firstMeal['type']];
+                                    } else {
+                                        $bed['mealTypes'] = [];
+                                    }
+                                } else {
+                                    $bed['mealTypes'] = [];
+                                }
+                            }
+                            
+                            // Ensure selectedMeals is an object (associative array)
+                            if (!isset($bed['selectedMeals']) || !is_array($bed['selectedMeals'])) {
+                                // If missing, try to construct from mealTypes
+                                if (!empty($bed['mealTypes']) && is_array($bed['mealTypes'])) {
+                                    $mealType = $bed['mealTypes'][0] ?? '';
+                                    if (!empty($validated['check_in_date']) && !empty($validated['check_out_date'])) {
+                                        $checkIn = \Carbon\Carbon::parse($validated['check_in_date']);
+                                        $checkOut = \Carbon\Carbon::parse($validated['check_out_date']);
+                                        $numberOfNights = $checkIn->diffInDays($checkOut);
+                                        
+                                        $selectedMeals = [];
+                                        for ($i = 1; $i <= $numberOfNights; $i++) {
+                                            $selectedMeals["meal_{$i}"] = [
+                                                'type' => $mealType,
+                                                'price' => 0
+                                            ];
+                                        }
+                                        $bed['selectedMeals'] = $selectedMeals;
+                                    } else {
+                                        $bed['selectedMeals'] = [];
+                                    }
+                                } else {
+                                    $bed['selectedMeals'] = [];
+                                }
+                            } else {
+                                // Ensure selectedMeals has proper structure (meal_1, meal_2, etc.)
+                                $selectedMeals = [];
+                                foreach ($bed['selectedMeals'] as $key => $meal) {
+                                    if (is_array($meal) && isset($meal['type'])) {
+                                        $selectedMeals[$key] = [
+                                            'type' => $meal['type'],
+                                            'price' => isset($meal['price']) ? (float)$meal['price'] : 0
+                                        ];
+                                    }
+                                }
+                                $bed['selectedMeals'] = $selectedMeals;
+                            }
+                        }
+                        unset($bed); // Break reference
+                    }
+                    unset($room); // Break reference
+                    
                     // Remove duplicate rooms based on room_id and bed_id combination
                     $uniqueRooms = [];
                     $seenRooms = [];
@@ -398,6 +470,12 @@ class EditTourController extends Controller
                     
                     $currentPayload['rooms'] = $uniqueRooms;
                     $roomsUpdated = true;
+                    
+                    Log::info('Rooms updated from rooms_json', [
+                        'order_id' => $orderId,
+                        'rooms_count' => count($uniqueRooms),
+                        'sample_room' => !empty($uniqueRooms) ? $uniqueRooms[0] : null,
+                    ]);
                 }
             } elseif ($request->has('room_type') || $request->has('bed_type') || $request->has('meal_plan')) {
                 // Construct rooms from individual form fields
@@ -428,22 +506,41 @@ class EditTourController extends Controller
                     $bedId = $existingBed['bed_id'] ?? null;
                     
                     // Build meal types array from meal plan
+                    // Ensure it's an array format like ["Room Only"] or ["room with breakfast"]
                     $mealTypes = [];
                     if (!empty($mealPlan)) {
                         $mealTypes[] = $mealPlan;
                     }
                     
                     // Build selected meals structure (simplified - one meal per night)
+                    // Try to preserve prices from original rooms if available
                     $selectedMeals = [];
                     if (!empty($validated['check_in_date']) && !empty($validated['check_out_date'])) {
                         $checkIn = \Carbon\Carbon::parse($validated['check_in_date']);
                         $checkOut = \Carbon\Carbon::parse($validated['check_out_date']);
                         $numberOfNights = $checkIn->diffInDays($checkOut);
                         
+                        // Get original selectedMeals prices if available
+                        $originalSelectedMeals = [];
+                        if (!empty($existingRooms) && is_array($existingRooms) && isset($existingRooms[0]['beds'][0]['selectedMeals'])) {
+                            $originalSelectedMeals = $existingRooms[0]['beds'][0]['selectedMeals'];
+                        }
+                        
                         for ($i = 1; $i <= $numberOfNights; $i++) {
-                            $selectedMeals["meal_{$i}"] = [
-                                'type' => $mealPlan ?: 'room_only',
-                                'price' => 0 // Price would need to be calculated from room/bed data
+                            $mealKey = "meal_{$i}";
+                            $mealPrice = 0;
+                            
+                            // Try to preserve price from original if meal type matches
+                            if (isset($originalSelectedMeals[$mealKey]) && 
+                                is_array($originalSelectedMeals[$mealKey]) &&
+                                isset($originalSelectedMeals[$mealKey]['type']) &&
+                                $originalSelectedMeals[$mealKey]['type'] === $mealPlan) {
+                                $mealPrice = $originalSelectedMeals[$mealKey]['price'] ?? 0;
+                            }
+                            
+                            $selectedMeals[$mealKey] = [
+                                'type' => $mealPlan ?: 'Room Only',
+                                'price' => (float)$mealPrice
                             ];
                         }
                     }

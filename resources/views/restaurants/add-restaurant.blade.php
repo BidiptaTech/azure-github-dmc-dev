@@ -178,10 +178,10 @@
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 @php
                                     $roleId = auth()->user()->role_id;
-                                    $placeholder = $roleId == 11 || $roleId == 20 ? 'Select City' : 'Select DMC First';
+                                    $placeholder = 'Select Country First';
                                 @endphp
                                 
-                                <select name="city" id="citySelect" class="form-control" required>
+                                <select name="city" id="citySelect" class="form-control" required disabled>
                                     <option value="">{{ $placeholder }}</option>
 
                                     @if(in_array($roleId, [11, 20, 35, 78, 120, 139, 140]))
@@ -232,7 +232,7 @@
                             <!-- Ownership -->
                             <div class="col-md-3 mb-3">
                                 <label for="owned_by" class="form-label"><strong>Ownership</strong><span class="text-danger">*</span></label>
-                                <select name="owned_by" class="form-select" required>
+                                <select name="owned_by" id="owned_by" class="form-control" required>
                                     <option value="" selected>Select</option>
                                     <option value="0" {{ old('owned_by') == '0' ? 'selected' : '' }}>Third Party</option>
                                     @foreach($hotels as $hotel)
@@ -1135,11 +1135,18 @@ $(document).ready(function() {
             width: '100%'
         });
         
-        // Initialize Select2 for city
+        // Initialize Select2 for city (disabled until country is selected)
         $('#citySelect').select2({
-            placeholder: "Search and Select a City",
+            placeholder: "Select Country First",
             allowClear: true,
-            tags: true,
+            width: '100%',
+            disabled: true
+        });
+        
+        // Initialize Select2 for Ownership
+        $('#owned_by').select2({
+            placeholder: "Search and Select Ownership",
+            allowClear: true,
             width: '100%'
         });
         
@@ -1166,9 +1173,9 @@ $(document).ready(function() {
                 if (dmcId) {
                     loadCitiesForDmc(dmcId);
                 } else {
-                    // Clear city select and country
-                    $('#citySelect').empty().append('<option value="">Select a DMC first</option>').trigger('change');
-                    $('#country').val('');
+                    // Clear city select and country, disable city field
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                    $('#country').val('').trigger('change');
                 }
             });
         } 
@@ -1182,7 +1189,7 @@ $(document).ready(function() {
         function loadCitiesForDmc(dmcId) {
             if (dmcId) {
                 // Show loading state
-                $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
                 
                 // Add a debug statement
                 console.log("Loading cities for DMC ID:", dmcId);
@@ -1199,13 +1206,18 @@ $(document).ready(function() {
                         $('#citySelect').empty();
                         
                         // Add default option
-                        $('#citySelect').append('<option value="">Select or type a city</option>');
+                        $('#citySelect').append('<option value="">Select a City</option>');
                         
                         // Add cities from response
                         if (response.cities && response.cities.length > 0) {
                             $.each(response.cities, function(key, city) {
                                 $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
                             });
+                            // Enable city field when cities are loaded
+                            $('#citySelect').prop('disabled', false);
+                        } else {
+                            // No cities found, keep disabled
+                            $('#citySelect').append('<option value="">No cities available</option>');
                         }
                         
                         // Set the country value
@@ -1221,19 +1233,24 @@ $(document).ready(function() {
                         console.log("XHR Status:", xhr.status);
                         console.log("Response:", xhr.responseText);
                         
-                        $('#citySelect').empty();
-                        $('#citySelect').append('<option value="">Error loading cities</option>');
-                        $('#citySelect').trigger('change');
+                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
                     }
                 });
+            } else {
+                // DMC cleared, disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
             }
         }
 
         // -----------------------------------------------------------
         // Helper: load cities when country is chosen (non-DMC flow)
         function loadCitiesByCountry(countryName) {
-            if (!countryName) return;
-            $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+            if (!countryName) {
+                // Disable city field if no country is selected
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
 
             $.ajax({
                 url: "{{ env('APP_URL') }}{{ route('fetch-cities-by-country', [], false) }}",
@@ -1241,23 +1258,36 @@ $(document).ready(function() {
                 data: { country: countryName },
                 dataType: 'json',
                 success: function(res){
-                    $('#citySelect').empty().append('<option value="">Select or type a city</option>');
+                    $('#citySelect').empty().append('<option value="">Select a City</option>');
                     if (res.cities && res.cities.length){
                         $.each(res.cities, function(i, ct){
                             $('#citySelect').append('<option value="'+ct.name+'">'+ct.name+'</option>');
                         });
+                        // Enable city field when cities are loaded
+                        $('#citySelect').prop('disabled', false);
+                    } else {
+                        // No cities found, keep disabled
+                        $('#citySelect').append('<option value="">No cities available</option>');
                     }
                     $('#citySelect').trigger('change');
                 },
                 error: function(){
-                    $('#citySelect').empty().append('<option value="">Error loading cities</option>').trigger('change');
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
                 }
             });
         }
 
         // when country changes by user
         $('#country').on('change', function(){
-            loadCitiesByCountry($(this).val());
+            const selectedCountryValue = $(this).val();
+            
+            if (!selectedCountryValue || selectedCountryValue === '') {
+                // Country cleared, disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
+            
+            loadCitiesByCountry(selectedCountryValue);
         });
 
         // initial load if country pre-selected

@@ -105,10 +105,10 @@
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
                                 @php
                                     $roleId = auth()->user()->role_id;
-                                    $placeholder = $roleId == 11 || $roleId == 20 ? 'Select City' : 'Select DMC First';
+                                    $placeholder = 'Select Country First';
                                 @endphp
 
-                                <select name="location" id="citySelect" class="form-control" required>
+                                <select name="location" id="citySelect" class="form-control" required disabled>
                                     <option value="">{{ $placeholder }}</option>
 
                                     @if(in_array($roleId, [11, 20, 35, 74, 93, 139, 140]))
@@ -456,12 +456,12 @@
                 }
             }
         });
-        // Initialize Select2 for city
+        // Initialize Select2 for city (disabled until country is selected)
         $('#citySelect').select2({
-            placeholder: "Search and Select a City",
+            placeholder: "Select Country First",
             allowClear: true,
-            tags: true,
-            width: '100%'
+            width: '100%',
+            disabled: true
         });
 
         // Initialize Select2 for country dropdown
@@ -967,12 +967,12 @@ document.addEventListener("DOMContentLoaded", function() {
         var userCountry = "{{ in_array(auth()->user()->role_id, [11, 20, 35, 74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? auth()->user()->country : '' }}";
         var dmcId = "{{ in_array(auth()->user()->role_id, [11, 20, 35, 74, 93, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? auth()->user()->userId : '' }}";
         
-        // // Initialize Select2 for city
+        // // Initialize Select2 for city (disabled until country is selected)
         $('#citySelect').select2({
-            placeholder: "Search and Select a City",
+            placeholder: "Select Country First",
             allowClear: true,
-            tags: true,
-            width: '100%'
+            width: '100%',
+            disabled: true
         });
         
         // Check if the user role corresponds to a DMC or similar roles
@@ -998,9 +998,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (dmcId) {
                     loadCitiesForDmc(dmcId);
                 } else {
-                    // Clear city select and country
-                    $('#citySelect').empty().append('<option value="">Select a DMC first</option>').trigger('change');
-                    $('#country').val('');
+                    // Clear city select and country, disable city field
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                    $('#country').val('').trigger('change');
                 }
             });
         } 
@@ -1014,7 +1014,7 @@ document.addEventListener("DOMContentLoaded", function() {
         function loadCitiesForDmc(dmcId) {
             if (dmcId) {
                 // Show loading state
-                $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
                 
                 // Add a debug statement
                 console.log("Loading cities for DMC ID:", dmcId);
@@ -1031,13 +1031,18 @@ document.addEventListener("DOMContentLoaded", function() {
                         $('#citySelect').empty();
                         
                         // Add default option
-                        $('#citySelect').append('<option value="">Select or type a city</option>');
+                        $('#citySelect').append('<option value="">Select a City</option>');
                         
                         // Add cities from response
                         if (response.cities && response.cities.length > 0) {
                             $.each(response.cities, function(key, city) {
                                 $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
                             });
+                            // Enable city field when cities are loaded
+                            $('#citySelect').prop('disabled', false);
+                        } else {
+                            // No cities found, keep disabled
+                            $('#citySelect').append('<option value="">No cities available</option>');
                         }
                         
                         // Set the country value
@@ -1051,11 +1056,12 @@ document.addEventListener("DOMContentLoaded", function() {
                         console.log("XHR Status:", xhr.status);
                         console.log("Response:", xhr.responseText);
                         
-                        $('#citySelect').empty();
-                        $('#citySelect').append('<option value="">Error loading cities</option>');
-                        $('#citySelect').trigger('change');
+                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
                     }
                 });
+            } else {
+                // DMC cleared, disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
             }
         }
     });
@@ -1350,9 +1356,13 @@ document.addEventListener("DOMContentLoaded", function() {
     // -----------------------------------------------------------
     // Helper: Load cities when a country is chosen (non-DMC flow)
     function loadCitiesByCountry(countryName) {
-        if (!countryName) return;
+        if (!countryName) {
+            // Disable city field if no country is selected
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
+        }
         // Show loading state
-        $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+        $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
 
         $.ajax({
             url: "{{ env('APP_URL') }}{{ route('fetch-cities-by-country', [], false) }}",
@@ -1360,16 +1370,21 @@ document.addEventListener("DOMContentLoaded", function() {
             data: { country: countryName },
             dataType: 'json',
             success: function(response) {
-                $('#citySelect').empty().append('<option value="">Select or type a city</option>');
+                $('#citySelect').empty().append('<option value="">Select a City</option>');
                 if (response.cities && response.cities.length > 0) {
                     $.each(response.cities, function(idx, city) {
                         $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
                     });
+                    // Enable city field when cities are loaded
+                    $('#citySelect').prop('disabled', false);
+                } else {
+                    // No cities found, keep disabled
+                    $('#citySelect').append('<option value="">No cities available</option>');
                 }
                 $('#citySelect').trigger('change');
             },
             error: function() {
-                $('#citySelect').empty().append('<option value="">Error loading cities</option>').trigger('change');
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
             }
         });
     }
@@ -1377,6 +1392,14 @@ document.addEventListener("DOMContentLoaded", function() {
     // Trigger city loading whenever country changes
     $('#country').on('change', function() {
         const selectedCountryName = $(this).val();
+        const selectedCountryValue = $(this).val();
+        
+        if (!selectedCountryValue || selectedCountryValue === '') {
+            // Country cleared, disable city field
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
+        }
+        
         loadCitiesByCountry(selectedCountryName);
     });
 

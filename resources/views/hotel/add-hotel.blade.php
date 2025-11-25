@@ -330,7 +330,7 @@
                                 <label for="country" class="form-label"><strong>Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <select class="form-select" id="country" name="country" required>
+                                <select class="form-control" id="country" name="country" required>
                                     <option value="">Select Country</option>
                                     @foreach($country as $c)
                                         <option value="{{ $c->name }}">
@@ -347,8 +347,8 @@
                             <!-- City -->
                             <div class="col-md-4 mb-3">
                                 <label for="city" class="form-label"><strong>City</strong><span class="text-danger">*</span></label>
-                                <select name="location" id="citySelect" class="form-control" required>
-                                    <option value="">{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 139, 140]) ? 'Select City' : 'Select DMC First' }}</option>
+                                <select name="location" id="citySelect" class="form-control" required disabled>
+                                    <option value="">{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 139, 140]) ? 'Select Country First' : 'Select Country First' }}</option>
                                 </select>
                                 @error('location')
                                     <div class="text-danger mt-1">{{ $message }}</div>
@@ -801,6 +801,11 @@
             allowClear: true,
             width: '100%'
         });
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
     });
 </script>
 
@@ -813,12 +818,12 @@
         var userCountry = "{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? auth()->user()->country : '' }}";
         var dmcId = "{{ in_array(auth()->user()->role_id, [11, 35, 77, 84, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? auth()->user()->userId : '' }}";
         
-        // // Initialize Select2 for city
+        // // Initialize Select2 for city (disabled until country is selected)
         $('#citySelect').select2({
-            placeholder: "Search and Select a City",
+            placeholder: "Select Country First",
             allowClear: true,
-            tags: true,
-            width: '100%'
+            width: '100%',
+            disabled: true
         });
         
         // Check if the user role is DMC (role_id = 11) or similar roles
@@ -844,9 +849,9 @@
                 if (dmcId) {
                     loadCitiesForDmc(dmcId);
                 } else {
-                    // Clear city select and country
-                    $('#citySelect').empty().append('<option value="">Select a DMC first</option>').trigger('change');
-                    $('#country').val('');
+                    // Clear city select and country, disable city field
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                    $('#country').val('').trigger('change');
                 }
             });
         } 
@@ -860,7 +865,7 @@
         function loadCitiesForDmc(dmcId) {
             if (dmcId) {
                 // Show loading state
-                $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
                 
                 // Add a debug statement
                 console.log("Loading cities for DMC ID:", dmcId);
@@ -877,13 +882,18 @@
                         $('#citySelect').empty();
                         
                         // Add default option
-                        $('#citySelect').append('<option value="">Select or type a city</option>');
+                        $('#citySelect').append('<option value="">Select a City</option>');
                         
                         // Add cities from response
                         if (response.cities && response.cities.length > 0) {
                             $.each(response.cities, function(key, city) {
                                 $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
                             });
+                            // Enable city field when cities are loaded
+                            $('#citySelect').prop('disabled', false);
+                        } else {
+                            // No cities found, keep disabled
+                            $('#citySelect').append('<option value="">No cities available</option>');
                         }
                         
                         // Set the country value
@@ -899,11 +909,12 @@
                         console.log("XHR Status:", xhr.status);
                         console.log("Response:", xhr.responseText);
                         
-                        $('#citySelect').empty();
-                        $('#citySelect').append('<option value="">Error loading cities</option>');
-                        $('#citySelect').trigger('change');
+                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
                     }
                 });
+            } else {
+                // DMC cleared, disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
             }
         }
     });
@@ -1043,10 +1054,14 @@
         
         // NEW: Fetch and populate city list based on selected country -----------------------------
         function loadCitiesByCountry(countryName) {
-            if (!countryName) return;
+            if (!countryName) {
+                // Disable city field if no country is selected
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
 
             // Display loading option while fetching cities
-            $('#citySelect').empty().append('<option value="">Loading cities...</option>').trigger('change');
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
 
             $.ajax({
                 url: "{{ env('APP_URL') }}{{ route('fetch-cities-by-country', [], false) }}",
@@ -1055,27 +1070,40 @@
                 dataType: 'json',
                 success: function(response) {
                     // Clear current options and add a default placeholder
-                    $('#citySelect').empty().append('<option value="">Select or type a city</option>');
+                    $('#citySelect').empty().append('<option value="">Select a City</option>');
 
                     if (response.cities && response.cities.length > 0) {
                         $.each(response.cities, function(index, city) {
                             $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
                         });
+                        // Enable city field when cities are loaded
+                        $('#citySelect').prop('disabled', false);
+                    } else {
+                        // No cities found, keep disabled
+                        $('#citySelect').append('<option value="">No cities available</option>');
                     }
                     // Refresh Select2 display
                     $('#citySelect').trigger('change');
                 },
                 error: function(xhr, status, error) {
                     console.error("Error fetching cities by country:", error);
-                    $('#citySelect').empty().append('<option value="">Error loading cities</option>').trigger('change');
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
                 }
             });
         }
         // ---------------------------------------------------------------------------
 
         // Update country code AND city list whenever the country selection changes
-        $('#country').on('change input', function() {
-            const selectedCountryName = $('#country option:selected').text().trim();
+        $('#country').on('change', function() {
+            const selectedCountryName = $(this).find('option:selected').text().trim();
+            const selectedCountryValue = $(this).val();
+            
+            if (!selectedCountryValue || selectedCountryValue === '') {
+                // Country cleared, disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                return;
+            }
+            
             updateCountryCode(selectedCountryName);
             loadCitiesByCountry(selectedCountryName);
         });
@@ -1098,12 +1126,16 @@
                     dataType: 'json',
                     success: function(response) {
                         if (response.country) {
-                            $('#country').val(response.country);
+                            $('#country').val(response.country).trigger('change');
                             updateCountryCode(response.country);
                             loadCitiesByCountry(response.country);
                         }
                     }
                 });
+            } else {
+                // DMC cleared, disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                $('#country').val('').trigger('change');
             }
         });
 

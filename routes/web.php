@@ -221,6 +221,8 @@ Route::get('/clear', function () {
                 Route::get('reports/balance-history/{agentId}', [FinanceReportController::class, 'getBalanceHistory'])->name('reports.balance-history');
                 Route::get('reports/export-transaction/{id}', [FinanceReportController::class, 'exportTransaction'])->name('reports.export-transaction');
                 Route::get('reports/export-balance-history/{agentId}', [FinanceReportController::class, 'exportBalanceHistory'])->name('reports.export-balance-history');
+                Route::get('reports/fetch-agencies-by-dmc', [FinanceReportController::class, 'fetchAgenciesByDmc'])->name('reports.fetch-agencies-by-dmc');
+                Route::get('reports/fetch-agents-by-agency', [FinanceReportController::class, 'fetchAgentsByAgency'])->name('reports.fetch-agents-by-agency');
                 
                 Route::get('/cities-by-country/{country}', [PackageController::class, 'getCitiesByCountry'])->name('cities-by-country');
                 // City → Hotel

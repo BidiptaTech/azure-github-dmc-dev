@@ -404,11 +404,10 @@
             maxHeight: 500,   
             placeholder: 'Enter your content here...', 
         });
-        // Initialize Select2 for city
+        // Initialize Select2 for city (only select from existing cities)
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
-            allowClear: false,
-            tags: true,
+            allowClear: true,
             width: '100%'
         });
     });

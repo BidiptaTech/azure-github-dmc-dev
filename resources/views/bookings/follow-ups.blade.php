@@ -597,13 +597,20 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex gap-2">
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                        class="btn btn-outline-success btn-sm rounded-pill">
                                         <i class="ri-pencil-line"></i> Edit
                                     </a>
+                                    @endif
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> Audit Trail
+                                    </a>
+                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-secondary btn-sm rounded-pill"
+                                       target="_blank">
+                                        <i class="ri-file-download-line me-1"></i> Download Quotation
                                     </a>
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
                                             class="btn btn-outline-danger btn-sm rounded-pill" 

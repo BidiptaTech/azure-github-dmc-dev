@@ -586,6 +586,11 @@
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> Audit Trail
                                     </a>
+                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-secondary btn-sm rounded-pill"
+                                       target="_blank">
+                                        <i class="ri-file-download-line me-1"></i> Download Quotation
+                                    </a>
                                     
                                     @php
                                         $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 132, 133, 134, 135, 136, 137, 138];
@@ -610,12 +615,11 @@
                                     </a>
                                     @endif
 
-                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11|| auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
-
+                                    @if(auth()->user()->role_id == 36 || auth()->user()->role_id == 126 || auth()->user()->role_id == 127 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125)
                                         <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                             <i class="fas fa-history me-1"></i> Payment Details
                                         </button>
-                                    @else  
+                                    @else
                                         @if(!empty($paymentData))
                                             <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#showPaymentModal{{ $tour->tour_id }}">
                                                 <i class="fas fa-history me-1"></i> Payment Details
@@ -3533,6 +3537,9 @@
         $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
         $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
         
+        // Debug: Log the taxes data for this tour
+        \Log::info('Tour #' . $tour->tour_id . ' Taxes Data:', ['taxes' => $tour->taxes, 'persons' => $persons, 'days' => $days, 'baseAmount' => $baseAmount]);
+        
         $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
         $taxAmount = $taxResult['total_tax'];
         $taxBreakdown = $taxResult['breakdown'];
@@ -3540,32 +3547,60 @@
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
         $totalPaid = 0;
+        $hasPendingPayments = false;
         if (is_array($paymentData) && !empty($paymentData)) {
             foreach ($paymentData as $payment) {
                 if (isset($payment['status']) && $payment['status'] == 1) {
                     $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
+                }
+                if (isset($payment['status']) && $payment['status'] == 0) {
+                    $hasPendingPayments = true;
                 }
             }
         }
         $remainingAmount = $finalAmount - $totalPaid;
     @endphp
 
-    <!-- Show Payment Modal -->
+    <!-- Payment Details Modal -->
+    <style>
+        @media (max-width: 768px) {
+            #showPaymentModal{{ $tour->tour_id }} .modal-dialog {
+                max-width: 98% !important;
+                margin: 0.5rem auto !important;
+            }
+            #showPaymentModal{{ $tour->tour_id }} .modal-content {
+                height: 90vh !important;
+            }
+            #showPaymentModal{{ $tour->tour_id }} .table-responsive {
+                max-height: 300px !important;
+            }
+        }
+        
+        #showPaymentModal{{ $tour->tour_id }} .table th,
+        #showPaymentModal{{ $tour->tour_id }} .table td {
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            max-width: 150px;
+        }
+        
+        #showPaymentModal{{ $tour->tour_id }} .table td[title] {
+            cursor: help;
+        }
+    </style>
     <div class="modal fade" id="showPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="showPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content shadow-lg rounded">
-                <div class="modal-header bg-gradient text-white d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px 8px 0 0;">
-                    <h5 class="modal-title d-flex align-items-center fw-bold" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0;">
-                        <i class="fas fa-file-invoice-dollar me-2" style="font-size: 1.5rem; color: #ffd700;"></i> 
-                        <span style="font-size: 1.2rem;">Payment Details - Tour #{{ $tour->tour_id }}</span>
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable" style="max-width: 95%; max-height: 90vh;">
+            <div class="modal-content shadow-lg rounded" style="height: 85vh; min-height: 600px;">
+                <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 12px 20px; border-radius: 8px 8px 0 0; flex-shrink: 0;">
+                    <h5 class="modal-title d-flex align-items-center" id="showPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white; font-size: 1.1rem;">
+                        <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1.2rem;"></i> 
+                        <span style="color: white;">Payment Details for Tour #{{ $tour->tour_id }}</span>
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
+                    <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
                 </div>
-                <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
-                    @if(is_array($paymentData) && !empty($paymentData))
-                        <div class="card border-0 shadow-sm mb-4">
-                            <div class="card-body">
-                                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                <div class="modal-body p-3" style="overflow-y: auto; flex: 1;">
+                    @if(!empty($paymentData))
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                             <table class="table table-bordered table-hover table-sm">
                                 <thead class="table-light sticky-top">
                                     <tr style="font-size: 0.85rem;">
@@ -3614,7 +3649,7 @@
                                                         </span>
                                                     @else
                                                         <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
-                                                            <i class="fas fa-hourglass-half me-1"></i>Pending
+                                                            <i class="fas fa-clock me-1"></i>Pending
                                                         </span>
                                                     @endif
                                                 @else
@@ -3642,11 +3677,67 @@
                                 </tbody>
                             </table>
                         </div>
+                        
+                        <!-- Payment Summary -->
+                        <div class="row mt-3 g-2">
+                            <div class="col-md-3">
+                                <div class="card bg-secondary text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Base Amount</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($baseAmount, 2) }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }} taxes)@endif
+                                        </h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($taxAmount, 2) }}</h5>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <small style="font-size: 0.65rem; opacity: 0.9;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    {{ $taxName }}: {{ number_format($taxVal, 2) }}@if(!$loop->last), @endif
+                                                @endforeach
+                                            </small>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-primary text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Total</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($finalAmount, 2) }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-success text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Paid</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($totalPaid, 2) }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-warning text-white" style="border-radius: 10px;">
+                                    <div class="card-body text-center py-2 px-3">
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Remaining</h6>
+                                        <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($remainingAmount, 2) }}</h5>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     @else
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>No payment records found for this tour.
+                        <div class="text-center py-5">
+                            <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Payment Records</h5>
+                            <p class="text-muted">No payments have been recorded for this tour yet.</p>
                         </div>
                     @endif
                 </div>
