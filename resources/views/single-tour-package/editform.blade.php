@@ -19,30 +19,6 @@
     #toast-container .toast-error { background-color: #dc3545 !important; background-image: none !important; }
     #toast-container .toast-info { background-color: #17a2b8 !important; background-image: none !important; }
     #toast-container .toast-warning { background-color: #ffc107 !important; color: #212529 !important; background-image: none !important; }
-    
-    /* Select2 Custom Styling for Child Ages */
-    #child_ages + .select2-container {
-        width: 100% !important;
-    }
-    #child_ages + .select2-container .select2-selection {
-        min-height: 38px;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-    }
-    #child_ages + .select2-container .select2-selection__choice {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-        color: #fff;
-        padding: 2px 8px;
-        margin: 2px;
-    }
-    #child_ages + .select2-container .select2-selection__choice__remove {
-        color: #fff;
-        margin-right: 5px;
-    }
-    #child_ages + .select2-container .select2-selection__choice__remove:hover {
-        color: #fff;
-    }
 </style>
 @section('content')
     @php
@@ -334,18 +310,22 @@
                                     </label>
                                     <div class="row g-2">
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="start_date" id="start_date" value="{{ 
-                                                $tour->check_in_time 
-                                                    ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
-                                                    : '' 
-                                            }}">
+                                            <input type="date" class="form-control" name="start_date" id="start_date" 
+                                                value="{{ 
+                                                    $tour->check_in_time 
+                                                        ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
+                                                        : '' 
+                                                }}"
+                                                min="{{ date('Y-m-d') }}">
                                         </div>
                                         <div class="col-6">
-                                            <input type="date" class="form-control" name="end_date" id="end_date" value="{{ 
-                                                $tour->check_out_time 
-                                                    ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
-                                                    : '' 
-                                            }}">
+                                            <input type="date" class="form-control" name="end_date" id="end_date" 
+                                                value="{{ 
+                                                    $tour->check_out_time 
+                                                        ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
+                                                        : '' 
+                                                }}"
+                                                min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
                                         </div>
                                     </div>
                                 </div>
@@ -355,40 +335,34 @@
                                     <label class="form-label fw-semibold">
                                         <i class="ri-group-line me-1"></i>Guests
                                     </label>
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <small class="text-muted">Adults</small>
-                                            <input type="number" min="1" class="form-control" name="adults" id="adults" value="{{ $tour->adult ?? 1 }}">
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Children</small>
-                                            <input type="number" min="0" class="form-control" name="children" id="children" value="{{ $tour->child ?? 0 }}">
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Infants</small>
-                                            <input type="number" min="0" class="form-control" name="infants" id="infants" value="{{ $tour->infant ?? 0 }}">
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Child Ages</small>
-                                            <select class="form-control" name="child_ages[]" id="child_ages" multiple>
-                                                @php
-                                                    $selectedAges = isset($tour->child_ages) ? explode(',', $tour->child_ages) : [];
-                                                    $selectedAges = array_map('trim', $selectedAges);
-                                                @endphp
-                                                @for($i = 0; $i <= 15; $i++)
-                                                    <option value="{{ $i }}" {{ in_array((string)$i, $selectedAges) ? 'selected' : '' }}>{{ $i }}</option>
-                                                @endfor
-                                            </select>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Male</small>
-                                            <input type="number" min="0" class="form-control" name="male" id="male" value="{{ $tour->male_count ?? 0 }}">
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Female</small>
-                                            <input type="number" min="0" class="form-control" name="female" id="female" value="{{ $tour->female_count ?? 0 }}">
+                                    <div class="guest-selector">
+                                        <div class="guest-display p-2 border rounded bg-light">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <div class="guest-info">
+                                                    <span id="tour_guest_summary" class="text-muted small">
+                                                        @php
+                                                            $adultCount = $tour->adult ?? 1;
+                                                            $childCount = $tour->child ?? 0;
+                                                            $infantCount = $tour->infant ?? 0;
+                                                            $maleCount = isset($tour->male_count) ? $tour->male_count : $adultCount;
+                                                            $femaleCount = isset($tour->female_count) ? $tour->female_count : 0;
+                                                        @endphp
+                                                        {{ $adultCount }} adults ({{ $maleCount }} male, {{ $femaleCount }} female), {{ $childCount }} children, {{ $infantCount }} infants
+                                                    </span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openTourGuestSelector()">
+                                                    <i class="ri-edit-line"></i> Select
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                    <!-- Hidden fields for form submission -->
+                                    <input type="hidden" name="adults" id="adults" value="{{ $tour->adult ?? 1 }}">
+                                    <input type="hidden" name="children" id="children" value="{{ $tour->child ?? 0 }}">
+                                    <input type="hidden" name="infants" id="infants" value="{{ $tour->infant ?? 0 }}">
+                                    <input type="hidden" name="male_count" id="male_count" value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}">
+                                    <input type="hidden" name="female_count" id="female_count" value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}">
+                                    <input type="hidden" name="child_ages" id="child_ages" value="{{ $tour->child_ages ?? '' }}">
                                 </div>
 
                                 <!-- Agent -->
@@ -475,6 +449,7 @@
                                     $mealPlan = '';
                                     $numberOfPersons = 0;
                                     $hotelId = $hotelDetails['hotel_id'] ?? '';
+                                    $totalPrice = $hotelInfo['totalPrice'] ?? $hotelInfo['price'] ?? 0;
                                     
                                     if (!empty($rooms) && is_array($rooms)) {
                                         $firstRoom = $rooms[0] ?? [];
@@ -504,6 +479,7 @@
                                         @csrf
                                         <input type="hidden" name="type" value="hotel">
                                         <input type="hidden" name="hotel_id" id="hotel_id_{{ $hotelOrder->booking_id }}" value="{{ $hotelId }}">
+                                        <input type="hidden" name="original_rooms_json" id="original_rooms_json_{{ $hotelOrder->booking_id }}" value="{{ $roomsJson }}">
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <div>
                                                 <h6 class="card-title mb-1 fw-bold text-warning"><i class="ri-hotel-line me-2"></i>Hotel Booking #{{ $loop->iteration }}</h6>
@@ -629,21 +605,37 @@
                                                                     // Get existing room type value to preserve selection
                                                                     const existingRoomType = roomTypeSelect.value || '{{ $roomType ?? "" }}';
                                                                     
-                                                                    // Populate room types
+                                                                    // Populate room types with pricing information
                                                                     roomTypes.forEach(roomType => {
                                                                         const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
                                                                         
                                                                         if (sampleRoom) {
+                                                                            // Get number of persons for pricing
+                                                                            const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                                            const numberOfPersons = numberOfPersonsInput ? parseInt(numberOfPersonsInput.value) || 1 : 1;
+                                                                            const isSingleOccupancy = numberOfPersons <= 1;
+                                                                            
+                                                                            // Determine price based on occupancy
+                                                                            let price = 0;
+                                                                            if (isSingleOccupancy) {
+                                                                                price = parseFloat(sampleRoom.weekday_price || 0);
+                                                                            } else {
+                                                                                price = parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                                            }
+                                                                            
                                                                             const option = document.createElement('option');
                                                                             option.value = roomType;
-                                                                            option.textContent = roomType;
+                                                                            option.textContent = price > 0 ? `${roomType} - $${price.toFixed(2)}` : roomType;
                                                                             option.dataset.roomId = sampleRoom.room_id;
+                                                                            option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                                                                            option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
                                                                             // Preserve existing selection if it matches
                                                                             if (roomType === existingRoomType) {
                                                                                 option.selected = true;
                                                                                 // Trigger bed loading if room type was already selected
                                                                                 setTimeout(() => {
                                                                                     loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType);
+                                                                                    updateHotelPrice_{{ $hotelOrder->booking_id }}();
                                                                                 }, 100);
                                                                             }
                                                                             roomTypeSelect.appendChild(option);
@@ -994,6 +986,9 @@
                                                             }
                                                         }
                                                         
+                                                        // Update price when bed type changes
+                                                        updateHotelPrice_{{ $hotelOrder->booking_id }}(true);
+                                                        
                                                         // Load meal plans
                                                         if (selectedOption && selectedOption.dataset.roomId) {
                                                             const roomId = selectedOption.dataset.roomId;
@@ -1069,6 +1064,105 @@
                                                         window.roomData_{{ $hotelOrder->booking_id }} = null;
                                                     }
                                                     
+                                                    // Function to update hotel price based on room type and number of rooms
+                                                    function updateHotelPrice_{{ $hotelOrder->booking_id }}(forceUpdate = false) {
+                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
+                                                        const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        
+                                                        if (!roomTypeSelect || !numberOfRoomsInput || !priceInput) {
+                                                            return;
+                                                        }
+                                                        
+                                                        // Check if price was manually edited - if so, don't auto-update (unless forced)
+                                                        if (priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
+                                                            return;
+                                                        }
+                                                        
+                                                        // Preserve existing price value on initial load if it's already set and valid (from database)
+                                                        // Only auto-calculate if the current value is 0 or empty, or if forceUpdate is true
+                                                        const currentPrice = parseFloat(priceInput.value) || 0;
+                                                        if (!forceUpdate && currentPrice > 0 && priceInput.dataset.preservedFromDb !== 'true') {
+                                                            // Mark as preserved from database to prevent overwriting on initial load
+                                                            priceInput.dataset.preservedFromDb = 'true';
+                                                            return;
+                                                        }
+                                                        
+                                                        // If forceUpdate is true (user made a change), clear the preserved flag to allow recalculation
+                                                        if (forceUpdate) {
+                                                            priceInput.dataset.preservedFromDb = 'false';
+                                                        }
+                                                        
+                                                        const selectedRoomType = roomTypeSelect.value;
+                                                        const numberOfRooms = parseInt(numberOfRoomsInput.value) || 1;
+                                                        const numberOfPersons = parseInt(numberOfPersonsInput.value) || 1;
+                                                        
+                                                        // Get room data
+                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }};
+                                                        if (!roomData || !selectedRoomType) {
+                                                            return;
+                                                        }
+                                                        
+                                                        // Find the selected room type
+                                                        const selectedRoom = roomData.find(room => room.room_type === selectedRoomType);
+                                                        if (!selectedRoom) {
+                                                            return;
+                                                        }
+                                                        
+                                                        // Calculate price based on occupancy (single or double)
+                                                        const isSingleOccupancy = numberOfPersons <= 1;
+                                                        let pricePerNight = 0;
+                                                        
+                                                        if (isSingleOccupancy) {
+                                                            pricePerNight = parseFloat(selectedRoom.weekday_price || 0);
+                                                        } else {
+                                                            pricePerNight = parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
+                                                        }
+                                                        
+                                                        // Calculate number of nights - use the specific form context
+                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
+                                                        let numberOfNights = 1;
+                                                        if (formDiv) {
+                                                            const checkInInput = formDiv.querySelector('input[name="check_in_date"]');
+                                                            const checkOutInput = formDiv.querySelector('input[name="check_out_date"]');
+                                                            
+                                                            if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
+                                                                const checkIn = new Date(checkInInput.value);
+                                                                const checkOut = new Date(checkOutInput.value);
+                                                                numberOfNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+                                                                if (numberOfNights <= 0) numberOfNights = 1;
+                                                            }
+                                                        }
+                                                        
+                                                        // Calculate total price: price per night * number of nights * number of rooms
+                                                        const totalPrice = pricePerNight * numberOfNights * numberOfRooms;
+                                                        
+                                                        // Update price input if calculated price is valid
+                                                        if (totalPrice > 0) {
+                                                            priceInput.value = totalPrice.toFixed(2);
+                                                        } else if (currentPrice === 0) {
+                                                            // Only clear if current value is 0 (don't overwrite saved values)
+                                                            priceInput.value = '0.00';
+                                                        }
+                                                    }
+                                                    
+                                                    // Track manual price edits - attach event listener immediately
+                                                    (function() {
+                                                        const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
+                                                        if (priceInput) {
+                                                            // Mark as manually edited when user types
+                                                            priceInput.addEventListener('input', function() {
+                                                                this.dataset.manualEdit = 'true';
+                                                            });
+                                                            
+                                                            // Also mark on change event (for cases where input event doesn't fire)
+                                                            priceInput.addEventListener('change', function() {
+                                                                this.dataset.manualEdit = 'true';
+                                                            });
+                                                        }
+                                                    })();
+                                                    
                                                     // Initialize hotel_id and load rooms on page load if hotel is already selected
                                                     document.addEventListener('DOMContentLoaded', function() {
                                                         const hotelSelect = document.getElementById('hotel_name_{{ $hotelOrder->booking_id }}');
@@ -1080,19 +1174,19 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Check-in Date</label>
-                                                <input type="date" class="form-control" name="check_in_date" value="{{ $checkInValue }}" required>
+                                                <input type="date" class="form-control" name="check_in_date" value="{{ $checkInValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Check-out Date</label>
-                                                <input type="date" class="form-control" name="check_out_date" value="{{ $checkOutValue }}" required>
+                                                <input type="date" class="form-control" name="check_out_date" value="{{ $checkOutValue }}" required onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Number of Rooms</label>
-                                                <input type="number" class="form-control" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1">
+                                                <input type="number" class="form-control" name="number_of_rooms" id="number_of_rooms_{{ $hotelOrder->booking_id }}" value="{{ $numberOfRooms }}" min="1" placeholder="e.g. 1" onchange="updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Room Type</label>
-                                                <select class="form-select" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value)">
+                                                <select class="form-select" name="room_type" id="room_type_{{ $hotelOrder->booking_id }}" onchange="loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Room Type</option>
                                                     @if($roomType)
                                                         <option value="{{ $roomType }}" selected>{{ $roomType }}</option>
@@ -1119,8 +1213,18 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold">Number of Persons (Pax)</label>
-                                                <input type="number" class="form-control" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value)">
+                                                <input type="number" class="form-control" name="number_of_persons" id="number_of_persons_{{ $hotelOrder->booking_id }}" value="{{ $numberOfPersons }}" min="1" placeholder="e.g. 2" onchange="updatePaxInfo_{{ $hotelOrder->booking_id }}(this.value); updateHotelPrice_{{ $hotelOrder->booking_id }}(true);">
                                                 <small class="text-muted" id="pax_info_{{ $hotelOrder->booking_id }}"></small>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
+                                                </label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    <input type="number" class="form-control" name="total_price" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false">
+                                                </div>
+                                                <small class="text-muted">Price per room type and number of rooms</small>
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-end align-items-center gap-3 mt-4">
@@ -2274,7 +2378,7 @@
                                         <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
                                         @endforeach
                                     </select>
-                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                 </div>
                             </div>
                         </div>
@@ -2438,13 +2542,13 @@
                     <div class="row mb-3">
                         <div class="col-md-3">
                             <label for="room_type" class="form-label fw-semibold">Room Type</label>
-                            <select class="form-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value)" disabled>
+                            <select class="form-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
                                 <option value="">Select hotel first</option>
                             </select>
                         </div>
                         <div class="col-md-3">
                             <label for="bed_type" class="form-label fw-semibold">Bed Type</label>
-                            <select class="form-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans()" disabled>
+                            <select class="form-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
                                 <option value="">Select room type first</option>
                             </select>
                             <div class="small text-success mt-1">
@@ -2455,7 +2559,7 @@
                         <!-- Number of Persons -->
                         <div class="col-md-3">
                             <label class="form-label fw-semibold">Number of Persons</label>
-                            <select class="form-select" id="person_count_select" name="person_count" onchange="selectPersonCount(this.value)">
+                            <select class="form-select" id="person_count_select" name="person_count" onchange="selectPersonCount(this.value); updateHotelModalPrice();">
                                 <option value="1">1 Person</option>
                                 <option value="2">2 Persons</option>
                             </select>
@@ -2467,6 +2571,24 @@
                             <select class="form-select" id="meal_plan" name="meal_plan" onchange="updateMealPricing()" disabled>
                                 <option value="">Select bed type first</option>
                             </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Number of Rooms and Price -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="number_of_rooms_modal" class="form-label fw-semibold">Number of Rooms</label>
+                            <input type="number" class="form-control" id="number_of_rooms_modal" name="number_of_rooms" min="1" value="1" placeholder="e.g. 1" onchange="updateHotelModalPrice();">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="total_price_modal" class="form-label fw-semibold">
+                                <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="total_price_modal" name="total_price" step="0.01" min="0" value="0.00" placeholder="0.00">
+                            </div>
+                            <small class="text-muted">Price per room type and number of rooms</small>
                         </div>
                     </div>
 
@@ -2497,11 +2619,11 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <label for="check_in_date" class="form-label">Check-in Date</label>
-                                <input type="date" class="form-control" id="check_in_date" name="check_in_date" required>
+                                <input type="date" class="form-control" id="check_in_date" name="check_in_date" required onchange="updateHotelModalPrice();">
                             </div>
                             <div class="col-md-6">
                                 <label for="check_out_date" class="form-label">Check-out Date</label>
-                                <input type="date" class="form-control" id="check_out_date" name="check_out_date" required>
+                                <input type="date" class="form-control" id="check_out_date" name="check_out_date" required onchange="updateHotelModalPrice();">
                             </div>
                         </div>
                         
@@ -2577,7 +2699,7 @@
                                             <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
                                         @endforeach
                                     </select>
-                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                 </div>
                             </div>
                         </div>
@@ -2695,6 +2817,130 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-success" id="confirm_restaurant_btn" disabled>
                     <i class="ri-check-line me-1"></i>Confirm Restaurant Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Select Tour Guests Modal -->
+<div class="modal fade" id="tourGuestSelectorModal" tabindex="-1" aria-labelledby="tourGuestSelectorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="tourGuestSelectorModalLabel">Select Tour Guests</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <!-- Left Section: Adults -->
+                    <div class="col-md-6">
+                        <div class="border rounded" style="border-color: #6366f1 !important; border-width: 2px !important;">
+                            <div class="p-3 rounded-top" style="background-color: #4f46e5; color: white;">
+                                <h6 class="mb-0 fw-semibold">
+                                    <i class="ri-user-line me-2"></i>Adults
+                                </h6>
+                            </div>
+                            <div class="p-3">
+                                <!-- Male Sub-section -->
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="ri-user-line me-2" style="color: #6366f1; font-size: 1.2rem;"></i>
+                                        <label class="form-label mb-0 fw-semibold">Male</label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_male_count')" style="background-color: #e0e7ff; color: #6366f1; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-subtract-line"></i>
+                                        </button>
+                                        <input type="number" class="form-control text-center mx-2" id="tour_male_count" name="tour_male_count" value="{{ isset($tour->male_count) ? $tour->male_count : ($tour->adult ?? 1) }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_male_count')" style="background-color: #6366f1; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-add-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Female Sub-section -->
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="ri-user-line me-2" style="color: #ef4444; font-size: 1.2rem;"></i>
+                                        <label class="form-label mb-0 fw-semibold">Female</label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_female_count')" style="background-color: #fee2e2; color: #ef4444; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-subtract-line"></i>
+                                        </button>
+                                        <input type="number" class="form-control text-center mx-2" id="tour_female_count" name="tour_female_count" value="{{ isset($tour->female_count) ? $tour->female_count : 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_female_count')" style="background-color: #ef4444; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-add-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Section: Children & Infants -->
+                    <div class="col-md-6">
+                        <div class="border rounded" style="border-color: #10b981 !important; border-width: 2px !important;">
+                            <div class="p-3 rounded-top" style="background-color: #059669; color: white;">
+                                <h6 class="mb-0 fw-semibold">
+                                    <i class="ri-user-smile-line me-2"></i>Children & Infants
+                                </h6>
+                            </div>
+                            <div class="p-3">
+                                <!-- Children Sub-section -->
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="ri-user-smile-line me-2" style="color: #10b981; font-size: 1.2rem;"></i>
+                                        <label class="form-label mb-0 fw-semibold">Children (Ages 1-17)</label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_children_count')" style="background-color: #d1fae5; color: #10b981; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-subtract-line"></i>
+                                        </button>
+                                        <input type="number" class="form-control text-center mx-2" id="tour_children_count" name="tour_children_count" value="{{ $tour->child ?? 0 }}" min="0" max="20" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_children_count')" style="background-color: #10b981; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-add-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Child Ages Selection -->
+                                <div id="tour_child_ages_container" class="mb-3" style="display: none;">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="ri-user-line me-2" style="color: #10b981; font-size: 1.1rem;"></i>
+                                        <label class="form-label mb-0 fw-semibold">Select Ages for Children</label>
+                                    </div>
+                                    <div id="tour_child_ages_list">
+                                        <!-- Dynamic child age select boxes will be inserted here -->
+                                    </div>
+                                </div>
+                                
+                                <!-- Infants Sub-section -->
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="ri-baby-carriage-line me-2" style="color: #f97316; font-size: 1.2rem;"></i>
+                                        <label class="form-label mb-0 fw-semibold">Infants (Under 1 year)</label>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm" onclick="decrementTourCount('tour_infants_count')" style="background-color: #fed7aa; color: #f97316; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-subtract-line"></i>
+                                        </button>
+                                        <input type="number" class="form-control text-center mx-2" id="tour_infants_count" name="tour_infants_count" value="{{ $tour->infant ?? 0 }}" min="0" max="10" readonly style="width: 60px; height: 40px; border: 1px solid #ddd; background-color: white;">
+                                        <button type="button" class="btn btn-sm" onclick="incrementTourCount('tour_infants_count')" style="background-color: #f97316; color: white; width: 40px; height: 40px; border: none; border-radius: 4px; font-weight: bold;">
+                                            <i class="ri-add-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-3">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" onclick="confirmTourGuestSelection()" style="background-color: #6366f1; color: white;">
+                    <i class="ri-check-line me-1"></i>Apply Selection
                 </button>
             </div>
         </div>
@@ -2820,13 +3066,13 @@
                                     <i class="ri-map-pin-line text-success me-2"></i>Attraction City
                                 </label>
                                 <div class="position-relative">
-                                    <select class="form-select border-2" id="modal_attraction_city_select" name="city" style="padding-left: 45px;" onchange="loadAttractionsForCity(this.value, this.dataset.country)">
+                                    <select class="form-select border-2" id="modal_attraction_city_select" name="city" style="padding-left: 45px;">
                                         <option value="">Select city</option>
                                         @foreach($cities as $city)
                                             <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
                                         @endforeach
                                     </select>
-                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                 </div>
                             </div>
                         </div>
@@ -2896,7 +3142,7 @@
                         <!-- Ticket Selection -->
                         <div class="col-md-6">
                             <label for="modal_attraction_ticket" class="form-label fw-semibold">Select Ticket</label>
-                            <select class="form-select" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="updateAttractionPricing()">
+                            <select class="form-select" name="modal_attraction_ticket" id="modal_attraction_ticket" onchange="onTicketSelection(); updateAttractionPricing();">
                                 <option value="">Select Ticket</option>
                             </select>
                             <small id="modal_attraction_ticket_prices" class="text-muted"></small>
@@ -3079,7 +3325,7 @@
                                                 <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
                                                 @endforeach
                                             </select>
-                                            <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -3095,7 +3341,7 @@
                                                     <option data-type="Port" value="{{ $port->port_id }}" data-port="{{ json_encode($port) }}">{{ $port->port_name }}</option>
                                                 @endforeach
                                             </select>
-                                            <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -3129,7 +3375,7 @@
                                                 @endforeach
                                                 </optgroup>
                                             </select>
-                                            <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                             
                                         </div>
                                     </div>
@@ -3167,7 +3413,7 @@
                                                 <option value="10:00 PM">10:00 PM</option>
                                                 <option value="11:00 PM">11:00 PM</option>
                                             </select>
-                                            <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -3378,7 +3624,7 @@
                                                             <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country }}">{{ $city->name }}</option>
                                                         @endforeach
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -3411,7 +3657,7 @@
                                                         @endforeach
                                                         </optgroup>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -3421,8 +3667,8 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select dropoff-zone-select border-2" id="local_transfer_dropoff_zone" name="dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
-                                                        <option value="">Select pickup location first</option>
+                                                    <select class="form-select dropoff-zone-select border-2" id="local_transfer_dropoff_zone" name="dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;">
+                                                        <option value="">Select dropoff location</option>
                                                         <!-- Ports -->
                                                         <optgroup label="Ports">
                                                         @foreach($ports as $port)
@@ -3450,7 +3696,7 @@
                                                         @endforeach
                                                         </optgroup>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -3487,7 +3733,7 @@
                                                         <option value="10:00 PM">10:00 PM</option>
                                                         <option value="11:00 PM">11:00 PM</option>
                                                     </select>
-                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -3497,7 +3743,7 @@
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                                 </label>
                                                 <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_pickup_date" name="pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
@@ -3576,7 +3822,7 @@
                                                         <option value="10:00 PM">10:00 PM</option>
                                                         <option value="11:00 PM">11:00 PM</option>
                                                     </select>
-                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -3649,7 +3895,7 @@
                                                         <option value="10:00 PM">10:00 PM</option>
                                                         <option value="11:00 PM">11:00 PM</option>
                                                     </select>
-                                                    <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                                    <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -3659,7 +3905,7 @@
                                                     <i class="ri-calendar-line text-primary me-2"></i>Pick Up Date
                                                 </label>
                                                 <div class="position-relative">
-                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
+                                                    <input type="date" class="form-control border-2" id="local_transfer_hourly_pickup_date" name="hourly_pickup_date" value="" placeholder="dd-mm-yyyy" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="padding-left: 45px;">
                                                     <i class="ri-calendar-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
@@ -3853,7 +4099,7 @@
                                                 <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
                                                 @endforeach
                                             </select>
-                                            <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -3886,7 +4132,7 @@
                                                 @endforeach
                                                 </optgroup>
                                             </select>
-                                            <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -3913,7 +4159,7 @@
                                         </label>
                                         <div class="position-relative">
                                             <input type="time" class="form-control border-2" id="modal_dropoff_transport_pickup_time" name="pickup_time" style="padding-left: 45px;">
-                                            <i class="ri-time-fill position-absolute text-warning" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
+                                            <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                         </div>
                                     </div>
                                 </div>
@@ -4072,22 +4318,68 @@
         };
     }
 
-    // Initialize Select2 for Child Ages multi-select
+    // Initialize Select2 for all select boxes with class 'form-select' and 'form-control'
+    // This makes all select boxes searchable without breaking existing functionality
     $(document).ready(function() {
-        if ($('#child_ages').length) {
-            $('#child_ages').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Select child ages',
-                allowClear: true,
-                width: '100%',
-                closeOnSelect: false
-            });
-        }
-
-        // Initialize Select2 for all select boxes with class 'form-select' and 'form-control'
-        // This makes all select boxes searchable without breaking existing functionality
         initializeAllSelect2();
+        initializeTravelDateValidation();
     });
+
+    // Initialize travel date validation
+    function initializeTravelDateValidation() {
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+        
+        if (!startDateInput || !endDateInput) return;
+        
+        // Set minimum date for start_date to today if not already set
+        if (!startDateInput.min) {
+            const today = new Date().toISOString().split('T')[0];
+            startDateInput.min = today;
+        }
+        
+        // Update end_date minimum when start_date changes
+        startDateInput.addEventListener('change', function() {
+            const startDateValue = this.value;
+            if (startDateValue) {
+                // Set end_date minimum to the selected start_date
+                endDateInput.min = startDateValue;
+                
+                // If end_date is before start_date, update it to start_date
+                if (endDateInput.value && endDateInput.value < startDateValue) {
+                    endDateInput.value = startDateValue;
+                }
+            } else {
+                // If start_date is cleared, set end_date min to today
+                const today = new Date().toISOString().split('T')[0];
+                endDateInput.min = today;
+            }
+        });
+        
+        // Validate end_date when it changes
+        endDateInput.addEventListener('change', function() {
+            const startDateValue = startDateInput.value;
+            const endDateValue = this.value;
+            
+            if (startDateValue && endDateValue && endDateValue < startDateValue) {
+                // If end_date is before start_date, reset it to start_date
+                this.value = startDateValue;
+                showToastr('error', 'End date cannot be before start date.');
+            }
+        });
+        
+        // Initialize end_date min on page load based on current start_date value
+        const today = new Date().toISOString().split('T')[0];
+        if (startDateInput.value) {
+            // Use the later of start_date or today as minimum
+            endDateInput.min = startDateInput.value > today ? startDateInput.value : today;
+        } else {
+            endDateInput.min = today;
+        }
+        
+        // Also ensure start_date min is at least today (even if it has an old date)
+        startDateInput.min = today;
+    }
 
     // Function to initialize Select2 on all select boxes
     function initializeAllSelect2(container = null) {
@@ -4512,9 +4804,37 @@
         
         console.log('Modal shown successfully');
         
-        // Initialize modal functionality after modal is shown
+        // Initialize modal functionality after modal is shown and Select2 is initialized
         setTimeout(() => {
             initializeAttractionModal();
+            
+            // Ensure city select change works with Select2
+            const citySelect = document.getElementById('modal_attraction_city_select');
+            if (citySelect) {
+                const $citySelect = $(citySelect);
+                if ($citySelect.data('select2')) {
+                    $citySelect.off('select2:select select2:change').on('select2:select select2:change', function(e) {
+                        const city = $(this).val();
+                        const country = $(this).find('option:selected').data('country') || '';
+                        loadAttractionsForCity(city, country);
+                    });
+                }
+            }
+            
+            // Ensure event listeners are attached after Select2 initialization
+            // Select2 is initialized in shown.bs.modal event with 100ms delay, so we wait a bit more
+            setTimeout(() => {
+                const attractionSelect = document.getElementById('modal_attraction_select');
+                if (attractionSelect) {
+                    const $attractionSelect = $(attractionSelect);
+                    // Re-attach event listeners in case Select2 was initialized after our first attempt
+                    if ($attractionSelect.data('select2')) {
+                        $attractionSelect.off('select2:select select2:change').on('select2:select select2:change', function(e) {
+                            onAttractionSelection();
+                        });
+                    }
+                }
+            }, 200);
         }, 100);
         
         // Load attractions for the city
@@ -4523,20 +4843,61 @@
     
     function initializeAttractionModal() {
         // Add event listeners only for elements that exist
+        const citySelect = document.getElementById('modal_attraction_city_select');
         const attractionSelect = document.getElementById('modal_attraction_select');
         const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
         const ticketSelect = document.getElementById('modal_attraction_ticket');
         const visitDateSelect = document.getElementById('modal_attraction_visit_date');
         const confirmBtn = document.getElementById('confirm_attraction_btn');
         
+        // City select event handler - works with both native and Select2
+        if (citySelect) {
+            const $citySelect = $(citySelect);
+            $citySelect.off('select2:select select2:change change');
+            $citySelect.on('select2:select select2:change', function(e) {
+                const city = $(this).val();
+                const country = $(this).find('option:selected').data('country') || '';
+                loadAttractionsForCity(city, country);
+            });
+            citySelect.addEventListener('change', function() {
+                const city = this.value;
+                const country = this.options[this.selectedIndex].dataset.country || '';
+                loadAttractionsForCity(city, country);
+            });
+        }
+        
         if (attractionSelect) {
-            attractionSelect.addEventListener('change', onAttractionSelection);
+            // Use jQuery Select2 event for Select2 dropdowns, fallback to native change
+            const $attractionSelect = $(attractionSelect);
+            // Remove any existing event listeners to avoid duplicates
+            $attractionSelect.off('select2:select select2:change change');
+            // Attach Select2 event (works with Select2)
+            $attractionSelect.on('select2:select select2:change', function(e) {
+                onAttractionSelection();
+            });
+            // Also attach native change event as fallback
+            attractionSelect.addEventListener('change', function() {
+                onAttractionSelection();
+            });
         }
         if (timeSlotSelect) {
             timeSlotSelect.addEventListener('change', validateAttractionForm);
         }
         if (ticketSelect) {
-            ticketSelect.addEventListener('change', validateAttractionForm);
+            // Use jQuery Select2 event for Select2 dropdowns, fallback to native change
+            const $ticketSelect = $(ticketSelect);
+            // Remove any existing event listeners to avoid duplicates
+            $ticketSelect.off('select2:select change');
+            // Attach Select2 event (works with Select2)
+            $ticketSelect.on('select2:select', function(e) {
+                onTicketSelection();
+                validateAttractionForm();
+            });
+            // Also attach native change event as fallback
+            ticketSelect.addEventListener('change', function() {
+                onTicketSelection();
+                validateAttractionForm();
+            });
         }
         if (visitDateSelect) {
             visitDateSelect.addEventListener('change', validateAttractionForm);
@@ -4572,14 +4933,20 @@
             male_count: maleCount.toString(),
             female_count: femaleCount.toString(),
             child_ages: (function() {
-                const select = document.getElementById('child_ages');
-                if (!select) return '';
-                // Check if Select2 is initialized
-                if ($(select).data('select2')) {
-                    return $(select).val() ? $(select).val().join(',') : '';
+                const hiddenField = document.getElementById('child_ages');
+                if (hiddenField && hiddenField.value) {
+                    return hiddenField.value;
                 }
-                // Fallback for regular select
-                return Array.from(select.selectedOptions || []).map(option => option.value).join(',') || '';
+                // Fallback: collect from individual tour_child_age_X selects if available
+                const children = parseInt(document.getElementById('children')?.value) || 0;
+                const childAgeValues = [];
+                for (let i = 1; i <= children; i++) {
+                    const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                    if (ageSelect && ageSelect.value) {
+                        childAgeValues.push(ageSelect.value);
+                    }
+                }
+                return childAgeValues.join(',');
             })()
         };
     }
@@ -4589,6 +4956,16 @@
         const attractionCount = document.getElementById('attraction_count');
         const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
         const ticketSelect = document.getElementById('modal_attraction_ticket');
+        
+        if (!city) {
+            // Clear if no city selected
+            attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
+            attractionCount.textContent = '0';
+            if (window.refreshSelect2) {
+                window.refreshSelect2(attractionSelect);
+            }
+            return;
+        }
         
         // Clear existing options
         attractionSelect.innerHTML = '<option value="">Search Attraction</option>';
@@ -4607,57 +4984,114 @@
             option.textContent = `${attraction.name} - ${attraction.location}`;
             option.setAttribute('data-attraction', JSON.stringify(attraction));
             attractionSelect.appendChild(option);
-            
         });
         
         attractionCount.textContent = attractions.length;
+        document.getElementById('modal_attraction_city').textContent = city;
+        
+        // Refresh Select2 if it's initialized
+        if (window.refreshSelect2) {
+            window.refreshSelect2(attractionSelect);
+        }
+        
+        // Clear time slot and ticket when city changes
+        timeSlotSelect.innerHTML = '<option value="">Select Attraction First</option>';
+        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+        document.getElementById('attraction_details_container').style.display = 'none';
     }
     
     function onAttractionSelection() {
         const attractionSelect = document.getElementById('modal_attraction_select');
+        if (!attractionSelect) return;
+        
         const attractionDetailsContainer = document.getElementById('attraction_details_container');
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
         const timeSlotSelect = document.getElementById('modal_attraction_time_slot');
         const ticketSelect = document.getElementById('modal_attraction_ticket');
         
-        // Clear dependent dropdowns
-        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+        // Get selected value - works with both native select and Select2
+        const selectedValue = attractionSelect.value;
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
         
-        if (attractionSelect.value) {
-            const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction'));
-            
-            // Show attraction details
-            document.getElementById('selected_attraction_image').src = attractionData.master_image || '/assets/images/default-attraction.png';
-            document.getElementById('selected_attraction_name').textContent = attractionData.name;
-            document.getElementById('selected_attraction_category').textContent = attractionData.category + ' Category';
-            document.getElementById('selected_attraction_location').textContent = attractionData.location;
-            document.getElementById('selected_attraction_rating').textContent = attractionData.rating;
-            document.getElementById('selected_attraction_price_range').textContent = attractionData.price_range;
-            console.log('attraction selected then, Attraction data:', attractionData);
+        // Clear dependent dropdowns
+        if (timeSlotSelect) {
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        }
+        if (ticketSelect) {
+            ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+        }
+        
+        // Clear ticket price display
+        const ticketPriceDisplay = document.getElementById('modal_attraction_ticket_prices');
+        if (ticketPriceDisplay) {
+            ticketPriceDisplay.textContent = '';
+        }
+        
+        if (selectedValue && selectedOption && selectedOption.getAttribute('data-attraction')) {
+            try {
+                const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction'));
+                
+                // Show attraction details
+                const imageEl = document.getElementById('selected_attraction_image');
+                const nameEl = document.getElementById('selected_attraction_name');
+                const categoryEl = document.getElementById('selected_attraction_category');
+                const locationEl = document.getElementById('selected_attraction_location');
+                const ratingEl = document.getElementById('selected_attraction_rating');
+                const priceRangeEl = document.getElementById('selected_attraction_price_range');
+                
+                if (imageEl) imageEl.src = attractionData.master_image || '/assets/images/default-attraction.png';
+                if (nameEl) nameEl.textContent = attractionData.name;
+                if (categoryEl) categoryEl.textContent = (attractionData.category || 'General') + ' Category';
+                if (locationEl) locationEl.textContent = attractionData.location || '';
+                if (ratingEl) ratingEl.textContent = attractionData.rating || 'N/A';
+                if (priceRangeEl) priceRangeEl.textContent = attractionData.price_range || 'Price on request';
+                
+                console.log('Attraction selected:', attractionData);
 
-            // Set Time Slot Options
-            const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-            timeSlots.forEach(time => {
-                const timeOption = document.createElement('option');
-                timeOption.value = time;
-                timeOption.textContent = time;
-                timeSlotSelect.appendChild(timeOption);
-            });
-            
-            // Set Ticket Options (based on selected attraction)
-            if (attractionData.tickets) {
-                attractionData.tickets.forEach(ticket => {
-                    const ticketOption = document.createElement('option');
-                    ticketOption.value = ticket.ticket_id;
-                    ticketOption.textContent = `${ticket.name}`;
-                    ticketOption.setAttribute('data-ticket', JSON.stringify(ticket));
-                    ticketSelect.appendChild(ticketOption);
-                });
+                // Set Time Slot Options
+                if (timeSlotSelect) {
+                    const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+                    timeSlots.forEach(time => {
+                        const timeOption = document.createElement('option');
+                        timeOption.value = time;
+                        timeOption.textContent = time;
+                        timeSlotSelect.appendChild(timeOption);
+                    });
+                    
+                    // Refresh Select2 if initialized
+                    if (window.refreshSelect2) {
+                        window.refreshSelect2(timeSlotSelect);
+                    }
+                }
+                
+                // Set Ticket Options (based on selected attraction)
+                if (ticketSelect && attractionData.tickets && attractionData.tickets.length > 0) {
+                    attractionData.tickets.forEach(ticket => {
+                        const ticketOption = document.createElement('option');
+                        ticketOption.value = ticket.ticket_id;
+                        ticketOption.textContent = `${ticket.name}`;
+                        ticketOption.setAttribute('data-ticket', JSON.stringify(ticket));
+                        ticketSelect.appendChild(ticketOption);
+                    });
+                    
+                    // Refresh Select2 if initialized
+                    if (window.refreshSelect2) {
+                        window.refreshSelect2(ticketSelect);
+                    }
+                }
+                
+                if (attractionDetailsContainer) {
+                    attractionDetailsContainer.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error parsing attraction data:', error);
+                if (attractionDetailsContainer) {
+                    attractionDetailsContainer.style.display = 'none';
+                }
             }
-            attractionDetailsContainer.style.display = 'block';
         } else {
-            attractionDetailsContainer.style.display = 'none';
+            if (attractionDetailsContainer) {
+                attractionDetailsContainer.style.display = 'none';
+            }
         }
         
         validateAttractionForm();
@@ -4668,11 +5102,20 @@
         const selectedOption = ticketSelect.options[ticketSelect.selectedIndex];
         
         if (selectedOption && selectedOption.value) {
-            const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
-            ticketPriceDisplay.textContent = `${ticketData.name} - $${ticketData.price}`;
-            
-            // Update pricing calculation when ticket changes
-            updateAttractionPricing();
+            try {
+                const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
+                
+                // Get price - use adult_price if available, otherwise try price, or default to 0
+                const price = ticketData.adult_price || ticketData.price || 0;
+                const priceText = price > 0 ? `$${parseFloat(price).toFixed(2)}` : 'Price on request';
+                
+                ticketPriceDisplay.textContent = `${ticketData.name} - ${priceText}`;
+            } catch (error) {
+                console.error('Error parsing ticket data:', error);
+                ticketPriceDisplay.textContent = '';
+            }
+        } else {
+            ticketPriceDisplay.textContent = '';
         }
     }
     
@@ -5210,6 +5653,12 @@
             localTransferPickupZoneSelect.addEventListener('change', handleLocalTransferPickupZoneChange);
         }
         
+        // Ensure dropoff zone is enabled
+        const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
+        if (dropoffZoneSelect) {
+            dropoffZoneSelect.disabled = false;
+        }
+        
         // Disable service type select initially
         const serviceTypeSelect = document.getElementById('local_transfer_service_type');
         if (serviceTypeSelect) {
@@ -5354,13 +5803,14 @@
         const dropoffZoneSelect = document.getElementById('local_transfer_dropoff_zone');
         
         if (dropoffZoneSelect) {
-            // Enable/disable based on pickup selection
-            if (pickupZoneId) {
+            // Keep dropoff field enabled at all times
                 dropoffZoneSelect.disabled = false;
-            } else {
-                dropoffZoneSelect.disabled = true;
-                dropoffZoneSelect.value = ''; // Clear dropoff when pickup is cleared
-            }
+            
+            // Only clear dropoff value if pickup is cleared (optional behavior)
+            // Uncomment the next two lines if you want to clear dropoff when pickup is cleared
+            // if (!pickupZoneId) {
+            //     dropoffZoneSelect.value = '';
+            // }
         }
         
         // Check form completion to enable/disable search button
@@ -8193,52 +8643,56 @@
                     const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
                     console.log('Available room types:', roomTypes);
                     
-                    // Populate room types with pricing information
-                    roomTypes.forEach(roomType => {
-                        const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
-                        
-                        if (sampleRoom) {
-                            // Get guest count for pricing
-                            const adults = parseInt(document.getElementById('adults').value) || 0;
-                            const children = parseInt(document.getElementById('children').value) || 0;
-                            const totalGuests = adults + children;
+                            // Populate room types with pricing information
+                            roomTypes.forEach(roomType => {
+                                const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
+                                
+                                if (sampleRoom) {
+                                    // Get guest count for pricing - use person_count_select from modal
+                                    const personCountSelect = document.getElementById('person_count_select');
+                                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
+                                    
+                                    // Determine pricing based on occupancy
+                                    const isSingleOccupancy = numberOfPersons <= 1;
+                                    
+                                    let price = 0;
+                                    let priceText = '';
+                                    
+                                    if (isSingleOccupancy) {
+                                        price = parseFloat(sampleRoom.weekday_price) || 0;
+                                        priceText = ` - $${price}`;
+                                    } else {
+                                        price = parseFloat(sampleRoom.double_weekday_price) || 0;
+                                        priceText = ` - $${price}`;
+                                    }
+                                    
+                                    const option = document.createElement('option');
+                                    option.value = roomType;
+                                    option.textContent = `${roomType}${priceText}`;
+                                    
+                                    // Store room data in dataset for later use
+                                    option.dataset.roomType = roomType;
+                                    option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                                    option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
+                                    option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
+                                    option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
+                                    option.dataset.roomId = sampleRoom.room_id;
+                                    option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
+                                    option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
+                                    option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
+                                    option.dataset.breakfast = sampleRoom.breakfast || 0;
+                                    option.dataset.lunch = sampleRoom.lunch || 0;
+                                    option.dataset.dinner = sampleRoom.dinner || 0;
+                                    
+                                    roomTypeSelect.appendChild(option);
+                                    console.log(`Added room type: ${roomType} with price $${price}`);
+                                }
+                            });
                             
-                            // Determine pricing based on occupancy
-                            const isSingleOccupancy = totalGuests <= 1;
-                            
-                            let price = 0;
-                            let priceText = '';
-                            
-                            if (isSingleOccupancy) {
-                                price = parseFloat(sampleRoom.weekday_price) || 0;
-                                priceText = ` - $${price}`;
-                            } else {
-                                price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                priceText = ` - $${price}`;
-                            }
-                            
-                            const option = document.createElement('option');
-                            option.value = roomType;
-                            option.textContent = `${roomType}${priceText}`;
-                            
-                            // Store room data in dataset for later use
-                            option.dataset.roomType = roomType;
-                            option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
-                            option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
-                            option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
-                            option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
-                            option.dataset.roomId = sampleRoom.room_id;
-                            option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
-                            option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
-                            option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
-                            option.dataset.breakfast = sampleRoom.breakfast || 0;
-                            option.dataset.lunch = sampleRoom.lunch || 0;
-                            option.dataset.dinner = sampleRoom.dinner || 0;
-                            
-                            roomTypeSelect.appendChild(option);
-                            console.log(`Added room type: ${roomType} with price $${price}`);
-                        }
-                    });
+                            // Update price after rooms are loaded
+                            setTimeout(() => {
+                                updateHotelModalPrice();
+                            }, 100);
                     
                     roomTypeSelect.disabled = false;
                     console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
@@ -8397,6 +8851,9 @@
         if (occupancyInfo) {
             occupancyInfo.textContent = `Max Occupancy: ${maxOccupancy}`;
         }
+        
+        // Update price when bed type changes
+        updateHotelModalPrice();
         
         // Update person selector dynamically based on max occupancy and extra bed availability
         generatePersonSelector(maxOccupancy, bedData.extra_bed || false);
@@ -9110,6 +9567,66 @@
             noNightsAlert.classList.remove('d-none');
             proceedBtn.disabled = true;
         }
+        
+        // Update price when dates change
+        updateHotelModalPrice();
+    }
+    
+    // Function to update hotel modal price based on room type, number of rooms, and dates
+    function updateHotelModalPrice() {
+        const roomTypeSelect = document.getElementById('room_type');
+        const numberOfRoomsInput = document.getElementById('number_of_rooms_modal');
+        const priceInput = document.getElementById('total_price_modal');
+        const numberOfPersonsSelect = document.getElementById('person_count_select');
+        const checkInInput = document.getElementById('check_in_date');
+        const checkOutInput = document.getElementById('check_out_date');
+        
+        if (!roomTypeSelect || !numberOfRoomsInput || !priceInput) {
+            return;
+        }
+        
+        const selectedRoomType = roomTypeSelect.value;
+        const numberOfRooms = parseInt(numberOfRoomsInput.value) || 1;
+        const numberOfPersons = numberOfPersonsSelect ? parseInt(numberOfPersonsSelect.value) || 1 : 1;
+        
+        // Get room data
+        const roomData = window.roomData;
+        if (!roomData || !selectedRoomType) {
+            return;
+        }
+        
+        // Find the selected room type
+        const selectedRoom = roomData.find(room => room.room_type === selectedRoomType);
+        if (!selectedRoom) {
+            return;
+        }
+        
+        // Calculate price based on occupancy (single or double)
+        const isSingleOccupancy = numberOfPersons <= 1;
+        let pricePerNight = 0;
+        
+        if (isSingleOccupancy) {
+            pricePerNight = parseFloat(selectedRoom.weekday_price || 0);
+        } else {
+            pricePerNight = parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
+        }
+        
+        // Calculate number of nights
+        let numberOfNights = 1;
+        if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
+            const checkIn = new Date(checkInInput.value);
+            const checkOut = new Date(checkOutInput.value);
+            numberOfNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+            if (numberOfNights <= 0) numberOfNights = 1;
+        }
+        
+        // Calculate total price: price per night * number of nights * number of rooms
+        const totalPrice = pricePerNight * numberOfNights * numberOfRooms;
+        
+        // Update price input if calculated price is valid
+        if (totalPrice > 0) {
+            priceInput.value = totalPrice.toFixed(2);
+        }
     }
     
     function proceedToHotelSelection() {
@@ -9183,22 +9700,39 @@
         const personCountSelect = document.getElementById('person_count_select');
         const headCount = personCountSelect ? parseInt(personCountSelect.value) : 1;
         
-        // Determine pricing based on occupancy
-        const isSingleOccupancy = headCount <= 1;
-        let pricePerNight = 0;
+        // Get number of rooms from modal
+        const numberOfRoomsInput = document.getElementById('number_of_rooms_modal');
+        const numberOfRooms = numberOfRoomsInput ? parseInt(numberOfRoomsInput.value) || 1 : 1;
         
-        if (roomData) {
-            if (isSingleOccupancy) {
-                pricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
-            } else {
-                pricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
-            }
-        } else {
-            pricePerNight = parseFloat(bedData.price || 190);
+        // Get total price from modal (or calculate it)
+        const totalPriceInput = document.getElementById('total_price_modal');
+        let totalPrice = 0;
+        if (totalPriceInput && totalPriceInput.value) {
+            totalPrice = parseFloat(totalPriceInput.value) || 0;
         }
         
-        // Calculate total price
-        const totalPrice = pricePerNight * numberOfNights;
+        // If price not set in modal, calculate it
+        if (totalPrice <= 0) {
+            // Determine pricing based on occupancy
+            const isSingleOccupancy = headCount <= 1;
+            let pricePerNight = 0;
+            
+            if (roomData) {
+                if (isSingleOccupancy) {
+                    pricePerNight = parseFloat(roomData.weekday_price || bedData.price || 0);
+                } else {
+                    pricePerNight = parseFloat(roomData.double_weekday_price || bedData.price || 0);
+                }
+            } else {
+                pricePerNight = parseFloat(bedData.price || 190);
+            }
+            
+            // Calculate total price: price per night * number of nights * number of rooms
+            totalPrice = pricePerNight * numberOfNights * numberOfRooms;
+        }
+        
+        // Calculate price per night for room structure
+        const pricePerNight = totalPrice / (numberOfNights * numberOfRooms);
         
         // Generate selectedMeals object for each night
         const selectedMeals = {};
@@ -9224,25 +9758,30 @@
             state: customer_info.state,
             zip: customer_info.zip,
             specialRequests: customer_info.specialRequests,
-            rooms: [
-                {
-                    room_id: parseInt(roomId) || 2,
-                    room_type: selectedRoomType,
-                    beds: [
-                        {
-                            bed_id: parseInt(bedId) || 1,
-                            bed_type: selectedBedType,
-                            max_occupancy: parseInt(maxOccupancy) || 1,
-                            mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
-                            selectedMeals: selectedMeals,
-                            head_count: headCount,
-                            price: pricePerNight,
-                            baby_cot: parseInt(bedData.baby_cot) || 0,
-                            room_type: selectedRoomType
-                        }
-                    ]
+            rooms: (() => {
+                // Create array of rooms based on number of rooms
+                const rooms = [];
+                for (let i = 0; i < numberOfRooms; i++) {
+                    rooms.push({
+                        room_id: parseInt(roomId) || 2,
+                        room_type: selectedRoomType,
+                        beds: [
+                            {
+                                bed_id: parseInt(bedId) || 1,
+                                bed_type: selectedBedType,
+                                max_occupancy: parseInt(maxOccupancy) || 1,
+                                mealTypes: [selectedMealPlan.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())],
+                                selectedMeals: selectedMeals,
+                                head_count: headCount,
+                                price: pricePerNight,
+                                baby_cot: parseInt(bedData.baby_cot) || 0,
+                                room_type: selectedRoomType
+                            }
+                        ]
+                    });
                 }
-            ],
+                return rooms;
+            })(),
             bookingType: "booking",
             totalPrice: totalPrice,
             priceMode: "dmc",
@@ -9291,6 +9830,8 @@
             room_id: roomId || 99999,
             bed_id: bedId || 99999,
             meal_plan: formData.get('meal_plan'),
+            number_of_rooms: numberOfRooms,
+            total_price: totalPrice,
         };
 
         for (const [key, value] of Object.entries(basicData)) {
@@ -9335,6 +9876,12 @@
     
     function initializeGuideModal() {
         // Add event listeners
+        const citySelect = document.getElementById('modal_guide_city_select');
+        if (citySelect) {
+            citySelect.addEventListener('change', function() {
+                validateForm();
+            });
+        }
         document.getElementById('modal_guide_select').addEventListener('change', onGuideSelection);
         document.getElementById('modal_guide_duration').addEventListener('change', onDurationSelection);
         document.getElementById('modal_guide_custom_hours').addEventListener('input', validateCustomHours);
@@ -9355,6 +9902,9 @@
             serviceDateInput.max = endDate;
             serviceDateInput.value = startDate; // Default to start date
         }
+        
+        // Initial validation
+        validateForm();
     }
     
     function loadGuidesForCity(city, country) {
@@ -9436,6 +9986,7 @@
     }
     
     function validateForm() {
+        const citySelect = document.getElementById('modal_guide_city_select');
         const guideSelect = document.getElementById('modal_guide_select');
         const durationSelect = document.getElementById('modal_guide_duration');
         const customHours = document.getElementById('modal_guide_custom_hours');
@@ -9446,6 +9997,7 @@
         let isValid = true;
         
         // Check required fields
+        if (!citySelect || !citySelect.value) isValid = false;
         if (!guideSelect.value) isValid = false;
         if (!durationSelect.value) isValid = false;
         if (durationSelect.value === 'custom' && (!customHours.value || customHours.value < 1 || customHours.value > 24)) isValid = false;
@@ -9654,9 +10206,40 @@
         const modal = new bootstrap.Modal(document.getElementById('restaurantSelectionModal'));
         modal.show();
         
-        // Initialize modal functionality after modal is shown
+        // Initialize modal functionality after modal is shown and Select2 is initialized
         setTimeout(() => {
-        initializeRestaurantModal();
+            initializeRestaurantModal();
+            // Ensure event listeners are attached after Select2 initialization
+            // Select2 is initialized in shown.bs.modal event with 100ms delay, so we wait a bit more
+            setTimeout(() => {
+                const restaurantSelect = document.getElementById('modal_restaurant_select');
+                if (restaurantSelect) {
+                    const $restaurantSelect = $(restaurantSelect);
+                    // Re-attach event listeners in case Select2 was initialized after our first attempt
+                    if ($restaurantSelect.data('select2')) {
+                        console.log('Re-attaching restaurant Select2 event listener');
+                        $restaurantSelect.off('select2:select select2:selecting').on('select2:select', function(e) {
+                            console.log('Restaurant Select2 select event triggered (re-attached)');
+                            const selectedValue = e.params.data.id;
+                            const selectedOption = restaurantSelect.querySelector(`option[value="${selectedValue}"]`);
+                            if (selectedOption) {
+                                console.log('Selected restaurant:', selectedOption.textContent);
+                                // Ensure the native select value matches Select2's value
+                                restaurantSelect.value = selectedValue;
+                            }
+                            onRestaurantSelection();
+                        });
+                    } else {
+                        console.log('Select2 not initialized on restaurant select, using native change');
+                        // Ensure native change event is attached
+                        restaurantSelect.removeEventListener('change', onRestaurantSelection);
+                        restaurantSelect.addEventListener('change', function() {
+                            console.log('Restaurant native change event triggered (re-attached)');
+                            onRestaurantSelection();
+                        });
+                    }
+                }
+            }, 200);
         }, 100);
         
         // Load restaurants for the city
@@ -9665,6 +10248,7 @@
     
     function initializeRestaurantModal() {
         // Add event listeners only for elements that exist
+        const citySelect = document.getElementById('modal_restaurant_city_select');
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         const mealTypeSelect = document.getElementById('modal_restaurant_meal_type');
         const dishSelect = document.getElementById('modal_restaurant_dish');
@@ -9672,11 +10256,57 @@
         const diningDateSelect = document.getElementById('modal_restaurant_dining_date');
         const confirmBtn = document.getElementById('confirm_restaurant_btn');
         
+        if (citySelect) {
+            citySelect.addEventListener('change', function() {
+                validateRestaurantForm();
+            });
+        }
         if (restaurantSelect) {
-            restaurantSelect.addEventListener('change', onRestaurantSelection);
+            // Use jQuery Select2 event for Select2 dropdowns, fallback to native change
+            const $restaurantSelect = $(restaurantSelect);
+            // Remove any existing event listeners to avoid duplicates
+            $restaurantSelect.off('select2:select select2:selecting change');
+            // Attach Select2 event (works with Select2)
+            $restaurantSelect.on('select2:select', function(e) {
+                console.log('Restaurant Select2 select event triggered');
+                const selectedValue = e.params.data.id;
+                const selectedOption = restaurantSelect.querySelector(`option[value="${selectedValue}"]`);
+                if (selectedOption) {
+                    console.log('Selected restaurant:', selectedOption.textContent);
+                    // Ensure Select2 displays the selected value (it should already be set by Select2)
+                    // Just ensure the native select value matches
+                    restaurantSelect.value = selectedValue;
+                }
+                onRestaurantSelection();
+            });
+            // Also attach native change event as fallback
+            restaurantSelect.addEventListener('change', function() {
+                console.log('Restaurant native change event triggered');
+                onRestaurantSelection();
+            });
         }
         if (mealTypeSelect) {
-            mealTypeSelect.addEventListener('change', validateRestaurantForm);
+            // Use jQuery Select2 event for Select2 dropdowns, fallback to native change
+            const $mealTypeSelect = $(mealTypeSelect);
+            // Remove any existing event listeners to avoid duplicates
+            $mealTypeSelect.off('select2:select select2:change change');
+            // Attach Select2 event (works with Select2)
+            $mealTypeSelect.on('select2:select', function(e) {
+                console.log('Meal Type Select2 select event triggered');
+                onMealTypeSelection();
+                validateRestaurantForm();
+            });
+            $mealTypeSelect.on('select2:change', function(e) {
+                console.log('Meal Type Select2 change event triggered');
+                onMealTypeSelection();
+                validateRestaurantForm();
+            });
+            // Also attach native change event as fallback
+            mealTypeSelect.addEventListener('change', function() {
+                console.log('Meal Type native change event triggered');
+                onMealTypeSelection();
+                validateRestaurantForm();
+            });
         }
         if (dishSelect) {
             dishSelect.addEventListener('change', validateRestaurantForm);
@@ -9718,16 +10348,25 @@
             male_count: maleCount.toString(),
             female_count: femaleCount.toString(),
             child_ages: (function() {
-                const select = document.getElementById('child_ages');
-                if (!select) return '';
-                // Check if Select2 is initialized
-                if ($(select).data('select2')) {
-                    return $(select).val() ? $(select).val().join(',') : '';
+                const hiddenField = document.getElementById('child_ages');
+                if (hiddenField && hiddenField.value) {
+                    return hiddenField.value;
                 }
-                // Fallback for regular select
-                return Array.from(select.selectedOptions || []).map(option => option.value).join(',') || '';
+                // Fallback: collect from individual tour_child_age_X selects if available
+                const children = parseInt(document.getElementById('children')?.value) || 0;
+                const childAgeValues = [];
+                for (let i = 1; i <= children; i++) {
+                    const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                    if (ageSelect && ageSelect.value) {
+                        childAgeValues.push(ageSelect.value);
+                    }
+                }
+                return childAgeValues.join(',');
             })()
         };
+        
+        // Initial validation
+        validateRestaurantForm();
     }
     
     // Function to populate time slots based on meal period and restaurant timing
@@ -9864,8 +10503,15 @@
     function loadRestaurantsForCity(city, country) {
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         const restaurantCount = document.getElementById('restaurant_count');
+        const modalRestaurantCity = document.getElementById('modal_restaurant_city');
         const mealSelect = document.getElementById('modal_restaurant_meal_type');
         const dishSelect = document.getElementById('modal_restaurant_dish');
+        
+        // Update city name display
+        if (modalRestaurantCity) {
+            modalRestaurantCity.textContent = city || '';
+        }
+        
         // Clear existing options
         restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
         console.log('City:', city);
@@ -9889,11 +10535,106 @@
             option.textContent = `${restaurant.name} - ${restaurant.city}`;
             option.setAttribute('data-restaurant', JSON.stringify(restaurant));
             restaurantSelect.appendChild(option);
-            
         });
         
         restaurantCount.textContent = restaurants.length;
+        
+        // Refresh Select2 if it's initialized on restaurant select to show new options
+        const $restaurantSelect = $(restaurantSelect);
+        if ($restaurantSelect.data('select2')) {
+            console.log('Refreshing Select2 on restaurant select after loading restaurants');
+            // Reset to empty value first to clear any previous selection
+            $restaurantSelect.val(null).trigger('change.select2');
+            // Force Select2 to update its internal cache of options
+            setTimeout(function() {
+                $restaurantSelect.select2('destroy');
+                const $modal = $restaurantSelect.closest('.modal');
+                const dropdownParent = $modal.length ? $modal : $('body');
+                const firstOption = $restaurantSelect.find('option:first');
+                let placeholder = 'Search Restaurant';
+                if (firstOption.length && firstOption.val() === '') {
+                    placeholder = firstOption.text() || 'Search Restaurant';
+                }
+                $restaurantSelect.select2({
+                    theme: 'bootstrap-5',
+                    placeholder: placeholder,
+                    allowClear: true,
+                    width: '100%',
+                    closeOnSelect: true,
+                    dropdownParent: dropdownParent
+                });
+                // Re-attach event listener after reinitialization
+                $restaurantSelect.off('select2:select').on('select2:select', function(e) {
+                    console.log('Restaurant Select2 select event triggered (after reinit)');
+                    const selectedValue = e.params.data.id;
+                    const selectedOption = restaurantSelect.querySelector(`option[value="${selectedValue}"]`);
+                    if (selectedOption) {
+                        console.log('Selected restaurant:', selectedOption.textContent);
+                        restaurantSelect.value = selectedValue;
+                    }
+                    onRestaurantSelection();
+                });
+            }, 100);
+        }
+        
+        // Clear dependent fields when city changes
+        if (mealSelect) {
+            mealSelect.innerHTML = '<option value="">Select Restaurant First</option>';
+        }
+        if (dishSelect) {
+            dishSelect.innerHTML = '<option value="">Select Dish</option>';
+        }
     }
+    function onMealTypeSelection() {
+        const mealSelect = document.getElementById('modal_restaurant_meal_type');
+        const dishSelect = document.getElementById('modal_restaurant_dish');
+        const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
+        const restaurantSelect = document.getElementById('modal_restaurant_select');
+        
+        if (!mealSelect || !mealSelect.value) {
+            dishSelect.innerHTML = '<option value="">Select Dish</option>';
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            return;
+        }
+        
+        const selectedMealOption = mealSelect.options[mealSelect.selectedIndex];
+        if (!selectedMealOption || !selectedMealOption.getAttribute('data-meal')) {
+            return;
+        }
+        
+        const mealData = JSON.parse(selectedMealOption.getAttribute('data-meal'));
+        const pax = getPax();
+        const adultPrice = mealData.adult_price * (pax.maleCount + pax.femaleCount);
+        const childPrice = mealData.child_price * pax.children;
+        const totalPrice = adultPrice + childPrice;
+        
+        const mealPriceSection = document.getElementById('meal-price-section');
+        if (mealPriceSection) {
+            mealPriceSection.textContent = 'Adult Price: '+adultPrice + ' - ' + 'Child Price: '+childPrice+', Total Price: '+totalPrice;
+        }
+
+        dishSelect.innerHTML = '<option value="">Select Dish</option>';
+        // Add dish options based on meal data
+        const dishOption = document.createElement('option');
+        dishOption.value = mealData.meal_id;
+        dishOption.textContent = mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...';
+        dishOption.setAttribute('data-dish', JSON.stringify(mealData));
+        dishSelect.appendChild(dishOption);
+        
+        // Get restaurant data to populate time slots
+        if (restaurantSelect && restaurantSelect.value) {
+            const selectedRestaurantOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+            if (selectedRestaurantOption && selectedRestaurantOption.getAttribute('data-restaurant')) {
+                const restaurantData = JSON.parse(selectedRestaurantOption.getAttribute('data-restaurant'));
+                // Set time slots based on restaurant's opening/closing times for the selected meal period
+                populateTimeSlotsBasedOnMealPeriod(mealData.meal_period, restaurantData);
+            }
+        }
+        
+        // Validate form after meal type selection
+        validateRestaurantForm();
+    }
+    
     function getPax() {
         const maleInput = document.getElementById('modal_male_count');
         const femaleInput = document.getElementById('modal_female_count');
@@ -9927,90 +10668,134 @@
     
     function onRestaurantSelection() {
         const restaurantSelect = document.getElementById('modal_restaurant_select');
+        if (!restaurantSelect) {
+            console.error('Restaurant select element not found');
+            return;
+        }
+        
         const restaurantDetailsContainer = document.getElementById('restaurant_details_container');
-        const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
         const mealSelect = document.getElementById('modal_restaurant_meal_type');
         const dishSelect = document.getElementById('modal_restaurant_dish');
         const timeSlotSelect = document.getElementById('modal_restaurant_time_slot');
         
-        
+        // Get selected option - handle both Select2 and native select
+        let selectedOption = null;
+        let selectedValue = null;
+        const $restaurantSelect = $(restaurantSelect);
+        if ($restaurantSelect.data('select2')) {
+            // Select2 is initialized, get selected option using jQuery
+            selectedValue = $restaurantSelect.val();
+            if (selectedValue) {
+                selectedOption = restaurantSelect.querySelector(`option[value="${selectedValue}"]`);
+                // Ensure Select2 displays the selected value properly by re-setting it
+                if (selectedOption) {
+                    // Re-set the value to ensure Select2 displays the correct text
+                    $restaurantSelect.val(selectedValue).trigger('change.select2');
+                }
+            }
+        } else {
+            // Native select
+            selectedValue = restaurantSelect.value;
+            selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
+        }
         
         // Clear dependent dropdowns
-        mealSelect.innerHTML = '<option value="">Select Meal</option>';
-        dishSelect.innerHTML = '<option value="">Select Dish</option>';
-        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-        
-        if (restaurantSelect.value) {
-            const restaurantData = JSON.parse(selectedOption.getAttribute('data-restaurant'));
-            
-            // Show restaurant details
-            document.getElementById('selected_restaurant_image').src = restaurantData.master_image || '/assets/images/default-restaurant.png';
-            document.getElementById('selected_restaurant_name').textContent = restaurantData.name;
-            document.getElementById('selected_restaurant_cuisine').textContent = restaurantData.cuisine + ' Cuisine';
-            document.getElementById('selected_restaurant_location').textContent = restaurantData.location;
-            document.getElementById('selected_restaurant_rating').textContent = restaurantData.rating;
-            document.getElementById('selected_restaurant_price_range').textContent = restaurantData.price_range;
-            console.log('restaurant selected then, Restaurant data:', restaurantData);
-
-            // Set Meal Options
-            restaurantData.meals.forEach(meal => {
-                let mealType = meal.type == 1 
-                    ? 'Buffet' 
-                    : meal.type == 2 
-                        ? 'Set Menu' 
-                        : meal.type == 3 
-                            ? 'A-La-Carte' 
-                            : '...';
-                let mealPeriod = meal.meal_period == 1 ? 'Breakfast' : meal.meal_period == 2 ? 'Lunch' : meal.meal_period == 3 ? 'Dinner' : '...';
-
-                let mealCategory = meal.category == 1 ? 'Alcoholic' : meal.category == 2 ? 'Non Alcoholic' : 'No Beverage';
-
-                let mealItemType = meal.item_type == 1 ? 'Vegetarian' : meal.item_type == 2 ? 'Non Vegetarian' : '...';
-
-                let mealName = mealPeriod + ' - ' + mealType + ' - ' + mealCategory + ' - ' + mealItemType;
-                console.log('mealName:', mealName);
-                const mealOption = document.createElement('option');
-                mealOption.value = meal.meal_id;
-                mealOption.textContent = mealName;
-                mealOption.setAttribute('data-meal', JSON.stringify(meal));
-                mealSelect.appendChild(mealOption);
-            });
-            
-            // Set Dish Options (based on selected meal)
-            mealSelect.addEventListener('change', function() {
-                const selectedMealOption = mealSelect.options[mealSelect.selectedIndex];
-                const mealData = JSON.parse(selectedMealOption.getAttribute('data-meal'));
-                const pax = getPax();
-                const adultPrice = mealData.adult_price * (pax.maleCount + pax.femaleCount);
-                const childPrice = mealData.child_price * pax.children;
-                const totalPrice = adultPrice + childPrice;
-                
-                const mealPriceSection = document.getElementById('meal-price-section');
-                mealPriceSection.textContent = 'Adult Price: '+adultPrice + ' - ' + 'Child Price: '+childPrice+', Total Price: '+totalPrice;
-
-                if (selectedMealOption.value) {
-                    dishSelect.innerHTML = '<option value="">Select Dish</option>';
-                    // Add dish options based on meal data
-                    const dishOption = document.createElement('option');
-                    dishOption.value = mealData.meal_id;
-                    dishOption.textContent = mealData.type == 1 ? 'Buffet' : mealData.type == 2 ? 'Set Menu' : mealData.type == 3 ? 'A-La-Carte' : '...';
-                    dishOption.setAttribute('data-dish', JSON.stringify(mealData));
-                    dishSelect.appendChild(dishOption);
-                    
-                    // Set time slots based on restaurant's opening/closing times for the selected meal period
-                    populateTimeSlotsBasedOnMealPeriod(mealData.meal_period, restaurantData);
-                }
-            });
-            
-            restaurantDetailsContainer.style.display = 'block';
-        } else {
-            restaurantDetailsContainer.style.display = 'none';
+        if (mealSelect) {
+            mealSelect.innerHTML = '<option value="">Select Meal</option>';
         }
+        if (dishSelect) {
+            dishSelect.innerHTML = '<option value="">Select Dish</option>';
+        }
+        if (timeSlotSelect) {
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+        }
+        
+        if (restaurantSelect.value && selectedOption && selectedOption.getAttribute('data-restaurant')) {
+            try {
+                const restaurantData = JSON.parse(selectedOption.getAttribute('data-restaurant'));
+                console.log('Restaurant selected, data:', restaurantData);
+                
+                // Show restaurant details
+                const imageEl = document.getElementById('selected_restaurant_image');
+                const nameEl = document.getElementById('selected_restaurant_name');
+                const cuisineEl = document.getElementById('selected_restaurant_cuisine');
+                const locationEl = document.getElementById('selected_restaurant_location');
+                const ratingEl = document.getElementById('selected_restaurant_rating');
+                const priceRangeEl = document.getElementById('selected_restaurant_price_range');
+                
+                if (imageEl) imageEl.src = restaurantData.master_image || '/assets/images/default-restaurant.png';
+                if (nameEl) nameEl.textContent = restaurantData.name || '';
+                if (cuisineEl) cuisineEl.textContent = (restaurantData.cuisine || '') + ' Cuisine';
+                if (locationEl) locationEl.textContent = restaurantData.location || '';
+                if (ratingEl) ratingEl.textContent = restaurantData.rating || '';
+                if (priceRangeEl) priceRangeEl.textContent = restaurantData.price_range || '';
+
+                // Set Meal Options
+                if (mealSelect && restaurantData.meals && Array.isArray(restaurantData.meals) && restaurantData.meals.length > 0) {
+                    console.log('Populating meal options, count:', restaurantData.meals.length);
+                    restaurantData.meals.forEach(meal => {
+                        let mealType = meal.type == 1 
+                            ? 'Buffet' 
+                            : meal.type == 2 
+                                ? 'Set Menu' 
+                                : meal.type == 3 
+                                    ? 'A-La-Carte' 
+                                    : '...';
+                        let mealPeriod = meal.meal_period == 1 ? 'Breakfast' : meal.meal_period == 2 ? 'Lunch' : meal.meal_period == 3 ? 'Dinner' : '...';
+
+                        let mealCategory = meal.category == 1 ? 'Alcoholic' : meal.category == 2 ? 'Non Alcoholic' : 'No Beverage';
+
+                        let mealItemType = meal.item_type == 1 ? 'Vegetarian' : meal.item_type == 2 ? 'Non Vegetarian' : '...';
+
+                        let mealName = mealPeriod + ' - ' + mealType + ' - ' + mealCategory + ' - ' + mealItemType;
+                        console.log('Adding meal option:', mealName);
+                        const mealOption = document.createElement('option');
+                        mealOption.value = meal.meal_id;
+                        mealOption.textContent = mealName;
+                        mealOption.setAttribute('data-meal', JSON.stringify(meal));
+                        mealSelect.appendChild(mealOption);
+                    });
+                    
+                    // Refresh Select2 if it's initialized on meal select
+                    const $mealSelect = $(mealSelect);
+                    if ($mealSelect.data('select2')) {
+                        console.log('Refreshing Select2 on meal select');
+                        $mealSelect.trigger('change.select2');
+                    }
+                } else {
+                    console.warn('No meals found for restaurant or mealSelect element missing', {
+                        mealSelect: !!mealSelect,
+                        hasMeals: restaurantData.meals && Array.isArray(restaurantData.meals),
+                        mealsLength: restaurantData.meals ? restaurantData.meals.length : 0
+                    });
+                }
+                
+                // Note: Meal type selection is now handled by onMealTypeSelection() function
+                // which is set up in initializeRestaurantModal() to avoid duplicate event listeners
+                
+                if (restaurantDetailsContainer) {
+                    restaurantDetailsContainer.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error in onRestaurantSelection:', error);
+                if (restaurantDetailsContainer) {
+                    restaurantDetailsContainer.style.display = 'none';
+                }
+            }
+        } else {
+            if (restaurantDetailsContainer) {
+                restaurantDetailsContainer.style.display = 'none';
+            }
+        }
+        
+        // Validate form after restaurant selection
+        validateRestaurantForm();
         
         validateRestaurantForm();
     }
     
     function validateRestaurantForm() {
+        const citySelect = document.getElementById('modal_restaurant_city_select');
         const restaurantSelect = document.getElementById('modal_restaurant_select');
         const mealType = document.getElementById('modal_restaurant_meal_type');
         const dishSelect = document.getElementById('modal_restaurant_dish');
@@ -10021,13 +10806,211 @@
         let isValid = true;
         
         // Check required fields
-        if (!restaurantSelect.value) isValid = false;
-        if (!mealType.value) isValid = false;
-        if (!dishSelect.value) isValid = false;
-        if (!timeSlotSelect.value) isValid = false;
-        if (!diningDateSelect.value) isValid = false;
+        if (!citySelect || !citySelect.value) isValid = false;
+        if (!restaurantSelect || !restaurantSelect.value) isValid = false;
+        if (!mealType || !mealType.value) isValid = false;
+        if (!dishSelect || !dishSelect.value) isValid = false;
+        if (!timeSlotSelect || !timeSlotSelect.value) isValid = false;
+        if (!diningDateSelect || !diningDateSelect.value) isValid = false;
         
-        confirmBtn.disabled = !isValid;
+        if (confirmBtn) {
+            confirmBtn.disabled = !isValid;
+        }
+    }
+
+    // Tour Guest Selector Functions
+    function openTourGuestSelector() {
+        // Get current values from hidden fields
+        const adults = parseInt(document.getElementById('adults').value) || 1;
+        const children = parseInt(document.getElementById('children').value) || 0;
+        const infants = parseInt(document.getElementById('infants').value) || 0;
+        const maleCount = parseInt(document.getElementById('male_count').value) || adults;
+        const femaleCount = parseInt(document.getElementById('female_count').value) || 0;
+        
+        // Get existing child ages from hidden field (comma-separated string)
+        const childAgesHidden = document.getElementById('child_ages');
+        let existingAges = [];
+        if (childAgesHidden && childAgesHidden.value) {
+            // Split comma-separated string into array
+            existingAges = childAgesHidden.value.split(',').filter(age => age && age.trim() !== '');
+        }
+        
+        // Set values in modal
+        document.getElementById('tour_male_count').value = maleCount;
+        document.getElementById('tour_female_count').value = femaleCount;
+        document.getElementById('tour_children_count').value = children;
+        document.getElementById('tour_infants_count').value = infants;
+        
+        // Update child age selects
+        updateChildAgeSelects(children, existingAges);
+        
+        // Update summary in modal
+        updateTourGuestSummary();
+        
+        // Open modal
+        const modal = new bootstrap.Modal(document.getElementById('tourGuestSelectorModal'));
+        modal.show();
+    }
+    
+    function incrementTourCount(fieldId) {
+        const field = document.getElementById(fieldId);
+        const currentValue = parseInt(field.value) || 0;
+        const maxValue = parseInt(field.max) || 20;
+        
+        if (currentValue < maxValue) {
+            field.value = currentValue + 1;
+            
+            // If this is the children count field, update child age selects
+            if (fieldId === 'tour_children_count') {
+                updateChildAgeSelects(currentValue + 1);
+            }
+            
+            updateTourGuestSummary();
+        }
+    }
+    
+    function decrementTourCount(fieldId) {
+        const field = document.getElementById(fieldId);
+        const currentValue = parseInt(field.value) || 0;
+        const minValue = parseInt(field.min) || 0;
+        
+        if (currentValue > minValue) {
+            field.value = currentValue - 1;
+            
+            // If this is the children count field, update child age selects
+            if (fieldId === 'tour_children_count') {
+                updateChildAgeSelects(currentValue - 1);
+            }
+            
+            updateTourGuestSummary();
+        }
+    }
+    
+    function updateChildAgeSelects(childrenCount, existingAges = []) {
+        const container = document.getElementById('tour_child_ages_container');
+        const listContainer = document.getElementById('tour_child_ages_list');
+        
+        if (!container || !listContainer) return;
+        
+        // If existingAges is not provided, try to get from current selects
+        if (existingAges.length === 0) {
+            const currentCount = parseInt(document.getElementById('tour_children_count').value) || 0;
+            for (let i = 1; i <= currentCount; i++) {
+                const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                if (ageSelect && ageSelect.value) {
+                    existingAges.push(ageSelect.value);
+                } else {
+                    existingAges.push('');
+                }
+            }
+        }
+        
+        // Show/hide container based on children count
+        if (childrenCount > 0) {
+            container.style.display = 'block';
+            
+            // Clear existing selects
+            listContainer.innerHTML = '';
+            
+            // Create select boxes for each child
+            for (let i = 1; i <= childrenCount; i++) {
+                const selectWrapper = document.createElement('div');
+                selectWrapper.className = 'mb-2';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label mb-1 small fw-semibold';
+                label.textContent = `Child ${i}:`;
+                label.setAttribute('for', `tour_child_age_${i}`);
+                
+                const select = document.createElement('select');
+                select.className = 'form-select form-select-sm';
+                select.id = `tour_child_age_${i}`;
+                select.name = `tour_child_age_${i}`;
+                
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Select age';
+                select.appendChild(defaultOption);
+                
+                // Add age options (1-17)
+                for (let age = 1; age <= 17; age++) {
+                    const option = document.createElement('option');
+                    option.value = age;
+                    option.textContent = age;
+                    // Select existing age if available
+                    if (existingAges.length >= i && existingAges[i - 1] == age) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                }
+                
+                selectWrapper.appendChild(label);
+                selectWrapper.appendChild(select);
+                listContainer.appendChild(selectWrapper);
+            }
+        } else {
+            container.style.display = 'none';
+            listContainer.innerHTML = '';
+        }
+    }
+    
+    function updateTourGuestSummary() {
+        const maleCount = parseInt(document.getElementById('tour_male_count').value) || 0;
+        const femaleCount = parseInt(document.getElementById('tour_female_count').value) || 0;
+        const children = parseInt(document.getElementById('tour_children_count').value) || 0;
+        const infants = parseInt(document.getElementById('tour_infants_count').value) || 0;
+        const adults = maleCount + femaleCount;
+        
+        const summary = `${adults} adults (${maleCount} male, ${femaleCount} female), ${children} children, ${infants} infants`;
+        const summaryElement = document.getElementById('tour_guest_summary');
+        if (summaryElement) {
+            summaryElement.textContent = summary;
+        }
+    }
+    
+    function confirmTourGuestSelection() {
+        const maleCount = parseInt(document.getElementById('tour_male_count').value) || 0;
+        const femaleCount = parseInt(document.getElementById('tour_female_count').value) || 0;
+        const children = parseInt(document.getElementById('tour_children_count').value) || 0;
+        const infants = parseInt(document.getElementById('tour_infants_count').value) || 0;
+        const adults = maleCount + femaleCount;
+        
+        // Collect child ages
+        const childAges = [];
+        for (let i = 1; i <= children; i++) {
+            const ageSelect = document.getElementById(`tour_child_age_${i}`);
+            if (ageSelect && ageSelect.value) {
+                childAges.push(ageSelect.value);
+            }
+        }
+        
+        // Update hidden fields
+        document.getElementById('adults').value = adults;
+        document.getElementById('children').value = children;
+        document.getElementById('infants').value = infants;
+        document.getElementById('male_count').value = maleCount;
+        document.getElementById('female_count').value = femaleCount;
+        
+        // Update child_ages hidden field with comma-separated values
+        const childAgesHidden = document.getElementById('child_ages');
+        if (childAgesHidden) {
+            childAgesHidden.value = childAges.join(',');
+        }
+        
+        // Update summary display
+        updateTourGuestSummary();
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('tourGuestSelectorModal'));
+        if (modal) {
+            modal.hide();
+        }
+        
+        // Show success notification
+        if (typeof showNotification === 'function') {
+            showNotification('Guest selection updated successfully', 'success');
+        }
     }
 
     // Guest selector functions for restaurant modal
@@ -10951,6 +11934,106 @@
         const submitButton = button;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
+        // Get form values
+        const checkInDate = formDiv.querySelector('input[name="check_in_date"]')?.value || '';
+        const checkOutDate = formDiv.querySelector('input[name="check_out_date"]')?.value || '';
+        const roomType = formDiv.querySelector('select[name="room_type"]')?.value || '';
+        const bedType = formDiv.querySelector('select[name="bed_type"]')?.value || '';
+        const mealPlan = formDiv.querySelector('select[name="meal_plan"]')?.value || '';
+        const numberOfRooms = parseInt(formDiv.querySelector('input[name="number_of_rooms"]')?.value || '1');
+        const numberOfPersons = parseInt(formDiv.querySelector('input[name="number_of_persons"]')?.value || '1');
+        const hotelId = formDiv.querySelector('input[name="hotel_id"]')?.value || '';
+        const originalRoomsJson = formDiv.querySelector('input[name="original_rooms_json"]')?.value || '[]';
+        
+        // Try to parse original rooms to preserve structure
+        let originalRooms = [];
+        try {
+            originalRooms = JSON.parse(originalRoomsJson);
+        } catch (e) {
+            console.warn('Could not parse original rooms JSON:', e);
+        }
+
+        // Construct rooms_json in the correct format
+        let roomsJson = '[]';
+        if (checkInDate && checkOutDate && roomType && bedType && mealPlan) {
+            const checkIn = new Date(checkInDate);
+            const checkOut = new Date(checkOutDate);
+            const numberOfNights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+            
+            // Get room_id and bed_id from original rooms if available
+            let roomId = 0;
+            let bedId = 0;
+            if (originalRooms.length > 0 && originalRooms[0]) {
+                roomId = originalRooms[0].room_id || 0;
+                if (originalRooms[0].beds && originalRooms[0].beds.length > 0) {
+                    bedId = originalRooms[0].beds[0].bed_id || 0;
+                }
+            }
+            
+            // Get bed data from select option if available
+            const bedTypeSelect = formDiv.querySelector('select[name="bed_type"]');
+            if (bedTypeSelect && bedTypeSelect.selectedIndex >= 0) {
+                const selectedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
+                if (selectedOption && selectedOption.dataset.bed) {
+                    try {
+                        const bedData = JSON.parse(selectedOption.dataset.bed);
+                        if (bedData.bed_id) bedId = bedData.bed_id;
+                    } catch (e) {
+                        console.warn('Could not parse bed data:', e);
+                    }
+                }
+            }
+            
+            // Construct selectedMeals object for each night
+            const selectedMeals = {};
+            for (let i = 1; i <= numberOfNights; i++) {
+                // Try to preserve price from original selectedMeals if available
+                let mealPrice = 0;
+                if (originalRooms.length > 0 && originalRooms[0].beds && originalRooms[0].beds[0]) {
+                    const originalSelectedMeals = originalRooms[0].beds[0].selectedMeals || {};
+                    const originalMeal = originalSelectedMeals[`meal_${i}`];
+                    if (originalMeal && originalMeal.type === mealPlan) {
+                        mealPrice = originalMeal.price || 0;
+                    }
+                }
+                
+                selectedMeals[`meal_${i}`] = {
+                    type: mealPlan,
+                    price: mealPrice
+                };
+            }
+            
+            // Construct mealTypes array
+            const mealTypes = [mealPlan];
+            
+            // Build room structure
+            const roomStructure = {
+                room_id: roomId,
+                room_type: roomType,
+                beds: [{
+                    bed_id: bedId,
+                    bed_type: bedType,
+                    max_occupancy: numberOfPersons,
+                    mealTypes: mealTypes,
+                    selectedMeals: selectedMeals,
+                    head_count: numberOfPersons,
+                    price: 0, // Will be calculated server-side if needed
+                    room_type: roomType
+                }]
+            };
+            
+            // Create array of rooms (duplicate if multiple rooms)
+            const rooms = [];
+            for (let i = 0; i < numberOfRooms; i++) {
+                rooms.push(JSON.parse(JSON.stringify(roomStructure))); // Deep copy
+            }
+            
+            roomsJson = JSON.stringify(rooms);
+        } else if (originalRooms.length > 0) {
+            // If form is incomplete, preserve original rooms
+            roomsJson = originalRoomsJson;
+        }
+
         // Create FormData from all inputs in the hotel form div
         const formData = new FormData();
         const inputs = formDiv.querySelectorAll('input, select, textarea');
@@ -10959,10 +12042,20 @@
                 if (input.checked) {
                     formData.append(input.name, input.value);
                 }
-            } else {
+            } else if (input.name !== 'original_rooms_json') {
                 formData.append(input.name, input.value);
             }
         });
+        
+        // Explicitly ensure total_price is captured with its current value
+        const totalPriceInput = formDiv.querySelector('input[name="total_price"]');
+        if (totalPriceInput) {
+            const priceValue = totalPriceInput.value || '0';
+            formData.set('total_price', priceValue);
+        }
+        
+        // Add rooms_json to form data
+        formData.append('rooms_json', roomsJson);
 
         feedback.textContent = '';
         feedback.classList.remove('text-success', 'text-danger');
@@ -11328,43 +12421,78 @@
         event.preventDefault();
         
         const form = document.getElementById('singleTourPackageForm');
+        if (!form) {
+            console.error('Form element not found');
+            showToastr('error', 'Form not found. Please refresh the page.');
+            return;
+        }
+        
         const url = form.dataset.updateInfoUrl;
         const feedback = document.getElementById('tour_info_feedback');
         const spinner = document.getElementById('tour_info_spinner');
         const submitButton = event.target.closest('button');
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (!csrfMeta) {
+            console.error('CSRF token meta tag not found');
+            showToastr('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        const csrfToken = csrfMeta.getAttribute('content');
 
         if (!url) {
-            feedback.textContent = 'Tour update URL not found.';
-            feedback.classList.add('text-danger');
+            if (feedback) {
+                feedback.textContent = 'Tour update URL not found.';
+                feedback.classList.add('text-danger');
+            }
             showToastr('error', 'Tour update URL not found.');
             return;
         }
 
         // Collect form data
         const formData = new FormData();
-        formData.append('display_id', document.getElementById('display_id').value || '');
-        formData.append('user_country', document.getElementById('user_country').value);
-        formData.append('start_date', document.getElementById('start_date').value);
-        formData.append('end_date', document.getElementById('end_date').value);
-        formData.append('adults', document.getElementById('adults').value);
-        formData.append('children', document.getElementById('children').value);
-        formData.append('infants', document.getElementById('infants').value);
-        formData.append('male', document.getElementById('male').value);
-        formData.append('female', document.getElementById('female').value);
-        formData.append('agent_id', document.getElementById('agent_id').value);
-        const childAgesSelect = document.getElementById('child_ages');
+        const displayIdEl = document.getElementById('display_id');
+        const userCountryEl = document.getElementById('user_country');
+        const startDateEl = document.getElementById('start_date');
+        const endDateEl = document.getElementById('end_date');
+        const adultsEl = document.getElementById('adults');
+        const childrenEl = document.getElementById('children');
+        const infantsEl = document.getElementById('infants');
+        const maleCountEl = document.getElementById('male_count');
+        const femaleCountEl = document.getElementById('female_count');
+        const agentIdEl = document.getElementById('agent_id');
+        
+        formData.append('display_id', displayIdEl ? displayIdEl.value || '' : '');
+        formData.append('user_country', userCountryEl ? userCountryEl.value : '');
+        formData.append('start_date', startDateEl ? startDateEl.value : '');
+        formData.append('end_date', endDateEl ? endDateEl.value : '');
+        formData.append('adults', adultsEl ? adultsEl.value : '1');
+        formData.append('children', childrenEl ? childrenEl.value : '0');
+        formData.append('infants', infantsEl ? infantsEl.value : '0');
+        formData.append('male', maleCountEl ? maleCountEl.value : '0');
+        formData.append('female', femaleCountEl ? femaleCountEl.value : '0');
+        formData.append('agent_id', agentIdEl ? agentIdEl.value : '');
+        
+        // Collect child ages - try multiple sources
         let childAges = '';
-        if (childAgesSelect) {
-            // Check if Select2 is initialized
-            if ($(childAgesSelect).data('select2')) {
-                const selectedValues = $(childAgesSelect).val();
-                childAges = selectedValues ? selectedValues.join(',') : '';
-            } else {
-                // Fallback for regular select
-                childAges = Array.from(childAgesSelect.selectedOptions).map(option => option.value).join(',') || '';
+        
+        // First, try to get from hidden field (updated by confirmTourGuestSelection)
+        const childAgesHidden = document.getElementById('child_ages');
+        if (childAgesHidden && childAgesHidden.value) {
+            childAges = childAgesHidden.value;
+        } else {
+            // Fallback: collect from individual tour_child_age_X select elements
+            const children = parseInt(childrenEl ? childrenEl.value : 0);
+            const childAgeValues = [];
+            for (let i = 1; i <= children; i++) {
+                const ageSelect = document.getElementById(`tour_child_age_${i}`);
+                if (ageSelect && ageSelect.value) {
+                    childAgeValues.push(ageSelect.value);
+                }
             }
+            childAges = childAgeValues.join(',');
         }
+        
         formData.append('child_ages', childAges);
 
         // Clear previous feedback
