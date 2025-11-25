@@ -5,9 +5,6 @@
     <!-- Google Maps API Script -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLzISM9kkNCKKmQs7BcpSll4emFw1yicw&libraries=places"></script>
     
-    <!-- Select2 CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-    
     <style>
         /* Transport Service Type Radio Button Styling */
         .transport-service-type {
@@ -281,7 +278,7 @@
                                     <select name="user_country" id="user_country" class="form-select" required {{ ($enquiry && $enquiry->country) ? 'disabled' : '' }}>
                                         <option value="">Choose a country...</option>
                                         @foreach($countries as $country)
-                                            <option value="{{ $country->name }}" data-country-id="{{ $country->id }}" {{ ($enquiry && $enquiry->country == $country->name) ? 'selected' : '' }}>{{ $country->name }}</option>
+                                            <option value="{{ $country->name }}" {{ ($enquiry && $enquiry->country == $country->name) ? 'selected' : '' }}>{{ $country->name }}</option>
                                         @endforeach
                                     </select>
                                     @if($enquiry && $enquiry->country)
@@ -380,6 +377,12 @@
                                     @endif
                                 </div>
 
+                                <!-- Create Button -->
+                                <div class="col-md-12 d-flex justify-content-center">
+                                    <button type="button" class="btn btn-primary" onclick="createTourPackage()">
+                                        <i class="ri-rocket-line me-1"></i>Create Tour
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -387,8 +390,8 @@
             </div>
 
 
-            <!-- Hotel Selection Section -->
-            <div class="row mb-4" id="hotelSection">
+            <!-- Hotel Selection Section (Hidden Initially) -->
+            <div class="row mb-4" id="hotelSection" style="display: none;">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-gradient-success text-white">
@@ -456,15 +459,9 @@
                                 </div>
                                 
                                 <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Number of Rooms</label>
-                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1"> 
+                                    <label class="form-label fw-semibold" hidden>Number of Rooms</label>
+                                    <input type="number" class="form-control" id="numberOfRooms" value="1" min="1" hidden> 
                                 </div>
-                                
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Price</label>
-                                    <input type="text" class="form-control" id="roomPriceDisplay" value="$0.00" readonly style="background-color: #f8f9fa; font-weight: bold; color: #198754;"> 
-                                </div>
-                                
                                 <div class="col-md-1 d-flex align-items-end">
                                     <button type="button" class="btn btn-success w-100" onclick="addHotel()">
                                         <i class="ri-add-line"></i>
@@ -561,8 +558,8 @@
                 </div>
             </div>
 
-            <!-- Transports and Other Services Section -->
-            <div class="row mb-4" id="transportSection">
+            <!-- Transports and Other Services Section (Hidden Initially) -->
+            <div class="row mb-4" id="transportSection" style="display: none;">
                 <div class="col-12">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-gradient-primary text-white">
@@ -743,43 +740,8 @@
                 // DMC User data for zone handling
                 const UserDmc = @json($dmcUser);
                 
-                // Define calculateCorrectMealCosts early to ensure it's available
-                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms) {
-                    if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
-                        return 0;
-                    }
-                    
-                    let totalMealCost = 0;
-                    const totalGuests = adults + children;
-                    
-                    if (mealPrices && typeof mealPrices === 'object') {
-                        if (mealPlan.includes('breakfast') || mealPlan.includes('bf')) {
-                            const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
-                            if (breakfastPrice > 0) {
-                                totalMealCost += breakfastPrice * totalGuests * numNights * numRooms;
-                            }
-                        }
-                        
-                        if (mealPlan.includes('lunch')) {
-                            const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
-                            if (lunchPrice > 0) {
-                                totalMealCost += lunchPrice * totalGuests * numNights * numRooms;
-                            }
-                        }
-                        
-                        if (mealPlan.includes('dinner')) {
-                            const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
-                            if (dinnerPrice > 0) {
-                                totalMealCost += dinnerPrice * totalGuests * numNights * numRooms;
-                            }
-                        }
-                    }
-                    
-                    return totalMealCost;
-                };
-                
                 // Function to fetch ports by country
-                window.fetchPortsByCountry = function(countryId) {
+                function fetchPortsByCountry(countryId) {
                     if (!countryId) {
                         // Clear all port dropdowns if no country selected
                         clearAllPortDropdowns();
@@ -803,7 +765,7 @@
                             clearAllPortDropdowns();
                         }
                     });
-                };
+                }
                 
                 // Function to update all port dropdowns
                 function updateAllPortDropdowns(ports) {
@@ -1028,11 +990,8 @@
                 function showNotification(message, type = 'info') {
                     // Create notification element
                     const notification = document.createElement('div');
-                    const alertClass = type === 'success' ? 'success' : 
-                                      type === 'error' ? 'danger' : 
-                                      type === 'warning' ? 'warning' : 'info';
-                    notification.className = `alert alert-${alertClass} alert-dismissible fade show position-fixed`;
-                    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px; white-space: pre-line;';
+                    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+                    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
                     notification.innerHTML = `
                         ${message}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -1041,13 +1000,12 @@
                     // Add to body
                     document.body.appendChild(notification);
                     
-                    // Auto remove after 8 seconds for longer messages
-                    const timeout = message.length > 100 ? 8000 : 5000;
+                    // Auto remove after 5 seconds
                     setTimeout(() => {
                         if (notification.parentNode) {
                             notification.remove();
                         }
-                    }, timeout);
+                    }, 5000);
                 }
 
                 function calculateMealCosts(mealPlan, numNights, adults, children, mealPrices = null, numRooms = 1) {
@@ -1284,7 +1242,7 @@
                 };
 
                 // Function to manually calculate correct meal costs (override current logic)
-                window.calculateCorrectMealCosts = function(mealPlan, numNights, adults, children, mealPrices, numRooms) {
+                function calculateCorrectMealCosts(mealPlan, numNights, adults, children, mealPrices, numRooms) {
                     if (!mealPlan || mealPlan === 'Not specified' || mealPlan.includes('only')) {
                         return 0;
                     }
@@ -1323,10 +1281,10 @@
                     
                     console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: $${totalMealCost}`);
                     return totalMealCost;
-                };
+                }
 
                 // Function to collect hotel data when hotels are selected
-                window.updateHotelDataField = function() {
+                function updateHotelDataField() {
                     // Safety check: ensure selectedHotels is an array
                     if (!Array.isArray(selectedHotels)) {
                         console.warn('selectedHotels is not an array, initializing as empty array');
@@ -1411,7 +1369,6 @@
                             rooms: [{
                                 room_id: hotel.roomId || hotel.room_id || "room_" + Date.now(), // Use room_id, not hotel_id
                                 room_type: hotel.roomType || hotel.room_type || "",
-                                number_of_rooms: parseInt(hotel.numberOfRooms) || 1, // Number of rooms selected by user
                                 beds: [{
                                     bed_id: hotel.bedId || hotel.bed_id || "bed_" + Date.now(),
                                     bed_type: hotel.bedType || hotel.bed_type || "", // Store bed type name, not ID
@@ -1452,9 +1409,7 @@
                                 // Use stored meal prices from when hotel was added
                                 // Use the corrected function that properly multiplies by number of rooms
                                 // Use the hotel's specific selectedPersons instead of global adults/children
-                                const mealCost = (typeof window.calculateCorrectMealCosts === 'function') 
-                                    ? window.calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms)
-                                    : 0;
+                                const mealCost = calculateCorrectMealCosts(hotel.mealPlan, numNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, numRooms);
                                 
                                 // Calculate extra bed cost
                                 let extraBedCost = 0;
@@ -1500,7 +1455,7 @@
                     
                     // Update package total price display
                     updatePackageTotalPriceDisplay();
-                };
+                }
 
                 // Function to fetch attraction details dynamically
                 async function fetchAttractionDetails(attractionId, ticketId) {
@@ -3703,146 +3658,17 @@
 
                 async function saveAllBookings() {
                     
-                    // ==========================================
-                    // STEP 1: CREATE TOUR (if not already created)
-                    // ==========================================
-                    
-                    const agentId = document.getElementById('agent_id').value;
-                    let tourId = window.currentTourId;
-
-                    // If tour doesn't exist, create it first
-                    if (!tourId) {
-                        console.log('Tour not created yet, creating tour first...');
-                        
-                        // Validation for tour creation
-                        const country = document.getElementById('user_country').value;
-                        const startDate = document.getElementById('start_date').value;
-                        const endDate = document.getElementById('end_date').value;
-                        const agent = document.getElementById('agent_id').value;
-                        const enquiry = @json($enquiry);
-
-                        if (!country || !startDate || !endDate || !agent) {
-                            alert('Please fill in all required fields (Country, Travel Dates, Agent, and Guests) before saving the tour package.');
-                            return false;
-                        }
-
-                        // Additional validation for guests
-                        const adults = parseInt(document.getElementById('adults').value) || 0;
-                        const male = parseInt(document.getElementById('male').value) || 0;
-                        const female = parseInt(document.getElementById('female').value) || 0;
-                        let children = parseInt(document.getElementById('children').value) || 0;
-                        const infants = parseInt(document.getElementById('infants').value) || 0;
-                        const childAgesData = document.getElementById('child_ages').value;
-                        let childAges = [];
-
-                        // Handle child ages validation for both scenarios
-                        if(enquiry && enquiry.child_ages){
-                            if (typeof enquiry.child_ages === 'string') {
-                                childAges = enquiry.child_ages.split(',')
-                                    .map(age => age.trim())
-                                    .filter(age => age !== "");
-                            } else if (Array.isArray(enquiry.child_ages)) {
-                                childAges = enquiry.child_ages;
-                            }
-                            
-                            children = enquiry.child || children;
-                            
-                            if(childAges.length !== children){
-                                alert('Please select ages for all children in the guest selector.');
-                                return false;
-                            }
-                        } else if (children > 0) {
-                            try {
-                                if (childAgesData) {
-                                    childAges = JSON.parse(childAgesData);
-                                } else {
-                                    childAges = [];
-                                }
-                                
-                                if (childAges.length !== children) {
-                                    alert('Please select ages for all children in the guest selector.');
-                                    return false;
-                                }
-                            } catch (e) {
-                                console.error('Error parsing child ages data:', e);
-                                alert('Invalid child ages data. Please reselect children ages.');
-                                return false;
-                            }
-                        }
-                        
-                        if (adults < 1) {
-                            alert('At least 1 adult is required for the tour package.');
-                            return false;
-                        }
-                        
-                        if ((male + female) !== adults) {
-                            alert('Total male and female count must equal total adults.');
-                            return false;
-                        }
-                        
-                        // Prepare form data for tour creation
-                        const tourFormData = new FormData();
-                        tourFormData.append('_token', document.querySelector('input[name="_token"]').value);
-                        tourFormData.append('user_country', country);
-                        tourFormData.append('start_date', startDate);
-                        tourFormData.append('end_date', endDate);
-                        tourFormData.append('adults', adults);
-                        tourFormData.append('male', male);
-                        tourFormData.append('female', female);
-                        tourFormData.append('children', children);
-                        tourFormData.append('infants', infants);
-                        tourFormData.append('child_ages', childAgesData);
-                        tourFormData.append('agent_id', agent);
-                        tourFormData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
-                        
-                        // Send AJAX request to create tour
-                        try {
-                            const tourResponse = await fetch('{{ route('single-tour-package.store') }}', {
-                                method: 'POST',
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json',
-                                },
-                                body: tourFormData
-                            });
-                            
-                            if (!tourResponse.ok) {
-                                const errorData = await tourResponse.json();
-                                throw new Error(errorData.error || 'Failed to create tour');
-                            }
-                            
-                            const tourData = await tourResponse.json();
-                            
-                            if (tourData.success) {
-                                console.log('✅ Tour created successfully:', tourData);
-                                
-                                // Set tour dates for hotel section
-                                tourStartDate = startDate;
-                                tourEndDate = endDate;
-                                
-                                // Store tour info globally
-                                window.currentTourId = tourData.tour_id;
-                                window.currentDisplayId = tourData.display_id;
-                                tourId = tourData.tour_id; // Update local variable
-                                
-                                showNotification('Tour created successfully! Tour ID: ' + tourData.display_id, 'success');
-                            } else {
-                                alert('Failed to create tour: ' + (tourData.message || 'Unknown error'));
-                                return false;
-                            }
-                        } catch (error) {
-                            console.error('Error creating tour:', error);
-                            alert('Error creating tour: ' + error.message);
-                            return false;
-                        }
-                    }
-
-                    // ==========================================
-                    // STEP 2: SAVE ALL SERVICE BOOKINGS
-                    // ==========================================
-                    
                     // Validate service selections (time slots, meal types)
                     if (!validateServiceSelections()) {
+                        return false;
+                    }
+
+                    // Get tour and agent IDs
+                    const agentId = document.getElementById('agent_id').value;
+                    const tourId = window.currentTourId;
+
+                    if (!tourId) {
+                        alert('Tour ID not found. Please create a tour first.');
                         return false;
                     }
 
@@ -4029,8 +3855,8 @@
                     } catch (error) {
                         console.error('Error saving orders:', error);
                         alert('Error saving orders: ' + error.message);
-                    }
-                }
+ }
+}
 </script>
                 </form>
             </div>
@@ -4556,431 +4382,6 @@
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 
-
-<!-- Select2 JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-
-<!-- Select2 Initialization Script -->
-<script>
-    // Global function to reinitialize Select2 on a specific element
-    window.reinitializeSelect2 = function(elementId, placeholder) {
-        const $element = $('#' + elementId);
-        if ($element.length) {
-            // Destroy existing Select2 if it exists
-            if ($element.hasClass("select2-hidden-accessible")) {
-                $element.select2('destroy');
-            }
-            // Reinitialize Select2
-            $element.select2({
-                placeholder: placeholder || "Select an option",
-                allowClear: true,
-                width: '100%'
-            });
-        }
-    };
-
-    $(document).ready(function() {
-        // Initialize Select2 for all static select fields
-        
-        // Country Select
-        $('#user_country').select2({
-            placeholder: "Choose a country...",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Store previous country value for Select2
-        let previousCountrySelect2 = $('#user_country').val() || '';
-        
-        // Handle country change with Select2
-        $('#user_country').on('change', function() {
-            const selectedCountry = $(this).val() || '';
-            const oldCountry = previousCountrySelect2;
-            previousCountrySelect2 = selectedCountry;
-            
-            console.log('Country changed (Select2) from:', oldCountry, 'to:', selectedCountry);
-            
-            // If country actually changed (not just initial load), clear all services
-            if (oldCountry && oldCountry !== selectedCountry && selectedCountry) {
-                if (typeof clearAllSelectedServices === 'function') {
-                    clearAllSelectedServices();
-                }
-            }
-            
-            // Get country ID from selected option and fetch cities/ports
-            if (selectedCountry) {
-                const selectedOption = $(this).find('option:selected');
-                const countryId = selectedOption.data('country-id') || selectedOption.attr('data-country-id');
-                
-                console.log('Selected country (Select2):', selectedCountry, 'Country ID:', countryId);
-                
-                // Populate cities for the selected country
-                if (typeof populateAllCityDropdowns === 'function') {
-                    populateAllCityDropdowns(selectedCountry);
-                }
-                
-                // Fetch ports for the selected country using country ID
-                if (countryId && typeof fetchPortsByCountry === 'function') {
-                    fetchPortsByCountry(countryId);
-                } else if (!countryId) {
-                    console.warn('Country ID not found for country:', selectedCountry);
-                }
-            } else {
-                // Clear ports when country is cleared
-                if (typeof clearAllPortDropdowns === 'function') {
-                    clearAllPortDropdowns();
-                }
-            }
-        });
-        
-        // Trigger change event if country is pre-selected (for Select2)
-        const initialCountry = $('#user_country').val();
-        if (initialCountry) {
-            // Small delay to ensure Select2 is fully initialized
-            setTimeout(function() {
-                $('#user_country').trigger('change');
-            }, 100);
-        }
-        
-        // Agency Select
-        $('#agency_id').select2({
-            placeholder: "Choose agency...",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Agent Select
-        $('#agent_id').select2({
-            placeholder: "Choose agent...",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Hotel City Select
-        $('#hotelCitySelect').select2({
-            placeholder: "Select country first",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Handle hotel city change event with Select2
-        $('#hotelCitySelect').on('change', function() {
-            const selectedCity = $(this).val();
-            const hotelSelect = document.getElementById('hotelSelect');
-            const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
-            const cityMessage = document.getElementById('hotelCityMessage');
-            
-            if (selectedCity) {
-                // Enable hotel selection and load hotels
-                hotelSelect.disabled = false;
-                $('#hotelSelect').prop('disabled', false); // Enable Select2
-                cityMessage.style.display = 'none';
-                
-                // Call loadHotelsForCity function (check if it exists)
-                if (typeof window.loadHotelsForCity === 'function') {
-                    window.loadHotelsForCity(selectedCity);
-                } else if (typeof loadHotelsForCity === 'function') {
-                    loadHotelsForCity(selectedCity);
-                } else {
-                    console.error('loadHotelsForCity function is not defined');
-                }
-            } else {
-                // Disable hotel selection
-                hotelSelect.disabled = true;
-                $('#hotelSelect').prop('disabled', true); // Disable Select2
-                hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
-                hotelLoadingStatus.innerHTML = '';
-                cityMessage.style.display = 'block';
-                
-                // Reinitialize Select2 when disabling
-                if (typeof window.reinitializeSelect2 === 'function') {
-                    window.reinitializeSelect2('hotelSelect', 'Select a city first to load hotels');
-                }
-            }
-        });
-        
-        // Hotel Select
-        $('#hotelSelect').select2({
-            placeholder: "Select a city first to load hotels",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Room Type Select
-        $('#roomTypeSelect').select2({
-            placeholder: "Room Type",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Bed Type Select
-        $('#bedTypeSelect').select2({
-            placeholder: "Bed Type",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Meal Plan Select
-        $('#mealPlanSelect').select2({
-            placeholder: "Select Meal Plans",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Modal Local Transfer City
-        $('#modal_local_transfer_city').select2({
-            placeholder: "Select city",
-            allowClear: true,
-            width: '100%',
-            dropdownParent: $('#modal_local_transfer_city').closest('.modal-content')
-        }).on('select2:open select2:close', function() {
-            setTimeout(fixSelect2IconPadding, 10);
-        });
-        setTimeout(() => fixSelect2IconPadding(), 100);
-        
-        // Modal Exit City
-        $('#modal_exit_city').select2({
-            placeholder: "Select city",
-            allowClear: true,
-            width: '100%',
-            dropdownParent: $('#modal_exit_city').closest('.modal-content')
-        }).on('select2:open select2:close', function() {
-            setTimeout(fixSelect2IconPadding, 10);
-        });
-        setTimeout(() => fixSelect2IconPadding(), 100);
-        
-        // Entry Pickup Port Select
-        $('#entry_pickup_port_select').select2({
-            placeholder: "Select pickup port",
-            allowClear: true,
-            width: '100%'
-        }).on('select2:open select2:close', function() {
-            setTimeout(fixSelect2IconPadding, 10);
-        });
-        setTimeout(() => fixSelect2IconPadding(), 100);
-        
-        // Entry Dropoff Location Select
-        $('#entry_dropoff_location_select').select2({
-            placeholder: "Select city first",
-            allowClear: true,
-            width: '100%'
-        }).on('select2:open select2:close', function() {
-            setTimeout(fixSelect2IconPadding, 10);
-        });
-        setTimeout(() => fixSelect2IconPadding(), 100);
-        
-        // Exit Pickup Location Select
-        $('#exit_pickup_location_select').select2({
-            placeholder: "Select city first",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Exit Dropoff Port Select
-        $('#exit_dropoff_port_select').select2({
-            placeholder: "Select dropoff port",
-            allowClear: true,
-            width: '100%'
-        });
-        
-        // Function to initialize Select2 on dynamically added elements
-        // Function to fix icon padding for Select2 elements
-        window.fixSelect2IconPadding = function() {
-            $('.position-relative').each(function() {
-                const $container = $(this);
-                const hasIcon = $container.find('> i[class*="ri-map-pin"], > i[class*="ri-time"]').length > 0;
-                if (hasIcon) {
-                    const $select2 = $container.find('.select2-container');
-                    if ($select2.length) {
-                        $select2.find('.select2-selection__rendered').css('padding-left', '45px');
-                    }
-                }
-            });
-        };
-        
-        function initializeDynamicSelect2() {
-            // Attraction city selects
-            $('.attraction-city-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select City",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Attraction selects
-            $('.attraction-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select city first",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Guide city selects
-            $('.guide-city-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select City",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Guide selects
-            $('.guide-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select city first",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Restaurant city selects
-            $('.restaurant-city-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select City",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Restaurant selects
-            $('.restaurant-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select city first",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Transport city selects
-            $('.transport-city-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select City",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Pickup zone selects
-            $('.pickup-zone-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select pickup location",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Dropoff zone selects
-            $('.dropoff-zone-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Select dropoff location",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Vehicle selects
-            $('.vehicle-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
-                    placeholder: "Choose vehicle",
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-            
-            // Fix icon padding for all Select2 elements with icons
-            setTimeout(fixSelect2IconPadding, 50);
-        }
-        
-        // Initialize existing dynamic selects
-        initializeDynamicSelect2();
-        
-        // Watch for DOM changes and initialize Select2 on new elements
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes.length > 0) {
-                    // Small delay to ensure elements are fully rendered
-                    setTimeout(initializeDynamicSelect2, 100);
-                }
-            });
-        });
-        
-        // Start observing the document body for added nodes
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-        
-        // Custom styling for Select2 to match the form design with proper height
-        $('<style>')
-            .prop('type', 'text/css')
-            .html(`
-                .select2-container .select2-selection--single {
-                    height: 38px !important;
-                    border: 1px solid #d9dee3;
-                    border-radius: 0.375rem;
-                }
-                .select2-container--default .select2-selection--single .select2-selection__rendered {
-                    line-height: 38px;
-                    padding-left: 12px;
-                    color: #697a8d;
-                }
-                .select2-container--default .select2-selection--single .select2-selection__arrow {
-                    height: 38px;
-                    right: 8px;
-                }
-                .select2-container--default .select2-selection--single .select2-selection__placeholder {
-                    color: #a1acb8;
-                }
-                .select2-container .select2-results__option {
-                    padding: 8px 12px;
-                }
-                .select2-container--default .select2-results__option--highlighted[aria-selected] {
-                    background-color: #696cff;
-                    color: white;
-                }
-                .select2-dropdown {
-                    border: 1px solid #d9dee3;
-                    border-radius: 0.375rem;
-                }
-                .select2-container--default .select2-search--dropdown .select2-search__field {
-                    border: 1px solid #d9dee3;
-                    padding: 8px;
-                    border-radius: 0.375rem;
-                }
-                .select2-container--default.select2-container--focus .select2-selection--single {
-                    border-color: #696cff;
-                    outline: 0;
-                }
-                .select2-container--default .select2-selection--single:focus {
-                    outline: none;
-                }
-                /* Fix for Select2 with icons - add padding when icon is present */
-                .position-relative:has(> i[class*="ri-map-pin"]) .select2-container--default .select2-selection--single .select2-selection__rendered,
-                .position-relative:has(> i[class*="ri-time"]) .select2-container--default .select2-selection--single .select2-selection__rendered {
-                    padding-left: 45px !important;
-                }
-                /* Fallback for browsers that don't support :has() - apply when select has padding-left style */
-                .position-relative select[style*="padding-left: 45px"] ~ .select2-container .select2-selection__rendered,
-                .position-relative select[style*="padding-left:45px"] ~ .select2-container .select2-selection__rendered {
-                    padding-left: 45px !important;
-                }
-                /* Ensure icon appears above Select2 */
-                .position-relative > i[class*="ri-map-pin"],
-                .position-relative > i[class*="ri-time"] {
-                    z-index: 10 !important;
-                    pointer-events: none;
-                }
-                /* Adjust Select2 container to not overlap with icon */
-                .position-relative .select2-container {
-                    padding-left: 0;
-                }
-            `)
-            .appendTo('head');
-    });
-</script>
-
 <!-- Bootstrap 5 JS (for dropdown functionality) -->
 <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
 <script>
@@ -5303,68 +4704,18 @@
             }
         }
         
-         // Refresh meal plans if a hotel is already selected
-         const hotelSelect = document.getElementById('hotelSelect');
-         if (hotelSelect && hotelSelect.value) {
-             updateHotelDependentDropdowns(hotelSelect.value);
-         }
-         
-         // Update all service guest fields to match main guest values
-         updateAllServiceGuestFields(male, female, children, infants);
-         
-         // Close modal
-         const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
-         modal.hide();
-         
-         console.log('applyMainGuestSelection completed successfully');
+        // Refresh meal plans if a hotel is already selected
+        const hotelSelect = document.getElementById('hotelSelect');
+        if (hotelSelect && hotelSelect.value) {
+            updateHotelDependentDropdowns(hotelSelect.value);
+        }
+        
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
+        modal.hide();
+        
+        console.log('applyMainGuestSelection completed successfully');
     };
-    
-    // Function to update all service guest fields with main guest values
-    function updateAllServiceGuestFields(male, female, children, infants) {
-         const adults = male + female;
-         
-         // Find all guest summary elements (attraction, guide, restaurant)
-         const allGuestSummaries = document.querySelectorAll('[id$="_guest_summary"]');
-         
-         allGuestSummaries.forEach(summaryElement => {
-             const summaryId = summaryElement.id;
-             
-             // Skip main guest summary
-             if (summaryId === 'mainGuestSummary' || summaryId === 'guestSummary') {
-                 return;
-             }
-             
-             // Update summary text
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
-             
-             // Update badges
-             const serviceContainer = summaryElement.closest('.guest-display');
-             if (serviceContainer) {
-                 const badges = serviceContainer.querySelectorAll('.guest-badges .badge');
-                 if (badges.length >= 3) {
-                     badges[0].textContent = adults; // Total adults
-                     badges[1].textContent = children; // Children
-                     badges[2].textContent = infants; // Infants
-                 }
-             }
-             
-             // Update attraction pricing if this is an attraction service
-             if (summaryId.includes('attraction')) {
-                 const dayMatch = summaryId.match(/day(\d+)_attraction_(\d+)_guest_summary/);
-                 if (dayMatch) {
-                     const day = dayMatch[1];
-                     const index = dayMatch[2];
-                     if (typeof updateAttractionPricing === 'function') {
-                         setTimeout(() => {
-                             updateAttractionPricing(day, index);
-                         }, 100);
-                     }
-                 }
-             }
-         });
-         
-         console.log(`Updated all service guest fields: ${adults} adults (${male} male, ${female} female), ${children} children, ${infants} infants`);
-    }
 
     // Ensure Bootstrap is properly loaded
     document.addEventListener('DOMContentLoaded', function() {
@@ -5694,9 +5045,6 @@ function validateServiceSelections() {
 let tourStartDate = null;
 let tourEndDate = null;
 let selectedHotels = [];
-let selectedAttractions = [];
-let selectedRestaurants = [];
-let selectedGuides = [];
 let tourNights = 0;
 let hotelData = [];
 
@@ -5711,22 +5059,6 @@ function getTourDateForDay(day) {
 
 document.addEventListener('DOMContentLoaded', function() {
 
-    // Initialize tour dates and daily services if dates are pre-filled (enquiry scenario)
-    const startDateField = document.getElementById('start_date');
-    const endDateField = document.getElementById('end_date');
-    
-    if (startDateField && endDateField && startDateField.value && endDateField.value) {
-        console.log('Pre-filled dates detected, initializing tour dates and daily services');
-        tourStartDate = startDateField.value;
-        tourEndDate = endDateField.value;
-        
-        // Generate daily services for pre-filled dates
-        setTimeout(() => {
-            generateDailyServices();
-            populatePortsDropdowns();
-        }, 500);
-    }
-
     // Country and City Cascade (updated for section-specific city dropdowns)
     const userCountrySelect = document.getElementById('user_country');
 
@@ -5735,150 +5067,16 @@ document.addEventListener('DOMContentLoaded', function() {
         userCountrySelect.dispatchEvent(new Event('change'));
     }
 
-    // Function to clear all selected services when country changes
-    window.clearAllSelectedServices = function() {
-        console.log('🔄 Clearing all selected services due to country change...');
-        
-        // Clear selected hotels
-        if (typeof selectedHotels !== 'undefined' && Array.isArray(selectedHotels)) {
-            const hotelCount = selectedHotels.length;
-            selectedHotels = [];
-            if (hotelCount > 0) {
-                console.log(`Removed ${hotelCount} hotel(s)`);
-                if (typeof displaySelectedHotels === 'function') {
-                    displaySelectedHotels();
-                }
-            }
-        }
-        
-        // Clear selected attractions
-        if (typeof selectedAttractions !== 'undefined' && Array.isArray(selectedAttractions)) {
-            const attractionCount = selectedAttractions.length;
-            selectedAttractions = [];
-            if (attractionCount > 0) {
-                console.log(`Removed ${attractionCount} attraction(s)`);
-            }
-        }
-        
-        // Clear selected restaurants
-        if (typeof selectedRestaurants !== 'undefined' && Array.isArray(selectedRestaurants)) {
-            const restaurantCount = selectedRestaurants.length;
-            selectedRestaurants = [];
-            if (restaurantCount > 0) {
-                console.log(`Removed ${restaurantCount} restaurant(s)`);
-            }
-        }
-        
-        // Clear selected guides
-        if (typeof selectedGuides !== 'undefined' && Array.isArray(selectedGuides)) {
-            const guideCount = selectedGuides.length;
-            selectedGuides = [];
-            if (guideCount > 0) {
-                console.log(`Removed ${guideCount} guide(s)`);
-            }
-        }
-        
-        // Clear hotel data field
-        const hotelDataField = document.getElementById('hotel_data');
-        if (hotelDataField) {
-            hotelDataField.value = '';
-        }
-        
-        // Reset hotel select and related fields
-        const hotelSelect = document.getElementById('hotelSelect');
-        if (hotelSelect) {
-            hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
-            hotelSelect.disabled = true;
-            $('#hotelSelect').prop('disabled', true);
-            if (typeof window.reinitializeSelect2 === 'function') {
-                window.reinitializeSelect2('hotelSelect', 'Select a city first to load hotels');
-            }
-        }
-        
-        // Clear hotel city select
-        const hotelCitySelect = document.getElementById('hotelCitySelect');
-        if (hotelCitySelect) {
-            hotelCitySelect.innerHTML = '<option value="">Select country first</option>';
-            hotelCitySelect.value = '';
-            if (typeof window.reinitializeSelect2 === 'function') {
-                window.reinitializeSelect2('hotelCitySelect', 'Select country first');
-            }
-        }
-        
-        // Clear room type, bed type, and meal plan selects
-        const roomTypeSelect = document.getElementById('roomTypeSelect');
-        const bedTypeSelect = document.getElementById('bedTypeSelect');
-        const mealPlanSelect = document.getElementById('mealPlanSelect');
-        
-        if (roomTypeSelect) {
-            roomTypeSelect.innerHTML = '<option value="">Room Type</option>';
-            if (typeof window.reinitializeSelect2 === 'function') {
-                window.reinitializeSelect2('roomTypeSelect', 'Room Type');
-            }
-        }
-        
-        if (bedTypeSelect) {
-            bedTypeSelect.innerHTML = '<option value="">Bed Type</option>';
-            if (typeof window.reinitializeSelect2 === 'function') {
-                window.reinitializeSelect2('bedTypeSelect', 'Bed Type');
-            }
-        }
-        
-        if (mealPlanSelect) {
-            mealPlanSelect.innerHTML = '<option value="">Select Meal Plans</option>';
-            if (typeof window.reinitializeSelect2 === 'function') {
-                window.reinitializeSelect2('mealPlanSelect', 'Select Meal Plans');
-            }
-        }
-        
-        // Update package total price
-        if (typeof updatePackageTotalPriceDisplay === 'function') {
-            updatePackageTotalPriceDisplay();
-        }
-        
-        // Update hotel summary
-        if (document.getElementById('totalHotels')) {
-            document.getElementById('totalHotels').textContent = '0';
-        }
-        if (document.getElementById('totalNights')) {
-            document.getElementById('totalNights').textContent = '0 Nights';
-        }
-        
-        console.log('✅ All selected services cleared');
-    };
-
-    // Store the previous country value to detect changes
-    let previousCountry = userCountrySelect ? userCountrySelect.value : '';
-
     userCountrySelect.addEventListener('change', function() {
         const selectedCountry = this.value;
-        const oldCountry = previousCountry;
-        previousCountry = selectedCountry;
-        
-        console.log('Country changed from:', oldCountry, 'to:', selectedCountry);
-        
-        // If country actually changed (not just initial load), clear all services
-        if (oldCountry && oldCountry !== selectedCountry && selectedCountry) {
-            clearAllSelectedServices();
-        }
+        console.log('Country changed to:', selectedCountry);
         
         if (selectedCountry) {
-            // Get country ID from selected option
-            const countrySelect = document.getElementById('user_country');
-            const selectedOption = countrySelect.options[countrySelect.selectedIndex];
-            const countryId = selectedOption ? selectedOption.getAttribute('data-country-id') : null;
-            
-            console.log('Selected country:', selectedCountry, 'Country ID:', countryId);
-            
             // Show loading state for all city dropdowns
             populateAllCityDropdowns(selectedCountry);
             
-            // Fetch ports for the selected country using country ID
-            if (countryId) {
-                fetchPortsByCountry(countryId);
-            } else {
-                console.warn('Country ID not found for country:', selectedCountry);
-            }
+            // Also fetch ports for the selected country
+            fetchPortsByCountry(selectedCountry);
             
             // Ensure all attraction city dropdowns are populated
             setTimeout(() => {
@@ -5898,23 +5096,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Clear ports when no country is selected
             clearAllPortDropdowns();
-            
-            // Also clear all services when country is cleared
-            if (oldCountry) {
-                clearAllSelectedServices();
-            }
         }
     });
 
     // Function to populate all city dropdowns based on selected country
-    window.populateAllCityDropdowns = function(selectedCountry) {
+    function populateAllCityDropdowns(selectedCountry) {
         console.log('Populating all city dropdowns for country:', selectedCountry);
         
-        // Get all city dropdowns INCLUDING port city selects
+        // Get all city dropdowns
         const cityDropdowns = [
             document.getElementById('hotelCitySelect'),
-            document.getElementById('modal_local_transfer_city'),  // Entry port city
-            document.getElementById('modal_exit_city'),            // Exit port city
             ...document.querySelectorAll('.attraction-city-select'),
             ...document.querySelectorAll('.guide-city-select'), 
             ...document.querySelectorAll('.restaurant-city-select'),
@@ -5956,11 +5147,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         
                         dropdown.disabled = false;
-                        
-                        // Reinitialize Select2 for this dropdown if it has an ID
-                        if (dropdown.id && typeof window.reinitializeSelect2 === 'function') {
-                            window.reinitializeSelect2(dropdown.id, 'Select city...');
-                        }
                     });
                 },
                 error: function(xhr, status, error) {
@@ -5968,23 +5154,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     cityDropdowns.forEach(dropdown => {
                         dropdown.innerHTML = '<option disabled>Error loading cities</option>';
                         dropdown.disabled = false;
-                        
-                        // Reinitialize Select2 for this dropdown if it has an ID
-                        if (dropdown.id && typeof window.reinitializeSelect2 === 'function') {
-                            window.reinitializeSelect2(dropdown.id, 'Error loading cities');
-                        }
                     });
                 }
             });
         }, 300);
-    };
+    }
 
     // Function to clear all city dropdowns
     function clearAllCityDropdowns() {
         const cityDropdowns = [
             document.getElementById('hotelCitySelect'),
-            document.getElementById('modal_local_transfer_city'),  // Entry port city
-            document.getElementById('modal_exit_city'),            // Exit port city
             ...document.querySelectorAll('.attraction-city-select'),
             ...document.querySelectorAll('.guide-city-select'),
             ...document.querySelectorAll('.restaurant-city-select'),
@@ -6033,21 +5212,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     cityDropdown.disabled = false;
-                    
-                    // Reinitialize Select2 for this dropdown if it has an ID
-                    if (cityDropdown.id && typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2(cityDropdown.id, 'Select city...');
-                    }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error loading cities for dropdown:', error);
                     cityDropdown.innerHTML = '<option disabled>Error loading cities</option>';
                     cityDropdown.disabled = false;
-                    
-                    // Reinitialize Select2 for this dropdown if it has an ID
-                    if (cityDropdown.id && typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2(cityDropdown.id, 'Error loading cities');
-                    }
                 }
             });
         }, 300);
@@ -6055,8 +5224,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-    // Hotel city selection handler - Now handled by Select2 change event above
-    // The change event is now bound directly to the Select2 instance in the initialization section
+    // Hotel city selection handler
+    document.addEventListener('change', function(e) {
+        if (e.target.id === 'hotelCitySelect') {
+            const selectedCity = e.target.value;
+            const hotelSelect = document.getElementById('hotelSelect');
+            const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
+            const cityMessage = document.getElementById('hotelCityMessage');
+            
+            if (selectedCity) {
+                // Enable hotel selection and load hotels
+                hotelSelect.disabled = false;
+                cityMessage.style.display = 'none';
+                loadHotelsForCity(selectedCity);
+            } else {
+                // Disable hotel selection
+                hotelSelect.disabled = true;
+                hotelSelect.innerHTML = '<option value="">Select a city first to load hotels</option>';
+                hotelLoadingStatus.innerHTML = '';
+                cityMessage.style.display = 'block';
+            }
+        }
+    });
 
     // Service city selection handlers for dynamically generated sections
     document.addEventListener('change', function(e) {
@@ -6173,37 +5362,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    window.loadGuidesForCity = function(day, cityName, index) {
+    function loadGuidesForCity(day, cityName, index) {
         const guideSelect = document.getElementById(`day${day}_guide_${index}`);
         const cityMessage = document.getElementById(`day${day}_guide_city_message_${index}`);
         
-        if (!guideSelect) {
-            console.error(`Guide select not found: day${day}_guide_${index}`);
-            return;
-        }
-        
-        // Check if Select2 is initialized
-        const isSelect2Initialized = $(guideSelect).hasClass('select2-hidden-accessible');
-        
         if (cityName) {
             guideSelect.disabled = false;
-            
-            // Destroy Select2 if initialized before updating options
-            if (isSelect2Initialized) {
-                $(guideSelect).select2('destroy');
-            }
-            
             guideSelect.innerHTML = '<option value="">Loading guides...</option>';
             cityMessage.style.display = 'none';
-            
-            // Reinitialize Select2 with loading state
-            if (isSelect2Initialized) {
-                $(guideSelect).select2({
-                    placeholder: "Loading guides...",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
             
             // Load guides for the specific city
             const currentDmcId = '{{ $finalDmcId }}';
@@ -6211,11 +5377,6 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`{{ route('fetch-guides-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Destroy Select2 before updating options
-                    if (isSelect2Initialized) {
-                        $(guideSelect).select2('destroy');
-                    }
-                    
                     guideSelect.innerHTML = '<option value="">Search Guide</option>';
                     
                     if (data.success && data.guides) {
@@ -6251,56 +5412,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     guideSelect.disabled = false;
-                    
-                    // Reinitialize Select2 after populating options
-                    if (isSelect2Initialized || $(guideSelect).hasClass('guide-select')) {
-                        $(guideSelect).select2({
-                            placeholder: "Search Guide",
-                            allowClear: true,
-                            width: '100%'
-                        });
-                    }
                 })
                 .catch(error => {
                     console.error('Error loading guides for city:', error);
-                    
-                    // Destroy Select2 before updating
-                    if (isSelect2Initialized) {
-                        $(guideSelect).select2('destroy');
-                    }
-                    
                     guideSelect.innerHTML = '<option disabled>Error loading guides</option>';
                     guideSelect.disabled = false;
-                    
-                    // Reinitialize Select2
-                    if (isSelect2Initialized || $(guideSelect).hasClass('guide-select')) {
-                        $(guideSelect).select2({
-                            placeholder: "Error loading guides",
-                            allowClear: true,
-                            width: '100%'
-                        });
-                    }
                 });
         } else {
-            // Destroy Select2 if initialized
-            if (isSelect2Initialized) {
-                $(guideSelect).select2('destroy');
-            }
-            
             guideSelect.disabled = true;
             guideSelect.innerHTML = '<option value="">Select city first</option>';
             cityMessage.style.display = 'block';
-            
-            // Reinitialize Select2
-            if (isSelect2Initialized || $(guideSelect).hasClass('guide-select')) {
-                $(guideSelect).select2({
-                    placeholder: "Select city first",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
         }
-    };
+    }
 
     window.loadRestaurantsForCity = function(day, cityName, index) {
         const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
@@ -6438,300 +5561,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Function to validate and clean services when travel dates change
-    // Function to recalculate hotel prices based on new nights
-    function recalculateHotelPrices(hotel, newNights) {
-        if (!hotel || !newNights || newNights.length === 0) {
-            console.warn('Cannot recalculate hotel prices: missing hotel or nights data');
-            return;
-        }
-        
-        // Get price information from hotel's stored data
-        let weekdayPrice = hotel.weekdayPrice || 0;
-        let weekendPrice = hotel.weekendPrice || 0;
-        
-        // If stored prices not available, try to extract from priceBreakdown
-        if (weekdayPrice === 0 && weekendPrice === 0 && hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
-            const weekdayNight = hotel.priceBreakdown.find(n => !n.isWeekend);
-            const weekendNight = hotel.priceBreakdown.find(n => n.isWeekend);
-            weekdayPrice = weekdayNight ? weekdayNight.price : 0;
-            weekendPrice = weekendNight ? weekendNight.price : 0;
-        }
-        
-        // If still no prices, we can't recalculate - keep existing values
-        if (weekdayPrice === 0 && weekendPrice === 0) {
-            console.warn('Cannot recalculate hotel prices: no price data available');
-            return;
-        }
-        
-        // Recalculate prices for new nights
-        let totalRoomPrice = 0;
-        let priceBreakdown = [];
-        let weekdayNights = 0;
-        let weekendNights = 0;
-        
-        newNights.forEach(nightNum => {
-            const nightDate = moment(tourStartDate).add(nightNum - 1, 'days');
-            const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            
-            const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
-            totalRoomPrice += nightPrice;
-            
-            if (isWeekend) {
-                weekendNights++;
-            } else {
-                weekdayNights++;
-            }
-            
-            priceBreakdown.push({
-                night: nightNum,
-                date: nightDate.format('MMM DD'),
-                dayOfWeek: nightDate.format('ddd'),
-                isWeekend: isWeekend,
-                price: nightPrice
-            });
-        });
-        
-        // Update hotel object with recalculated values
-        hotel.price = totalRoomPrice;
-        hotel.pricePerNight = totalRoomPrice / newNights.length;
-        hotel.priceBreakdown = priceBreakdown;
-        hotel.weekdayNights = weekdayNights;
-        hotel.weekendNights = weekendNights;
-        
-        console.log(`🔄 Recalculated hotel "${hotel.name}" prices:`, {
-            totalNights: newNights.length,
-            weekdayNights: weekdayNights,
-            weekendNights: weekendNights,
-            totalPrice: totalRoomPrice
-        });
-    }
-    
-    function validateAndCleanServicesOnDateChange(newStartDate, newEndDate) {
-        console.log('🔍 Validating services for new date range:', newStartDate, 'to', newEndDate);
-        
-        let removedServices = {
-            hotels: 0,
-            attractions: 0,
-            restaurants: 0,
-            guides: 0
-        };
-        
-        // Helper function to check if a date is within range
-        function isDateInRange(dateStr, startDate, endDate) {
-            // Extract year from range dates
-            const rangeYear = moment(startDate).year();
-            
-            // Parse service date with the correct year
-            const date = moment(dateStr + ' ' + rangeYear, 'MMM DD YYYY');
-            const start = moment(startDate);
-            const end = moment(endDate);
-            
-            const inRange = date.isSameOrAfter(start, 'day') && date.isSameOrBefore(end, 'day');
-            
-            console.log('Checking date in range:', {
-                serviceDate: date.format('YYYY-MM-DD'),
-                rangeStart: start.format('YYYY-MM-DD'),
-                rangeEnd: end.format('YYYY-MM-DD'),
-                inRange: inRange
-            });
-            
-            return inRange;
-        }
-        
-        // Helper function to check if service dates overlap with new range
-        function serviceDatesOverlap(serviceStartDate, serviceEndDate, rangeStart, rangeEnd) {
-            // Extract year from range dates
-            const rangeYear = moment(rangeStart).year();
-            
-            // Parse service dates with the correct year
-            const sStart = moment(serviceStartDate + ' ' + rangeYear, 'MMM DD YYYY');
-            const sEnd = moment(serviceEndDate + ' ' + rangeYear, 'MMM DD YYYY');
-            const rStart = moment(rangeStart);
-            const rEnd = moment(rangeEnd);
-            
-            console.log('Checking hotel overlap:', {
-                serviceStart: sStart.format('YYYY-MM-DD'),
-                serviceEnd: sEnd.format('YYYY-MM-DD'),
-                rangeStart: rStart.format('YYYY-MM-DD'),
-                rangeEnd: rEnd.format('YYYY-MM-DD')
-            });
-            
-            // Check if there's any overlap
-            const hasOverlap = sStart.isSameOrBefore(rEnd, 'day') && sEnd.isSameOrAfter(rStart, 'day');
-            console.log('Has overlap:', hasOverlap);
-            
-            return hasOverlap;
-        }
-        
-        // 1. VALIDATE AND UPDATE HOTELS
-        if (selectedHotels && selectedHotels.length > 0) {
-            const hotelsToRemove = [];
-            let hotelsUpdated = false;
-            
-            selectedHotels.forEach((hotel, index) => {
-                if (hotel.checkInDate && hotel.checkOutDate) {
-                    // Parse hotel dates
-                    const rangeYear = moment(newStartDate).year();
-                    const hotelStart = moment(hotel.checkInDate + ' ' + rangeYear, 'MMM DD YYYY');
-                    const hotelEnd = moment(hotel.checkOutDate + ' ' + rangeYear, 'MMM DD YYYY');
-                    const hotelNights = hotelEnd.diff(hotelStart, 'days');
-                    
-                    const newRangeStart = moment(newStartDate);
-                    const newRangeEnd = moment(newEndDate);
-                    const newRangeNights = newRangeEnd.diff(newRangeStart, 'days');
-                    
-                    // Check if hotel dates overlap with new range
-                    const hotelInRange = serviceDatesOverlap(
-                        hotel.checkInDate, 
-                        hotel.checkOutDate, 
-                        newStartDate, 
-                        newEndDate
-                    );
-                    
-                    if (!hotelInRange) {
-                        // Hotel is completely outside new range - remove it
-                        console.log(`❌ Hotel "${hotel.name}" (${hotel.checkInDate} - ${hotel.checkOutDate}) is outside new date range. Removing...`);
-                        hotelsToRemove.push(index);
-                        removedServices.hotels++;
-                    } else {
-                        // Hotel is within range - update its dates to start from first day of new range
-                        const nightsToUse = Math.min(hotelNights, newRangeNights);
-                        const updatedCheckIn = newRangeStart.clone();
-                        const updatedCheckOut = newRangeStart.clone().add(nightsToUse, 'days');
-                        
-                        console.log(`🔄 Updating hotel "${hotel.name}" dates from ${hotel.checkInDate} - ${hotel.checkOutDate} to ${updatedCheckIn.format('MMM DD')} - ${updatedCheckOut.format('MMM DD')}`);
-                        
-                        // Update hotel dates
-                        hotel.checkInDate = updatedCheckIn.format('MMM DD');
-                        hotel.checkOutDate = updatedCheckOut.format('MMM DD');
-                        hotel.totalNights = nightsToUse;
-                        
-                        // Update nights array to match new dates
-                        const newNights = [];
-                        for (let i = 1; i <= nightsToUse; i++) {
-                            newNights.push(i);
-                        }
-                        hotel.nights = newNights;
-                        
-                        // Recalculate hotel prices based on new nights
-                        recalculateHotelPrices(hotel, newNights);
-                        
-                        hotelsUpdated = true;
-                    }
-                }
-            });
-            
-            // Remove hotels in reverse order to maintain indices
-            hotelsToRemove.reverse().forEach(index => {
-                selectedHotels.splice(index, 1);
-            });
-            
-            // Update hotel display if hotels were removed or updated
-            if (hotelsToRemove.length > 0 || hotelsUpdated) {
-                displaySelectedHotels();
-            }
-        }
-        
-        // 2. VALIDATE ATTRACTIONS
-        if (selectedAttractions && selectedAttractions.length > 0) {
-            const attractionsToRemove = [];
-            
-            selectedAttractions.forEach((attraction, index) => {
-                if (attraction.date) {
-                    const attractionInRange = isDateInRange(attraction.date, newStartDate, newEndDate);
-                    
-                    if (!attractionInRange) {
-                        console.log(`❌ Attraction "${attraction.name}" (${attraction.date}) is outside new date range. Removing...`);
-                        attractionsToRemove.push(index);
-                        removedServices.attractions++;
-                    }
-                }
-            });
-            
-            attractionsToRemove.reverse().forEach(index => {
-                selectedAttractions.splice(index, 1);
-            });
-            
-            if (attractionsToRemove.length > 0) {
-                displaySelectedAttractions();
-            }
-        }
-        
-        // 3. VALIDATE RESTAURANTS
-        if (selectedRestaurants && selectedRestaurants.length > 0) {
-            const restaurantsToRemove = [];
-            
-            selectedRestaurants.forEach((restaurant, index) => {
-                if (restaurant.date) {
-                    const restaurantInRange = isDateInRange(restaurant.date, newStartDate, newEndDate);
-                    
-                    if (!restaurantInRange) {
-                        console.log(`❌ Restaurant "${restaurant.name}" (${restaurant.date}) is outside new date range. Removing...`);
-                        restaurantsToRemove.push(index);
-                        removedServices.restaurants++;
-                    }
-                }
-            });
-            
-            restaurantsToRemove.reverse().forEach(index => {
-                selectedRestaurants.splice(index, 1);
-            });
-            
-            if (restaurantsToRemove.length > 0) {
-                displaySelectedRestaurants();
-            }
-        }
-        
-        // 4. VALIDATE GUIDES
-        if (selectedGuides && selectedGuides.length > 0) {
-            const guidesToRemove = [];
-            
-            selectedGuides.forEach((guide, index) => {
-                if (guide.date) {
-                    const guideInRange = isDateInRange(guide.date, newStartDate, newEndDate);
-                    
-                    if (!guideInRange) {
-                        console.log(`❌ Guide "${guide.name}" (${guide.date}) is outside new date range. Removing...`);
-                        guidesToRemove.push(index);
-                        removedServices.guides++;
-                    }
-                }
-            });
-            
-            guidesToRemove.reverse().forEach(index => {
-                selectedGuides.splice(index, 1);
-            });
-            
-            if (guidesToRemove.length > 0) {
-                displaySelectedGuides();
-            }
-        }
-        
-        // 5. Recalculate total price
-        calculateTotalPackagePrice();
-        
-        // 6. Show notification if services were removed
-        const totalRemoved = removedServices.hotels + removedServices.attractions + 
-                            removedServices.restaurants + removedServices.guides;
-        
-        if (totalRemoved > 0) {
-            let message = '⚠️ Travel dates changed! Removed services outside new date range:\n\n';
-            if (removedServices.hotels > 0) message += `• ${removedServices.hotels} Hotel(s)\n`;
-            if (removedServices.attractions > 0) message += `• ${removedServices.attractions} Attraction(s)\n`;
-            if (removedServices.restaurants > 0) message += `• ${removedServices.restaurants} Restaurant(s)\n`;
-            if (removedServices.guides > 0) message += `• ${removedServices.guides} Guide(s)\n`;
-            message += '\nPlease select services within the new date range.';
-            
-            showNotification(message, 'warning');
-            
-            console.log('✅ Service cleanup completed:', removedServices);
-        } else {
-            console.log('✅ All services are within new date range. No cleanup needed.');
-        }
-    }
-
          // Wait for all dependencies to load
     $(document).ready(function() {
         // Date Range Picker Initialization - only if not locked
@@ -6748,308 +5577,28 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Function to check which services will be removed (without actually removing them)
-        function checkServicesToRemove(newStartDate, newEndDate) {
-            const servicesToRemove = {
-                hotels: [],
-                attractions: [],
-                restaurants: [],
-                guides: []
-            };
-            
-            const servicesToUpdate = {
-                hotels: []
-            };
-            
-            // Helper function to check if service dates overlap with new range
-            function serviceDatesOverlap(serviceStartDate, serviceEndDate, rangeStart, rangeEnd) {
-                const rangeYear = moment(rangeStart).year();
-                const sStart = moment(serviceStartDate + ' ' + rangeYear, 'MMM DD YYYY');
-                const sEnd = moment(serviceEndDate + ' ' + rangeYear, 'MMM DD YYYY');
-                const rStart = moment(rangeStart);
-                const rEnd = moment(rangeEnd);
-                return sStart.isSameOrBefore(rEnd, 'day') && sEnd.isSameOrAfter(rStart, 'day');
-            }
-            
-            // Helper function to check if a date is within range
-            function isDateInRange(dateStr, startDate, endDate) {
-                const rangeYear = moment(startDate).year();
-                const date = moment(dateStr + ' ' + rangeYear, 'MMM DD YYYY');
-                const start = moment(startDate);
-                const end = moment(endDate);
-                return date.isSameOrAfter(start, 'day') && date.isSameOrBefore(end, 'day');
-            }
-            
-            // Check hotels
-            if (selectedHotels && selectedHotels.length > 0) {
-                selectedHotels.forEach((hotel, index) => {
-                    if (hotel.checkInDate && hotel.checkOutDate) {
-                        const rangeYear = moment(newStartDate).year();
-                        const hotelStart = moment(hotel.checkInDate + ' ' + rangeYear, 'MMM DD YYYY');
-                        const hotelEnd = moment(hotel.checkOutDate + ' ' + rangeYear, 'MMM DD YYYY');
-                        const hotelNights = hotelEnd.diff(hotelStart, 'days');
-                        
-                        const newRangeStart = moment(newStartDate);
-                        const newRangeEnd = moment(newEndDate);
-                        const newRangeNights = newRangeEnd.diff(newRangeStart, 'days');
-                        
-                        const hotelInRange = serviceDatesOverlap(
-                            hotel.checkInDate, 
-                            hotel.checkOutDate, 
-                            newStartDate, 
-                            newEndDate
-                        );
-                        
-                        if (!hotelInRange) {
-                            // Hotel will be removed
-                            servicesToRemove.hotels.push({
-                                index: index,
-                                name: hotel.name,
-                                dates: `${hotel.checkInDate} - ${hotel.checkOutDate}`
-                            });
-                        } else {
-                            // Hotel will be updated - calculate new dates
-                            const nightsToUse = Math.min(hotelNights, newRangeNights);
-                            const updatedCheckIn = newRangeStart.clone();
-                            const updatedCheckOut = newRangeStart.clone().add(nightsToUse, 'days');
-                            
-                            // Only add to update list if dates actually change
-                            if (hotel.checkInDate !== updatedCheckIn.format('MMM DD') || 
-                                hotel.checkOutDate !== updatedCheckOut.format('MMM DD')) {
-                                servicesToUpdate.hotels.push({
-                                    index: index,
-                                    name: hotel.name,
-                                    oldDates: `${hotel.checkInDate} - ${hotel.checkOutDate}`,
-                                    newDates: `${updatedCheckIn.format('MMM DD')} - ${updatedCheckOut.format('MMM DD')}`,
-                                    nights: nightsToUse
-                                });
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // Check attractions
-            if (selectedAttractions && selectedAttractions.length > 0) {
-                selectedAttractions.forEach((attraction, index) => {
-                    if (attraction.date) {
-                        const attractionInRange = isDateInRange(attraction.date, newStartDate, newEndDate);
-                        if (!attractionInRange) {
-                            servicesToRemove.attractions.push({
-                                index: index,
-                                name: attraction.name,
-                                date: attraction.date
-                            });
-                        }
-                    }
-                });
-            }
-            
-            // Check restaurants
-            if (selectedRestaurants && selectedRestaurants.length > 0) {
-                selectedRestaurants.forEach((restaurant, index) => {
-                    if (restaurant.date) {
-                        const restaurantInRange = isDateInRange(restaurant.date, newStartDate, newEndDate);
-                        if (!restaurantInRange) {
-                            servicesToRemove.restaurants.push({
-                                index: index,
-                                name: restaurant.name,
-                                date: restaurant.date
-                            });
-                        }
-                    }
-                });
-            }
-            
-            // Check guides
-            if (selectedGuides && selectedGuides.length > 0) {
-                selectedGuides.forEach((guide, index) => {
-                    if (guide.date) {
-                        const guideInRange = isDateInRange(guide.date, newStartDate, newEndDate);
-                        if (!guideInRange) {
-                            servicesToRemove.guides.push({
-                                index: index,
-                                name: guide.name,
-                                date: guide.date
-                            });
-                        }
-                    }
-                });
-            }
-            
-            return {
-                toRemove: servicesToRemove,
-                toUpdate: servicesToUpdate
-            };
-        }
-        
-        // Function to apply date changes after confirmation
-        function applyDateChanges(picker, newStartDate, newEndDate) {
-            const travelDatesInput = document.getElementById('travel_dates');
-            
-            // Update the input field
-            $(travelDatesInput).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
-            
-            // Set hidden date fields
-            document.getElementById('start_date').value = newStartDate;
-            document.getElementById('end_date').value = newEndDate;
-            
-            // Update global variables
-            tourStartDate = newStartDate;
-            tourEndDate = newEndDate;
-            tourNights = picker.endDate.diff(picker.startDate, 'days');
-            
-            // Update the hotel section date display
-            document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
-            document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
-            
-            // Generate night selection buttons FIRST (before validation)
-            generateNightSelection();
-            // Initialize night display
-            updateNightDisplay();
-            
-            // Generate daily services for transport section
-            generateDailyServices();
-            populatePortsDropdowns();
-            
-            // Validate and clean up services outside new date range
-            validateAndCleanServicesOnDateChange(newStartDate, newEndDate);
-        }
-
         // Only attach event handlers if field is not locked
         if (travelDatesField.attr('data-locked') !== 'true') {
             $('#travel_dates').on('apply.daterangepicker', function(ev, picker) {
-                const newStartDate = picker.startDate.format('YYYY-MM-DD');
-                const newEndDate = picker.endDate.format('YYYY-MM-DD');
+                $(this).val(picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY'));
                 
-                // Check if dates have actually changed
-                const oldStartDate = tourStartDate;
-                const oldEndDate = tourEndDate;
-                const datesChanged = (oldStartDate !== newStartDate || oldEndDate !== newEndDate);
+                // Set hidden date fields
+                document.getElementById('start_date').value = picker.startDate.format('YYYY-MM-DD');
+                document.getElementById('end_date').value = picker.endDate.format('YYYY-MM-DD');
                 
-                // If dates haven't changed, just return
-                if (!datesChanged) {
-                    return;
-                }
+                // Update global variables
+                tourStartDate = picker.startDate;
+                tourEndDate = picker.endDate;
+                tourNights = picker.endDate.diff(picker.startDate, 'days');
                 
-                // Check if there are any selected services
-                const hasServices = (selectedHotels && selectedHotels.length > 0) ||
-                                  (selectedAttractions && selectedAttractions.length > 0) ||
-                                  (selectedRestaurants && selectedRestaurants.length > 0) ||
-                                  (selectedGuides && selectedGuides.length > 0);
+                // Update the hotel section date display
+                document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
+                document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
                 
-                if (hasServices) {
-                    // Check which services will be removed or updated
-                    const serviceChanges = checkServicesToRemove(newStartDate, newEndDate);
-                    const servicesToRemove = serviceChanges.toRemove;
-                    const servicesToUpdate = serviceChanges.toUpdate;
-                    
-                    const totalToRemove = servicesToRemove.hotels.length + 
-                                        servicesToRemove.attractions.length + 
-                                        servicesToRemove.restaurants.length + 
-                                        servicesToRemove.guides.length;
-                    
-                    const totalToUpdate = servicesToUpdate.hotels.length;
-                    
-                    // Show alert if services will be removed or updated
-                    if (totalToRemove > 0 || totalToUpdate > 0) {
-                        // Build alert message
-                        let message = '⚠️ WARNING: Changing travel dates will affect the following services:\n\n';
-                        
-                        // Show hotels that will be updated
-                        if (servicesToUpdate.hotels.length > 0) {
-                            message += `🔄 Hotels to be UPDATED (${servicesToUpdate.hotels.length}):\n`;
-                            servicesToUpdate.hotels.forEach(hotel => {
-                                message += `   • ${hotel.name}\n`;
-                                message += `     ${hotel.oldDates} → ${hotel.newDates} (${hotel.nights} nights)\n`;
-                            });
-                            message += '\n';
-                        }
-                        
-                        // Show services that will be removed
-                        if (servicesToRemove.hotels.length > 0) {
-                            message += `🏨 Hotels to be REMOVED (${servicesToRemove.hotels.length}):\n`;
-                            servicesToRemove.hotels.forEach(hotel => {
-                                message += `   • ${hotel.name} (${hotel.dates})\n`;
-                            });
-                            message += '\n';
-                        }
-                        
-                        if (servicesToRemove.attractions.length > 0) {
-                            message += `🎯 Attractions to be REMOVED (${servicesToRemove.attractions.length}):\n`;
-                            servicesToRemove.attractions.forEach(attraction => {
-                                message += `   • ${attraction.name} (${attraction.date})\n`;
-                            });
-                            message += '\n';
-                        }
-                        
-                        if (servicesToRemove.restaurants.length > 0) {
-                            message += `🍽️ Restaurants to be REMOVED (${servicesToRemove.restaurants.length}):\n`;
-                            servicesToRemove.restaurants.forEach(restaurant => {
-                                message += `   • ${restaurant.name} (${restaurant.date})\n`;
-                            });
-                            message += '\n';
-                        }
-                        
-                        if (servicesToRemove.guides.length > 0) {
-                            message += `👤 Guides to be REMOVED (${servicesToRemove.guides.length}):\n`;
-                            servicesToRemove.guides.forEach(guide => {
-                                message += `   • ${guide.name} (${guide.date})\n`;
-                            });
-                            message += '\n';
-                        }
-                        
-                        message += `\nNew Date Range: ${picker.startDate.format('MMM DD, YYYY')} - ${picker.endDate.format('MMM DD, YYYY')}\n\n`;
-                        
-                        if (totalToRemove > 0 && totalToUpdate > 0) {
-                            message += 'Do you want to proceed? Hotels within range will be updated, and services outside range will be permanently removed.';
-                        } else if (totalToUpdate > 0) {
-                            message += 'Do you want to proceed? Hotel dates will be updated to match the new date range.';
-                        } else {
-                            message += 'Do you want to proceed? These services will be permanently removed.';
-                        }
-                        
-                        // Show confirmation dialog
-                        if (confirm(message)) {
-                            // User confirmed - apply the changes
-                            applyDateChanges(picker, newStartDate, newEndDate);
-                        } else {
-                            // User cancelled - revert the date picker to old dates
-                            const travelDatesInput = $(this);
-                            
-                            // Revert the picker to previous dates
-                            if (oldStartDate && oldEndDate) {
-                                const oldStart = moment(oldStartDate);
-                                const oldEnd = moment(oldEndDate);
-                                
-                                // Set the picker back to old dates
-                                picker.setStartDate(oldStart);
-                                picker.setEndDate(oldEnd);
-                                
-                                // Update the input field to show old dates
-                                travelDatesInput.val(oldStart.format('MMM DD') + ' - ' + oldEnd.format('MMM DD, YYYY'));
-                                
-                                // Keep hidden fields as old dates
-                                document.getElementById('start_date').value = oldStartDate;
-                                document.getElementById('end_date').value = oldEndDate;
-                            } else {
-                                // If no old dates, clear the field
-                                travelDatesInput.val('');
-                                document.getElementById('start_date').value = '';
-                                document.getElementById('end_date').value = '';
-                            }
-                            
-                            console.log('❌ Date change cancelled by user');
-                            return false;
-                        }
-                    } else {
-                        // No services to remove - apply changes directly
-                        applyDateChanges(picker, newStartDate, newEndDate);
-                    }
-                } else {
-                    // No services selected - apply changes directly
-                    applyDateChanges(picker, newStartDate, newEndDate);
-                }
+                        // Generate night selection buttons
+                generateNightSelection();
+                // Initialize night display
+                updateNightDisplay();
             });
 
             $('#travel_dates').on('cancel.daterangepicker', function(ev, picker) {
@@ -7196,7 +5745,6 @@ document.addEventListener('DOMContentLoaded', function() {
          const allConsecutiveNights = fillConsecutiveNights(manuallySelectedNights);
          updateConsecutiveSelectionWithColors(manuallySelectedNights, allConsecutiveNights);
          updateNightDisplay();
-         updateRoomPriceDisplay(); // Update price when nights are selected
     }
 
      // Fill gaps to make consecutive nights
@@ -7310,11 +5858,295 @@ document.addEventListener('DOMContentLoaded', function() {
          }
     }
 
+    // Create Tour Package Function
+    window.createTourPackage = function() {
+        // Validation
+        const country = document.getElementById('user_country').value;
+        const startDate = document.getElementById('start_date').value;
+        const endDate = document.getElementById('end_date').value;
+        const agent = document.getElementById('agent_id').value;
+        const enquiry = @json($enquiry);
+
+        if (!country || !startDate || !endDate || !agent) {
+            alert('Please fill in all required fields (Country, Travel Dates, Agent, and Guests) before creating the tour package.');
+            return;
+        }
+
+        
+        
+        // Additional validation for guests
+        const adults = parseInt(document.getElementById('adults').value) || 0;
+        const male = parseInt(document.getElementById('male').value) || 0;
+        const female = parseInt(document.getElementById('female').value) || 0;
+        let children = parseInt(document.getElementById('children').value) || 0;
+        console.log('Children:', children);
+        console.log('Enquiry:', enquiry ? enquiry.child_ages : 'No enquiry data');
+        const infants = parseInt(document.getElementById('infants').value) || 0;
+        const childAgesData = document.getElementById('child_ages').value;
+        let childAges = [];
+
+        // Handle child ages validation for both scenarios
+        if(enquiry && enquiry.child_ages){
+            // Scenario 1: Enquiry exists with child ages data
+            console.log('Validating child ages from enquiry data');
+            console.log('Enquiry child count:', enquiry.child);
+            console.log('Enquiry child ages:', enquiry.child_ages);
+            
+            if (typeof enquiry.child_ages === 'string') {
+                childAges = enquiry.child_ages.split(',')
+                    .map(age => age.trim())
+                    .filter(age => age !== "");
+            } else if (Array.isArray(enquiry.child_ages)) {
+                childAges = enquiry.child_ages;
+            }
+            
+            children = enquiry.child || children; // Use enquiry child count if available
+            
+            if(childAges.length !== children){
+                console.log('Child ages mismatch - Expected:', children, 'Found:', childAges.length);
+                alert('Please select ages for all children in the guest selector.');
+            return;
+        }
+        } else if (children > 0) {
+            // Scenario 2: No enquiry, validate from guest selector modal
+            console.log('Validating child ages from guest selector (no enquiry)');
+            console.log('Children count:', children);
+            console.log('Child ages data:', childAgesData);
+            
+            try {
+                if (childAgesData) {
+                    childAges = JSON.parse(childAgesData);
+                    console.log('Parsed child ages:', childAges);
+                } else {
+                    childAges = [];
+                }
+                
+                if (childAges.length !== children) {
+                    console.log('Child ages mismatch - Expected:', children, 'Found:', childAges.length);
+                    alert('Please select ages for all children in the guest selector.');
+                    return;
+                }
+            } catch (e) {
+                console.error('Error parsing child ages data:', e);
+                alert('Invalid child ages data. Please reselect children ages.');
+                return;
+            }
+        }
+        if (adults < 1) {
+            alert('At least 1 adult is required for the tour package.');
+            return;
+        }
+        
+        if ((male + female) !== adults) {
+            alert('Total male and female count must equal total adults.');
+            return;
+        }
+        
+        // Show loading state
+        const createButton = event.target;
+        const originalText = createButton.innerHTML;
+        createButton.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Creating Tour Package...';
+        createButton.disabled = true;
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('_token', document.querySelector('input[name="_token"]').value);
+        formData.append('user_country', country);
+        formData.append('start_date', startDate);
+        formData.append('end_date', endDate);
+        formData.append('adults', adults);
+        formData.append('male', male);
+        formData.append('female', female);
+        formData.append('children', children);
+        formData.append('infants', infants);
+        formData.append('child_ages', childAgesData);
+        formData.append('agent_id', agent);
+        formData.append('enquiry_id', enquiry?enquiry.enquiry_id:0);
+        
+        // Send AJAX request to create tour
+        fetch('{{ route('single-tour-package.store') }}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            body: formData
+        })
+        .then(async(response) => {
+            if (!response.ok) {
+                const errorData = await response.json(); // wait for json
+                throw new Error(errorData.error || 'Something went wrong');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Tour creation response:', data); // Debug log
+            if (data.success) {
+                // Reset button state
+                createButton.innerHTML = originalText;
+                createButton.disabled = false;
+                // Show success message
+                showNotification(data.message + ' Tour ID: ' + data.display_id, 'success');
+                
+                // Set tour dates for hotel section
+            tourStartDate = startDate;
+        tourEndDate = endDate; 
+                
+                // Store tour info globally
+                window.currentTourId = data.tour_id;
+                window.currentDisplayId = data.display_id;
+        
+        // Show hotel selection section
+        document.getElementById('hotelSection').style.display = 'block';
+        
+        // Show transport section with day-wise itinerary
+        document.getElementById('transportSection').style.display = 'block';
+        
+        // Generate daily services based on tour dates
+        generateDailyServices();
+                
+                // Populate cities dropdown if cities are provided in response
+                if (data.cities && Array.isArray(data.cities)) {
+                    populateCitiesDropdown(data.cities);
+                }
+        
+        // Populate ports for the newly created transport sections
+        populatePortsDropdowns();
+        
+        // Scroll to hotel section
+        document.getElementById('hotelSection').scrollIntoView({ 
+            behavior: 'smooth' 
+        });
+        
+        // Note: Cities must now be selected individually in each service section
+                
+                // Disable the create button since tour is created
+                createButton.innerHTML = '<i class="ri-check-line me-1"></i>Tour Created (' + data.display_id + ')';
+                createButton.classList.remove('btn-primary');
+                createButton.classList.add('btn-success');
+                createButton.disabled = true;
+                
+                // Disable main configuration fields after successful tour creation
+                disableMainConfigurationFields();
+                
+            } else {
+                // Reset button state
+                createButton.innerHTML = originalText;
+                createButton.disabled = false;
+                
+                // Show error message
+                showNotification(data.message || 'Failed to create tour package', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            // Reset button state
+            createButton.innerHTML = originalText;
+            createButton.disabled = false;
+            
+            // Show error message
+            showNotification(error.message, 'error');
+        });
+    };
+    
+    // Function to disable main configuration fields after tour creation
+    function disableMainConfigurationFields() {
+        console.log('Disabling main configuration fields after tour creation');
+        
+        // Disable country selection
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect) {
+            countrySelect.disabled = true;
+            countrySelect.style.backgroundColor = '#f8f9fa';
+            countrySelect.style.cursor = 'not-allowed';
+            countrySelect.style.opacity = '0.7';
+        }
+        
+        // City dropdowns are now in individual service sections and handle themselves
+        
+        // Disable travel dates
+        const travelDates = document.getElementById('travel_dates');
+        if (travelDates) {
+            travelDates.disabled = true;
+            travelDates.style.backgroundColor = '#f8f9fa';
+            travelDates.style.cursor = 'not-allowed';
+            travelDates.style.opacity = '0.7';
+        }
+        
+        // Disable agency selection
+        const agencySelect = document.getElementById('agency_id');
+        if (agencySelect) {
+            agencySelect.disabled = true;
+            agencySelect.style.backgroundColor = '#f8f9fa';
+            agencySelect.style.cursor = 'not-allowed';
+            agencySelect.style.opacity = '0.7';
+        }
+        
+        // Disable agent selection
+        const agentSelect = document.getElementById('agent_id');
+        if (agentSelect) {
+            agentSelect.disabled = true;
+            agentSelect.style.backgroundColor = '#f8f9fa';
+            agentSelect.style.cursor = 'not-allowed';
+            agentSelect.style.opacity = '0.7';
+        }
+        
+        // Disable guest selector
+        const guestEditButton = document.querySelector('.guest-display .btn-outline-primary');
+        if (guestEditButton) {
+            guestEditButton.disabled = true;
+            guestEditButton.classList.remove('btn-outline-primary');
+            guestEditButton.classList.add('btn-outline-secondary');
+            guestEditButton.innerHTML = '<i class="ri-lock-line"></i>';
+            guestEditButton.style.cursor = 'not-allowed';
+            guestEditButton.style.opacity = '0.7';
+            guestEditButton.onclick = null; // Remove click handler
+        }
+        
+        // Add readonly styling to guest display
+        const guestDisplay = document.querySelector('.guest-display');
+        if (guestDisplay) {
+            guestDisplay.classList.add('disabled');
+        }
+        
+        // Add visual indicator
+        addConfigurationLockedAlert();
+        
+        console.log('Main configuration fields disabled successfully');
+    }
+    
+    // Function to add configuration locked alert
+    function addConfigurationLockedAlert() {
+        const mainFormCard = document.querySelector('.card-body');
+        if (mainFormCard) {
+            // Create lock indicator
+            const lockAlert = document.createElement('div');
+            lockAlert.className = 'alert alert-warning alert-dismissible fade show mt-3';
+            lockAlert.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="ri-lock-line me-2 fs-4"></i>
+                    <div>
+                        <strong>Configuration Locked!</strong>
+                        <br>
+                        <small>The core tour configuration (Country, City, Dates, Guests, Agent) is now locked to maintain data integrity. You can still modify hotels, attractions, guides, and other services.</small>
+                    </div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Insert after the form row
+            const formRow = mainFormCard.querySelector('.row');
+            if (formRow) {
+                formRow.parentNode.insertBefore(lockAlert, formRow.nextSibling);
+            }
+        }
+    }
 
     // Store hotel data globally for reference (already declared globally)
     
     // Load hotels for city
-    window.loadHotelsForCity = function(cityName) {
+    function loadHotelsForCity(cityName) {
         const hotelSelect = document.getElementById('hotelSelect');
         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
         const roomTypeSelect = document.getElementById('roomTypeSelect');
@@ -7322,16 +6154,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const mealPlanSelect = document.getElementById('mealPlanSelect');
         
         // Show loading state
-        // Disable Select2 during loading
-        $('#hotelSelect').prop('disabled', true);
         hotelSelect.innerHTML = '<option value="">Loading hotels in ' + cityName + '...</option>';
         hotelSelect.disabled = true;
-        
-        // Update Select2 with loading state
-        if (typeof window.reinitializeSelect2 === 'function') {
-            window.reinitializeSelect2('hotelSelect', 'Loading hotels in ' + cityName + '...');
-        }
-        
         hotelLoadingStatus.innerHTML = '<i class="ri-loader-2-line spin me-1"></i>Loading comprehensive hotel data...';
         hotelLoadingStatus.style.color = '#0d6efd';
         
@@ -7381,12 +6205,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     hotelLoadingStatus.style.color = '#198754';
                     console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
                     
-                    // Enable and reinitialize Select2 after updating options
-                    $('#hotelSelect').prop('disabled', false);
-                    if (typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2('hotelSelect', 'Select a hotel in ' + cityName);
-                    }
-                    
                     // Add change event listener to hotel select
                     hotelSelect.onchange = function() {
                         clearRoomSelectionForm();
@@ -7399,12 +6217,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
                     hotelLoadingStatus.style.color = '#fd7e14';
                     console.log(`No hotels found for ${cityName}`);
-                    
-                    // Keep enabled even when no hotels, and reinitialize Select2
-                    $('#hotelSelect').prop('disabled', false);
-                    if (typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2('hotelSelect', 'No hotels found in ' + cityName);
-                    }
                 }
             })
             .catch(error => {
@@ -7412,16 +6224,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 hotelData = [];
                 hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
                 hotelSelect.disabled = true;
-                $('#hotelSelect').prop('disabled', true); // Disable Select2 on error
                 hotelLoadingStatus.innerHTML = '<i class="ri-error-warning-line me-1 text-danger"></i>Error loading hotels';
                 hotelLoadingStatus.style.color = '#dc3545';
-                
-                // Reinitialize Select2 even on error
-                if (typeof window.reinitializeSelect2 === 'function') {
-                    window.reinitializeSelect2('hotelSelect', 'Error loading hotels');
-                }
             });
-    };
+    }
     
     // Update hotel dependent dropdowns by fetching rooms
     function updateHotelDependentDropdowns(hotelId) {
@@ -7681,33 +6487,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         roomTypeSelect.onchange = function() {
                             clearRoomTypeDependentFields();
                             updateBedTypesForRoom(this.value);
-                            updateRoomPriceDisplay(); // Update price when room type changes
                         };
-                    }
-                    
-                    // Add event listener for number of rooms
-                    const numberOfRoomsInput = document.getElementById('numberOfRooms');
-                    if (numberOfRoomsInput) {
-                        numberOfRoomsInput.addEventListener('input', function() {
-                            updateRoomPriceDisplay(); // Update price when number of rooms changes
-                        });
-                        numberOfRoomsInput.addEventListener('change', function() {
-                            updateRoomPriceDisplay(); // Update price when number of rooms changes
-                        });
-                    }
-                    
-                    // Add event listeners for guest count changes (affects single vs double occupancy pricing)
-                    const adultsInput = document.getElementById('adults');
-                    const childrenInput = document.getElementById('children');
-                    if (adultsInput) {
-                        adultsInput.addEventListener('change', function() {
-                            updateRoomPriceDisplay(); // Update price when adults count changes
-                        });
-                    }
-                    if (childrenInput) {
-                        childrenInput.addEventListener('change', function() {
-                            updateRoomPriceDisplay(); // Update price when children count changes
-                        });
                     }
                     
                     // Store room data globally for bed fetching (use filtered rooms)
@@ -7743,13 +6523,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         mealPlanSelect.onchange = function() {
                             updateRoomCostCalculation();
                         };
-                    }
-                    
-                    // Reinitialize Select2 for all three dropdowns after updating options
-                    if (typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2('roomTypeSelect', 'Select room type');
-                        window.reinitializeSelect2('bedTypeSelect', 'Select room type first');
-                        window.reinitializeSelect2('mealPlanSelect', 'Select meal plan');
                     }
                     
                     console.log(`Loaded ${roomsToUse.length} rooms for hotel ${hotelId} (filtered by DMC ${currentDmcId})`);
@@ -7796,33 +6569,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayHotelInfo(hotel) {
         const hotelLoadingStatus = document.getElementById('hotelLoadingStatus');
         
-        if (hotelLoadingStatus && hotel) {
-            // Build HTML from hotel object
-            let infoHTML = '';
-            
-            if (hotel.name) {
-                infoHTML += `<div class="hotel-info mt-2">`;
-                infoHTML += `<strong><i class="ri-hotel-line me-1"></i>${hotel.name}</strong>`;
-                
-                if (hotel.hotel_star_rating) {
-                    infoHTML += ` <span class="badge bg-warning">${hotel.hotel_star_rating}⭐</span>`;
-                }
-                
-                if (hotel.address) {
-                    infoHTML += `<div class="small text-muted mt-1"><i class="ri-map-pin-line me-1"></i>${hotel.address}</div>`;
-                }
-                
-                if (hotel.phone) {
-                    infoHTML += `<div class="small text-muted"><i class="ri-phone-line me-1"></i>${hotel.phone}</div>`;
-                }
-                
-                infoHTML += `</div>`;
-            }
-            
-            // Only update if we have content to display
-            if (infoHTML) {
-                hotelLoadingStatus.innerHTML = infoHTML;
-            }
+        if (hotelLoadingStatus) {
+            hotelLoadingStatus.innerHTML = infoHTML;
         }
     }
     
@@ -7910,14 +6658,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     bedTypeText += ` ($${bed.baby_cot_price})`;
                                 }
                             }
-                            console.log('Bed type in beds table===:', bed.room_type);
+                            
                             // Store bed data in option for later use
                             const option = document.createElement('option');
                             option.value = bed.bed_id;
                             option.textContent = bedTypeText;
                             option.dataset.bedId = bed.bed_id;
                             option.dataset.roomId = bed.room_id;
-                            option.dataset.bedType = bed.room_type || '';
                             option.dataset.maxOccupancy = bed.max_occupancy || '';
                             option.dataset.noOfRooms = bed.no_of_rooms || '';
                             option.dataset.extraBedPrice = bed.extra_bed_price || '';
@@ -7936,11 +6683,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         bedPriceDisplay.style.display = 'block';
                     }
                     
-                    // Reinitialize Select2 for bed type dropdown
-                    if (typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2('bedTypeSelect', 'Select bed type');
-                    }
-                    
                 } else {
                     // No beds found in beds table, show fallback options
                     console.log('No beds found in beds table, showing fallback options');
@@ -7951,11 +6693,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const bedPriceDisplay = document.getElementById('bedPriceDisplay');
                     if (bedPriceDisplay) {
                         bedPriceDisplay.style.display = 'none';
-                    }
-                    
-                    // Reinitialize Select2 even when no beds available
-                    if (typeof window.reinitializeSelect2 === 'function') {
-                        window.reinitializeSelect2('bedTypeSelect', 'No bed types available');
                     }
                 }
                 
@@ -7974,11 +6711,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const bedPriceDisplay = document.getElementById('bedPriceDisplay');
                 if (bedPriceDisplay) {
                     bedPriceDisplay.style.display = 'none';
-                }
-                
-                // Reinitialize Select2 even on error
-                if (typeof window.reinitializeSelect2 === 'function') {
-                    window.reinitializeSelect2('bedTypeSelect', 'Error loading bed types');
                 }
             });
     }
@@ -8000,7 +6732,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get bed information from dataset
             const bedId = selectedOption.dataset.bedId;
             const roomId = selectedOption.dataset.roomId;
-            const bedType = selectedOption.dataset.bedType;
             const maxOccupancy = selectedOption.dataset.maxOccupancy;
             const noOfRooms = selectedOption.dataset.noOfRooms;
             const extraBedPrice = parseFloat(selectedOption.dataset.extraBedPrice) || 0;
@@ -8051,8 +6782,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 extraBedPrice: extraBedPrice,
                 babyCotPrice: babyCotPrice,
                 extraBedAvailable: extraBedAvailable,
-                totalPrice: totalPrice,
-                bedType: bedType
+                totalPrice: totalPrice
             };
             
             console.log('Stored selectedBedInfo:', window.selectedBedInfo);
@@ -8087,76 +6817,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedPersonsInput.value = '1';
             }
         }
-    }
-
-    // Function to update room price display based on room type and number of rooms
-    function updateRoomPriceDisplay() {
-        const roomPriceDisplay = document.getElementById('roomPriceDisplay');
-        const roomTypeSelect = document.getElementById('roomTypeSelect');
-        const numberOfRoomsInput = document.getElementById('numberOfRooms');
-        
-        if (!roomPriceDisplay) {
-            return;
-        }
-        
-        // If no room type selected, show $0.00
-        if (!roomTypeSelect || !roomTypeSelect.value) {
-            roomPriceDisplay.value = '$0.00';
-            return;
-        }
-        
-        const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
-        if (!selectedOption || !selectedOption.dataset) {
-            roomPriceDisplay.value = '$0.00';
-            return;
-        }
-        
-        // Get guest count to determine single vs double occupancy
-        const adults = parseInt(document.getElementById('adults').value) || 0;
-        const children = parseInt(document.getElementById('children').value) || 0;
-        const totalGuests = adults + children;
-        const isSingleOccupancy = totalGuests <= 1;
-        
-        // Get base price per room (use weekday price as default, or calculate based on selected nights)
-        let pricePerRoom = 0;
-        
-        // Check if nights are selected
-        const selectedNights = document.querySelectorAll('.night-btn.active');
-        if (selectedNights.length > 0 && window.tourStartDate) {
-            // Calculate price based on selected nights (weekday/weekend)
-            let totalPrice = 0;
-            const weekdayPrice = isSingleOccupancy 
-                ? parseFloat(selectedOption.dataset.weekdayPrice) || 0
-                : parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
-            const weekendPrice = isSingleOccupancy 
-                ? parseFloat(selectedOption.dataset.weekendPrice) || 0
-                : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
-            
-            selectedNights.forEach(nightBtn => {
-                const nightNum = parseInt(nightBtn.dataset.night);
-                const nightDate = moment(window.tourStartDate).add(nightNum - 1, 'days');
-                const dayOfWeek = nightDate.day(); // 0 = Sunday, 6 = Saturday
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                const nightPrice = isWeekend ? weekendPrice : weekdayPrice;
-                totalPrice += nightPrice;
-            });
-            
-            pricePerRoom = totalPrice;
-        } else {
-            // No nights selected, use weekday price as default
-            pricePerRoom = isSingleOccupancy 
-                ? parseFloat(selectedOption.dataset.weekdayPrice) || 0
-                : parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
-        }
-        
-        // Get number of rooms
-        const numberOfRooms = parseInt(numberOfRoomsInput?.value) || 1;
-        
-        // Calculate total price
-        const totalPrice = pricePerRoom * numberOfRooms;
-        
-        // Update display
-        roomPriceDisplay.value = '$' + totalPrice.toFixed(2);
     }
 
     // Update room cost calculation
@@ -8655,13 +7315,15 @@ document.addEventListener('DOMContentLoaded', function() {
          const bedType = document.getElementById('bedTypeSelect').value;
          const mealPlan = document.getElementById('mealPlanSelect').value;
          const selectedPersons = document.getElementById('selectedPersons').value || '1';
-         // Get number of rooms from the input field
-         const numberOfRoomsInput = document.getElementById('numberOfRooms');
+         // Extract room count from meal plan selection
          let numberOfRooms = 1; // default
-         if (numberOfRoomsInput) {
-             numberOfRooms = parseInt(numberOfRoomsInput.value) || 1;
+         if (mealPlan) {
+             const roomMatch = mealPlan.match(/(\d+)\s*rooms?/i);
+             if (roomMatch) {
+                 numberOfRooms = parseInt(roomMatch[1]);
+             }
          }
-         console.log(`Number of rooms from user input: ${numberOfRooms} rooms`);
+         console.log(`Extracted room count from meal plan "${mealPlan}": ${numberOfRooms} rooms`);
          
          if (!hotelSelect.value) {
              showNotification('Please select a hotel first.', 'warning');
@@ -8796,33 +7458,12 @@ document.addEventListener('DOMContentLoaded', function() {
          } else {
              console.warn('Room type select not found or value mismatch');
          }
-         console.log('Bed type in hotel data===:', bedInfo.bedType);
-        
-        // Store weekday and weekend prices for recalculation
-        let storedWeekdayPrice = 0;
-        let storedWeekendPrice = 0;
-        if (roomTypeSelect && roomTypeSelect.value === roomType) {
-            const selectedOption = roomTypeSelect.options[roomTypeSelect.selectedIndex];
-            if (selectedOption && selectedOption.dataset) {
-                const adults = parseInt(document.getElementById('adults').value) || 0;
-                const children = parseInt(document.getElementById('children').value) || 0;
-                const totalGuests = adults + children;
-                const isSingleOccupancy = totalGuests <= 1;
-                
-                storedWeekdayPrice = isSingleOccupancy 
-                    ? parseFloat(selectedOption.dataset.weekdayPrice) || 0
-                    : parseFloat(selectedOption.dataset.doubleWeekdayPrice) || 0;
-                storedWeekendPrice = isSingleOccupancy 
-                    ? parseFloat(selectedOption.dataset.weekendPrice) || 0
-                    : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
-            }
-        }
-        
+         
         const hotelData = {
             id: hotelSelect.value,
             name: hotelSelect.options[hotelSelect.selectedIndex].text,
             roomType: roomType || 'Standard',
-            bedType: bedInfo.bedType || null,
+            bedType: bedType || 'Standard',
             bedId: bedInfo.bedId || null,
             selectedPersons: parseInt(selectedPersons) || 1,
             maxOccupancy: bedInfo.maxOccupancy || null,
@@ -8834,8 +7475,6 @@ document.addEventListener('DOMContentLoaded', function() {
             priceBreakdown: priceBreakdown, // Store detailed per-night pricing
             weekdayNights: weekdayNights, // Number of weekday nights
             weekendNights: weekendNights, // Number of weekend nights
-            weekdayPrice: storedWeekdayPrice, // Store weekday price for recalculation
-            weekendPrice: storedWeekendPrice, // Store weekend price for recalculation
             mealPlan: mealPlan || 'Not specified',
             mealPrices: mealPrices, // Store meal prices for calculation
             numberOfRooms: numberOfRooms,
@@ -8861,21 +7500,16 @@ document.addEventListener('DOMContentLoaded', function() {
          displaySelectedHotels();
          
          // Update hotel_data JSON field
-         if (typeof window.updateHotelDataField === 'function') {
-             window.updateHotelDataField();
-         } else {
-             console.error('updateHotelDataField is not defined. Please ensure the function is loaded.');
-         }
+         updateHotelDataField();
          
          // Show success notification
          showNotification(`Hotel "${hotelData.name}" added successfully for ${hotelData.totalNights} nights!`, 'success');
          
-         // Reset form - Clear all Select2 dropdowns
-         $('#hotelCitySelect').val(null).trigger('change');
-         $('#hotelSelect').val(null).trigger('change');
-         $('#roomTypeSelect').val(null).trigger('change');
-         $('#bedTypeSelect').val(null).trigger('change');
-         $('#mealPlanSelect').val(null).trigger('change');
+         // Reset form
+         hotelSelect.value = '';
+         document.getElementById('roomTypeSelect').value = '';
+         document.getElementById('bedTypeSelect').value = '';
+         document.getElementById('mealPlanSelect').value = '';
          document.getElementById('numberOfRooms').value = '1';
          
          // Clear hotel loading status
@@ -9032,26 +7666,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
                                                 <div class="d-flex justify-content-between">
                                                     <span>Meal Cost:</span>
-                                                    <span>$${(() => {
-                                                        if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                            return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
-                                                        }
-                                                        // Fallback calculation if function not available
-                                                        let mealCost = 0;
-                                                        const totalGuests = hotel.selectedPersons || 1;
-                                                        if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                            if (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf')) {
-                                                                mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                            }
-                                                            if (hotel.mealPlan.includes('lunch')) {
-                                                                mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                            }
-                                                            if (hotel.mealPlan.includes('dinner')) {
-                                                                mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                            }
-                                                        }
-                                                        return mealCost;
-                                                    })()}</span>
+                                                    <span>$${calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms)}</span>
                                                 </div>
                                             ` : ''}
                                             ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy ? `
@@ -9065,24 +7680,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <span>Total:</span>
                                                 <span>$${(() => {
                                                     const roomCost = (hotel.price || 0) * hotel.numberOfRooms;
-                                                    let mealCost = 0;
-                                                    if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                        mealCost = window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
-                                                    } else {
-                                                        // Fallback calculation if function not available
-                                                        const totalGuests = hotel.selectedPersons || 1;
-                                                        if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                            if (hotel.mealPlan && (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf'))) {
-                                                                mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                            }
-                                                            if (hotel.mealPlan && hotel.mealPlan.includes('lunch')) {
-                                                                mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                            }
-                                                            if (hotel.mealPlan && hotel.mealPlan.includes('dinner')) {
-                                                                mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                            }
-                                                        }
-                                                    }
+                                                    const mealCost = calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms);
                                                     const extraBedCost = (hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy) ? 
                                                         hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights : 0;
                                                     return roomCost + mealCost + extraBedCost;
@@ -9341,6 +7939,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <input type="hidden" name="day${day}_entry_0_service_type" id="day${day}_entry_0_service_type_hidden" value="">
                                             <input type="hidden" name="day${day}_entry_0_guest_count" id="day${day}_entry_0_guest_count" value="0">
                                         </div>
+                                        
+                                        
                                     </div>
                                 </div>
                             </div>
@@ -9640,7 +8240,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <div class="d-flex align-items-center justify-content-between">
                                                     <div class="guest-info">
                                                         <span id="day${day}_attraction_1_guest_summary" class="text-muted small">
-                                                            1 adults (1 male, 0 female), 0 children - 0 infants
+                                                            1 adults (1 male, 0 female), 0 children -0 infants
                                                         </span>
                                                     </div>
                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_1')">
@@ -9751,7 +8351,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <div class="d-flex align-items-center justify-content-between">
                                                      <div class="guest-info">
                                                          <span id="day${day}_guide_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male, 0 female), 0 children - 0 infants
+                                                             1 adults (1 male, 0 female), 0 children -0 infants
                                                          </span>
                                                      </div>
                                                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_1')">
@@ -9888,7 +8488,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <div class="d-flex align-items-center justify-content-between">
                                                      <div class="guest-info">
                                                          <span id="day${day}_restaurant_1_guest_summary" class="text-muted small">
-                                                             1 adults (1 male, 0 female), 0 children - 0 infants
+                                                             1 adults (1 male, 0 female), 0 children -0 infants
                                                          </span>
                                                      </div>
                                                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_1')">
@@ -10324,10 +8924,14 @@ document.addEventListener('DOMContentLoaded', function() {
                      <input type="hidden" name="day${day}_transport_guest_count" id="day${day}_transport_guest_count" value="0">
                      <input type="hidden" name="day${day}_transport_tax" id="day${day}_transport_tax" value="0.00">
                      <input type="hidden" name="day${day}_transport_distance" id="day${day}_transport_distance" value="0">
-                    <input type="hidden" name="day${day}_transport_night_start_time" id="day${day}_transport_night_start_time" value="">
-                    <input type="hidden" name="day${day}_transport_night_end_time" id="day${day}_transport_night_end_time" value="">
-                    <input type="hidden" name="day${day}_transport_booking_type" id="day${day}_transport_booking_type" value="booking">
-                    <input type="hidden" name="day${day}_transport_date" id="day${day}_transport_date" value="">
+                     <input type="hidden" name="day${day}_transport_night_start_time" id="day${day}_transport_night_start_time" value="">
+                     <input type="hidden" name="day${day}_transport_night_end_time" id="day${day}_transport_night_end_time" value="">
+                     <input type="hidden" name="day${day}_transport_booking_type" id="day${day}_transport_booking_type" value="booking">
+                     <input type="hidden" name="day${day}_transport_date" id="day${day}_transport_date" value="">
+                     <input type="hidden" name="day${day}_transport_pickup_lat" id="day${day}_transport_pickup_lat" value="">
+                     <input type="hidden" name="day${day}_transport_pickup_lng" id="day${day}_transport_pickup_lng" value="">
+                     <input type="hidden" name="day${day}_transport_dropoff_lat" id="day${day}_transport_dropoff_lat" value="">
+                     <input type="hidden" name="day${day}_transport_dropoff_lng" id="day${day}_transport_dropoff_lng" value="">
                      
                      <div class="mt-3 text-center">
                          <button type="button" class="btn btn-sm btn-outline-warning" onclick="addMoreTransports(${day})">
@@ -10373,11 +8977,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (userCountrySelect && userCountrySelect.value) {
                 console.log('Populating all city dropdowns after generating day content');
                 
-                // Find all city dropdowns and populate them INCLUDING port city selects
+                // Find all city dropdowns and populate them
                 const allCityDropdowns = [
                     document.getElementById('hotelCitySelect'),
-                    document.getElementById('modal_local_transfer_city'),  // Entry port city
-                    document.getElementById('modal_exit_city'),            // Exit port city
                     ...document.querySelectorAll('.attraction-city-select'),
                     ...document.querySelectorAll('.guide-city-select'),
                     ...document.querySelectorAll('.restaurant-city-select'),
@@ -10906,7 +9508,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="guest-info">
                                             <span id="day${day}_attraction_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                                1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_attraction_${newIndex}')">
@@ -10972,7 +9574,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_attraction_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children -${mainInfants} infants`;
         }
         
         showNotification(`Attraction Booking #${newIndex} added for Day ${day}`, 'success');
@@ -12136,7 +10738,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="guest-info">
                                             <span id="day${day}_restaurant_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                                1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_restaurant_${newIndex}')">
@@ -12216,7 +10818,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_restaurant_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children -${mainInfants} infants`;
         }
         
         showNotification(`Restaurant Booking #${newIndex} added for Day ${day}`, 'success');
@@ -12718,7 +11320,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div class="guest-info">
                                             <span id="day${day}_guide_${newIndex}_guest_summary" class="text-muted small">
-                                                1 adults (1 male, 0 female), 0 children - 0 infants
+                                                1 adults (1 male, 0 female), 0 children -0 infants
                                             </span>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="openGuestSelector('day${day}_guide_${newIndex}')">
@@ -12796,34 +11398,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.insertAdjacentHTML('beforeend', newGuideHTML);
         
-        // Initialize Select2 for the new guide fields
-        setTimeout(() => {
-            const newCitySelect = document.getElementById(`day${day}_guide_city_${newIndex}`);
-            const newGuideSelect = document.getElementById(`day${day}_guide_${newIndex}`);
-            
-            // Initialize Select2 for city select
-            if (newCitySelect && !$(newCitySelect).hasClass('select2-hidden-accessible')) {
-                $(newCitySelect).select2({
-                    placeholder: "Select City",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-            
-            // Initialize Select2 for guide select
-            if (newGuideSelect && !$(newGuideSelect).hasClass('select2-hidden-accessible')) {
-                $(newGuideSelect).select2({
-                    placeholder: "Select city first",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-            
-            // Populate the city dropdown for the new guide section
-            if (newCitySelect) {
-                populateCityDropdown(newCitySelect);
-            }
-        }, 100);
+        // Populate the city dropdown for the new guide section
+        const newCitySelect = document.getElementById(`day${day}_guide_city_${newIndex}`);
+        if (newCitySelect) {
+            populateCityDropdown(newCitySelect);
+        }
         
         // Note: Guide dropdown will be loaded when city is selected
         
@@ -12836,7 +11415,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const summaryElement = document.getElementById(`day${day}_guide_${newIndex}_guest_summary`);
         if (summaryElement) {
             const adults = mainMale + mainFemale;
-            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children - ${mainInfants} infants`;
+            summaryElement.textContent = `${adults} adults (${mainMale} male, ${mainFemale} female), ${mainChildren} children -${mainInfants} infants`;
         }
         
         showNotification(`Tour Guide Booking #${newIndex} added for Day ${day}`, 'success');
@@ -13701,132 +12280,45 @@ document.addEventListener('DOMContentLoaded', function() {
          
                  container.insertAdjacentHTML('beforeend', newPortHTML);
         
-        // Initialize Select2 for the new fields
-        setTimeout(() => {
-            const newVehicleSelect = document.getElementById(`day${day}_entry_${newIndex}_vehicle_id`);
-            const newServiceTypeSelect = document.getElementById(`day${day}_entry_${newIndex}_service_type`);
-            
-            // Initialize Select2 for vehicle select
-            if (newVehicleSelect && !$(newVehicleSelect).hasClass('select2-hidden-accessible')) {
-                $(newVehicleSelect).select2({
-                    placeholder: "Choose vehicle",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-            
-            // Initialize Select2 for service type select
-            if (newServiceTypeSelect && !$(newServiceTypeSelect).hasClass('select2-hidden-accessible')) {
-                $(newServiceTypeSelect).select2({
-                    placeholder: "Select service type",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-            
-            // Load vehicles for the new dropdown (similar to main vehicle dropdown)
-            if (newVehicleSelect) {
-                // Try to copy options from the main vehicle dropdown if available
-                const mainVehicleSelect = document.getElementById(`day${day}_entry_0_vehicle_id`) || 
-                                         dayContainer.querySelector(`[name="day${day}_entry_0_vehicle_id"]`);
+        // Load vehicles for the new dropdown (similar to main vehicle dropdown)
+        const newVehicleSelect = container.querySelector(`[name="day${day}_entry_${newIndex}_vehicle_id"]`);
+        if (newVehicleSelect) {
+            // Copy options from the main vehicle dropdown if available
+            const mainVehicleSelect = dayContainer.querySelector(`[name="day${day}_entry_vehicle_id"]`);
+            if (mainVehicleSelect && mainVehicleSelect.options.length > 1) {
+                // Clear and copy options
+                newVehicleSelect.innerHTML = '';
+                for (let i = 0; i < mainVehicleSelect.options.length; i++) {
+                    const option = mainVehicleSelect.options[i].cloneNode(true);
+                    newVehicleSelect.appendChild(option);
+                }
                 
-                if (mainVehicleSelect && mainVehicleSelect.options.length > 1) {
-                    // Clear and copy options
-                    newVehicleSelect.innerHTML = '';
-                    for (let i = 0; i < mainVehicleSelect.options.length; i++) {
-                        const option = mainVehicleSelect.options[i].cloneNode(true);
-                        newVehicleSelect.appendChild(option);
+                // Check if zone_on = 0 and apply custom pricing logic for additional entry ports
+                const dmcUser = @json($UserDmc);
+                const isZoneZero = dmcUser && dmcUser.zone_on == 0;
+                
+                if (isZoneZero) {
+                    console.log(`Zone = 0 detected for additional entry port #${newIndex} - showing custom price field and setting service type to Private`);
+                    
+                    // Show custom price field for additional entry port
+                    const entryPriceField = document.getElementById(`day${day}_entry_${newIndex}_price_field`);
+                    if (entryPriceField) {
+                        entryPriceField.style.display = 'block';
+                        console.log(`Showing custom price field for additional entry port (zone=0): day${day}_entry_${newIndex}_price_field`);
                     }
                     
-                    // Reinitialize Select2 after populating options
-                    if ($(newVehicleSelect).hasClass('select2-hidden-accessible')) {
-                        $(newVehicleSelect).select2('destroy');
-                    }
-                    $(newVehicleSelect).select2({
-                        placeholder: "Choose vehicle",
-                        allowClear: true,
-                        width: '100%'
-                    });
-                } else {
-                    // If main dropdown is empty, try to load vehicles from API
-                    const entryportCity = document.getElementById("modal_local_transfer_city");
-                    const city = entryportCity?.value?.trim() || '';
-                    
-                    if (city) {
-                        fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success && data.vehicles && data.vehicles.length > 0) {
-                                    newVehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-                                    data.vehicles.forEach(vehicle => {
-                                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                                        const option = document.createElement('option');
-                                        option.value = vehicle.vehicle_id;
-                                        option.textContent = vehicleInfo;
-                                        option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
-                                        option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
-                                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
-                                        option.setAttribute('data-private-price', vehicle.private_price || '');
-                                        option.setAttribute('data-shared-price', vehicle.shared_price || '');
-                                        option.setAttribute('data-service-type', vehicle.service_type || '');
-                                        option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
-                                        option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
-                                        option.setAttribute('data-sharable', vehicle.sharable || '0');
-                                        option.setAttribute('data-vehicle-image', vehicle.image || '');
-                                        newVehicleSelect.appendChild(option);
-                                    });
-                                    
-                                    // Reinitialize Select2 after populating options
-                                    if ($(newVehicleSelect).hasClass('select2-hidden-accessible')) {
-                                        $(newVehicleSelect).select2('destroy');
-                                    }
-                                    $(newVehicleSelect).select2({
-                                        placeholder: "Choose vehicle",
-                                        allowClear: true,
-                                        width: '100%'
-                                    });
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error loading vehicles for entry port:', error);
-                            });
+                    // Set service type to Private and make it readonly for additional entry port
+                    const serviceTypeSelect = document.getElementById(`day${day}_entry_${newIndex}_service_type`);
+                    if (serviceTypeSelect) {
+                        serviceTypeSelect.value = 'Private';
+                        serviceTypeSelect.disabled = true;
+                        serviceTypeSelect.style.backgroundColor = '#f8f9fa';
+                        serviceTypeSelect.style.cursor = 'not-allowed';
+                        console.log(`Set additional entry port service type to Private (readonly) for zone=0: day${day}_entry_${newIndex}_service_type`);
                     }
                 }
             }
-        }, 100);
-        
-        // Check if zone_on = 0 and apply custom pricing logic for additional entry ports
-        setTimeout(() => {
-            const dmcUser = @json($UserDmc);
-            const isZoneZero = dmcUser && dmcUser.zone_on == 0;
-            
-            if (isZoneZero) {
-                console.log(`Zone = 0 detected for additional entry port #${newIndex} - showing custom price field and setting service type to Private`);
-                
-                // Show custom price field for additional entry port
-                const entryPriceField = document.getElementById(`day${day}_entry_${newIndex}_price_field`);
-                if (entryPriceField) {
-                    entryPriceField.style.display = 'block';
-                    console.log(`Showing custom price field for additional entry port (zone=0): day${day}_entry_${newIndex}_price_field`);
-                }
-                
-                // Set service type to Private and make it readonly for additional entry port
-                const serviceTypeSelect = document.getElementById(`day${day}_entry_${newIndex}_service_type`);
-                if (serviceTypeSelect) {
-                    serviceTypeSelect.value = 'Private';
-                    serviceTypeSelect.disabled = true;
-                    serviceTypeSelect.style.backgroundColor = '#f8f9fa';
-                    serviceTypeSelect.style.cursor = 'not-allowed';
-                    
-                    // Update Select2 if initialized
-                    if ($(serviceTypeSelect).hasClass('select2-hidden-accessible')) {
-                        $(serviceTypeSelect).trigger('change');
-                    }
-                    
-                    console.log(`Set additional entry port service type to Private (readonly) for zone=0: day${day}_entry_${newIndex}_service_type`);
-                }
-            }
-        }, 150);
+        }
         
         showNotification(`Entry Port Vehicle #${newIndex} added for Day ${day}`, 'success');
      };
@@ -14003,130 +12495,43 @@ document.addEventListener('DOMContentLoaded', function() {
          
                  container.insertAdjacentHTML('beforeend', newPortHTML);
         
-        // Initialize Select2 for the new fields
-        setTimeout(() => {
-            const newVehicleSelect = document.getElementById(`day${day}_exit_${newIndex}_vehicle_id`);
-            const newServiceTypeSelect = document.getElementById(`day${day}_exit_${newIndex}_service_type`);
-            
-            // Initialize Select2 for vehicle select
-            if (newVehicleSelect && !$(newVehicleSelect).hasClass('select2-hidden-accessible')) {
-                $(newVehicleSelect).select2({
-                    placeholder: "Choose vehicle",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-            
-            // Initialize Select2 for service type select
-            if (newServiceTypeSelect && !$(newServiceTypeSelect).hasClass('select2-hidden-accessible')) {
-                $(newServiceTypeSelect).select2({
-                    placeholder: "Select service type",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-            
-            // Load vehicles for the new dropdown (similar to main vehicle dropdown)
-            if (newVehicleSelect) {
-                // Try to copy options from the main vehicle dropdown if available
-                const mainVehicleSelect = document.getElementById(`day${day}_exit_0_vehicle_id`) || 
-                                         dayContainer.querySelector(`[name="day${day}_exit_0_vehicle_id"]`);
-                
-                if (mainVehicleSelect && mainVehicleSelect.options.length > 1) {
-                    // Clear and copy options
-                    newVehicleSelect.innerHTML = '';
-                    for (let i = 0; i < mainVehicleSelect.options.length; i++) {
-                        const option = mainVehicleSelect.options[i].cloneNode(true);
-                        newVehicleSelect.appendChild(option);
-                    }
-                    
-                    // Reinitialize Select2 after populating options
-                    if ($(newVehicleSelect).hasClass('select2-hidden-accessible')) {
-                        $(newVehicleSelect).select2('destroy');
-                    }
-                    $(newVehicleSelect).select2({
-                        placeholder: "Choose vehicle",
-                        allowClear: true,
-                        width: '100%'
-                    });
-                } else {
-                    // If main dropdown is empty, try to load vehicles from API
-                    const exitportCity = document.getElementById("modal_exit_city");
-                    const city = exitportCity?.value?.trim() || '';
-                    
-                    if (city) {
-                        fetch(`{{ url(route('fetch-vehicles-by-city-dmc')) }}?city=${encodeURIComponent(city)}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success && data.vehicles && data.vehicles.length > 0) {
-                                    newVehicleSelect.innerHTML = '<option value="">Choose vehicle</option>';
-                                    data.vehicles.forEach(vehicle => {
-                                        const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type}) - ${vehicle.seating_capacity} seats`;
-                                        const option = document.createElement('option');
-                                        option.value = vehicle.vehicle_id;
-                                        option.textContent = vehicleInfo;
-                                        option.setAttribute('data-vehicle-name', vehicle.vehicle_name);
-                                        option.setAttribute('data-vehicle-type', vehicle.vehicle_type);
-                                        option.setAttribute('data-seating-capacity', vehicle.seating_capacity);
-                                        option.setAttribute('data-private-price', vehicle.private_price || '');
-                                        option.setAttribute('data-shared-price', vehicle.shared_price || '');
-                                        option.setAttribute('data-service-type', vehicle.service_type || '');
-                                        option.setAttribute('data-cost-per-hour', vehicle.cost_per_hour || '');
-                                        option.setAttribute('data-sharable-cost-per-hour', vehicle.sharable_cost_per_hour || '');
-                                        option.setAttribute('data-sharable', vehicle.sharable || '0');
-                                        option.setAttribute('data-vehicle-image', vehicle.image || '');
-                                        newVehicleSelect.appendChild(option);
-                                    });
-                                    
-                                    // Reinitialize Select2 after populating options
-                                    if ($(newVehicleSelect).hasClass('select2-hidden-accessible')) {
-                                        $(newVehicleSelect).select2('destroy');
-                                    }
-                                    $(newVehicleSelect).select2({
-                                        placeholder: "Choose vehicle",
-                                        allowClear: true,
-                                        width: '100%'
-                                    });
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error loading vehicles for exit port:', error);
-                            });
-                    }
+        // Load vehicles for the new dropdown (similar to main vehicle dropdown)
+        const newVehicleSelect = container.querySelector(`[name="day${day}_exit_${newIndex}_vehicle_id"]`);
+        if (newVehicleSelect) {
+            // Copy options from the main vehicle dropdown if available
+            const mainVehicleSelect = dayContainer.querySelector(`[name="day${day}_exit_0_vehicle_id"]`);
+            if (mainVehicleSelect && mainVehicleSelect.options.length > 1) {
+                // Clear and copy options
+                newVehicleSelect.innerHTML = '';
+                for (let i = 0; i < mainVehicleSelect.options.length; i++) {
+                    const option = mainVehicleSelect.options[i].cloneNode(true);
+                    newVehicleSelect.appendChild(option);
                 }
             }
-        }, 100);
+        }
         
         // Check if zone_on = 0 and apply custom pricing logic for additional exit ports
-        setTimeout(() => {
-            const dmcUser = @json($UserDmc);
-            const isZoneZero = dmcUser && dmcUser.zone_on == 0;
+        const dmcUser = @json($UserDmc);
+        const isZoneZero = dmcUser && dmcUser.zone_on == 0;
+        
+        if (isZoneZero) {
+            console.log(`Zone = 0 detected for additional exit port #${newIndex} - showing custom price field and setting service type to Private`);
             
-            if (isZoneZero) {
-                console.log(`Zone = 0 detected for additional exit port #${newIndex} - showing custom price field and setting service type to Private`);
-                
-                const exitPriceField = document.getElementById(`day${day}_exit_${newIndex}_price_field`);
-                if (exitPriceField) {
-                    exitPriceField.style.display = 'block';
-                    console.log(`Showing custom price field for additional exit port (zone=0): day${day}_exit_${newIndex}_price_field`);
-                }
-                
-                const serviceTypeSelect = document.getElementById(`day${day}_exit_${newIndex}_service_type`);
-                if (serviceTypeSelect) {
-                    serviceTypeSelect.value = 'Private';
-                    serviceTypeSelect.disabled = true;
-                    serviceTypeSelect.style.backgroundColor = '#f8f9fa';
-                    serviceTypeSelect.style.cursor = 'not-allowed';
-                    
-                    // Update Select2 if initialized
-                    if ($(serviceTypeSelect).hasClass('select2-hidden-accessible')) {
-                        $(serviceTypeSelect).trigger('change');
-                    }
-                    
-                    console.log(`Set additional exit port service type to Private (readonly) for zone=0: day${day}_exit_${newIndex}_service_type`);
-                }
+            const exitPriceField = document.getElementById(`day${day}_exit_${newIndex}_price_field`);
+            if (exitPriceField) {
+                exitPriceField.style.display = 'block';
+                console.log(`Showing custom price field for additional exit port (zone=0): day${day}_exit_${newIndex}_price_field`);
             }
-        }, 150);
+            
+            const serviceTypeSelect = document.getElementById(`day${day}_exit_${newIndex}_service_type`);
+            if (serviceTypeSelect) {
+                serviceTypeSelect.value = 'Private';
+                serviceTypeSelect.disabled = true;
+                serviceTypeSelect.style.backgroundColor = '#f8f9fa';
+                serviceTypeSelect.style.cursor = 'not-allowed';
+                console.log(`Set additional exit port service type to Private (readonly) for zone=0: day${day}_exit_${newIndex}_service_type`);
+            }
+        }
         
         showNotification(`Exit Port Vehicle #${newIndex} added for Day ${day}`, 'success');
      };
@@ -14162,8 +12567,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const modal = document.getElementById('guestSelectorModal');
         if (modal) {
             modal.setAttribute('data-service-id', serviceId);
-            // Initialize modal values before showing
-            initializeModalGuestValues();
             const modalInstance = new bootstrap.Modal(modal);
             modalInstance.show();
         } else {
@@ -14321,58 +12724,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
      
     function initializeModalGuestValues() {
-         const modal = document.getElementById('guestSelectorModal');
-         if (!modal) return;
-         
-         const serviceId = modal.getAttribute('data-service-id');
-         if (!serviceId) return;
-         
-         // Try to get current service guest values from summary
-         let male = 0, female = 0, children = 0, infants = 0;
-         const summaryElement = document.getElementById(serviceId + '_guest_summary');
-         
-         if (summaryElement && summaryElement.textContent.trim() !== '1 adults (1 male, 0 female), 0 children - 0 infants') {
-             // Parse existing service guest values from summary text
-             const summaryText = summaryElement.textContent;
-             // Pattern: "X adults (Y male, Z female), W children - V infants" or "X adults (Y male, Z female), W children -V infants"
-             const match = summaryText.match(/(\d+)\s+adults\s+\((\d+)\s+male,\s+(\d+)\s+female\),\s+(\d+)\s+children\s+-\s*(\d+)\s+infants/);
-             if (match) {
-                 male = parseInt(match[2]) || 0;
-                 female = parseInt(match[3]) || 0;
-                 children = parseInt(match[4]) || 0;
-                 infants = parseInt(match[5]) || 0;
-             }
-         }
-         
-         // If no existing values found, use main guest values
-         if (male === 0 && female === 0 && children === 0 && infants === 0) {
-             male = parseInt(document.getElementById('male').value) || 0;
-             female = parseInt(document.getElementById('female').value) || 0;
-             children = parseInt(document.getElementById('children').value) || 0;
-             infants = parseInt(document.getElementById('infants').value) || 0;
-         }
-         
-         // Ensure values don't exceed main guest limits
-         const maxMale = parseInt(document.getElementById('male').value) || 0;
-         const maxFemale = parseInt(document.getElementById('female').value) || 0;
-         const maxChildren = parseInt(document.getElementById('children').value) || 0;
-         const maxInfants = parseInt(document.getElementById('infants').value) || 0;
-         
-         male = Math.min(male, maxMale);
-         female = Math.min(female, maxFemale);
-         children = Math.min(children, maxChildren);
-         infants = Math.min(infants, maxInfants);
+         // Get values from main form
+         const male = parseInt(document.getElementById('male').value) || 0;
+         const female = parseInt(document.getElementById('female').value) || 0;
+         const children = parseInt(document.getElementById('children').value) || 0;
+         const infants = parseInt(document.getElementById('infants').value) || 0;
          
          // Set modal values
-         const maleEl = document.getElementById('serviceModalMale');
-         const femaleEl = document.getElementById('serviceModalFemale');
-         const childrenEl = document.getElementById('serviceModalChildren');
-         const infantsEl = document.getElementById('serviceModalInfants');
-         
-         if (maleEl) maleEl.textContent = male;
-         if (femaleEl) femaleEl.textContent = female;
-         if (childrenEl) childrenEl.textContent = children;
-         if (infantsEl) infantsEl.textContent = infants;
+         document.getElementById('serviceModalMale').textContent = male;
+         document.getElementById('serviceModalFemale').textContent = female;
+         document.getElementById('serviceModalChildren').textContent = children;
+         document.getElementById('serviceModalInfants').textContent = infants;
     }
      
     window.updateServiceGuest = function(type, change) {
@@ -14425,7 +12787,7 @@ document.addEventListener('DOMContentLoaded', function() {
          // Update the service guest summary text
          const summaryElement = document.getElementById(serviceId + '_guest_summary');
          if (summaryElement) {
-             summaryElement.textContent = `${adults} adults (${male} male, ${female} female), ${children} children -${infants} infants`;
+             summaryElement.textContent = `${adults} adults (${male} male), ${children} children -${infants} infants`;
          }
          
          // Update the badges for this specific service
@@ -15493,13 +13855,6 @@ function populateEntryPortFields(day = 1) {
             // Test the search button state immediately
             console.log('Testing entry port search button state for day', day, '...');
             enableSearchButton(day, 'entry');
-            
-            // Fix icon padding for Select2 elements
-            if (typeof window.fixSelect2IconPadding === 'function') {
-                setTimeout(() => {
-                    window.fixSelect2IconPadding();
-                }, 150);
-            }
         }, 100);
     }
 }
@@ -21080,7 +19435,7 @@ function searchLocalTransferVehicles(day, section) {
     }
     
     // Get zone status from DMC user data
-    const user_dmc = window.UserDmc;
+    const user_dmc = UserDmc;
     const zone_status = user_dmc ? user_dmc.zone_on : 1;
     
     // Make POST request with data in body
@@ -21511,5 +19866,3 @@ function updatePassengerFeild(event, section, day) {
 }
 
 </script>
-
-
