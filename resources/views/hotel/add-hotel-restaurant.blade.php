@@ -49,14 +49,71 @@
         font-size: 1.1rem;
     }
     
+    /* Select2 Custom Styles */
     .select2-container .select2-selection--single {
-        height: 100% !important; /* Adjust as needed */
-        line-height: 100% !important;
-        padding: 8px 12px;
+        height: 38px !important;
+        line-height: 38px !important;
+        padding: 0 12px;
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
     }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px !important;
+        padding-left: 0;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+
     /* Increase the height of the dropdown items */
     .select2-container .select2-results__option {
-        padding: 12px 10px;
+        padding: 8px 12px;
+    }
+
+    /* Focus state */
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+
+    /* Dropdown styling */
+    .select2-dropdown {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    /* Search box styling */
+    .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3;
+        border-radius: 0.375rem;
+        padding: 6px 12px;
+        outline: none;
+    }
+
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+
+    /* Highlighted option */
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff;
+        color: white;
+    }
+
+    /* Selected option */
+    .select2-container--default .select2-results__option[aria-selected=true] {
+        background-color: #e7e7ff;
+        color: #696cff;
+    }
+
+    /* Dropdown width */
+    .select2-container {
+        width: 100% !important;
     }
 
     /* Flatpickr container styling */
@@ -169,12 +226,21 @@
                         @if((auth()->user()->role_id == 1 || auth()->user()->role_id == 20) && isset($availableDMCs) && count($availableDMCs) > 0)
                         <div class="row mb-4">
                             <div class="col-md-12">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i> <strong>Admin Mode:</strong> Select a DMC to create restaurant for.
+                                                <div style="
+                                    background: #e8f4ff;
+                                    border-left: 5px solid #0d6efd;
+                                    padding: 12px 15px;
+                                    border-radius: 4px;
+                                    font-size: 15px;
+                                    color: #084298;
+                                    margin-bottom: 15px;
+                                ">
+                                    <strong>Note:</strong> As an admin/manager, you must select a DMC to add restaurants on their behalf.
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="dmcSelect" class="form-label"><strong>Choose DMC</strong>
+                                <label for="dmcSelect" class="form-label">
+                                    <strong><i class="ri-building-line"></i> Choose DMC</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 <select id="dmcSelect" class="form-control" required>
@@ -1227,6 +1293,13 @@ document.addEventListener('DOMContentLoaded', () => {
     $(document).ready(function() {
         $('#hotelSelect').select2({
             placeholder: "Search and Select a Hotel",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for DMC Selection
+        $('#dmcSelect').select2({
+            placeholder: "Search and Select DMC",
             allowClear: true,
             width: '100%'
         });

@@ -277,7 +277,7 @@
                                 <div class="d-flex gap-1">
                                     <a href="{{ route('bookings.view-tour', ['tourId' => \Crypt::encrypt($tour->tour_id)]) }}" 
                                        class="btn btn-sm btn-outline-primary" 
-                                       title="View Details">
+                                       title="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
                                     @if($tour->tour_status === 'Refund - Pending')

@@ -3443,6 +3443,19 @@ class HotelController extends Controller
             'status' => 1,
         ]);
         
+        // Update tour destination with hotel location if location is provided
+        if (!empty($bookingData['hotelDetails']['location'])) {
+            $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
+            if ($tour) {
+                $tour->destination = $bookingData['hotelDetails']['location'];
+                $tour->save();
+                \Log::info('Tour destination updated with hotel location', [
+                    'tour_id' => $tourId,
+                    'destination' => $bookingData['hotelDetails']['location']
+                ]);
+            }
+        }
+        
         return back()->with('success', 'Hotel selected successfully');
     }
 

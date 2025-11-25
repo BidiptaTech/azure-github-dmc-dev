@@ -70,13 +70,63 @@
     font-size: 14px; /* Adjust icon size */
     }
 
-    .select2-container .select2-selection--single {
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
         height: 100% !important;
-        line-height: 100% !important;
-        padding: 8px 12px;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
     }
-    .select2-container .select2-results__option {
-        padding: 12px 10px;
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #697a8d !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff !important;
+        color: white !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
     }
 
     /* Auto-calculated field styles */
@@ -144,7 +194,7 @@
                             <!-- Select DMC Name -->
                             @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 23 || auth()->user()->role_id == 25 || auth()->user()->role_id == 45 || auth()->user()->role_id == 61 || auth()->user()->role_id == 100 || auth()->user()->role_id == 101)
                             <div class="mb-3 col-md-3" id="dmc-container" style="display: none;">
-                                <label for="dmc" class="form-label"><strong>DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                <label for="dmc" class="form-label"><strong><i class="ri-building-line"></i> DMC</strong><span style="color: red; font-weight: bold;">*</span></label>
                                 <select id="dmc" name="dmc" class="form-control" required>
                                     <option value="">Select DMC</option>
                                     @foreach ($dmcs as $dmc)
@@ -236,7 +286,7 @@
 
                             <!-- Country -->
                             <div class="mb-3 col-md-3">
-                                <label for="country" class="form-label"><strong>Country</strong>
+                                <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                     <span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 
@@ -715,6 +765,26 @@ $(document).ready(function() {
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 for DMC dropdown
+        $('#dmc').select2({
+            placeholder: "Search and Select DMC",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for Country dropdown (only for role_id 1 and 20)
+        @if(in_array(auth()->user()->role_id, [1, 20]))
+        $('#country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+        @endif
+    });
+</script>
 
 <script>
     // Initialize flatpickr for all time input fields

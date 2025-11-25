@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use App\Models\Guide;
 use App\Models\Order;
 use App\Models\Tour;
@@ -138,17 +139,76 @@ class EnquiryController extends Controller
             $currentEnquiry->comment = $request->comment;
         // }
         $tourStatus = Tour::where('tour_id', $currentEnquiry->tour_id)->value('tour_status');
+        $oldStatus = $tourStatus; // Store the original status
+        $newStatus = $tourStatus; // Initialize new status
+        $statusChanged = false;
+        
         if($tourStatus == "New Enquiry"){
-            $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->update([
+            Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Prospect",
             ]);
+            $newStatus = "Prospect";
+            $statusChanged = true;
+            // Refresh the tour object to get updated status
+            $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }elseif($tourStatus == "Prospect"){
-            $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->update([
+            Tour::where('tour_id', $currentEnquiry->tour_id)->update([
                 'tour_status' => "Tentative",
             ]);
+            $newStatus = "Tentative";
+            $statusChanged = true;
+            // Refresh the tour object to get updated status
+            $tour = Tour::where('tour_id', $currentEnquiry->tour_id)->first();
         }
+        
         if ($currentEnquiry->save()) {
-            return back()->with('success', 'Price updated successfully!');
+            // Send negotiation email to agent
+            if ($tour && $tour->agent_id) {
+                try {
+                    // Get the actual amount (original price) and negotiated amount
+                    $actualAmount = $currentEnquiry->actual_amount ?? 0;
+                    $negotiatedAmount = $request->price;
+                    
+                    $negotiationData = [
+                        'tour' => $tour,
+                        'dmc_id' => $tour->dmc_id,
+                        'actual_amount' => $actualAmount,
+                        'negotiated_amount' => $negotiatedAmount,
+                        'previous_negotiated_amount' => null, // DMC doesn't have previous offers in this flow
+                        'comment' => $request->comment,
+                        'currency' => '$', // You can customize this
+                    ];
+                    
+                    $emailResult = CommonHelper::sendNegotiationEmail(
+                        $tour->agent_id,
+                        $tour->tour_id,
+                        $tour->display_id ?? 'TOUR-' . $tour->tour_id,
+                        $negotiationData
+                    );
+                    
+                    if ($emailResult !== true) {
+                        Log::warning("Negotiation email could not be sent to agent", [
+                            'tour_id' => $tour->tour_id,
+                            'agent_id' => $tour->agent_id,
+                            'error' => $emailResult
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Error sending negotiation email to agent", [
+                        'tour_id' => $tour->tour_id,
+                        'agent_id' => $tour->agent_id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            // Build success message with status update info
+            $successMessage = 'Price updated successfully! The negotiation has been sent to the agent via email.';
+            if ($statusChanged) {
+                $successMessage .= ' Tour status has been updated from "' . $oldStatus . '" to "' . $newStatus . '".';
+            }
+            
+            return back()->with('success', $successMessage);
         } else {
             return back()->with('error', 'Error while updating the price!');
         }

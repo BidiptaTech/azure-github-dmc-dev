@@ -609,7 +609,7 @@ class TourController extends Controller
             });
 
             // Enquiry details
-            $enquiry = Enquiry::where('tour_id', $tour->tour_id)->first();
+            $enquiry = Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
                 $enquiry_status = '';
                 $edit_off = 0;
 

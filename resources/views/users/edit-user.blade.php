@@ -1,7 +1,69 @@
 @extends('layouts.layout')
 @section('title', 'Edit User')
 @section('content')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+
+<style>
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #697a8d !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff !important;
+        color: white !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+    }
+</style>
+
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
@@ -188,7 +250,7 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label"><strong>User Country</strong><span class="text-danger">*</span></label>
+                            <label class="form-label"><strong> User Country</strong><span class="text-danger">*</span></label>
                             <select class="form-select" id="user_country" name="user_country">
                                 <option disabled value>Choose a country...</option>
                                 @foreach($country as $c)
@@ -200,7 +262,7 @@
 
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
+                            <label class="form-label"><strong> City Name</strong><span class="text-danger">*</span></label>
                             <select class="form-select" id="city" name="city">
                                 <option disabled value>Loading cities...</option>
                             </select>
@@ -276,6 +338,20 @@
         $('.select2').select2({
             placeholder: "Choose countries...",
             allowClear: true
+        });
+
+        // Initialize Select2 for User Country dropdown
+        $('#user_country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for User City dropdown
+        $('#city').select2({
+            placeholder: "Search and Select City",
+            allowClear: true,
+            width: '100%'
         });
 
         // Add form submission validation
@@ -382,7 +458,7 @@
             
             if (selectedCountry) {
                 // Show loading state for cities
-                $('#city').html('<option>Loading cities...</option>');
+                $('#city').html('<option>Loading cities...</option>').trigger('change');
                 
                 // Fetch cities for the selected country
                 $.ajax({
@@ -403,9 +479,11 @@
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
+                        // Trigger change to refresh Select2
+                        $('#city').trigger('change');
                     },
                     error: function() {
-                        $('#city').html('<option disabled value>Error loading cities</option>');
+                        $('#city').html('<option disabled value>Error loading cities</option>').trigger('change');
                     }
                 });
                 
@@ -424,7 +502,7 @@
                 });
             } else {
                 // Reset cities dropdown if no country selected
-                $('#city').html('<option disabled value>Select country first...</option>');
+                $('#city').html('<option disabled value>Select country first...</option>').trigger('change');
             }
         });
 

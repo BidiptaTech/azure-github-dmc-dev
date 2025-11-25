@@ -2,11 +2,70 @@
 @section('title', 'Validations')
 @section('content')
 <style>
+    /* Select2 Custom Styling for Bootstrap 5 Integration */
+    .select2-container--default .select2-selection--single {
+        height: 50px !important;
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        padding: 0 !important;
+        color: #697a8d !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+        right: 5px !important;
+    }
+
+    .select2-container--default .select2-selection--single:hover {
+        border-color: #697a8d !important;
+    }
+
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+        outline: none !important;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .select2-container--default .select2-results__option {
+        padding: 8px 12px !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #696cff !important;
+        color: white !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border: 1px solid #d9dee3 !important;
+        border-radius: 0.375rem !important;
+        padding: 0.375rem 0.75rem !important;
+        outline: none !important;
+    }
+
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #696cff !important;
+        box-shadow: 0 0 0.25rem rgba(105, 108, 255, 0.1) !important;
+    }
+
     .select2-container--default .select2-selection--multiple {
-        width : 200px
-}
+        width: 200px;
+    }
 </style>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-6">
@@ -195,7 +254,7 @@
                             <div class="col-md-4" id="user_coun">
                                 <div class="mb-3">
                                     <label for="user_country" class="form-label">
-                                        <strong>User Country</strong>
+                                        <strong> User Country</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <select class="form-select" id="user_country" name="user_country">
@@ -210,7 +269,7 @@
                             <div class="col-md-4" id="city_name">
                                 <div class="mb-3">
                                     <label for="city" class="form-label">
-                                        <strong>User City</strong>
+                                        <strong> User City</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
                                     <select class="form-select" id="city" name="city">
@@ -276,7 +335,7 @@
                 <div class="row">
                     <div class="col-md-3">
                         <div class="mb-3">
-                            <label for="inputCountryCode" class="form-label"><strong>Country Code</strong><span
+                            <label for="inputCountryCode" class="form-label"><strong> Country Code</strong><span
                                     style="color: red; font-weight: bold;">*</span></label>
                             <select class="form-select" id="inputCountryCode" name="code" required>
                                 <option selected disabled value>Choose...</option>
@@ -924,12 +983,33 @@
 <!-- Add this script after your existing validation scripts -->
 <script>
     $(document).ready(function() {
+        // Initialize Select2 for User Country dropdown
+        $('#user_country').select2({
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for User City dropdown
+        $('#city').select2({
+            placeholder: "Search and Select City",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // Initialize Select2 for Country Code dropdown
+        $('#inputCountryCode').select2({
+            placeholder: "Search and Select Country Code",
+            allowClear: true,
+            width: '100%'
+        });
+
         // Country selection change handler
         $('#user_country').on('change', function() {
             const selectedCountry = $(this).val();
             if (selectedCountry) {
                 // Show loading state for cities
-                $('#city').html('<option>Loading cities...</option>');
+                $('#city').html('<option>Loading cities...</option>').trigger('change');
                 
                 // Fetch cities for the selected country
                 $.ajax({
@@ -948,9 +1028,11 @@
                         } else {
                             $('#city').append('<option disabled>No cities found</option>');
                         }
+                        // Trigger change to refresh Select2
+                        $('#city').trigger('change');
                     },
                     error: function() {
-                        $('#city').html('<option disabled value>Error loading cities</option>');
+                        $('#city').html('<option disabled value>Error loading cities</option>').trigger('change');
                     }
                 });
                 
@@ -969,7 +1051,7 @@
                 });
             } else {
                 // Reset cities dropdown if no country selected
-                $('#city').html('<option selected disabled value>Select country first...</option>');
+                $('#city').html('<option selected disabled value>Select country first...</option>').trigger('change');
             }
         });
     });

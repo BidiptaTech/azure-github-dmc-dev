@@ -242,8 +242,13 @@
                             <th>Check-in/Check-out</th>
                             <th>Created At</th>
                             <th>Auto Cancel Date</th>
+                            @php
+                                $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $role))
                             <th>Agent Negotiation</th>
                             <th>Negotiation</th>
+                            @endif
                             <th>Actions</th>
                             
                         </tr>
@@ -449,6 +454,10 @@
                                 $lastAgentRemark = $latestAgentComment->comment ?? '';
                                 $canCheckNegotiation = $latestAgentComment !== null;
                             @endphp
+                            @php
+                                $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                            @endphp
+                            @if(in_array(auth()->user()->role_id, $role))
                             <td>
                                 <button 
                                     type="button"
@@ -484,6 +493,7 @@
                                     <small class="text-muted d-block mt-1">Awaiting agent negotiation</small>
                                 @endif
                             </td>
+                            @endif
                             {{-- <td>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -525,7 +535,7 @@
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" 
                                        style="width: 32px; height: 32px;"
-                                       title="View Tour Details">
+                                       title="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
                                     <button onclick="cancelTour('{{ Crypt::encrypt($tour->tour_id) }}', '{{ $tour->display_id }}')" 
@@ -604,8 +614,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Submit</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="new_enquiry_cancel_btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="new_enquiry_submit_btn">Submit</button>
                     </div>
                 </form>
             </div>
@@ -4162,6 +4172,22 @@ function testServices() {
             }
         };
 
+        // Add form submission handler with loader
+        $(document).ready(function() {
+            $('#newEnquiryUpdateForm').on('submit', function(e) {
+                const submitBtn = document.getElementById('new_enquiry_submit_btn');
+                const cancelBtn = document.getElementById('new_enquiry_cancel_btn');
+                
+                // Show loader
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                
+                // Form will submit naturally, no need to prevent default
+            });
+        });
+
         let agentNegotiationModalInstance = null;
         let agentNegotiationActionsDisabled = false;
 
@@ -4300,6 +4326,9 @@ function testServices() {
             const amountInput = document.getElementById('agentNegotiationAmount');
             const remarkInput = document.getElementById('agentNegotiationRemark');
             const warning = document.getElementById('agentNegotiationWarning');
+            const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
+            const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
+            const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
             warning.classList.add('d-none');
 
             if (action === 'negotiate') {
@@ -4313,15 +4342,6 @@ function testServices() {
                     return;
                 }
 
-                if (!remarkInput.value.trim()) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Remarks required',
-                        text: 'Please enter remarks for this negotiation.'
-                    });
-                    return;
-                }
-
                 const max = parseFloat(amountInput.getAttribute('max'));
                 if (!isNaN(max) && max > 0 && amountValue > max) {
                     warning.classList.remove('d-none');
@@ -4329,118 +4349,23 @@ function testServices() {
                     return;
                 }
 
-                // Disable submit button to prevent double submission
-                const submitBtn = document.getElementById('agentNegotiationSubmitBtn');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
-                }
+                // Show loader on negotiate button
+                const originalSubmitText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="ri-loader-4-line spin"></i> Submitting...';
+                submitBtn.disabled = true;
+                cancelBtn.disabled = true;
+                confirmBtn.disabled = true;
 
-                // Prepare form data
-                const formData = new FormData(form);
-                formData.append('action', action);
-
-                // Get the form action URL as a string from data attribute
-                const formActionUrl = form.getAttribute('data-action-url') || form.getAttribute('action');
-                if (!formActionUrl || typeof formActionUrl !== 'string') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Invalid form action. Please refresh the page and try again.',
-                        confirmButtonText: 'OK'
-                    });
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = 'Negotiate';
-                    }
-                    return;
-                }
-
-                // Submit via AJAX
-                fetch(formActionUrl, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || formData.get('_token'),
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    // Check if response is JSON
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        return response.json();
-                    }
-                    
-                    // If redirected (status 302/301), treat as success
-                    if (response.status === 302 || response.status === 301 || response.redirected) {
-                        return { success: true, message: 'Negotiation submitted successfully.' };
-                    }
-                    
-                    // If successful HTML response (status 200), treat as success
-                    if (response.ok && response.status === 200) {
-                        return { success: true, message: 'Negotiation submitted successfully.' };
-                    }
-                    
-                    // If error status, try to parse JSON error
-                    if (response.status >= 400) {
-                        return response.text().then(text => {
-                            try {
-                                const data = JSON.parse(text);
-                                throw new Error(data.message || 'Failed to submit negotiation');
-                            } catch (e) {
-                                throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                            }
-                        });
-                    }
-                    
-                    return { success: true, message: 'Negotiation submitted successfully.' };
-                })
-                .then(data => {
-                    // Close modal
-                    if (agentNegotiationModalInstance) {
-                        agentNegotiationModalInstance.hide();
-                    }
-
-                    // Show success message
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: data.message || data.success || 'Negotiation submitted successfully.',
-                        confirmButtonText: 'OK',
-                        timer: 3000,
-                        timerProgressBar: true
-                    }).then(() => {
-                        // Reload page to show updated data
-                        window.location.reload();
-                    });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    
-                    // Re-enable submit button
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = 'Negotiate';
-                    }
-
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: error.message || 'An error occurred while submitting the negotiation. Please try again.',
-                        confirmButtonText: 'OK'
-                    });
-                });
-
+                actionInput.value = action;
+                form.submit();
                 return;
             }
 
+            // For Cancel and Confirm actions - no validation needed for amount/remarks
             const prompts = {
                 cancel: {
                     title: 'Cancel this tour?',
-                    text: 'Status will be updated to Cancel - New Enquiry.',
+                    text: 'Status will be updated to a cancelled state.',
                     icon: 'warning',
                     confirmButtonText: 'Yes, cancel it',
                     confirmButtonColor: '#d33',
@@ -4465,108 +4390,30 @@ function testServices() {
 
             Swal.fire({
                 ...prompt,
-                showCancelButton: true
-            }).then(result => {
-                if (result.isConfirmed) {
-                    // Disable buttons to prevent double submission
-                    const cancelBtn = document.getElementById('agentNegotiationCancelBtn');
-                    const confirmBtn = document.getElementById('agentNegotiationConfirmBtn');
-                    if (cancelBtn) cancelBtn.disabled = true;
-                    if (confirmBtn) confirmBtn.disabled = true;
-
-                    // Prepare form data - for cancel/confirm, amount and remarks are optional
-                    const formData = new FormData(form);
-                    formData.set('action', action); // Use the actual action (cancel or confirm)
-                    
-                    // Remove amount and remarks if they're empty (optional for cancel/confirm)
-                    const amountValue = amountInput.value.trim();
-                    const remarkValue = remarkInput.value.trim();
-                    if (!amountValue) {
-                        formData.delete('amount');
-                    }
-                    if (!remarkValue) {
-                        formData.delete('comment');
-                    }
-                    
-                    // Get the form action URL
-                    const formActionUrl = form.getAttribute('data-action-url') || form.getAttribute('action');
-                    
-                    // Determine success message based on action
-                    const successMessage = action === 'cancel' 
-                        ? 'Tour cancelled successfully.' 
-                        : 'Tour confirmed successfully.';
-                    
-                    // Submit via AJAX
-                    fetch(formActionUrl, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || formData.get('_token'),
-                            'Accept': 'application/json'
-                        },
-                        credentials: 'same-origin'
-                    })
-                    .then(response => {
-                        // Check if response is JSON
-                        const contentType = response.headers.get('content-type');
-                        if (contentType && contentType.includes('application/json')) {
-                            return response.json();
+                showCancelButton: true,
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return new Promise((resolve) => {
+                        // Clear amount and remarks fields if they're empty for cancel/confirm
+                        // This ensures backend doesn't validate empty fields
+                        if (!amountInput.value.trim()) {
+                            amountInput.removeAttribute('name');
+                        }
+                        if (!remarkInput.value.trim()) {
+                            remarkInput.removeAttribute('name');
                         }
                         
-                        // If redirected (status 302/301), treat as success
-                        if (response.status === 302 || response.status === 301 || response.redirected) {
-                            return { success: true, message: successMessage };
-                        }
-                        
-                        // If successful HTML response (status 200), treat as success
-                        if (response.ok && response.status === 200) {
-                            return { success: true, message: successMessage };
-                        }
-                        
-                        // If error status, try to parse JSON error
-                        if (response.status >= 400) {
-                            return response.text().then(text => {
-                                try {
-                                    const data = JSON.parse(text);
-                                    throw new Error(data.message || `Failed to ${action} tour`);
-                                } catch (e) {
-                                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                                }
-                            });
-                        }
-                        
-                        return { success: true, message: successMessage };
-                    })
-                    .then(data => {
-                        // Show success message
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: data.message || successMessage,
-                            confirmButtonText: 'OK',
-                            timer: 3000,
-                            timerProgressBar: true
-                        }).then(() => {
-                            // Reload page to show updated data
-                            window.location.reload();
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        
-                        // Re-enable buttons
-                        if (cancelBtn) cancelBtn.disabled = false;
-                        if (confirmBtn) confirmBtn.disabled = false;
-
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: error.message || `An error occurred while ${action === 'cancel' ? 'cancelling' : 'confirming'} the tour. Please try again.`,
-                            confirmButtonText: 'OK'
-                        });
+                        actionInput.value = action;
+                        form.submit();
+                        resolve();
                     });
-                } else if (agentNegotiationModalInstance) {
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then(result => {
+                if (!result.isConfirmed && agentNegotiationModalInstance) {
+                    // Restore name attributes if user cancels
+                    amountInput.setAttribute('name', 'amount');
+                    remarkInput.setAttribute('name', 'comment');
                     agentNegotiationModalInstance.show();
                 }
             });
