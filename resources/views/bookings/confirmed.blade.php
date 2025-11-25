@@ -923,6 +923,11 @@
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> Audit Trail
                                     </a>
+                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-secondary btn-sm rounded-pill"
+                                       target="_blank">
+                                        <i class="ri-file-download-line me-1"></i> Download Quotation
+                                    </a>
                                     
                                     @php
                                         $all_ids = [33, 34, 37, 38, 124, 125, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
