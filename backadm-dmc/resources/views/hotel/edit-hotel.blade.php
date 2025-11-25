@@ -962,10 +962,12 @@
             allowClear: true,
             width: '100%'
         });
-        $('#ownership').select2({
+        $('#hotel_ownership').select2({
             placeholder: "Search and Select Ownership Type",
             allowClear: true,
             width: '100%'
+        }).on('change', function() {
+            toggleChainNameField();
         });
         $('#segment').select2({
             placeholder: "Search and Select Segment",
@@ -1013,11 +1015,10 @@
             });
             $('#summernote').summernote('disable');
         @endif
-        // Initialize Select2 for city
+        // Initialize Select2 for city (only select from existing cities)
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
-            tags: true,
             width: '100%'
         });
     });
