@@ -1,6 +1,22 @@
 @extends('layouts.layout')
 
+@section('css')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+@endsection
+
 @section('content')
+<style>
+    .select2-container .select2-selection--single {
+        height: 100% !important; /* Adjust as needed */
+        line-height: 100% !important;
+        padding: 8px 12px;
+    }
+    /* Increase the height of the dropdown items */
+    .select2-container .select2-results__option {
+        padding: 12px 10px;
+    }
+</style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card mb-4">
@@ -45,7 +61,7 @@
 
                         <div class="col-md-6 mb-3">
                             <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
-                            <select class="form-select" id="country" name="country" required>
+                            <select class="form-select select2" id="country" name="country" required>
                                 <option value="">Select Country</option>
                                 @foreach($countries as $country)
                                     <option value="{{ $country->name }}" {{ old('country', $port->country) == $country->name ? 'selected' : '' }}>
@@ -57,7 +73,7 @@
 
                         <div class="col-md-6 mb-3">
                             <label for="city_id" class="form-label">City <span class="text-danger">*</span></label>
-                            <select class="form-select" id="city_id" name="city_id" required>
+                            <select class="form-select select2" id="city_id" name="city_id" required>
                                 <option value="">Select Country First</option>
                             </select>
                         </div>
@@ -100,12 +116,38 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function() {
+        // Initialize Select2 for country dropdown
+        $('#country').select2({
+            theme: 'bootstrap-5',
+            placeholder: "Search and Select Country",
+            allowClear: true,
+            width: '100%'
+        });
+        
+        // Initialize Select2 for city dropdown
+        $('#city_id').select2({
+            theme: 'bootstrap-5',
+            placeholder: "Search or type a new city",
+            allowClear: true,
+            width: '100%',
+            tags: true,
+            createTag: function(params) {
+                return {
+                    id: 'new:' + params.term,
+                    text: params.term,
+                    isNew: true
+                };
+            }
+        });
+
         // Function to load cities based on country selection
         function loadCities(countryId, selectedCityId = null) {
             if (!countryId) {
                 $('#city_id').html('<option value="">Select Country First</option>');
+                $('#city_id').trigger('change');
                 return;
             }
 
@@ -118,7 +160,7 @@
                 },
                 dataType: "json",
                 success: function(data) {
-                    var options = '<option value="">Select City</option>';
+                    var options = '<option value="">Select or type new city</option>';
                     $.each(data, function(key, value) {
                         options += '<option value="' + value.city_id + '"';
                         if (value.city_id == selectedCityId) {
@@ -127,12 +169,13 @@
                         options += '>' + value.name + '</option>';
                     });
                     $('#city_id').html(options);
+                    $('#city_id').trigger('change');
                 }
             });
         }
 
         // Load cities when country changes
-        $('#country').change(function() {
+        $('#country').on('change', function() {
             var countryId = $(this).val();
             loadCities(countryId);
         });

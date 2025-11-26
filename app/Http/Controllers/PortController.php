@@ -139,7 +139,50 @@ class PortController extends Controller
     {
         $port = Port::where('port_id', $port_id)->firstOrFail();
         
-        $validator = Validator::make($request->all(), [
+        $cityInput = $request->input('city_id');
+        $cityIdToUse = null;
+
+        if (Str::startsWith($cityInput, 'new:')) {
+            $cityName = trim(substr($cityInput, 4));
+
+            // Check if the city already exists
+            $existingCity = City::where('name', $cityName)
+                ->where('country', $request->country)
+                ->first();
+
+            if ($existingCity) {
+                $cityIdToUse = $existingCity->city_id;
+            } else {
+                // Generate new custom city_id
+                $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+                $lastCity_max_city_id = $lastCity->city_id ?? 0;
+                $newCityId = CommonHelper::createId($lastCity_max_city_id);
+
+                // Ensure uniqueness of city_id
+                while (City::where('city_id', $newCityId)->exists()) {
+                    $newCityId = CommonHelper::createId($newCityId);
+                }
+
+                // Generate new custom ID
+                $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
+                $newId = $lastDbId + 1;
+
+                // Create city
+                $newCity = City::create([
+                    'id' => $newId,
+                    'name' => $cityName,
+                    'country' => $request->country,
+                    'city_id' => $newCityId,
+                ]);
+
+                $cityIdToUse = $newCity->city_id;
+            }
+        } else {
+            $cityIdToUse = $cityInput;
+        }
+
+        // Validate after resolving final city_id
+        $validator = Validator::make(array_merge($request->all(), ['city_id' => $cityIdToUse]), [
             'port_name' => 'required|string|max:255',
             'type' => 'required|in:Airport,Seaport,LandPort,Railway,BusStand',
             'country' => 'required',
@@ -155,6 +198,7 @@ class PortController extends Controller
         }
         $data = $validator->validated();
         $data['status'] = $request->has('status') ? true : false;
+        $data['city_id'] = $cityIdToUse;
         $port->update($data);
         return redirect()->route('ports.index')->with('success', 'Port updated successfully');
     }
