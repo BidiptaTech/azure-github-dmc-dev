@@ -624,11 +624,10 @@
             });
         }
         
-        // Initialize Select2 for city
+        // Initialize Select2 for city (only select from existing cities)
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
-            tags: true,
             width: '100%'
         });
     });

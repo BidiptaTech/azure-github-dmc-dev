@@ -462,7 +462,7 @@
                                 
                                 <div class="col-md-2">
                                     <label class="form-label fw-semibold">Price</label>
-                                    <input type="text" class="form-control" id="roomPriceDisplay" value="$0.00" readonly style="background-color: #f8f9fa; font-weight: bold; color: #198754;"> 
+                                    <input type="text" class="form-control" id="roomPriceDisplay" value="$0.00" style="background-color: #f8f9fa; font-weight: bold; color: #198754;"> 
                                 </div>
                                 
                                 <div class="col-md-1 d-flex align-items-end">
@@ -8817,6 +8817,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     : parseFloat(selectedOption.dataset.doubleWeekendPrice) || 0;
             }
         }
+
+        const customRoomPrice = document.getElementById('roomPriceDisplay').value;
+        const customRoomPriceNum = parseFloat(customRoomPrice.replace('$', ''));
+
+        console.log('Custom room price:', customRoomPrice);
+        if((customRoomPriceNum)*(weekdayNights+weekendNights) === totalRoomPrice*numberOfRooms) {
+            console.log('Custom room price is correct');
+        } else {
+            console.log('totalRoomPrice before correction:', totalRoomPrice);
+            totalRoomPrice = (customRoomPriceNum/numberOfRooms);
+            console.log('totalRoomPrice after correction:', totalRoomPrice);
+            console.log('Custom room price is incorrect',(customRoomPriceNum)*(weekdayNights+weekendNights), totalRoomPrice*numberOfRooms);
+            console.log('custom room price:', customRoomPriceNum);
+            console.log('Weekday nights:', weekdayNights);
+            console.log('Weekend nights:', weekendNights);
+            console.log('Total room price:', totalRoomPrice);
+            console.log('Number of rooms:', numberOfRooms);
+            console.log('Total nights:', nightNumbers.length);
+            console.log('Total nights:', nightNumbers.length);
+        }
+
         
         const hotelData = {
             id: hotelSelect.value,
@@ -8836,6 +8857,7 @@ document.addEventListener('DOMContentLoaded', function() {
             weekendNights: weekendNights, // Number of weekend nights
             weekdayPrice: storedWeekdayPrice, // Store weekday price for recalculation
             weekendPrice: storedWeekendPrice, // Store weekend price for recalculation
+            customRoomPrice: customRoomPriceNum, // Store custom room price for display
             mealPlan: mealPlan || 'Not specified',
             mealPrices: mealPrices, // Store meal prices for calculation
             numberOfRooms: numberOfRooms,
@@ -9028,6 +9050,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     })() : ''}
                                                     $${(hotel.price || 0) * hotel.numberOfRooms}
                                                 </span>
+                                               <span> Custom Room Cost: $${hotel.customRoomPrice}</span>
                                             </div>
                                             ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
                                                 <div class="d-flex justify-content-between">
@@ -20624,67 +20647,117 @@ window.saveService = function(day, type) {
                 };
 
                 // Agency-Agent Dependent Dropdown Functionality
+                // Handle agency change to load agents (using Select2 event)
                 document.addEventListener('DOMContentLoaded', function() {
-                    const agencySelect = document.getElementById('agency_id');
-                    const agentSelect = document.getElementById('agent_id');
-                    
-                    if (agencySelect && agentSelect && !agencySelect.disabled) {
-                        agencySelect.addEventListener('change', function() {
-                            const agencyId = this.value;
-                            
-                            // Clear agent dropdown
-                            agentSelect.innerHTML = '<option value="">Choose agent...</option>';
-                            
-                            if (agencyId) {
-                                // Show loading state
-                                agentSelect.innerHTML = '<option value="">Loading agents...</option>';
-                                agentSelect.disabled = true;
-                                
-                                // Make AJAX request to get agents by agency
-                                fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${agencyId}`, {
-                                    method: 'GET',
-                                    headers: {
-                                        'Accept': 'application/json',
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                                    }
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    // Clear loading state
-                                    agentSelect.innerHTML = '<option value="">Choose agent...</option>';
-                                    
-                                    if (data.success && data.agents && data.agents.length > 0) {
-                                        // Populate agent dropdown
-                                        data.agents.forEach(agent => {
-                                            const option = document.createElement('option');
-                                            option.value = agent.agent_id;
-                                            option.textContent = agent.name;
-                                            agentSelect.appendChild(option);
-                                        });
-                                        
-                                        console.log(`Loaded ${data.agents.length} agents for agency ${agencyId}`);
-                                    } else {
-                                        console.log('No agents found for selected agency');
-                                        agentSelect.innerHTML = '<option value="">No agents found</option>';
-                                    }
-                                    
-                                    agentSelect.disabled = false;
-                                })
-                                .catch(error => {
-                                    console.error('Error fetching agents:', error);
-                                    agentSelect.innerHTML = '<option value="">Error loading agents</option>';
-                                    agentSelect.disabled = false;
-                                    
-                                    // Show user-friendly error message
-                                    alert('Error loading agents. Please try again.');
-                                });
-                            } else {
-                                // Reset to default state when no agency is selected
-                                agentSelect.disabled = false;
-                            }
-                        });
+                    // Wait for jQuery to be available
+                    if (typeof jQuery === 'undefined') {
+                        console.error('jQuery is not loaded');
+                        return;
                     }
+                    
+                    const agentSelect = document.getElementById('agent_id');
+                    const $agentSelect = jQuery('#agent_id');
+                    const isAgentDisabled = agentSelect && agentSelect.hasAttribute('disabled');
+                    
+                    // Handle agency change using Select2 event
+                    jQuery('#agency_id').on('change', function() {
+                        const agencyId = jQuery(this).val();
+                        
+                        if (!agentSelect) return;
+                        
+                        // Clear agent dropdown
+                        agentSelect.innerHTML = '<option value="">Choose agent...</option>';
+                        $agentSelect.val(null).trigger('change');
+                        
+                        if (agencyId) {
+                            // Show loading state
+                            agentSelect.innerHTML = '<option value="">Loading agents...</option>';
+                            $agentSelect.prop('disabled', true);
+                            
+                            // Make AJAX request to get agents by agency
+                            fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${agencyId}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                // Clear loading state
+                                agentSelect.innerHTML = '<option value="">Choose agent...</option>';
+                                
+                                if (data.success && data.agents && data.agents.length > 0) {
+                                    // Populate agent dropdown
+                                    data.agents.forEach(agent => {
+                                        const option = document.createElement('option');
+                                        option.value = agent.agent_id;
+                                        option.textContent = agent.name;
+                                        agentSelect.appendChild(option);
+                                    });
+                                    
+                                    console.log(`Loaded ${data.agents.length} agents for agency ${agencyId}`);
+                                } else {
+                                    console.log('No agents found for selected agency');
+                                    agentSelect.innerHTML = '<option value="">No agents found</option>';
+                                }
+                                
+                                // Destroy and reinitialize Select2 to recognize new options
+                                $agentSelect.select2('destroy');
+                                jQuery('#agent_id').select2({
+                                    placeholder: "Choose agent...",
+                                    allowClear: true,
+                                    width: '100%'
+                                });
+                                
+                                // Re-enable agent select (unless it was originally disabled due to enquiry)
+                                if (!isAgentDisabled) {
+                                    $agentSelect.prop('disabled', false);
+                                } else {
+                                    $agentSelect.prop('disabled', true);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching agents:', error);
+                                agentSelect.innerHTML = '<option value="">Error loading agents</option>';
+                                
+                                // Destroy and reinitialize Select2
+                                $agentSelect.select2('destroy');
+                                $agentSelect.select2({
+                                    placeholder: "Choose agent...",
+                                    allowClear: true,
+                                    width: '100%'
+                                });
+                                
+                                // Re-enable agent select (unless it was originally disabled due to enquiry)
+                                if (!isAgentDisabled) {
+                                    $agentSelect.prop('disabled', false);
+                                } else {
+                                    $agentSelect.prop('disabled', true);
+                                }
+                                
+                                // Show user-friendly error message
+                                alert('Error loading agents. Please try again.');
+                            });
+                        } else {
+                            // Reset to default state when no agency is selected
+                            // Destroy and reinitialize Select2
+                            $agentSelect.select2('destroy');
+                            jQuery('#agent_id').select2({
+                                placeholder: "Choose agent...",
+                                allowClear: true,
+                                width: '100%'
+                            });
+                            
+                            // Re-enable agent select (unless it was originally disabled due to enquiry)
+                            if (!isAgentDisabled) {
+                                $agentSelect.prop('disabled', false);
+                            } else {
+                                $agentSelect.prop('disabled', true);
+                            }
+                        }
+                    });
                 });
 
 // Transport Service Type Handling Functions

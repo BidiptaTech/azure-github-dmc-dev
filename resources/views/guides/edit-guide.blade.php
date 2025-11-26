@@ -301,7 +301,7 @@
                                 </label>
                                 
                                 @if(in_array(auth()->user()->role_id, [1, 20]))
-                                    <select class="form-control" id="country" name="country" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                    <select class="form-control" id="country" name="country" required disabled onchange="validateDriverAge(document.getElementById('driver_age'))">
                                         <option value="">Select Country</option>
                                         @foreach($country as $countryOption)
                                             <option value="{{ $countryOption->name }}" 
@@ -310,6 +310,7 @@
                                             </option>
                                         @endforeach
                                     </select>
+                                    <input type="hidden" name="country" value="{{ $guide->country }}">
                                 @else
                                     <input id="country" class="form-control" type="text" value="{{$guide->country}}" onchange="validateDriverAge(document.getElementById('driver_age'))" readonly>
                                 @endif
@@ -783,60 +784,74 @@
             maxHeight: 500,   
             placeholder: 'Enter your content here...', 
         });
-        // Initialize Select2 for city
+        // Initialize Select2 for city (only select from existing cities)
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
-            tags: true,
             width: '100%'
         });
         
         // Handle country change for role_id 1 and 20 to load cities
         var userRoleId = {{ auth()->user()->role_id }};
         if ([1, 20].includes(userRoleId)) {
-            $('#country').change(function() {
+            $('#country').on('change', function() {
                 var countryName = $(this).val();
+                var selectedCountryValue = $(this).val();
                 
-                // Clear city select
-                $('#citySelect').empty().trigger('change');
-                
-                if (countryName) {
-                    // Show loading state
-                    $('#citySelect').append('<option value="">Loading cities...</option>').trigger('change');
-                    
-                    $.ajax({
-                        url: "{{ route('get.cities.by.country') }}",
-                        type: "GET",
-                        data: { 
-                            country: countryName
-                        },
-                        dataType: 'json',
-                        success: function(response) {
-                            // Clear loading state
-                            $('#citySelect').empty();
-                            
-                            // Add default option
-                            $('#citySelect').append('<option value="">Select or type a city</option>');
-                            
-                            // Add cities from response
-                            if (response.cities && response.cities.length > 0) {
-                                $.each(response.cities, function(key, city) {
-                                    $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
-                                });
-                            }
-                            
-                            // Trigger change to refresh Select2
-                            $('#citySelect').trigger('change');
-                        },
-                        error: function(xhr, status, error) {
-                            $('#citySelect').empty();
-                            $('#citySelect').append('<option value="">Error loading cities</option>');
-                            $('#citySelect').trigger('change');
-                        }
-                    });
-                } else {
-                    $('#citySelect').append('<option value="">Select a country first</option>').trigger('change');
+                if (!selectedCountryValue || selectedCountryValue === '') {
+                    // Country cleared, disable city field
+                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+                    return;
                 }
+                
+                // Show loading state and disable city field
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
+                
+                $.ajax({
+                    url: "{{ route('get.cities.by.country') }}",
+                    type: "GET",
+                    data: { 
+                        country: countryName
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        // Clear loading state
+                        $('#citySelect').empty();
+                        
+                        // Preserve current city if it exists in the new list
+                        var currentCity = '{{ $guide->city }}';
+                        var cityFound = false;
+                        
+                        // Add default option
+                        $('#citySelect').append('<option value="">Select a City</option>');
+                        
+                        // Add cities from response
+                        if (response.cities && response.cities.length > 0) {
+                            $.each(response.cities, function(key, city) {
+                                var isSelected = (city.name === currentCity) ? 'selected' : '';
+                                if (isSelected) cityFound = true;
+                                $('#citySelect').append('<option value="' + city.name + '" ' + isSelected + '>' + city.name + '</option>');
+                            });
+                            // Enable city field when cities are loaded
+                            $('#citySelect').prop('disabled', false);
+                        } else {
+                            // No cities found, keep disabled
+                            $('#citySelect').append('<option value="">No cities available</option>');
+                        }
+                        
+                        // If current city not found, add it as selected option
+                        if (currentCity && !cityFound) {
+                            $('#citySelect').append('<option value="' + currentCity + '" selected>' + currentCity + '</option>');
+                            $('#citySelect').prop('disabled', false);
+                        }
+                        
+                        // Trigger change to refresh Select2
+                        $('#citySelect').trigger('change');
+                    },
+                    error: function(xhr, status, error) {
+                        $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+                    }
+                });
             });
         }
     });

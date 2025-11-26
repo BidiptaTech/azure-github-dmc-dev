@@ -214,7 +214,7 @@
                             <!-- Ownership -->
                             <div class="col-md-3 mb-3">
                                 <label for="owned_by" class="form-label"><strong>Ownership</strong><span class="text-danger">*</span></label>
-                                <select name="owned_by" class="form-select" required 
+                                <select name="owned_by" id="owned_by" class="form-control" required 
                                         @if(in_array(auth()->user()->role_id, [11, 35, 78, 120, 139, 140])) disabled @endif>
                                     <option value="" {{ is_null($restaurant->owned_by) ? 'selected' : '' }}>Select</option>
                                     <option value="0" {{ $restaurant->owned_by === "0" ? 'selected' : '' }}>Third Party</option>
@@ -626,11 +626,18 @@
             });
         }
         
-        // Initialize Select2 for city
+        // Initialize Select2 for city (only select from existing cities)
         $('#citySelect').select2({
             placeholder: "Search and Select a City",
             allowClear: true,
-            tags: true,
+            width: '100%',
+            disabled: isReadOnly
+        });
+        
+        // Initialize Select2 for Ownership
+        $('#owned_by').select2({
+            placeholder: "Search and Select Ownership",
+            allowClear: true,
             width: '100%',
             disabled: isReadOnly
         });

@@ -837,11 +837,13 @@
                                     // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
                                     $baseAmount = round($tourTotalPrice) - $discountAmount;
                                     
-                                    // Calculate tax amount and final amount with tax
-                                    $taxPercentage = $country_tax ?? 0;
-                                    $taxAmount = ($baseAmount * $taxPercentage) / 100;
-                                    // Apply ceiling to tax amount (round up to next whole number)
-                                    $taxAmount = ceil($taxAmount);
+                                    // Calculate tax amount using TaxHelper
+                                    $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
+                                    $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+                                    
+                                    $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+                                    $taxAmount = $taxResult['total_tax'];
+                                    $taxBreakdown = $taxResult['breakdown'];
                                     $finalAmount = $baseAmount + $taxAmount;
                                     
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -962,6 +964,11 @@
                                     <a href="{{ route('bookings.view-tour', Crypt::encrypt($tour->tour_id)) }}" 
                                        class="btn btn-outline-primary btn-sm rounded-pill">
                                         <i class="ri-eye-line"></i> Audit Trail
+                                    </a>
+                                    <a href="{{ route('tour.itinerary.pdf', ['tourId' => $tour->tour_id]) }}" 
+                                       class="btn btn-outline-secondary btn-sm rounded-pill"
+                                       target="_blank">
+                                        <i class="ri-file-download-line me-1"></i> Download Quotation
                                     </a>
                                     
                                     @php
@@ -3517,6 +3524,9 @@
         $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
         $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
         
+        // Debug: Log the taxes data for this tour
+        \Log::info('Tour #' . $tour->tour_id . ' Taxes Data:', ['taxes' => $tour->taxes, 'persons' => $persons, 'days' => $days, 'baseAmount' => $baseAmount]);
+        
         $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
         $taxAmount = $taxResult['total_tax'];
         $taxBreakdown = $taxResult['breakdown'];
@@ -3524,10 +3534,14 @@
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
         $totalPaid = 0;
+        $hasPendingPayments = false;
         if (is_array($paymentData) && !empty($paymentData)) {
             foreach ($paymentData as $payment) {
                 if (isset($payment['status']) && $payment['status'] == 1) {
                     $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
+                }
+                if (isset($payment['status']) && $payment['status'] == 0) {
+                    $hasPendingPayments = true;
                 }
             }
         }
@@ -3664,8 +3678,20 @@
                             <div class="col-md-3">
                                 <div class="card bg-info text-white" style="border-radius: 10px;">
                                     <div class="card-body text-center py-2 px-3">
-                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;">Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif</h6>
+                                        <h6 class="card-title mb-1" style="font-size: 0.85rem; font-weight: 600;" 
+                                            @if(!empty($taxBreakdown))
+                                                title="{{ \App\Helpers\TaxHelper::formatTaxBreakdown($taxBreakdown) }}"
+                                            @endif>
+                                            Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }} taxes)@endif
+                                        </h6>
                                         <h5 class="mb-0" style="font-size: 1.2rem; font-weight: bold;">{{ number_format($taxAmount, 2) }}</h5>
+                                        @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
+                                            <small style="font-size: 0.65rem; opacity: 0.9;">
+                                                @foreach($taxBreakdown as $taxName => $taxVal)
+                                                    {{ $taxName }}: {{ number_format($taxVal, 2) }}@if(!$loop->last), @endif
+                                                @endforeach
+                                            </small>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
