@@ -402,39 +402,47 @@ const SearchBar = ({ onLocationSelect }) => {
               </button>
             )} */}
             
-            {isCountryDropdownOpen && countrySuggestions.length > 0 && (
+            {isCountryDropdownOpen && (
               <div className="shadow-2 dropdown-menu min-width-200 show">
                 <div className="px-20 py-20 bg-white rounded-4">
-                  <ul 
-                    className="y-gap-5 js-results" 
-                    ref={countryListRef}
-                    style={{
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      scrollbarWidth: 'thin',
-                      scrollbarColor: '#ccc #f1f1f1'
-                    }}
-                  >
-                    {countrySuggestions.map((country, index) => (
-                      <li
-                        className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
-                          highlightedIndex === index ? "bg-light-2" : ""
-                        }`}
-                        key={country.key || `country-${index}`}
-                        role="button"
-                        onClick={(e) => handleCountrySelect(country, e)}
-                      >
-                        <div className="d-flex align-items-center">
-                          <div className="icon-location-2 text-light-1 text-16 mr-5" />
-                          <div>
-                            <div className="text-14 lh-12 fw-500 js-search-option-target">
-                              {country.name}
+                  {countrySuggestions.length > 0 ? (
+                    <ul 
+                      className="y-gap-5 js-results" 
+                      ref={countryListRef}
+                      style={{
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#ccc #f1f1f1'
+                      }}
+                    >
+                      {countrySuggestions.map((country, index) => (
+                        <li
+                          className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
+                            highlightedIndex === index ? "bg-light-2" : ""
+                          }`}
+                          key={country.key || `country-${index}`}
+                          role="button"
+                          onClick={(e) => handleCountrySelect(country, e)}
+                        >
+                          <div className="d-flex align-items-center">
+                            <div className="icon-location-2 text-light-1 text-16 mr-5" />
+                            <div>
+                              <div className="text-14 lh-12 fw-500 js-search-option-target">
+                                {country.name}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-center py-20">
+                      <div className="text-14 text-light-1 lh-16">
+                        {searchValueCountry ? "No country found" : "No results found"}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -480,39 +488,47 @@ const SearchBar = ({ onLocationSelect }) => {
               </button>
             )}
             
-            {isCityDropdownOpen && citySuggestions.length > 0 && (
+            {isCityDropdownOpen && (
               <div className="shadow-2 dropdown-menu min-width-200 show">
                 <div className="px-20 py-20 bg-white rounded-4">
-                  <ul 
-                    className="y-gap-5 js-results" 
-                    ref={cityListRef}
-                    style={{
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      scrollbarWidth: 'thin',
-                      scrollbarColor: '#ccc #f1f1f1'
-                    }}
-                  >
-                    {citySuggestions.map((city, index) => (
-                      <li
-                        className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
-                          highlightedIndex === index ? "bg-light-2" : ""
-                        }`}
-                        key={city.key || `city-${index}`}
-                        role="button"
-                        onClick={(e) => handleCitySelect(city, e)}
-                      >
-                        <div className="d-flex align-items-center">
-                          <div className="icon-location-2 text-light-1 text-16 mr-5" />
-                          <div>
-                            <div className="text-14 lh-12 fw-500 js-search-option-target">
-                              {city.name}
+                  {citySuggestions.length > 0 ? (
+                    <ul 
+                      className="y-gap-5 js-results" 
+                      ref={cityListRef}
+                      style={{
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#ccc #f1f1f1'
+                      }}
+                    >
+                      {citySuggestions.map((city, index) => (
+                        <li
+                          className={`-link d-block col-12 text-left rounded-4 px-10 py-10 js-search-option ${
+                            highlightedIndex === index ? "bg-light-2" : ""
+                          }`}
+                          key={city.key || `city-${index}`}
+                          role="button"
+                          onClick={(e) => handleCitySelect(city, e)}
+                        >
+                          <div className="d-flex align-items-center">
+                            <div className="icon-location-2 text-light-1 text-16 mr-5" />
+                            <div>
+                              <div className="text-14 lh-12 fw-500 js-search-option-target">
+                                {city.name}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-center py-20">
+                      <div className="text-14 text-light-1 lh-16">
+                        {searchValueCity ? "No city found" : "No results found"}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
