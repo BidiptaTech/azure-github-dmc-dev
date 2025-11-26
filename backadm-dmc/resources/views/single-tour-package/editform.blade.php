@@ -1423,10 +1423,10 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-2">
+                                                        <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
                                                             <input type="number" class="form-control border-2" name="passenger_count" min="1" value="{{ $passengers }}" placeholder="Count">
-                                                        </div>
+                                                        </div> -->
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_entry_port"></div>
@@ -1554,7 +1554,7 @@
                                                         <input type="text" class="form-control border-2" name="meal_type" value="{{ $mealType }}" placeholder="Lunch, Dinner">
                                                     </div>
                                                     <div class="col-md-3">
-                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Specific Type</label>
+                                                        <label class="form-label fw-semibold text-muted mb-1"><i class="ri-cup-line me-1 text-info"></i>Dish Type</label>
                                                         <input type="text" class="form-control border-2" name="meal_specific_type" value="{{ $mealSpecificType }}" placeholder="Buffet, À la carte">
                                                     </div>
                                                     <div class="col-md-3">
@@ -2012,7 +2012,122 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-warning"></i>Time Slot</label>
-                                                    <input type="text" class="form-control border-2" name="visit_time" value="{{ $timeSlot }}" placeholder="e.g. 11:00 - 13:00">
+                                                    <select class="form-select border-2" name="visit_time" id="visit_time_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Time Slot</option>
+                                                        @php
+                                                            // Find the selected attraction to populate time slots from database
+                                                            $selectedAttraction = null;
+                                                            $timeSlotsFound = false;
+                                                            if ($attractionName) {
+                                                                $selectedAttraction = collect($filteredAttractions)->first(function($attraction) use ($attractionName) {
+                                                                    return $attraction->name == $attractionName;
+                                                                });
+                                                            }
+                                                        @endphp
+                                                        @if($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots) && count($selectedAttraction->time_slots) > 0)
+                                                            @php $timeSlotsFound = true; @endphp
+                                                            @foreach($selectedAttraction->time_slots as $slotData)
+                                                                @php
+                                                                    $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                    $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot);
+                                                                @endphp
+                                                                <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                    {{ $slotText }}
+                                                                </option>
+                                                            @endforeach
+                                                        @elseif($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time)
+                                                            @php $timeSlotsFound = true; @endphp
+                                                            @php
+                                                                // Parse open_time from database (can be JSON array or string)
+                                                                $openTimes = [];
+                                                                if (is_array($selectedAttraction->open_time)) {
+                                                                    $openTimes = $selectedAttraction->open_time;
+                                                                } elseif (is_string($selectedAttraction->open_time)) {
+                                                                    $decoded = json_decode($selectedAttraction->open_time, true);
+                                                                    $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
+                                                                }
+                                                                
+                                                                // Parse close_time from database (can be JSON array or string)
+                                                                $closeTimes = [];
+                                                                if (is_array($selectedAttraction->close_time)) {
+                                                                    $closeTimes = $selectedAttraction->close_time;
+                                                                } elseif (is_string($selectedAttraction->close_time)) {
+                                                                    $decoded = json_decode($selectedAttraction->close_time, true);
+                                                                    $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
+                                                                }
+                                                            @endphp
+                                                            @if(!empty($openTimes) && !empty($closeTimes))
+                                                                @foreach($openTimes as $index => $openTime)
+                                                                    @php
+                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
+                                                                        if ($openTime && $closeTime) {
+                                                                            $slotValue = $openTime . ' - ' . $closeTime;
+                                                                            $isSelected = ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot));
+                                                                    } else {
+                                                                        continue;
+                                                                    }
+                                                                    @endphp
+                                                                    <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
+                                                                        {{ $slotValue }}
+                                                                    </option>
+                                                                @endforeach
+                                                            @endif
+                                                        @endif
+                                                        @if(!$timeSlotsFound)
+                                                            <option value="" disabled>Select an attraction to see available time slots</option>
+                                                        @endif
+                                                        @php
+                                                            // Add current time slot as option if it doesn't match any existing options
+                                                            if ($timeSlot && $timeSlot != 'N/A') {
+                                                                $timeSlotExists = false;
+                                                                // Check if time slot already exists in options
+                                                                if ($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots)) {
+                                                                    foreach($selectedAttraction->time_slots as $slotData) {
+                                                                        $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                        $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                        if ($slotValue == $timeSlot || $slotText == $timeSlot) {
+                                                                            $timeSlotExists = true;
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                } elseif ($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time) {
+                                                                    // Parse open_time and close_time from database
+                                                                    $openTimes = [];
+                                                                    if (is_array($selectedAttraction->open_time)) {
+                                                                        $openTimes = $selectedAttraction->open_time;
+                                                                    } elseif (is_string($selectedAttraction->open_time)) {
+                                                                        $decoded = json_decode($selectedAttraction->open_time, true);
+                                                                        $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
+                                                                    }
+                                                                    
+                                                                    $closeTimes = [];
+                                                                    if (is_array($selectedAttraction->close_time)) {
+                                                                        $closeTimes = $selectedAttraction->close_time;
+                                                                    } elseif (is_string($selectedAttraction->close_time)) {
+                                                                        $decoded = json_decode($selectedAttraction->close_time, true);
+                                                                        $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
+                                                                    }
+                                                                    
+                                                                    foreach($openTimes as $index => $openTime) {
+                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
+                                                                        if ($openTime && $closeTime) {
+                                                                            $slotValue = $openTime . ' - ' . $closeTime;
+                                                                            if ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot)) {
+                                                                                $timeSlotExists = true;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                                // If current time slot doesn't exist in database options, add it to preserve the value
+                                                                if (!$timeSlotExists) {
+                                                                    echo '<option value="' . htmlspecialchars($timeSlot) . '" selected>' . htmlspecialchars($timeSlot) . '</option>';
+                                                                }
+                                                            }
+                                                        @endphp
+                                                    </select>
+                                                    <small class="text-muted">Available time slots from database</small>
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
@@ -2153,11 +2268,13 @@
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label class="form-label fw-semibold text-muted mb-1"><i class="ri-time-line me-1 text-info"></i>Pickup Time</label>
-                                                    <input type="text" class="form-control border-2" name="pickup_time" value="{{ $pickupTime }}" placeholder="HH:MM or text">
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-semibold text-muted mb-1"><i class="ri-group-line me-1 text-secondary"></i>Guests</label>
-                                                    <input type="text" class="form-control border-2" name="guest_name" value="{{ $guestSummary }}" placeholder="Guest name(s)">
+                                                    <select class="form-select border-2" name="pickup_time" id="guide_pickup_time_{{ $order->booking_id }}" required>
+                                                        <option value="">Select Guide First</option>
+                                                        @if($pickupTime)
+                                                            <option value="{{ $pickupTime }}" selected>{{ $pickupTime }}</option>
+                                                        @endif
+                                                    </select>
+                                                    <small class="text-muted">Available times from selected guide</small>
                                                 </div>
                                             </div>
                                             <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2292,10 +2409,10 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-2">
+                                                        <!-- <div class="col-md-2">
                                                             <label class="form-label fw-semibold text-muted mb-1">Passengers</label>
                                                             <input type="number" class="form-control border-2" name="passenger_count" min="1" value="{{ $passengers }}" placeholder="Count">
-                                                        </div>
+                                                        </div> -->
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_exit_port"></div>
@@ -4678,7 +4795,120 @@
         initializeModalAccessibility();
         // Initialize person selector with default max occupancy of 2 (no extra bed by default)
         generatePersonSelector(2, false);
+        // Initialize attraction time slot selects for existing forms
+        initializeExistingAttractionTimeSlots();
     });
+    
+    // Function to populate time slot select from attraction data
+    function populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect, currentValue = '') {
+        if (!attractionSelect || !timeSlotSelect) return;
+        
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            return;
+        }
+        
+        try {
+            const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction-data'));
+            timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+            
+            // Use time_slots from database if available
+            if (attractionData.time_slots && Array.isArray(attractionData.time_slots) && attractionData.time_slots.length > 0) {
+                attractionData.time_slots.forEach(timeSlot => {
+                    const timeOption = document.createElement('option');
+                    const slotValue = timeSlot.slot || timeSlot.open || '';
+                    const slotText = timeSlot.slot || (timeSlot.open + (timeSlot.close ? ' - ' + timeSlot.close : ''));
+                    timeOption.value = slotValue;
+                    timeOption.textContent = slotText;
+                    if (currentValue && (slotValue === currentValue || slotText === currentValue)) {
+                        timeOption.selected = true;
+                    }
+                    timeSlotSelect.appendChild(timeOption);
+                });
+            } else if (attractionData.open_time && attractionData.close_time) {
+                // Fallback: generate time slot from open_time and close_time
+                let openTimes = [];
+                let closeTimes = [];
+                
+                // Parse open_time
+                if (Array.isArray(attractionData.open_time)) {
+                    openTimes = attractionData.open_time;
+                } else if (typeof attractionData.open_time === 'string') {
+                    try {
+                        const parsed = JSON.parse(attractionData.open_time);
+                        openTimes = Array.isArray(parsed) ? parsed : [attractionData.open_time];
+                    } catch {
+                        openTimes = [attractionData.open_time];
+                    }
+                }
+                
+                // Parse close_time
+                if (Array.isArray(attractionData.close_time)) {
+                    closeTimes = attractionData.close_time;
+                } else if (typeof attractionData.close_time === 'string') {
+                    try {
+                        const parsed = JSON.parse(attractionData.close_time);
+                        closeTimes = Array.isArray(parsed) ? parsed : [attractionData.close_time];
+                    } catch {
+                        closeTimes = [attractionData.close_time];
+                    }
+                }
+                
+                // Generate time slots
+                if (openTimes.length > 0 && closeTimes.length > 0) {
+                    openTimes.forEach((openTime, index) => {
+                        const closeTime = closeTimes[index] || closeTimes[0];
+                        const timeOption = document.createElement('option');
+                        const slotValue = openTime + ' - ' + closeTime;
+                        timeOption.value = slotValue;
+                        timeOption.textContent = slotValue;
+                        if (currentValue && (slotValue === currentValue || slotValue.includes(currentValue))) {
+                            timeOption.selected = true;
+                        }
+                        timeSlotSelect.appendChild(timeOption);
+                    });
+                }
+            }
+            
+            // If no time slots found from database, show message
+            if (timeSlotSelect.options.length === 1) {
+                const noSlotOption = document.createElement('option');
+                noSlotOption.value = '';
+                noSlotOption.textContent = 'No time slots available for this attraction';
+                noSlotOption.disabled = true;
+                timeSlotSelect.appendChild(noSlotOption);
+            }
+        } catch (error) {
+            console.error('Error parsing attraction data:', error);
+            timeSlotSelect.innerHTML = '<option value="">Error loading time slots</option>';
+        }
+    }
+    
+    // Initialize time slot selects for existing attraction forms
+    function initializeExistingAttractionTimeSlots() {
+        // Find all attraction select boxes in existing forms
+        const attractionSelects = document.querySelectorAll('select[id^="attraction_name_"]');
+        
+        attractionSelects.forEach(attractionSelect => {
+            const bookingId = attractionSelect.id.replace('attraction_name_', '');
+            // Try both visit_time and time_slot field names
+            const timeSlotSelect = document.getElementById(`visit_time_${bookingId}`) || document.getElementById(`time_slot_${bookingId}`);
+            
+            if (timeSlotSelect) {
+                // Populate on page load if attraction is already selected
+                if (attractionSelect.value) {
+                    const currentTimeSlot = timeSlotSelect.value || '';
+                    populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect, currentTimeSlot);
+                }
+                
+                // Add change event listener
+                attractionSelect.addEventListener('change', function() {
+                    populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect);
+                });
+            }
+        });
+    }
     
 
     // Essential functions for edit page functionality
@@ -5047,15 +5277,72 @@
                 
                 console.log('Attraction selected:', attractionData);
 
-                // Set Time Slot Options
+                // Set Time Slot Options from attraction data
                 if (timeSlotSelect) {
-                    const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-                    timeSlots.forEach(time => {
-                        const timeOption = document.createElement('option');
-                        timeOption.value = time;
-                        timeOption.textContent = time;
-                        timeSlotSelect.appendChild(timeOption);
-                    });
+                    timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
+                    
+                    // Use time_slots from database if available
+                    if (attractionData.time_slots && Array.isArray(attractionData.time_slots) && attractionData.time_slots.length > 0) {
+                        attractionData.time_slots.forEach(timeSlot => {
+                            const timeOption = document.createElement('option');
+                            const slotValue = timeSlot.slot || (timeSlot.open + (timeSlot.close ? ' - ' + timeSlot.close : ''));
+                            const slotText = timeSlot.slot || (timeSlot.open + (timeSlot.close ? ' - ' + timeSlot.close : ''));
+                            timeOption.value = slotValue;
+                            timeOption.textContent = slotText;
+                            timeSlotSelect.appendChild(timeOption);
+                        });
+                    } else if (attractionData.open_time && attractionData.close_time) {
+                        // Generate time slots from open_time and close_time arrays
+                        let openTimes = [];
+                        let closeTimes = [];
+                        
+                        // Parse open_time
+                        if (Array.isArray(attractionData.open_time)) {
+                            openTimes = attractionData.open_time;
+                        } else if (typeof attractionData.open_time === 'string') {
+                            try {
+                                const parsed = JSON.parse(attractionData.open_time);
+                                openTimes = Array.isArray(parsed) ? parsed : [attractionData.open_time];
+                            } catch {
+                                openTimes = [attractionData.open_time];
+                            }
+                        }
+                        
+                        // Parse close_time
+                        if (Array.isArray(attractionData.close_time)) {
+                            closeTimes = attractionData.close_time;
+                        } else if (typeof attractionData.close_time === 'string') {
+                            try {
+                                const parsed = JSON.parse(attractionData.close_time);
+                                closeTimes = Array.isArray(parsed) ? parsed : [attractionData.close_time];
+                            } catch {
+                                closeTimes = [attractionData.close_time];
+                            }
+                        }
+                        
+                        // Generate time slot ranges from database
+                        if (openTimes.length > 0 && closeTimes.length > 0) {
+                            openTimes.forEach((openTime, index) => {
+                                const closeTime = closeTimes[index] || closeTimes[0];
+                                if (openTime && closeTime) {
+                                    const timeOption = document.createElement('option');
+                                    const slotValue = openTime + ' - ' + closeTime;
+                                    timeOption.value = slotValue;
+                                    timeOption.textContent = slotValue;
+                                    timeSlotSelect.appendChild(timeOption);
+                                }
+                            });
+                        }
+                    }
+                    
+                    // If no time slots found, show message
+                    if (timeSlotSelect.options.length === 1) {
+                        const noSlotOption = document.createElement('option');
+                        noSlotOption.value = '';
+                        noSlotOption.textContent = 'No time slots available for this attraction';
+                        noSlotOption.disabled = true;
+                        timeSlotSelect.appendChild(noSlotOption);
+                    }
                     
                     // Refresh Select2 if initialized
                     if (window.refreshSelect2) {
@@ -11860,8 +12147,35 @@
         }
     });
 
+    // Initialize guide pickup time dropdowns
+    function initializeGuidePickupTimeDropdowns() {
+        // Find all guide name select elements
+        const guideNameSelects = document.querySelectorAll('select[id^="guide_name_"]');
+        
+        guideNameSelects.forEach(guideSelect => {
+            // Extract booking ID from the select ID
+            const bookingId = guideSelect.id.replace('guide_name_', '');
+            
+            // Add change event listener (use once to avoid duplicates)
+            guideSelect.addEventListener('change', function() {
+                populateGuidePickupTimes(this, bookingId);
+            });
+            
+            // If a guide is already selected, populate times on load
+            if (guideSelect.value) {
+                // Use setTimeout to ensure DOM is ready
+                setTimeout(() => {
+                    populateGuidePickupTimes(guideSelect, bookingId);
+                }, 100);
+            }
+        });
+    }
+
     // Add event listeners to form fields for completion check
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize guide pickup time dropdowns
+        initializeGuidePickupTimeDropdowns();
+        
         // Point to Point fields
         const pickupTimeField = document.getElementById('local_transfer_point_pickup_time');
         const pickupDateField = document.getElementById('local_transfer_point_pickup_date');
@@ -12158,6 +12472,153 @@
             submitButton.disabled = false;
             spinner?.classList.add('d-none');
         }
+    }
+
+    // Function to populate pickup times from guide data
+    function populateGuidePickupTimes(guideSelect, bookingId) {
+        const pickupTimeSelect = document.getElementById(`guide_pickup_time_${bookingId}`);
+        if (!pickupTimeSelect) return;
+        
+        const selectedOption = guideSelect.options[guideSelect.selectedIndex];
+        // Get current value from the select or from the first option that has a value
+        let currentValue = pickupTimeSelect.value;
+        if (!currentValue && pickupTimeSelect.options.length > 1) {
+            // Check if there's a selected option with a value
+            for (let i = 0; i < pickupTimeSelect.options.length; i++) {
+                if (pickupTimeSelect.options[i].selected && pickupTimeSelect.options[i].value) {
+                    currentValue = pickupTimeSelect.options[i].value;
+                    break;
+                }
+            }
+        }
+        
+        // Clear existing options
+        pickupTimeSelect.innerHTML = '<option value="">Select Pickup Time</option>';
+        
+        if (!selectedOption || !selectedOption.value) {
+            return;
+        }
+        
+        // Get guide data from data attribute
+        const guideDataAttr = selectedOption.getAttribute('data-guide-data');
+        if (!guideDataAttr) {
+            // If no guide data, use default time slots
+            const defaultTimes = generateDefaultTimeSlots();
+            defaultTimes.forEach(time => {
+                const option = document.createElement('option');
+                option.value = time;
+                option.textContent = time;
+                if (time === currentValue) option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            });
+            return;
+        }
+        
+        try {
+            const guideData = JSON.parse(guideDataAttr);
+            let availableTimes = [];
+            
+            // Check if guide has available_times field (could be array or JSON string)
+            if (guideData.available_times) {
+                if (Array.isArray(guideData.available_times)) {
+                    availableTimes = guideData.available_times;
+                } else if (typeof guideData.available_times === 'string') {
+                    try {
+                        availableTimes = JSON.parse(guideData.available_times);
+                    } catch (e) {
+                        // If not JSON, treat as comma-separated string
+                        availableTimes = guideData.available_times.split(',').map(t => t.trim());
+                    }
+                }
+            }
+            
+            // If no available_times, check for other time-related fields or use defaults
+            if (availableTimes.length === 0) {
+                // Check for night_start_time and night_end_time to generate range
+                if (guideData.night_start_time && guideData.night_end_time) {
+                    availableTimes = generateTimeSlotsFromRange(guideData.night_start_time, guideData.night_end_time);
+                } else {
+                    // Use default time slots (every hour from 08:00 to 20:00)
+                    availableTimes = generateDefaultTimeSlots();
+                }
+            }
+            
+            // Populate the select box
+            availableTimes.forEach(time => {
+                const option = document.createElement('option');
+                option.value = time;
+                option.textContent = time;
+                if (time === currentValue) option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            });
+            
+            // If current value is not in the list, add it
+            if (currentValue && !availableTimes.includes(currentValue)) {
+                const option = document.createElement('option');
+                option.value = currentValue;
+                option.textContent = currentValue;
+                option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            }
+        } catch (error) {
+            console.error('Error parsing guide data:', error);
+            // Fallback to default time slots
+            const defaultTimes = generateDefaultTimeSlots();
+            defaultTimes.forEach(time => {
+                const option = document.createElement('option');
+                option.value = time;
+                option.textContent = time;
+                if (time === currentValue) option.selected = true;
+                pickupTimeSelect.appendChild(option);
+            });
+        }
+    }
+    
+    // Generate default time slots (08:00 to 20:00, every hour)
+    function generateDefaultTimeSlots() {
+        const times = [];
+        for (let hour = 8; hour <= 20; hour++) {
+            const timeStr = hour.toString().padStart(2, '0') + ':00';
+            times.push(timeStr);
+        }
+        return times;
+    }
+    
+    // Generate time slots from a time range
+    function generateTimeSlotsFromRange(startTime, endTime) {
+        const times = [];
+        try {
+            const start = parseTime(startTime);
+            const end = parseTime(endTime);
+            
+            if (start && end) {
+                let current = start;
+                while (current <= end) {
+                    const hours = Math.floor(current / 60);
+                    const minutes = current % 60;
+                    times.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+                    current += 60; // Add 1 hour
+                }
+            }
+        } catch (e) {
+            console.error('Error generating time slots from range:', e);
+        }
+        
+        return times.length > 0 ? times : generateDefaultTimeSlots();
+    }
+    
+    // Parse time string (HH:MM or HH:MM:SS) to minutes
+    function parseTime(timeStr) {
+        if (!timeStr) return null;
+        const parts = timeStr.toString().split(':');
+        if (parts.length >= 2) {
+            const hours = parseInt(parts[0], 10);
+            const minutes = parseInt(parts[1], 10);
+            if (!isNaN(hours) && !isNaN(minutes)) {
+                return hours * 60 + minutes;
+            }
+        }
+        return null;
     }
 
     async function updateExistingGuide(event, bookingId) {
