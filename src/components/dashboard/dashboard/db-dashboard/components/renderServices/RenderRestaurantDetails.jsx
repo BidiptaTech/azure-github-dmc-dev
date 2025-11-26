@@ -26,8 +26,12 @@ const RenderRestaurantDetails = ({ details, tabValue }) => {
 
   // Helper function to format date
   const formatDate = (dateString) => {
+    if (!dateString) return 'Date not specified';
     try {
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return dateString;
+      }
       return date.toLocaleDateString('en-US', { 
         weekday: 'short', 
         year: 'numeric', 
@@ -35,7 +39,7 @@ const RenderRestaurantDetails = ({ details, tabValue }) => {
         day: 'numeric' 
       });
     } catch {
-      return dateString;
+      return dateString || 'Date not specified';
     }
   };
 
@@ -48,30 +52,40 @@ const RenderRestaurantDetails = ({ details, tabValue }) => {
       default: return '#757575';
     }
   };
+
+  // Check if data is in date-grouped format or flat array format
+  const isDateGroupedFormat = details[0]?.date !== undefined && details[0]?.restaurants !== undefined;
+  
+  // Normalize data structure
+  const normalizedData = isDateGroupedFormat 
+    ? details 
+    : [{ date: null, restaurants: details }];
   
   return (
     <List sx={{ width: '100%', bgcolor: 'background.paper', p: 0 }}>
-      {details.map((dateEntry, dateIndex) => (
+      {normalizedData.map((dateEntry, dateIndex) => (
         <React.Fragment key={`date-${dateIndex}`}>
-          {/* Date Header */}
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 0.75, 
-              mb: 1.5,
-              p: 1,
-              bgcolor: 'rgba(25, 118, 210, 0.08)',
-              borderRadius: 1,
-              borderLeft: '3px solid',
-              borderLeftColor: 'primary.main'
-            }}
-          >
-            <CalendarIcon color="primary" sx={{ fontSize: 18 }} />
-            <Typography variant="body2" fontWeight={600} color="primary.main">
-              {formatDate(dateEntry.date)}
-            </Typography>
-          </Box>
+          {/* Date Header - only show if date exists */}
+          {dateEntry.date && (
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.75, 
+                mb: 1.5,
+                p: 1,
+                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                borderRadius: 1,
+                borderLeft: '3px solid',
+                borderLeftColor: 'primary.main'
+              }}
+            >
+              <CalendarIcon color="primary" sx={{ fontSize: 18 }} />
+              <Typography variant="body2" fontWeight={600} color="primary.main">
+                {formatDate(dateEntry.date)}
+              </Typography>
+            </Box>
+          )}
 
           {/* Restaurants for this date */}
           {dateEntry.restaurants?.map((restaurant, restIndex) => (
@@ -121,7 +135,7 @@ const RenderRestaurantDetails = ({ details, tabValue }) => {
                     </Box>
 
                     {/* Meals Section */}
-                    {restaurant.meals && restaurant.meals.length > 0 && (
+                    {restaurant.meals && restaurant.meals.length > 0 ? (
                       <Box sx={{ mt: 1 }}>
                         <Typography variant="caption" fontWeight={600} gutterBottom display="block" sx={{ mb: 1 }}>
                           Selected Meals:
@@ -255,6 +269,106 @@ const RenderRestaurantDetails = ({ details, tabValue }) => {
                           ))}
                         </Grid>
                       </Box>
+                    ) : (
+                      // Show available pricing when no meals are selected
+                      (restaurant.bf_price || restaurant.lunch_price || restaurant.dinner_price) && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="caption" fontWeight={600} gutterBottom display="block" sx={{ mb: 1 }}>
+                            Available Pricing:
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {restaurant.breakfast_available && restaurant.bf_price && (
+                              <Box 
+                                sx={{ 
+                                  px: 1.5, 
+                                  py: 0.5, 
+                                  bgcolor: 'rgba(255, 107, 53, 0.1)', 
+                                  borderRadius: 1,
+                                  display: 'flex',
+                                  gap: 0.5,
+                                  alignItems: 'center'
+                                }}
+                              >
+                                <Chip
+                                  label="Breakfast"
+                                  size="small"
+                                  sx={{
+                                    bgcolor: getMealPeriodColor('breakfast'),
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    fontSize: '0.65rem',
+                                    height: 20
+                                  }}
+                                />
+                                <Typography variant="caption" fontWeight={600} color="warning.main">
+                                  ${restaurant.bf_price}
+                                </Typography>
+                              </Box>
+                            )}
+                            {restaurant.lunch_available && restaurant.lunch_price && (
+                              <Box 
+                                sx={{ 
+                                  px: 1.5, 
+                                  py: 0.5, 
+                                  bgcolor: 'rgba(247, 147, 30, 0.1)', 
+                                  borderRadius: 1,
+                                  display: 'flex',
+                                  gap: 0.5,
+                                  alignItems: 'center'
+                                }}
+                              >
+                                <Chip
+                                  label="Lunch"
+                                  size="small"
+                                  sx={{
+                                    bgcolor: getMealPeriodColor('lunch'),
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    fontSize: '0.65rem',
+                                    height: 20
+                                  }}
+                                />
+                                <Typography variant="caption" fontWeight={600} color="warning.main">
+                                  ${restaurant.lunch_price}
+                                </Typography>
+                              </Box>
+                            )}
+                            {restaurant.dinner_available && restaurant.dinner_price && (
+                              <Box 
+                                sx={{ 
+                                  px: 1.5, 
+                                  py: 0.5, 
+                                  bgcolor: 'rgba(193, 18, 31, 0.1)', 
+                                  borderRadius: 1,
+                                  display: 'flex',
+                                  gap: 0.5,
+                                  alignItems: 'center'
+                                }}
+                              >
+                                <Chip
+                                  label="Dinner"
+                                  size="small"
+                                  sx={{
+                                    bgcolor: getMealPeriodColor('dinner'),
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    fontSize: '0.65rem',
+                                    height: 20
+                                  }}
+                                />
+                                <Typography variant="caption" fontWeight={600} color="warning.main">
+                                  ${restaurant.dinner_price}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                          {restaurant.cuisine && (
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                              Cuisine: {restaurant.cuisine}
+                            </Typography>
+                          )}
+                        </Box>
+                      )
                     )}
                   </Box>
                 </Box>
@@ -265,7 +379,7 @@ const RenderRestaurantDetails = ({ details, tabValue }) => {
             </React.Fragment>
           ))}
           
-          {dateIndex < details.length - 1 && <Divider sx={{ my: 2 }} />}
+          {dateIndex < normalizedData.length - 1 && <Divider sx={{ my: 2 }} />}
         </React.Fragment>
       ))}
     </List>

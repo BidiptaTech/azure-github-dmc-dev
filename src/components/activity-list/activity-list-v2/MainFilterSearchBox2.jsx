@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import LocationSearch from "./PortLocation";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 import {
   fetchVehicles,
   setentrypickup,
@@ -34,6 +35,7 @@ import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
 import PortCity from "./PortCity";
 
 const MainFilterSearchBox2 = ({ Location }) => {
+  console.log('🔍 Port MainFilterSearchBox2 - Component rendered/mounted');
   const dispatch = useDispatch();
 
   // State for storing the pickup and dropoff locations
@@ -259,19 +261,27 @@ const MainFilterSearchBox2 = ({ Location }) => {
   ]);
 
   // Handler for the button search click event
-  const buttonsearch = () => {
+  const buttonsearch = useCallback(() => {
+    console.log('🔍 Port MainFilterSearchBox2 - buttonsearch called');
+    console.log('🔍 Port MainFilterSearchBox2 - selectedPort:', selectedPort);
+    console.log('🔍 Port MainFilterSearchBox2 - selectedCity:', selectedCity);
+    console.log('🔍 Port MainFilterSearchBox2 - pickUpLocation:', pickUpLocation);
+    console.log('🔍 Port MainFilterSearchBox2 - exitpickUpLocation:', exitpickUpLocation);
+    
     // Set validation triggered to true when search button is clicked
     setValidationTriggered(true);
 
     // Check if city is selected
     if (!selectedCity) {
       setCityError(true);
+      console.log('🔍 Port MainFilterSearchBox2 - City not selected, returning');
       return;
     }
 
     // Check if all required fields are filled
     if (!isSearchButtonEnabled) {
       // Display validation errors but don't proceed with API call
+      console.log('🔍 Port MainFilterSearchBox2 - Search button not enabled, returning');
       return;
     }
 
@@ -290,9 +300,12 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
       // Only fetch vehicles if both locations are valid
       if (pickid && dropid) {
+        console.log('🔍 Port MainFilterSearchBox2 - Fetching zone vehicles for Entry Port');
         setTimeout(() => {
           dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
+      } else {
+        console.log('🔍 Port MainFilterSearchBox2 - Entry Port search skipped - pickid:', pickid, 'dropid:', dropid);
       }
     } else if (selectedPort === "Exit Port") {
       dispatch(setexitpickup(exitpickUpLocation));
@@ -308,12 +321,51 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
       // Only fetch vehicles if both locations are valid
       if (pickid && dropid) {
+        console.log('🔍 Port MainFilterSearchBox2 - Fetching zone vehicles for Exit Port');
         setTimeout(() => {
           dispatch(fetchZoneVehicles({ start: 0, limit: 5 }));
         }, 500);
+      } else {
+        console.log('🔍 Port MainFilterSearchBox2 - Exit Port search skipped - pickid:', pickid, 'dropid:', dropid);
       }
+    } else {
+      console.log('🔍 Port MainFilterSearchBox2 - No port selected');
     }
-  };
+  }, [
+    selectedPort,
+    selectedCity,
+    pickUpLocation,
+    exitpickUpLocation,
+    selectedDate,
+    selectedDate1,
+    entryytime,
+    entryytime1,
+    pickid,
+    dropid,
+    pickdropType,
+    isSearchButtonEnabled,
+    dispatch
+  ]);
+
+  // Listen for triggerSearch from Redux and call buttonsearch when port step is triggered
+  const searchTrigger = useSelector((state) => {
+    const trigger = state.steps.triggerSearch;
+    console.log('🔍 Port MainFilterSearchBox2 - Selector called, searchTrigger:', trigger);
+    return trigger;
+  });
+  
+  useEffect(() => {
+    console.log('🔍 Port MainFilterSearchBox2 - useEffect triggered, searchTrigger:', searchTrigger);
+    console.log('🔍 Port MainFilterSearchBox2 - Component is mounted and listening for triggers');
+    
+    if (searchTrigger === 'port') {
+      console.log('🔍 Port MainFilterSearchBox2 - Trigger search received for port, calling buttonsearch');
+      buttonsearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTrigger, dispatch]);
 
   // Handle location selection from PortCity
   const handleCitySelect = (city) => {

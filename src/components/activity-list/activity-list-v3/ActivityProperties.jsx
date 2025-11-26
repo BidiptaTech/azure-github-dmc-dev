@@ -42,7 +42,7 @@ const ActivityProperties1 = ({
   const error = useSelector((state) => state.localtour.error?.error);
   console.log("errrrrror", error);
   console.log("status2", status);
-
+  console.log("vehicles1234", vehicles);
 
   return (
     <>
