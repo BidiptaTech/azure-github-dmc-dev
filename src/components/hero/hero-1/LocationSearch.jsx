@@ -215,39 +215,47 @@ const SearchBar = ({ onLocationSelect }) => {
         </div>
       </div>
 
-      {isDropdownOpen && suggestions.length > 0 && (
+      {isDropdownOpen && (
         <div className="shadow-2 dropdown-menu min-width-400 show">
           <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
-            <div 
-              className="max-height-300 overflow-y-auto"
-              style={{ maxHeight: '300px' }}
-            >
-              <ul className="y-gap-5 js-results" ref={listRef}>
-                {suggestions.map((item, index) => (
-                  <li
-                    className={`-link d-block col-12 text-left rounded-4 px-20 py-15 js-search-option mb-1 ${
-                      selectedItem && selectedItem.code === item.code
-                        ? "active"
-                        : highlightedIndex === index
-                        ? "highlighted" // Highlight active selection
-                        : ""
-                    }`}
-                    key={item.key || item.code || `country-${index}`}
-                    role="button"
-                    onClick={(e) => handleOptionClick(item, e)}
-                  >
-                    <div className="d-flex">
-                      <div className="icon-location-2 text-light-1 text-20 pt-4" />
-                      <div className="ml-10">
-                        <div className="text-15 lh-12 fw-500 js-search-option-target">
-                          {item.name}
+            {suggestions.length > 0 ? (
+              <div 
+                className="max-height-300 overflow-y-auto"
+                style={{ maxHeight: '300px' }}
+              >
+                <ul className="y-gap-5 js-results" ref={listRef}>
+                  {suggestions.map((item, index) => (
+                    <li
+                      className={`-link d-block col-12 text-left rounded-4 px-20 py-15 js-search-option mb-1 ${
+                        selectedItem && selectedItem.code === item.code
+                          ? "active"
+                          : highlightedIndex === index
+                          ? "highlighted" // Highlight active selection
+                          : ""
+                      }`}
+                      key={item.key || item.code || `country-${index}`}
+                      role="button"
+                      onClick={(e) => handleOptionClick(item, e)}
+                    >
+                      <div className="d-flex">
+                        <div className="icon-location-2 text-light-1 text-20 pt-4" />
+                        <div className="ml-10">
+                          <div className="text-15 lh-12 fw-500 js-search-option-target">
+                            {item.name}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <div className="text-14 text-light-1 lh-16">
+                  {searchValue ? "No country found" : "No results found"}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
