@@ -115,21 +115,21 @@ use Illuminate\Support\Facades\Auth;
                                     <label for="start_date" class="form-label fw-semibold">Start Date</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-calendar-line"></i></span>
-                                        <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="form-control" required aria-label="Start Date" autocomplete="off">
+                                        <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="form-control" required aria-label="Start Date" autocomplete="off" onchange="applyFilters()">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <label for="end_date" class="form-label fw-semibold">End Date</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-calendar-line"></i></span>
-                                        <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="form-control" required aria-label="End Date" autocomplete="off">
+                                        <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="form-control" required aria-label="End Date" autocomplete="off" onchange="applyFilters()">
                                     </div>
                                 </div>
                                 <div class="col-md-2">
                                     <label for="currency" class="form-label fw-semibold">Currency</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-money-dollar-circle-line"></i></span>
-                                        <select name="currency" id="currency" class="form-select" aria-label="Currency">
+                                        <select name="currency" id="currency" class="form-select" aria-label="Currency" onchange="applyFilters()">
                                             <option value="SGD" {{ request('currency', 'SGD') == 'SGD' ? 'selected' : '' }}>SGD</option>
                                             <option value="INR" {{ request('currency') == 'INR' ? 'selected' : '' }}>INR</option>
                                         </select>
@@ -171,7 +171,7 @@ use Illuminate\Support\Facades\Auth;
                                 </div>
                                 <div class="col-md-3">
                                     <label for="view_type" class="form-label fw-semibold">View Type</label>
-                                    <select name="view_type" id="view_type" class="form-select" aria-label="View Type">
+                                    <select name="view_type" id="view_type" class="form-select" aria-label="View Type" onchange="applyFilters()">
                                         <option value="summary" {{ request('view_type', 'summary') == 'summary' ? 'selected' : '' }}>Summary View</option>
                                         <option value="detailed" {{ request('view_type') == 'detailed' ? 'selected' : '' }}>Detailed View</option>
                                         <option value="balance" {{ request('view_type') == 'balance' ? 'selected' : '' }}>Balance Sheet View</option>
@@ -245,7 +245,7 @@ use Illuminate\Support\Facades\Auth;
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-user-line"></i></span>
                                         @if(isset($agentsForDropdown) && $agentsForDropdown->count() > 0)
-                                            <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent">
+                                            <select name="agent_id" id="agent_id" class="form-select" aria-label="Agent" onchange="applyFilters()">
                                                 <option value="">All Agents</option>
                                                 @php
                                                     $selectedAgencyId = request('agency_id');
@@ -268,7 +268,7 @@ use Illuminate\Support\Facades\Auth;
                                     <label for="service_type" class="form-label fw-semibold">Service Type</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-service-line"></i></span>
-                                        <select name="service_type" id="service_type" class="form-select" aria-label="Service Type">
+                                        <select name="service_type" id="service_type" class="form-select" aria-label="Service Type" onchange="applyFilters()">
                                             <option value="">All Services</option>
                                             <option value="hotel" {{ $serviceType == 'hotel' ? 'selected' : '' }}>Hotel</option>
                                             <option value="attraction" {{ $serviceType == 'attraction' ? 'selected' : '' }}>Attraction</option>
@@ -285,20 +285,17 @@ use Illuminate\Support\Facades\Auth;
 
                             <!-- Action Buttons -->
                             <div class="row g-3">
-                                <div class="col-md-8">
+                                <div class="col-md-6">
                                     <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-primary" onclick="applyFilters()">
-                                            <i class="ri-search-line me-1"></i>Apply Filters
-                                        </button>
                                         <button type="button" class="btn btn-secondary" onclick="resetFilters()">
-                                            <i class="ri-refresh-line me-1"></i>Reset
+                                            <i class="ri-refresh-line me-1"></i>Reset Filters
                                         </button>
                                         <button type="button" class="btn btn-info" onclick="refreshExchangeRate()">
-                                            <i class="ri-refresh-line me-1"></i>Update Rate
+                                            <i class="ri-exchange-line me-1"></i>Update Rate
                                         </button>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <!-- Export Dropdown Button -->
                                     <div class="dropdown w-100">
                                         <button class="btn btn-warning dropdown-toggle w-100" type="button" id="exportDropdown"
@@ -486,6 +483,7 @@ use Illuminate\Support\Facades\Auth;
                                 <tfoot class="table-light">
                                     <tr>
                                         <th colspan="6" class="text-end fw-bold">Total:</th>
+                                        <th></th> <!-- Opening Balance column - empty -->
                                         <th class="text-end fw-bold">
                                             @php
                                                 $totalAmount = isset($results) ? collect($results)->sum('amount') : 0;
@@ -499,7 +497,7 @@ use Illuminate\Support\Facades\Auth;
                                             {{ $currencySymbol }}{{ number_format($totalAmount, 2) }}
                                         </th>
                                         <th class="text-end fw-bold">{{ $currencySymbol }}{{ number_format((isset($runningBalance) ? $runningBalance : 0) * ($selectedCurrency == 'INR' ? $exchangeRate : 1), 2) }}</th>
-                                        <th></th>
+                                        <th></th> <!-- Actions column - empty -->
                                     </tr>
                                 </tfoot>
                             </table>
@@ -513,26 +511,29 @@ use Illuminate\Support\Facades\Auth;
 
 <!-- Transaction Details Modal -->
 <div class="modal fade" id="transactionDetailsModal" tabindex="-1" aria-labelledby="transactionDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="transactionDetailsModalLabel">
-                    <i class="ri-eye-line me-2"></i>Transaction Details
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                <h5 class="modal-title fw-bold" id="transactionDetailsModalLabel">
+                    <i class="ri-file-list-3-line me-2"></i>Transaction Details
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="transactionDetailsContent">
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status">
+            <div class="modal-body" id="transactionDetailsContent" style="background: #f8f9fa;">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <p class="mt-2">Loading transaction details...</p>
+                    <p class="mt-3 text-muted fw-semibold">Loading transaction details...</p>
+                    <small class="text-muted">Please wait while we fetch the information</small>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <div class="modal-footer bg-white border-top">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i>Close
+                </button>
                 <button type="button" class="btn btn-primary" onclick="printTransactionDetails()">
-                    <i class="ri-printer-line me-1"></i>Print
+                    <i class="ri-printer-line me-1"></i>Print Details
                 </button>
             </div>
         </div>
@@ -541,26 +542,29 @@ use Illuminate\Support\Facades\Auth;
 
 <!-- Balance History Modal -->
 <div class="modal fade" id="balanceHistoryModal" tabindex="-1" aria-labelledby="balanceHistoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="balanceHistoryModalLabel">
-                    <i class="ri-history-line me-2"></i>Balance History
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none;">
+                <h5 class="modal-title fw-bold" id="balanceHistoryModalLabel">
+                    <i class="ri-line-chart-line me-2"></i>Balance History & Transactions
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="balanceHistoryContent">
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status">
+            <div class="modal-body" id="balanceHistoryContent" style="background: #f8f9fa;">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <p class="mt-2">Loading balance history...</p>
+                    <p class="mt-3 text-muted fw-semibold">Loading balance history...</p>
+                    <small class="text-muted">Fetching transaction records for this agent</small>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-info" onclick="exportBalanceHistory()">
-                    <i class="ri-download-line me-1"></i>Export History
+            <div class="modal-footer bg-white border-top">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i>Close
+                </button>
+                <button type="button" class="btn btn-success" onclick="exportBalanceHistory()">
+                    <i class="ri-file-excel-line me-1"></i>Export to Excel
                 </button>
             </div>
         </div>
@@ -1019,7 +1023,7 @@ use Illuminate\Support\Facades\Auth;
         }
 
         // Function to load agencies by DMC
-        function loadAgenciesByDmc(dmcId) {
+        function loadAgenciesByDmc(dmcId, preSelectedAgencyId = null, preSelectedAgentId = null) {
             if (!agencySelect) return;
             
             if (!dmcId) {
@@ -1035,6 +1039,11 @@ use Illuminate\Support\Facades\Auth;
                 return;
             }
 
+            // Store previous values or use pre-selected values
+            const previousAgencyValue = preSelectedAgencyId || agencySelect.value;
+            const previousAgentValue = preSelectedAgentId;
+            console.log('Loading agencies for DMC, preserving agency:', previousAgencyValue, 'and agent:', previousAgentValue);
+            
             // Show loading state
             agencySelect.innerHTML = '<option value="">Loading agencies...</option>';
             agencySelect.disabled = true;
@@ -1043,7 +1052,6 @@ use Illuminate\Support\Facades\Auth;
             fetch(`{{ url('/reports/fetch-agencies-by-dmc') }}?dmc_id=${dmcId}`)
                 .then(response => response.json())
                 .then(data => {
-                    const previousAgencyValue = agencySelect.value;
                     agencySelect.innerHTML = '<option value="">All Agencies</option>';
                     
                     if (data.success && data.agencies && data.agencies.length > 0) {
@@ -1060,12 +1068,13 @@ use Illuminate\Support\Facades\Auth;
                     
                     // If there was a previous agency selected and it still exists, keep it selected
                     // Otherwise, clear agents
-                    if (previousAgencyValue) {
+                    if (previousAgencyValue && previousAgencyValue !== '' && previousAgencyValue !== 'Loading agencies...') {
                         const optionExists = Array.from(agencySelect.options).some(opt => opt.value === previousAgencyValue);
                         if (optionExists) {
                             agencySelect.value = previousAgencyValue;
-                            // Manually trigger agent loading for this agency
-                            loadAgentsByAgency(previousAgencyValue);
+                            console.log('Agency value restored to:', previousAgencyValue);
+                            // Manually trigger agent loading for this agency with pre-selected agent
+                            loadAgentsByAgency(previousAgencyValue, previousAgentValue);
                         } else {
                             agencySelect.value = '';
                             clearAgents();
@@ -1119,8 +1128,13 @@ use Illuminate\Support\Facades\Auth;
         }
 
         // Function to load agents by agency - ONLY filter by agency_id
-        function loadAgentsByAgency(agencyId) {
-            if (!agentSelect) return;
+        function loadAgentsByAgency(agencyId, preSelectedAgentId = null) {
+            console.log('loadAgentsByAgency called with agencyId:', agencyId, 'preSelectedAgentId:', preSelectedAgentId);
+            
+            if (!agentSelect) {
+                console.error('agentSelect is null');
+                return;
+            }
             
             if (!agencyId) {
                 // If no agency selected, clear and show all agents
@@ -1128,21 +1142,30 @@ use Illuminate\Support\Facades\Auth;
                 return;
             }
 
+            // Store the current agent value or use preSelectedAgentId
+            const previousAgentValue = preSelectedAgentId || agentSelect.value;
+            console.log('Preserving agent value:', previousAgentValue);
+            
             // Show loading state
             agentSelect.innerHTML = '<option value="">Loading agents...</option>';
             agentSelect.disabled = true;
 
             // Build URL with ONLY agency_id - no DMC filtering
             let url = `{{ url('/reports/fetch-agents-by-agency') }}?agency_id=${agencyId}`;
+            console.log('Fetching agents from URL:', url);
 
             // Fetch agents for the selected agency - ONLY by agency_id
             fetch(url)
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    const previousAgentValue = agentSelect.value;
+                    console.log('Agents data received:', data);
                     agentSelect.innerHTML = '<option value="">All Agents</option>';
                     
                     if (data.success && data.agents && data.agents.length > 0) {
+                        console.log('Found', data.agents.length, 'agents');
                         data.agents.forEach(agent => {
                             const option = document.createElement('option');
                             option.value = agent.agent_id;
@@ -1152,14 +1175,18 @@ use Illuminate\Support\Facades\Auth;
                         });
                         
                         // If there was a previous agent selected and it still exists, keep it selected
-                        if (previousAgentValue) {
+                        if (previousAgentValue && previousAgentValue !== '' && previousAgentValue !== 'Loading agents...') {
                             const optionExists = Array.from(agentSelect.options).some(opt => opt.value === previousAgentValue);
                             if (optionExists) {
                                 agentSelect.value = previousAgentValue;
+                                console.log('Agent value restored to:', previousAgentValue);
+                            } else {
+                                console.warn('Previous agent value not found in loaded agents:', previousAgentValue);
                             }
                         }
                     } else {
                         // No agents found for this agency
+                        console.warn('No agents found or success is false:', data);
                         agentSelect.innerHTML = '<option value="">No agents found</option>';
                     }
                     
@@ -1173,15 +1200,31 @@ use Illuminate\Support\Facades\Auth;
         }
 
         function filterAgentsByAgency() {
-            if (!agentSelect) return;
+            console.log('filterAgentsByAgency called');
             
-            const selectedAgency = agencySelect ? agencySelect.value : '';
+            // Check if agentSelect exists (it may not if no agents are available)
+            const agentSelectElement = agentSelect || document.getElementById('agent_id');
+            if (!agentSelectElement) {
+                console.log('Agent select not available (no agents in dropdown)');
+                return;
+            }
+            
+            // Get agency select element - try multiple ways
+            let agencySelectElement = agencySelect;
+            if (!agencySelectElement) {
+                agencySelectElement = document.getElementById('agency_id');
+            }
+            
+            const selectedAgency = agencySelectElement ? agencySelectElement.value : '';
+            console.log('Selected agency:', selectedAgency);
             
             // If agency is selected, load agents for that agency
             if (selectedAgency) {
+                console.log('Calling loadAgentsByAgency with:', selectedAgency);
                 loadAgentsByAgency(selectedAgency);
             } else {
                 // If no agency selected, show all agents (filtered by DMC if selected)
+                console.log('No agency selected, clearing agents');
                 clearAgents();
             }
         }
@@ -1301,28 +1344,33 @@ use Illuminate\Support\Facades\Auth;
             }
         @endphp
         
+        // Get pre-selected values from request
+        const preSelectedAgencyId = '{{ request('agency_id', '') }}';
+        const preSelectedAgentId = '{{ request('agent_id', '') }}';
+        
         @if($userDmcId)
             if (dmcSelect) {
                 // Set DMC to user's DMC (only if not already set from request)
                 if (!dmcSelect.value) {
                     dmcSelect.value = '{{ $userDmcId }}';
-                    loadAgenciesByDmc('{{ $userDmcId }}');
+                    loadAgenciesByDmc('{{ $userDmcId }}', preSelectedAgencyId, preSelectedAgentId);
                 } else if (dmcSelect.value === '{{ $userDmcId }}') {
                     // If already set to user's DMC, just load agencies
-                    loadAgenciesByDmc('{{ $userDmcId }}');
+                    loadAgenciesByDmc('{{ $userDmcId }}', preSelectedAgencyId, preSelectedAgentId);
                 }
             }
         @else
             // For other users, if DMC is pre-selected, load agencies
             if (dmcSelect && dmcSelect.value) {
-                loadAgenciesByDmc(dmcSelect.value);
+                loadAgenciesByDmc(dmcSelect.value, preSelectedAgencyId, preSelectedAgentId);
             }
         @endif
         
-        // If agency is pre-selected (from request), load agents for that agency ONLY
-        @if(request('agency_id'))
-            if (agencySelect && agencySelect.value) {
-                loadAgentsByAgency(agencySelect.value);
+        // If agency is pre-selected but DMC wasn't (admin without DMC selection), load agents directly
+        @if(request('agency_id') && !request('dmc_id'))
+            if (agencySelect && agencySelect.value && !dmcSelect) {
+                console.log('Page load: Direct agency load, loading agents with pre-selected agent:', preSelectedAgentId);
+                loadAgentsByAgency(agencySelect.value, preSelectedAgentId);
             }
         @endif
         
@@ -1423,6 +1471,12 @@ use Illuminate\Support\Facades\Auth;
                 customExchangeRate = parseFloat(rate);
                 exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
                 document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
+                
+                // Apply filters to refresh data with new rate
+                showRateUpdateMessage('Exchange rate updated! Refreshing data...');
+                setTimeout(() => {
+                    applyFilters();
+                }, 500);
             } else {
                 exchangeRateInput.value = '1 SGD = 1.00 SGD';
             }
@@ -1470,8 +1524,14 @@ use Illuminate\Support\Facades\Auth;
         editRateBtn.innerHTML = '<i class="ri-edit-line"></i>';
         editRateBtn.classList.remove('btn-outline-secondary');
         editRateBtn.classList.add('btn-outline-info');
-        // Show success message
-        showRateUpdateMessage('Exchange rate updated successfully!');
+        
+        // Show success message and apply filters to refresh data
+        showRateUpdateMessage('Exchange rate updated! Refreshing data...');
+        
+        // Apply filters to refresh the page with new exchange rate
+        setTimeout(() => {
+            applyFilters();
+        }, 500);
     }
 
     function cancelRateEdit() {
@@ -1593,73 +1653,116 @@ use Illuminate\Support\Facades\Auth;
 
     // Helper functions
     function displayTransactionDetails(transaction) {
+        // Get current currency and exchange rate
+        const currencyElement = document.getElementById('currency');
+        const currency = currencyElement ? currencyElement.value : 'SGD';
+        const exchangeRate = currency === 'INR' ? (customExchangeRate || 67.50) : 1.00;
+        const currencySymbol = currency === 'INR' ? '₹' : 'S$';
+        
+        // Calculate amounts
+        const amountSGD = parseFloat(transaction.amount || 0);
+        const amountConverted = amountSGD * exchangeRate;
+        
+        // Format service type badge
+        const serviceTypeBadges = {
+            'hotel': '<span class="badge bg-primary"><i class="ri-hotel-line me-1"></i>Hotel</span>',
+            'attraction': '<span class="badge bg-danger"><i class="ri-map-pin-line me-1"></i>Attraction</span>',
+            'guide': '<span class="badge bg-info"><i class="ri-guide-line me-1"></i>Guide</span>',
+            'driver': '<span class="badge bg-dark"><i class="ri-steering-line me-1"></i>Driver</span>',
+            'entry_port': '<span class="badge bg-success"><i class="ri-plane-line me-1"></i>Arrival</span>',
+            'exit_port': '<span class="badge bg-warning"><i class="ri-plane-line me-1"></i>Departure</span>',
+            'travel_point': '<span class="badge bg-info"><i class="ri-map-line me-1"></i>Travel Point</span>',
+            'travel_hourly': '<span class="badge bg-secondary"><i class="ri-time-line me-1"></i>Travel Hourly</span>'
+        };
+        
+        const serviceBadge = serviceTypeBadges[transaction.service_type] || `<span class="badge bg-primary">${transaction.service_type}</span>`;
+        
+        // Format date
+        const transactionDate = new Date(transaction.created_at);
+        const formattedDate = transactionDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const formattedTime = transactionDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
         const content = `
-            <div class="row">
+            <!-- Alert Message -->
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="ri-information-line me-2"></i>
+                <strong>Transaction Details</strong> - Viewing complete information for Booking ID: <strong>${transaction.booking_id}</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            
+            <div class="row g-3">
+                <!-- Transaction Information Card -->
                 <div class="col-md-6">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-primary text-white">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                             <h6 class="mb-0"><i class="ri-file-text-line me-2"></i>Transaction Information</h6>
                         </div>
                         <div class="card-body">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td class="fw-semibold">Transaction ID:</td>
-                                    <td>${transaction.id}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Booking ID:</td>
-                                    <td><span class="badge bg-info">${transaction.booking_id}</span></td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Service Type:</td>
-                                    <td><span class="badge bg-primary">${transaction.service_type}</span></td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Amount:</td>
-                                    <td class="fw-bold text-success">$${parseFloat(transaction.amount || 0).toFixed(2)}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Date & Time:</td>
-                                    <td>${new Date(transaction.created_at).toLocaleString()}</td>
-                                </tr>
-                            </table>
+                            <div class="mb-3 pb-3 border-bottom">
+                                <small class="text-muted d-block mb-1">Transaction ID</small>
+                                <h5 class="mb-0 text-primary">#${transaction.id}</h5>
+                            </div>
+                            <div class="mb-3 pb-3 border-bottom">
+                                <small class="text-muted d-block mb-1">Booking ID</small>
+                                <h6 class="mb-0">${serviceBadge} <span class="text-dark ms-2">${transaction.booking_id}</span></h6>
+                            </div>
+                            <div class="mb-3 pb-3 border-bottom">
+                                <small class="text-muted d-block mb-1">Transaction Amount</small>
+                                <div class="d-flex flex-column">
+                                    <h4 class="mb-1 text-success fw-bold">${currencySymbol}${amountConverted.toFixed(2)}</h4>
+                                    ${currency === 'INR' ? `<small class="text-muted">Original: S$${amountSGD.toFixed(2)} (Rate: 1 SGD = ${exchangeRate.toFixed(2)} INR)</small>` : ''}
+                                </div>
+                            </div>
+                            <div class="mb-0">
+                                <small class="text-muted d-block mb-1">Date & Time</small>
+                                <div>
+                                    <i class="ri-calendar-line text-primary me-1"></i><strong>${formattedDate}</strong><br>
+                                    <i class="ri-time-line text-primary me-1"></i><span>${formattedTime}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Customer & Agent Information Card -->
                 <div class="col-md-6">
-                    <div class="card border-0 shadow-sm">
+                    <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-success text-white">
-                            <h6 class="mb-0"><i class="ri-user-line me-2"></i>Customer & Agent Information</h6>
+                            <h6 class="mb-0"><i class="ri-team-line me-2"></i>Customer & Agent Information</h6>
                         </div>
                         <div class="card-body">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td class="fw-semibold">Agent Name:</td>
-                                    <td>${transaction.agent_name || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Agent ID:</td>
-                                    <td>${transaction.agent_id || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Customer Name:</td>
-                                    <td>${transaction.customer_name || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Customer Email:</td>
-                                    <td>${transaction.customer_email || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-semibold">Status:</td>
-                                    <td>
-                                        <span class="badge ${transaction.status == 1 ? 'bg-success' : 'bg-danger'}">
-                                            ${transaction.status == 1 ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </table>
+                            <div class="mb-3 pb-3 border-bottom">
+                                <small class="text-muted d-block mb-1"><i class="ri-user-star-line me-1"></i>Agent Details</small>
+                                <h6 class="mb-1 text-dark">${transaction.agent_name || 'N/A'}</h6>
+                            </div>
+                            <div class="mb-3 pb-3 border-bottom">
+                                <small class="text-muted d-block mb-1"><i class="ri-user-line me-1"></i>Customer Details</small>
+                                ${transaction.customer_name && transaction.customer_name !== 'N/A' ? 
+                                    `<h6 class="mb-1 text-dark">${transaction.customer_name}</h6>
+                                    <small class="text-muted"><i class="ri-mail-line me-1"></i>${transaction.customer_email || 'No email provided'}</small>` : 
+                                    '<p class="text-muted mb-0"><i class="ri-error-warning-line me-1"></i>No customer information available</p>'
+                                }
+                            </div>
+                            <div class="mb-0">
+                                <small class="text-muted d-block mb-1">Transaction Status</small>
+                                <span class="badge ${transaction.status == 1 ? 'bg-success' : 'bg-danger'} px-3 py-2">
+                                    <i class="ri-${transaction.status == 1 ? 'check' : 'close'}-circle-line me-1"></i>
+                                    ${transaction.status == 1 ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
                         </div>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Currency Info Footer -->
+            <div class="alert alert-light border mt-3 mb-0" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line text-info me-2" style="font-size: 1.2rem;"></i>
+                    <small class="text-muted mb-0">
+                        <strong>Note:</strong> Amounts are displayed in <strong>${currency === 'INR' ? 'Indian Rupees (INR)' : 'Singapore Dollars (SGD)'}</strong> based on your current currency selection.
+                        ${currency === 'INR' ? ` Exchange rate: 1 SGD = ${exchangeRate.toFixed(2)} INR` : ''}
+                    </small>
                 </div>
             </div>
         `;
@@ -1693,17 +1796,27 @@ use Illuminate\Support\Facades\Auth;
         
         // Filter data based on search term
         let filteredHistory = history;
-        if (searchTerm) {
+        if (searchTerm && searchTerm.trim() !== '') {
             console.log('Applying search filter for term:', searchTerm);
+            const searchLower = searchTerm.toLowerCase().trim();
+            
             filteredHistory = history.filter(item => {
                 const bookingId = (item.booking_id || '').toString().toLowerCase();
                 const serviceType = (item.service_type || '').toString().toLowerCase();
-                const dateStr = new Date(item.created_at).toLocaleDateString();
-                const searchLower = searchTerm.toLowerCase();
+                
+                // Try multiple date formats for better search
+                const transactionDate = new Date(item.created_at);
+                const dateStr1 = transactionDate.toLocaleDateString(); // e.g., 11/24/2025
+                const dateStr2 = transactionDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }); // e.g., Nov 24, 2025
+                const dateStr3 = transactionDate.toLocaleDateString('en-US', { month: 'short' }); // e.g., Nov
+                const dateStr4 = transactionDate.getFullYear().toString(); // e.g., 2025
                 
                 const matches = bookingId.includes(searchLower) ||
                                serviceType.includes(searchLower) ||
-                               dateStr.includes(searchLower);
+                               dateStr1.toLowerCase().includes(searchLower) ||
+                               dateStr2.toLowerCase().includes(searchLower) ||
+                               dateStr3.toLowerCase().includes(searchLower) ||
+                               dateStr4.includes(searchLower);
                 
                 return matches;
             });
@@ -1726,23 +1839,71 @@ use Illuminate\Support\Facades\Auth;
             runningBalance += parseFloat(filteredHistory[i].amount || 0);
         }
         
+        // Get current currency and exchange rate
+        const currencyElement = document.getElementById('currency');
+        const currency = currencyElement ? currencyElement.value : 'SGD';
+        const exchangeRate = currency === 'INR' ? (customExchangeRate || 67.50) : 1.00;
+        const currencySymbol = currency === 'INR' ? '₹' : 'S$';
+        
+        // Service type badge mapping
+        const serviceTypeBadges = {
+            'hotel': '<span class="badge bg-primary"><i class="ri-hotel-line me-1"></i>Hotel</span>',
+            'attraction': '<span class="badge bg-danger"><i class="ri-map-pin-line me-1"></i>Attraction</span>',
+            'guide': '<span class="badge bg-info"><i class="ri-guide-line me-1"></i>Guide</span>',
+            'driver': '<span class="badge bg-dark"><i class="ri-steering-line me-1"></i>Driver</span>',
+            'entry_port': '<span class="badge bg-success"><i class="ri-plane-line me-1"></i>Arrival</span>',
+            'exit_port': '<span class="badge bg-warning text-dark"><i class="ri-plane-line me-1"></i>Departure</span>',
+            'travel_point': '<span class="badge bg-info"><i class="ri-map-line me-1"></i>Travel Point</span>',
+            'travel_hourly': '<span class="badge bg-secondary"><i class="ri-time-line me-1"></i>Travel Hourly</span>'
+        };
+        
         // Now generate rows for current page
         paginatedHistory.forEach((item, index) => {
             const openingBalance = runningBalance;
             const transactionAmount = parseFloat(item.amount || 0);
             runningBalance += transactionAmount;
             
+            // Convert amounts based on currency
+            const openingConverted = openingBalance * exchangeRate;
+            const transactionConverted = transactionAmount * exchangeRate;
+            const closingConverted = runningBalance * exchangeRate;
+            
+            // Format date
+            const transactionDate = new Date(item.created_at);
+            const formattedDate = transactionDate.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: '2-digit' 
+            });
+            const formattedTime = transactionDate.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            const serviceBadge = serviceTypeBadges[item.service_type] || `<span class="badge bg-primary">${item.service_type}</span>`;
+            
             tableRows += `
-                <tr>
-                    <td>${startIndex + index + 1}</td>
-                    <td>${new Date(item.created_at).toLocaleDateString()}</td>
-                    <td><span class="badge bg-info">${item.booking_id}</span></td>
-                    <td><span class="badge bg-primary">${item.service_type}</span></td>
-                    <td class="text-end">$${openingBalance.toFixed(2)}</td>
-                    <td class="text-end ${transactionAmount >= 0 ? 'text-success' : 'text-danger'}">
-                        ${transactionAmount >= 0 ? '+' : ''}$${transactionAmount.toFixed(2)}
+                <tr class="align-middle">
+                    <td class="text-center"><span class="badge bg-light text-dark">${startIndex + index + 1}</span></td>
+                    <td>
+                        <div class="d-flex flex-column">
+                            <span class="fw-semibold text-dark">${formattedDate}</span>
+                            <small class="text-muted"><i class="ri-time-line me-1"></i>${formattedTime}</small>
+                        </div>
                     </td>
-                    <td class="text-end fw-bold">$${runningBalance.toFixed(2)}</td>
+                    <td><span class="badge bg-info text-white">${item.booking_id}</span></td>
+                    <td>${serviceBadge}</td>
+                    <td class="text-end">
+                        <span class="text-muted">${currencySymbol}${openingConverted.toFixed(2)}</span>
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold ${transactionAmount >= 0 ? 'text-success' : 'text-danger'}">
+                            ${transactionAmount >= 0 ? '+' : ''}${currencySymbol}${transactionConverted.toFixed(2)}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold text-primary">${currencySymbol}${closingConverted.toFixed(2)}</span>
+                    </td>
                 </tr>
             `;
         });
@@ -1753,65 +1914,146 @@ use Illuminate\Support\Facades\Auth;
             finalBalance += parseFloat(item.amount || 0);
         });
         
+        // Convert final balance based on currency
+        const finalBalanceConverted = finalBalance * exchangeRate;
+        
         // Generate pagination controls
         const paginationHtml = generatePaginationControls(currentPage, totalPages, totalItems);
         
         const content = `
-            <div class="mb-3">
-                <div class="card border-0 bg-light">
-                    <div class="card-body">
-                        <h6 class="mb-0"><i class="ri-user-line me-2"></i>Agent: ${agent.name} (ID: ${agent.agent_id})</h6>
-                        <small class="text-muted">Final Balance: <span class="fw-bold text-primary">$${finalBalance.toFixed(2)}</span></small>
+            <!-- Info Alert -->
+            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="ri-user-star-line me-2" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <strong>Agent Transaction History</strong> - Viewing all transactions for <strong>${agent.name}</strong>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            
+            <!-- Agent Summary Card -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                        <div class="card-body text-white">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-white bg-opacity-25 rounded-circle p-3 me-3">
+                                            <i class="ri-user-line" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="mb-1 fw-bold">${agent.name}</h5>
+                                            <small class="opacity-75"><i class="ri-shield-check-line me-1"></i>Agent ID: ${agent.agent_id}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                    <small class="opacity-75 d-block mb-1">Final Balance</small>
+                                    <h3 class="mb-0 fw-bold">${currencySymbol}${finalBalanceConverted.toFixed(2)}</h3>
+                                    ${currency === 'INR' ? `<small class="opacity-75">S$${finalBalance.toFixed(2)}</small>` : ''}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <!-- Search and Controls -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ri-search-line"></i></span>
-                        <input type="text" id="balanceHistorySearch" class="form-control" placeholder="Search by booking ID, service type, or date..." value="${searchTerm}">
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <select id="itemsPerPageSelect" class="form-select">
-                        <option value="5" ${itemsPerPage == 5 ? 'selected' : ''}>5 per page</option>
-                        <option value="10" ${itemsPerPage == 10 ? 'selected' : ''}>10 per page</option>
-                        <option value="25" ${itemsPerPage == 25 ? 'selected' : ''}>25 per page</option>
-                        <option value="50" ${itemsPerPage == 50 ? 'selected' : ''}>50 per page</option>
-                        <option value="100" ${itemsPerPage == 100 ? 'selected' : ''}>100 per page</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <div class="text-muted small">
-                        Showing ${startIndex + 1}-${Math.min(endIndex, totalItems)} of ${totalItems} entries
-                        ${searchTerm ? `(filtered from ${history.length} total)` : ''}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted mb-1"><i class="ri-search-line me-1"></i>Search Transactions</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="ri-search-line text-success"></i></span>
+                                <input type="text" id="balanceHistorySearch" class="form-control border-start-0 ${searchTerm ? 'border-end-0' : ''}" placeholder="Search by booking ID, service type, or date..." value="${searchTerm}" autocomplete="off">
+                                ${searchTerm ? `
+                                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="clearBalanceHistorySearch()" title="Clear search">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                            ${searchTerm ? `<small class="text-muted"><i class="ri-filter-line me-1"></i>Filtering results...</small>` : ''}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1"><i class="ri-list-check me-1"></i>Items Per Page</label>
+                            <select id="itemsPerPageSelect" class="form-select">
+                                <option value="5" ${itemsPerPage == 5 ? 'selected' : ''}>5 per page</option>
+                                <option value="10" ${itemsPerPage == 10 ? 'selected' : ''}>10 per page</option>
+                                <option value="25" ${itemsPerPage == 25 ? 'selected' : ''}>25 per page</option>
+                                <option value="50" ${itemsPerPage == 50 ? 'selected' : ''}>50 per page</option>
+                                <option value="100" ${itemsPerPage == 100 ? 'selected' : ''}>100 per page</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1"><i class="ri-information-line me-1"></i>Showing</label>
+                            <div class="alert alert-light border mb-0 py-2">
+                                <small class="text-dark fw-semibold mb-0">
+                                    ${startIndex + 1}-${Math.min(endIndex, totalItems)} of ${totalItems}
+                                    ${searchTerm ? `<br><span class="text-muted">(filtered from ${history.length})</span>` : ''}
+                                </small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>#</th>
-                            <th>Date</th>
-                            <th>Booking ID</th>
-                            <th>Service Type</th>
-                            <th class="text-end">Opening Balance</th>
-                            <th class="text-end">Transaction Amount</th>
-                            <th class="text-end">Closing Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows || '<tr><td colspan="7" class="text-center text-muted py-4">No transactions found</td></tr>'}
-                    </tbody>
-                </table>
+            <!-- Transaction History Table -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="mb-0 text-dark"><i class="ri-file-list-3-line me-2 text-success"></i>Transaction History</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                                <tr>
+                                    <th class="text-center" style="width: 60px;">#</th>
+                                    <th style="min-width: 130px;">Date & Time</th>
+                                    <th style="min-width: 100px;">Booking ID</th>
+                                    <th style="min-width: 130px;">Service Type</th>
+                                    <th class="text-end" style="min-width: 120px;">Opening Balance</th>
+                                    <th class="text-end" style="min-width: 150px;">Transaction</th>
+                                    <th class="text-end" style="min-width: 120px;">Closing Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows || `
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <div class="text-muted">
+                                                <i class="${searchTerm ? 'ri-search-line' : 'ri-inbox-line'}" style="font-size: 3rem; opacity: 0.3;"></i>
+                                                <p class="mt-2 mb-0 fw-semibold">
+                                                    ${searchTerm ? `No results found for "${searchTerm}"` : 'No transactions found'}
+                                                </p>
+                                                <small>${searchTerm ? 'Try a different search term' : 'No transaction history available for this agent'}</small>
+                                                ${searchTerm ? '<br><button class="btn btn-sm btn-outline-success mt-2" onclick="clearBalanceHistorySearch()"><i class="ri-close-line me-1"></i>Clear Search</button>' : ''}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
             
             <!-- Pagination -->
             ${paginationHtml}
+            
+            <!-- Currency Info Footer -->
+            <div class="alert alert-light border mt-3 mb-0" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="ri-information-line text-success me-2" style="font-size: 1.2rem;"></i>
+                    <small class="text-muted mb-0">
+                        <strong>Currency:</strong> All amounts are displayed in <strong>${currency === 'INR' ? 'Indian Rupees (INR)' : 'Singapore Dollars (SGD)'}</strong>.
+                        ${currency === 'INR' ? ` Exchange rate: 1 SGD = ${exchangeRate.toFixed(2)} INR` : ''}
+                        <span class="ms-2">|</span> <strong class="ms-2">Total Transactions:</strong> ${totalItems}
+                    </small>
+                </div>
+            </div>
         `;
         
         document.getElementById('balanceHistoryContent').innerHTML = content;
@@ -1880,18 +2122,23 @@ use Illuminate\Support\Facades\Auth;
     }
 
     function attachBalanceHistoryEventListeners() {
-        // Search input
+        // Search input - instant search on every keystroke
         const searchInput = document.getElementById('balanceHistorySearch');
         if (searchInput) {
-            // Remove any existing event listeners
-            searchInput.removeEventListener('input', handleSearchInput);
-            searchInput.removeEventListener('keyup', handleSearchInput);
+            // Use oninput for immediate search results
+            searchInput.oninput = function(event) {
+                const searchValue = event.target.value;
+                console.log('Search input changed:', searchValue);
+                
+                // Update search term immediately
+                window.searchTerm = searchValue;
+                window.currentPage = 1; // Reset to first page when searching
+                
+                // Render table instantly - no delay
+                renderBalanceHistoryTable();
+            };
             
-            // Add new event listeners
-            searchInput.addEventListener('input', handleSearchInput);
-            searchInput.addEventListener('keyup', handleSearchInput);
-            
-            console.log('Search input event listeners attached');
+            console.log('Search input event listener attached - instant search enabled');
         } else {
             console.error('Search input not found');
         }
@@ -1899,21 +2146,13 @@ use Illuminate\Support\Facades\Auth;
         // Items per page select
         const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
         if (itemsPerPageSelect) {
-            itemsPerPageSelect.addEventListener('change', function() {
+            itemsPerPageSelect.onchange = function() {
                 window.itemsPerPage = parseInt(this.value);
                 window.currentPage = 1; // Reset to first page when changing items per page
                 console.log('Items per page changed to:', window.itemsPerPage);
                 renderBalanceHistoryTable();
-            });
+            };
         }
-    }
-    
-    function handleSearchInput(event) {
-        const searchValue = event.target.value;
-        console.log('Search input changed:', searchValue);
-        window.searchTerm = searchValue;
-        window.currentPage = 1; // Reset to first page when searching
-        renderBalanceHistoryTable();
     }
 
     function changeBalanceHistoryPage(page) {
@@ -1923,6 +2162,13 @@ use Illuminate\Support\Facades\Auth;
             renderBalanceHistoryTable();
         }
         return false; // Prevent default link behavior
+    }
+    
+    function clearBalanceHistorySearch() {
+        console.log('Clearing search');
+        window.searchTerm = '';
+        window.currentPage = 1;
+        renderBalanceHistoryTable();
     }
 
     function showError(containerId, message) {
@@ -2148,6 +2394,153 @@ use Illuminate\Support\Facades\Auth;
         display: none !important;
     }
     
+    /* Transaction Details Modal Styling */
+    #transactionDetailsModal .modal-content {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    #transactionDetailsModal .modal-header {
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    
+    #transactionDetailsModal .modal-body {
+        padding: 1.5rem;
+    }
+    
+    #transactionDetailsModal .card {
+        border-radius: 10px;
+        transition: transform 0.2s ease;
+    }
+    
+    #transactionDetailsModal .card:hover {
+        transform: translateY(-2px);
+    }
+    
+    #transactionDetailsModal .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: none;
+        font-weight: 600;
+    }
+    
+    #transactionDetailsModal .border-bottom {
+        border-color: #e9ecef !important;
+    }
+    
+    #transactionDetailsModal .alert {
+        border-radius: 10px;
+        border-left: 4px solid #0dcaf0;
+    }
+    
+    #transactionDetailsModal .badge {
+        padding: 0.5em 0.75em;
+        font-weight: 500;
+    }
+    
+    /* Balance History Modal Styling */
+    #balanceHistoryModal .modal-content {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    #balanceHistoryModal .modal-header {
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    
+    #balanceHistoryModal .modal-body {
+        padding: 1.5rem;
+    }
+    
+    #balanceHistoryModal .table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    #balanceHistoryModal .table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    #balanceHistoryModal .table tbody tr:hover {
+        background-color: rgba(17, 153, 142, 0.05);
+        transform: scale(1.01);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    #balanceHistoryModal .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    #balanceHistoryModal .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    #balanceHistoryModal .pagination {
+        margin-top: 1rem;
+    }
+    
+    #balanceHistoryModal .pagination .page-link {
+        color: #11998e;
+        border-color: #dee2e6;
+    }
+    
+    #balanceHistoryModal .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-color: #11998e;
+    }
+    
+    #balanceHistoryModal .pagination .page-link:hover {
+        background-color: rgba(17, 153, 142, 0.1);
+        border-color: #11998e;
+    }
+    
+    #balanceHistoryModal .input-group-text {
+        border-right: 0;
+    }
+    
+    #balanceHistoryModal .form-control:focus {
+        border-color: #11998e;
+        box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.25);
+    }
+    
+    #balanceHistoryModal .form-select:focus {
+        border-color: #11998e;
+        box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.25);
+    }
+    
+    #balanceHistoryModal .alert-success {
+        background-color: rgba(17, 153, 142, 0.1);
+        border-color: rgba(17, 153, 142, 0.2);
+        color: #0d7566;
+    }
+    
+    #balanceHistoryModal .badge {
+        padding: 0.4em 0.65em;
+        font-weight: 500;
+    }
+    
+    /* Search input styling */
+    #balanceHistorySearch {
+        transition: all 0.3s ease;
+    }
+    
+    #balanceHistorySearch:focus {
+        border-color: #11998e !important;
+        box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.25) !important;
+    }
+    
+    /* Modal animation */
+    .modal.fade .modal-dialog {
+        transition: transform 0.3s ease-out;
+    }
+    
+    .modal.show .modal-dialog {
+        transform: none;
+    }
+    
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .table-responsive {
@@ -2160,6 +2553,14 @@ use Illuminate\Support\Facades\Auth;
         
         .card-header h6 {
             font-size: 0.9rem;
+        }
+        
+        #transactionDetailsModal .modal-dialog {
+            margin: 0.5rem;
+        }
+        
+        #transactionDetailsModal .card-body {
+            padding: 1rem;
         }
     }
 </style>

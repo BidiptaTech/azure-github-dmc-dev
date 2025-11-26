@@ -409,30 +409,44 @@ class FinanceReportController extends Controller
             $agencyId = $request->input('agency_id');
             $dmcId = $request->input('dmc_id'); // Optional DMC filter
             
+            $user = Auth::user();
+            Log::info('fetchAgentsByAgency called', [
+                'user_id' => $user->userId,
+                'role_id' => $user->role_id,
+                'agency_id' => $agencyId,
+                'dmc_id' => $dmcId
+            ]);
+            
             if (!$agencyId) {
+                Log::warning('Agency ID is missing in request');
                 return response()->json([
                     'success' => false,
                     'message' => 'Agency ID is required',
                     'agents' => []
                 ]);
             }
-
-            $user = Auth::user();
-            // dd($user);
             
             // Get user's DMC ID based on role
             $userDmcId = null;
             if ($user->role_id == 11) {
                 $userDmcId = $user->userId;
+                Log::info('DMC user detected', ['userDmcId' => $userDmcId]);
             } elseif (in_array($user->role_id, [33, 128, 129, 130, 134, 135, 136, 138])) {
                 // Sales Head - DMC is their creator
                 $userDmcId = $user->created_by;
-                // dd($userDmcId);
+                Log::info('Sales Head user detected', [
+                    'userDmcId' => $userDmcId,
+                    'created_by' => $user->created_by
+                ]);
             } elseif ($user->role_id == 37) {
                 // Sales Manager - get DMC through Sales Head
                 $salesHead = User::where('userId', $user->created_by)->first();
                 if ($salesHead) {
                     $userDmcId = $salesHead->created_by;
+                    Log::info('Sales Manager user detected', [
+                        'userDmcId' => $userDmcId,
+                        'salesHead_id' => $salesHead->userId
+                    ]);
                 }
             } elseif ($user->role_id == 38) {
                 // Assistant Sales Manager - get DMC through Sales Manager -> Sales Head
@@ -441,9 +455,19 @@ class FinanceReportController extends Controller
                     $salesHead = User::where('userId', $salesManager->created_by)->first();
                     if ($salesHead) {
                         $userDmcId = $salesHead->created_by;
+                        Log::info('Assistant Sales Manager user detected', [
+                            'userDmcId' => $userDmcId,
+                            'salesManager_id' => $salesManager->userId,
+                            'salesHead_id' => $salesHead->userId
+                        ]);
                     }
                 }
             }
+            
+            Log::info('User DMC ID calculated', [
+                'user_dmc_id' => $userDmcId,
+                'role_id' => $user->role_id
+            ]);
             
             // Verify that the agency belongs to the user's DMC
             if ($userDmcId) {
@@ -453,14 +477,27 @@ class FinanceReportController extends Controller
                     ->first();
                 
                 if (!$agency) {
+                    Log::warning('Agency not found or permission denied', [
+                        'agency_id' => $agencyId,
+                        'user_dmc_id' => $userDmcId,
+                        'role_id' => $user->role_id
+                    ]);
                     return response()->json([
                         'success' => false,
                         'message' => 'Agency not found or you do not have permission to view agents for this agency',
                         'agents' => []
                     ]);
                 }
+                Log::info('Agency verified', [
+                    'agency_id' => $agency->agency_id,
+                    'agency_name' => $agency->agency_name
+                ]);
             } elseif ($user->role_id != 1 && $user->role_id != 2) {
                 // Non-admin users without DMC ID cannot access
+                Log::warning('User without DMC ID trying to access agents', [
+                    'user_id' => $user->userId,
+                    'role_id' => $user->role_id
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'You do not have permission to view agents',
@@ -478,6 +515,11 @@ class FinanceReportController extends Controller
             $agents = $query->select('agent_id', 'name', 'agency_id', 'sales_manager_dmc')
                 ->orderBy('name', 'asc')
                 ->get();
+            
+            Log::info('Agents found', [
+                'agency_id' => $agencyId,
+                'agent_count' => $agents->count()
+            ]);
             
             // Map agents for response
             $agentsData = $agents->map(function($agent) {
@@ -629,40 +671,22 @@ class FinanceReportController extends Controller
             case 135: // Sales Head
             case 136: // Sales Head
             case 138: // Sales Head
-                // Step 1: Get all Sales Managers under this Sales Head
-                $sales_managers = User::where('created_by', $user->userId)
-                                    ->whereIn('role_id', [12, 37])
-                                    ->pluck('userId');
-                
-                // Step 2: Get all Assistant Managers under those Sales Managers
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                                        ->where('role_id', 38)
-                                        ->pluck('userId');
-                
-                // Step 3: Collect all user IDs in the hierarchy
-                $all_user_ids = collect([$user->userId])
-                              ->merge($sales_managers)
-                              ->merge($assistant_managers)
-                              ->unique()
-                              ->filter();
-                
-                // Step 4: Get parent DMC
+                // Get parent DMC
                 $dmc_id = User::where('userId', $user->created_by)
                              ->where('role_id', 11)
                              ->value('userId');
                 
-                // Step 5: Get agents created by anyone in the hierarchy under this DMC
+                // Sales Head can see ALL agents under their DMC (same as DMC)
                 if ($dmc_id) {
-                    // Get all agencies for this DMC (not filtered by user hierarchy)
+                    // Get all agencies for this DMC
                     $agencyIds = Agency::where('status', 1)
                         ->whereJsonContains('dmc_id', (int)$dmc_id)
                         ->pluck('agency_id')
                         ->toArray();
     
-                    // Get all agents in these agencies
+                    // Get ALL agents in these agencies (not filtered by hierarchy)
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
-                        ->whereIn('sales_manager_dmc', $all_user_ids)
                         ->select('agent_id', 'name', 'agency_id')
                         ->get();
                     return $agents->pluck('agent_id')->toArray();
@@ -671,22 +695,11 @@ class FinanceReportController extends Controller
 
             case 12: // Sales Manager
             case 37: // Sales Manager
-                // Step 1: Get Assistant Managers under this Sales Manager
-                $assistant_managers = User::where('created_by', $user->userId)
-                                        ->where('role_id', 38)
-                                        ->pluck('userId');
-                
-                // Step 2: Collect all user IDs (Sales Manager + Assistant Managers)
-                $all_user_ids = collect([$user->userId])
-                              ->merge($assistant_managers)
-                              ->unique()
-                              ->filter();
-                
-                // Step 3: Get the Sales Head who created this Sales Manager (to find DMC)
+                // Get the Sales Head who created this Sales Manager (to find DMC)
                 $sales_head = User::where('userId', $user->created_by)
                                     ->where('role_id', 33)
                                     ->first();                
-                // Step 4: Get the DMC who created the Sales Head
+                // Get the DMC who created the Sales Head
                 $dmc_id = null;
                 if ($sales_head) {
                     $dmc_id = User::where('userId', $sales_head->created_by)
@@ -694,18 +707,17 @@ class FinanceReportController extends Controller
                                     ->value('userId');
                 }
                 
-                // Step 5: Fetch Agents created by Sales Manager or Assistant Managers under DMC
+                // Sales Manager can see ALL agents under their DMC (same as DMC)
                 if ($dmc_id) {
-                    // Get all agencies for this DMC (not filtered by user hierarchy)
+                    // Get all agencies for this DMC
                     $agencyIds = Agency::where('status', 1)
                         ->whereJsonContains('dmc_id', (int)$dmc_id)
                         ->pluck('agency_id')
                         ->toArray();
     
-                    // Get all agents in these agencies created by Sales Manager or Assistant Managers
+                    // Get ALL agents in these agencies (not filtered by hierarchy)
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
-                        ->whereIn('sales_manager_dmc', $all_user_ids)
                         ->select('agent_id', 'name', 'agency_id')
                         ->get();
                     return $agents->pluck('agent_id')->toArray();
@@ -713,19 +725,18 @@ class FinanceReportController extends Controller
                 return [];
 
             case 38: // Assistant Sales Manager
-                // Assistant Sales Manager can only see agents that he created directly
-                // Step 1: Get Sales Manager (who created this Assistant Sales Manager)
+                // Get Sales Manager (who created this Assistant Sales Manager)
                 $sales_mg = User::where('userId', $user->created_by)
                                 ->whereIn('role_id', [12, 37]) // Allow both sales manager roles
                                 ->first();
-                // Step 2: Get Sales Head (who created the Sales Manager)
+                // Get Sales Head (who created the Sales Manager)
                 $sales_head = null;
                 if ($sales_mg) {
                     $sales_head = User::where('userId', $sales_mg->created_by)
                                       ->where('role_id', 33)
                                       ->first();
                 }
-                // Step 3: Get DMC (who created the Sales Head)
+                // Get DMC (who created the Sales Head)
                 $dmc_id = null;
                 if ($sales_head) {
                     $dmc_id = User::where('userId', $sales_head->created_by)
@@ -733,18 +744,17 @@ class FinanceReportController extends Controller
                                   ->value('userId');
                 }
             
-                // Step 4: Fetch only Agents created by this Assistant Sales Manager under DMC
+                // Assistant Sales Manager can see ALL agents under their DMC (same as DMC)
                 if ($dmc_id) {
-                    // Get all agencies for this DMC (not filtered by user hierarchy)
+                    // Get all agencies for this DMC
                     $agencyIds = Agency::where('status', 1)
                         ->whereJsonContains('dmc_id', (int)$dmc_id)
                         ->pluck('agency_id')
                         ->toArray();
     
-                    // Get all agents in these agencies created by this Assistant Sales Manager
+                    // Get ALL agents in these agencies (not filtered by hierarchy)
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
-                        ->where('sales_manager_dmc', $user->userId)
                         ->select('agent_id', 'name', 'agency_id')
                         ->get();
                     return $agents->pluck('agent_id')->toArray();
@@ -904,60 +914,26 @@ class FinanceReportController extends Controller
             case 135: // Sales Head
             case 136: // Sales Head
             case 138: // Sales Head
-                // Step 1: Get all Sales Managers under this Sales Head
-                $sales_managers = User::where('created_by', $user->userId)
-                                    ->whereIn('role_id', [12, 37])
-                                    ->pluck('userId');
-                
-                // Step 2: Get all Assistant Managers under those Sales Managers
-                $assistant_managers = User::whereIn('created_by', $sales_managers)
-                                        ->where('role_id', 38)
-                                        ->pluck('userId');
-                
-                // Step 3: Collect all user IDs in the hierarchy
-                $all_user_ids = collect([$user->userId])
-                              ->merge($sales_managers)
-                              ->merge($assistant_managers)
-                              ->unique()
-                              ->filter();
-                
-                // Step 4: Get parent DMC
+                // Get parent DMC
                 $dmc_id = User::where('userId', $user->created_by)
                              ->where('role_id', 11)
                              ->value('userId');
                 
-                // Step 5: Get agents created by anyone in the hierarchy under this DMC
+                // Sales Head can see ALL agents under their DMC (same as DMC)
                 if ($dmc_id) {
-                    $agencyIds = Agency::where(function($query) use ($user) {
-                        $query->whereRaw("CASE 
-                            WHEN dmc_id IS NOT NULL 
-                            THEN (
-                                CASE 
-                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                    THEN dmc_id::jsonb @> ?::jsonb
-                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                    THEN dmc_id::jsonb @> ?::jsonb
-                                    ELSE dmc_id::text LIKE ?
-                                END
-                            )
-                            ELSE false
-                        END", [
-                            json_encode([$user->userId]),
-                            json_encode([$user->userId]),
-                            "%{$user->userId}%"
-                        ]);
-                    })
-                    ->pluck('agency_id')
-                    ->toArray();
+                    $agencyIds = Agency::where('status', 1)
+                        ->whereJsonContains('dmc_id', (int)$dmc_id)
+                        ->pluck('agency_id')
+                        ->toArray();
     
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
                         ->select('agent_id', 'name', 'agency_id')
                         ->get();
-                    return $agents->pluck('agent_id')->toArray();
+                    
                     // Add root DMC ID for each agent
-                    return $agents->map(function ($agent) {
-                        $agent->root_dmc_id = $this->findRootDmcForAgent($agent->sales_manager_dmc);
+                    return $agents->map(function ($agent) use ($dmc_id) {
+                        $agent->root_dmc_id = $dmc_id;
                         return $agent;
                     });
                 }
@@ -965,22 +941,11 @@ class FinanceReportController extends Controller
 
             case 12: // Sales Manager
             case 37: // Sales Manager
-                // Step 1: Get Assistant Managers under this Sales Manager
-                $assistant_managers = User::where('created_by', $user->userId)
-                                        ->where('role_id', 38)
-                                        ->pluck('userId');
-                
-                // Step 2: Collect all user IDs (Sales Manager + Assistant Managers)
-                $all_user_ids = collect([$user->userId])
-                              ->merge($assistant_managers)
-                              ->unique()
-                              ->filter();
-                
-                // Step 3: Get the Sales Head who created this Sales Manager (to find DMC)
+                // Get the Sales Head who created this Sales Manager (to find DMC)
                 $sales_head = User::where('userId', $user->created_by)
                                     ->where('role_id', 33)
                                     ->first();                
-                // Step 4: Get the DMC who created the Sales Head
+                // Get the DMC who created the Sales Head
                 $dmc_id = null;
                 if ($sales_head) {
                     $dmc_id = User::where('userId', $sales_head->created_by)
@@ -988,58 +953,39 @@ class FinanceReportController extends Controller
                                     ->value('userId');
                 }
                 
-                // Step 5: Fetch Agents created by Sales Manager or Assistant Managers under DMC
+                // Sales Manager can see ALL agents under their DMC (same as DMC)
                 if ($dmc_id) {
-                    $agencyIds = Agency::where(function($query) use ($user) {
-                        $query->whereRaw("CASE 
-                            WHEN dmc_id IS NOT NULL 
-                            THEN (
-                                CASE 
-                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                    THEN dmc_id::jsonb @> ?::jsonb
-                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                    THEN dmc_id::jsonb @> ?::jsonb
-                                    ELSE dmc_id::text LIKE ?
-                                END
-                            )
-                            ELSE false
-                        END", [
-                            json_encode([$user->userId]),
-                            json_encode([$user->userId]),
-                            "%{$user->userId}%"
-                        ]);
-                    })
-                    ->pluck('agency_id')
-                    ->toArray();
+                    $agencyIds = Agency::where('status', 1)
+                        ->whereJsonContains('dmc_id', (int)$dmc_id)
+                        ->pluck('agency_id')
+                        ->toArray();
     
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
                         ->select('agent_id', 'name', 'agency_id')
                         ->get();
-                    return $agents->pluck('agent_id')->toArray();
                     
                     // Add root DMC ID for each agent
-                    return $agents->map(function ($agent) {
-                        $agent->root_dmc_id = $this->findRootDmcForAgent($agent->sales_manager_dmc);
+                    return $agents->map(function ($agent) use ($dmc_id) {
+                        $agent->root_dmc_id = $dmc_id;
                         return $agent;
                     });
                 }
                 return collect();
 
             case 38: // Assistant Sales Manager
-                // Assistant Sales Manager can only see agents that he created directly
-                // Step 1: Get Sales Manager (who created this Assistant Sales Manager)
+                // Get Sales Manager (who created this Assistant Sales Manager)
                 $sales_mg = User::where('userId', $user->created_by)
                                 ->whereIn('role_id', [12, 37]) // Allow both sales manager roles
                                 ->first();
-                // Step 2: Get Sales Head (who created the Sales Manager)
+                // Get Sales Head (who created the Sales Manager)
                 $sales_head = null;
                 if ($sales_mg) {
                     $sales_head = User::where('userId', $sales_mg->created_by)
                                       ->where('role_id', 33)
                                       ->first();
                 }
-                // Step 3: Get DMC (who created the Sales Head)
+                // Get DMC (who created the Sales Head)
                 $dmc_id = null;
                 if ($sales_head) {
                     $dmc_id = User::where('userId', $sales_head->created_by)
@@ -1047,38 +993,21 @@ class FinanceReportController extends Controller
                                   ->value('userId');
                 }
             
-                // Step 4: Fetch only Agents created by this Assistant Sales Manager under DMC
+                // Assistant Sales Manager can see ALL agents under their DMC (same as DMC)
                 if ($dmc_id) {
-                    $agencyIds = Agency::where(function($query) use ($user) {
-                        $query->whereRaw("CASE 
-                            WHEN dmc_id IS NOT NULL 
-                            THEN (
-                                CASE 
-                                    WHEN dmc_id::text ~ '^\\[.*\\]$' 
-                                    THEN dmc_id::jsonb @> ?::jsonb
-                                    WHEN dmc_id::text ~ '^\\{.*\\}$'
-                                    THEN dmc_id::jsonb @> ?::jsonb
-                                    ELSE dmc_id::text LIKE ?
-                                END
-                            )
-                            ELSE false
-                        END", [
-                            json_encode([$user->userId]),
-                            json_encode([$user->userId]),
-                            "%{$user->userId}%"
-                        ]);
-                    })
-                    ->pluck('agency_id')
-                    ->toArray();
+                    $agencyIds = Agency::where('status', 1)
+                        ->whereJsonContains('dmc_id', (int)$dmc_id)
+                        ->pluck('agency_id')
+                        ->toArray();
     
                     $agents = Agent::where('status', 1)
                         ->whereIn('agency_id', $agencyIds)
                         ->select('agent_id', 'name', 'agency_id')
                         ->get();
-                    return $agents->pluck('agent_id')->toArray();
+                    
                     // Add root DMC ID for each agent
-                    return $agents->map(function ($agent) {
-                        $agent->root_dmc_id = $this->findRootDmcForAgent($agent->sales_manager_dmc);
+                    return $agents->map(function ($agent) use ($dmc_id) {
+                        $agent->root_dmc_id = $dmc_id;
                         return $agent;
                     });
                 }
