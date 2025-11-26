@@ -915,7 +915,7 @@
                             </td> --}}
                             <td>
                                 <div class="d-flex flex-column gap-2">
-                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138])))
+                                    @if(auth()->user()->role_id == 33 ||auth()->user()->role_id == 11 || auth()->user()->role_id == 34 ||auth()->user()->role_id == 37 || auth()->user()->role_id == 38 ||auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || in_array(auth()->user()->role_id, [128, 129, 130, 131, 132, 134, 135, 136, 137, 138]))
                                     <a href="{{ route('single-tour-package.edit', Crypt::encrypt($tour->tour_id)) }}"
                                        class="btn btn-outline-success btn-sm rounded-pill">
                                         <i class="ri-pencil-line"></i> Edit
