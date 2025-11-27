@@ -1868,10 +1868,17 @@
                                 const mealId = document.getElementById(`day${day}_restaurant_${index}_meal_id`)?.value || '';
                                 const dishName = document.getElementById(`day${day}_restaurant_${index}_dish_name`)?.value || '';
                                 
+                                // Get selected dish from the "Select Dish" dropdown
+                                const dishSelect = document.getElementById(`day${day}_dish_${index}`);
+                                const selectedDishValue = dishSelect?.value || '';
+                                const selectedDishOption = dishSelect?.options[dishSelect?.selectedIndex];
+                                const selectedDishText = selectedDishOption?.text || selectedDishValue || '';
+                                
                                 console.log(`Restaurant pricing for day ${day}, index ${index}:`);
                                 console.log(`- Total Price: $${totalPrice}`);
                                 console.log(`- Meal ID: ${mealId}`);
                                 console.log(`- Dish Name: ${dishName}`);
+                                console.log(`- Selected Dish: ${selectedDishText}`);
                                 console.log(`- Guest Info: ${guestInfo.adults} adults, ${guestInfo.children} children`);
                                 
                                 // Format visit time to 12-hour format with AM/PM
@@ -1926,7 +1933,7 @@
                                     
                                     // Meal Information
                                     mealType: normalizeMealType(mealType),
-                                    mealSpecificType: document.getElementById(`day${day}_meal_specific_type_${index}`)?.value || null,
+                                    mealSpecificType: selectedDishText || null,
                                     
                                     // Meal Description (array of meal items)
                                     MealDescription: [{
@@ -2076,8 +2083,21 @@
                                         distance: parseFloat(document.getElementById(`day${day}_entry_${vehicleIndex}_distance`)?.value || "0"),
                                         Night_Start_Time: null,
                                         Night_End_Time: null,
-                                        city: pickupZone.dataset.city || "",
-                                        country: pickupZone.dataset.country || "",
+                                        city: (() => {
+                                            // Get city from the city select field
+                                            const citySelect = document.getElementById('modal_local_transfer_city');
+                                            const cityValue = citySelect?.value || '';
+                                            return cityValue || pickupZone.dataset.city || "";
+                                        })(),
+                                        country: (() => {
+                                            // Get country from city select option's data-country attribute, or from user_country field
+                                            const citySelect = document.getElementById('modal_local_transfer_city');
+                                            const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                            const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromField = document.getElementById('user_country')?.value || '';
+                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            return countryValue || pickupZone.dataset.country || "";
+                                        })(),
                                         fullName: customerData.fullName,
                                         email: customerData.email,
                                         phone: customerData.phone,
@@ -2183,8 +2203,21 @@
                                         distance: parseFloat(document.getElementById(`day${day}_exit_${vehicleIndex}_distance`)?.value || "0"),
                                         Night_Start_Time: null,
                                         Night_End_Time: null,
-                                        city: pickupZone.dataset.city || "",
-                                        country: pickupZone.dataset.country || "",
+                                        city: (() => {
+                                            // Get city from the exit city select field
+                                            const citySelect = document.getElementById('modal_exit_city');
+                                            const cityValue = citySelect?.value || '';
+                                            return cityValue || pickupZone.dataset.city || "";
+                                        })(),
+                                        country: (() => {
+                                            // Get country from exit city select option's data-country attribute, or from user_country field
+                                            const citySelect = document.getElementById('modal_exit_city');
+                                            const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                            const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromField = document.getElementById('user_country')?.value || '';
+                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            return countryValue || pickupZone.dataset.country || "";
+                                        })(),
                                         fullName: customerData.fullName,
                                         email: customerData.email,
                                         phone: customerData.phone,
@@ -2677,6 +2710,16 @@
                                     const totalPrice = parseFloat(document.getElementById(`day${day}_${section}_0_total_price`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_total_price`)?.value || 0);
                                     
                                     if (section === 'entry') {
+                                        // Get city from the city select field
+                                        const citySelect = document.getElementById('modal_local_transfer_city');
+                                        const cityValue = citySelect?.value || '';
+                                        
+                                        // Get country from city select option's data-country attribute, or from user_country field
+                                        const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                        const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                        const countryFromField = document.getElementById('user_country')?.value || '';
+                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                        
                                         const transportData = {
                                             id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                                             bookingDate: bookingDateValue,
@@ -2711,8 +2754,8 @@
                                             distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
-                                            city: pickupZone?.dataset?.city || "",
-                                            country: pickupZone?.dataset?.country || "",
+                                            city: cityValue || pickupZone?.dataset?.city || "",
+                                            country: countryValue || pickupZone?.dataset?.country || "",
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -2772,8 +2815,21 @@
                                         distance: parseFloat(document.getElementById(`day${day}_${section}_0_distance`)?.value || document.getElementById(`day${day}_${section}${fieldSuffix}_distance`)?.value || "0"),
                                             Night_Start_Time: null,
                                             Night_End_Time: null,
-                                            city: pickupZone.dataset.city || "Singapore",
-                                            country: pickupZone.dataset.country || "Singapore",
+                                            city: (() => {
+                                                // Get city from the exit city select field
+                                                const citySelect = document.getElementById('modal_exit_city');
+                                                const cityValue = citySelect?.value || '';
+                                                return cityValue || pickupZone.dataset.city || "";
+                                            })(),
+                                            country: (() => {
+                                                // Get country from exit city select option's data-country attribute, or from user_country field
+                                                const citySelect = document.getElementById('modal_exit_city');
+                                                const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromField = document.getElementById('user_country')?.value || '';
+                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                return countryValue || pickupZone.dataset.country || "";
+                                            })(),
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -2925,8 +2981,21 @@
                                                                 distance: parseFloat(document.getElementById(`day${vehicleDay}_entry_${vehicleIndex}_distance`)?.value || "0"),
                                                 Night_Start_Time: "10:00:00",
                                                 Night_End_Time: "20:00:00",
-                                                city: "Singapore", // Default city - will be updated when city-specific logic is implemented
-                                                country: "Singapore", // Default country
+                                                city: (() => {
+                                                    // Get city from the city select field
+                                                    const citySelect = document.getElementById('modal_local_transfer_city');
+                                                    const cityValue = citySelect?.value || '';
+                                                    return cityValue || "Singapore";
+                                                })(),
+                                                country: (() => {
+                                                    // Get country from city select option's data-country attribute, or from user_country field
+                                                    const citySelect = document.getElementById('modal_local_transfer_city');
+                                                    const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                    const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromField = document.getElementById('user_country')?.value || '';
+                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    return countryValue || "Singapore";
+                                                })(),
                                                                 bookingType: "enquiry",
                                                                 vehicleIndex: vehicleIndex // Add index to identify which vehicle this is
                                             };
@@ -3074,8 +3143,21 @@
                                                 distance: parseFloat(document.getElementById(`day${vehicleDay}_exit_${vehicleIndex}_distance`)?.value || "0"),
                                                 Night_Start_Time: null,
                                                 Night_End_Time: null,
-                                                city: "",
-                                                country: "",
+                                                city: (() => {
+                                                    // Get city from the exit city select field
+                                                    const citySelect = document.getElementById('modal_exit_city');
+                                                    const cityValue = citySelect?.value || '';
+                                                    return cityValue || "";
+                                                })(),
+                                                country: (() => {
+                                                    // Get country from exit city select option's data-country attribute, or from user_country field
+                                                    const citySelect = document.getElementById('modal_exit_city');
+                                                    const cityOption = citySelect?.options[citySelect?.selectedIndex];
+                                                    const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromField = document.getElementById('user_country')?.value || '';
+                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    return countryValue || "";
+                                                })(),
                                                 userInfo: {
                                                     fullName: customerData.fullName,
                                                     email: customerData.email,
@@ -7681,7 +7763,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         roomTypeSelect.onchange = function() {
                             clearRoomTypeDependentFields();
                             updateBedTypesForRoom(this.value);
-                            updateRoomPriceDisplay(); // Update price when room type changes
+                            updateRoomPriceDisplay(true); // Force update when room type changes
                         };
                     }
                     
@@ -7689,10 +7771,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const numberOfRoomsInput = document.getElementById('numberOfRooms');
                     if (numberOfRoomsInput) {
                         numberOfRoomsInput.addEventListener('input', function() {
-                            updateRoomPriceDisplay(); // Update price when number of rooms changes
+                            updateRoomPriceDisplay(true); // Force update when number of rooms changes
                         });
                         numberOfRoomsInput.addEventListener('change', function() {
-                            updateRoomPriceDisplay(); // Update price when number of rooms changes
+                            updateRoomPriceDisplay(true); // Force update when number of rooms changes
                         });
                     }
                     
@@ -7701,12 +7783,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     const childrenInput = document.getElementById('children');
                     if (adultsInput) {
                         adultsInput.addEventListener('change', function() {
-                            updateRoomPriceDisplay(); // Update price when adults count changes
+                            updateRoomPriceDisplay(true); // Force update when adults count changes
                         });
                     }
                     if (childrenInput) {
                         childrenInput.addEventListener('change', function() {
-                            updateRoomPriceDisplay(); // Update price when children count changes
+                            updateRoomPriceDisplay(true); // Force update when children count changes
+                        });
+                    }
+                    
+                    // Track manual edits to price field
+                    const roomPriceDisplay = document.getElementById('roomPriceDisplay');
+                    if (roomPriceDisplay) {
+                        roomPriceDisplay.addEventListener('input', function() {
+                            // Mark as manually edited when user types
+                            this.dataset.manuallyEdited = 'true';
+                        });
+                        roomPriceDisplay.addEventListener('focus', function() {
+                            // Mark as manually edited when user focuses (they might paste or edit)
+                            // Only if current value is not empty and not $0.00
+                            const currentValue = this.value.replace('$', '').trim();
+                            if (currentValue && currentValue !== '0.00') {
+                                this.dataset.manuallyEdited = 'true';
+                            }
                         });
                     }
                     
@@ -8090,7 +8189,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Function to update room price display based on room type and number of rooms
-    function updateRoomPriceDisplay() {
+    function updateRoomPriceDisplay(forceUpdate = false) {
         const roomPriceDisplay = document.getElementById('roomPriceDisplay');
         const roomTypeSelect = document.getElementById('roomTypeSelect');
         const numberOfRoomsInput = document.getElementById('numberOfRooms');
@@ -8099,9 +8198,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Check if price was manually edited (unless forceUpdate is true)
+        const isManuallyEdited = roomPriceDisplay.dataset.manuallyEdited === 'true';
+        if (isManuallyEdited && !forceUpdate) {
+            // Don't overwrite manually entered price
+            return;
+        }
+        
         // If no room type selected, show $0.00
         if (!roomTypeSelect || !roomTypeSelect.value) {
             roomPriceDisplay.value = '$0.00';
+            roomPriceDisplay.dataset.manuallyEdited = 'false';
             return;
         }
         
@@ -8157,6 +8264,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update display
         roomPriceDisplay.value = '$' + totalPrice.toFixed(2);
+        roomPriceDisplay.dataset.manuallyEdited = 'false'; // Mark as auto-calculated
     }
 
     // Update room cost calculation
@@ -15165,6 +15273,18 @@ function enableSearchButton(day, section, index=null) {
 function loadPortsForCity(cityName) {
     console.log('Loading locations for city:', cityName);
     
+    // Reset pickup port select when city changes
+    const pickupSelect = document.getElementById('entry_pickup_port_select');
+    if (pickupSelect) {
+        // Reset to default option
+        pickupSelect.value = '';
+        // If Select2 is initialized, trigger change to update it
+        if (typeof jQuery !== 'undefined' && jQuery(pickupSelect).hasClass('select2-hidden-accessible')) {
+            jQuery(pickupSelect).val(null).trigger('change');
+        }
+        console.log('Pickup port select reset');
+    }
+    
     if (!cityName) {
         console.log('No city selected, clearing dropoff options');
         const dropoffSelect = document.getElementById('entry_dropoff_location_select');
@@ -15172,6 +15292,8 @@ function loadPortsForCity(cityName) {
             dropoffSelect.innerHTML = '<option value="">Select city first</option>';
             dropoffSelect.disabled = true;
         }
+        // Re-evaluate search button state
+        enableSearchButton(1, 'entry');
         return;
     }
     
