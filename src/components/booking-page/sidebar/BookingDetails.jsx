@@ -151,9 +151,27 @@ console.log(bookingDate,"booking date");
   // console.log(ucheckIn,ucheckOut,"chekouttttt");
   
   // Get hotel details from Redux store with optional chaining
-  const { hotel_name,hotel_id, location, image, cancellation_charge,site_image } = useSelector(
+  const bookingDetails = useSelector(
     (state) => state.hoteldetails.bookingDetails || {}
   );
+  
+  // Extract hotel details with fallback for location
+  const { 
+    hotel_name, 
+    hotel_id, 
+    image, 
+    cancellation_charge, 
+    site_image,
+    location: locationFromDetails,
+    address,
+    city,
+    country
+  } = bookingDetails;
+  
+  // Try to get location from multiple possible fields
+  const location = locationFromDetails || address || 
+    (city && country ? `${city}, ${country}` : city || country || '');
+  
  // console.log(hotel_name, location, image, cancellation_charge,"hotel details final");
 
   const cancellationString =

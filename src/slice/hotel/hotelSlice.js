@@ -153,27 +153,65 @@ export const hottelBookingDataSubmit = createAsyncThunk(
         dmc_id: selectedDmcId,
       };
 
-      // Only include tour meta if we don't have a tour_id yet
-      if (!hasTourId) {
-        const root = getState();
-        const bookings = root.bookings || {};
-        const auth = root.auth || {};
+      // Get root state for destination lookup
+      const root = getState();
+      const bookings = root.bookings || {};
+      const auth = root.auth || {};
 
-        // Create dynamic country mapping from auth state
-        const countryCodeToName = {};
-        if (auth.user_country && Array.isArray(auth.user_country)) {
-          auth.user_country.forEach((country) => {
-            if (country && country.name && country.code) {
-              countryCodeToName[country.code] = country.name;
-              countryCodeToName[country.code.toLowerCase()] = country.name;
-            }
-          });
-        }
+      // Create dynamic country mapping from auth state
+      const countryCodeToName = {};
+      if (auth.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
 
+      // Determine destination - check multiple sources
+      let destination = "";
+      
+      // Priority 1: Check if destination is in the payload (from index2.jsx)
+      if (hotelData && hotelData.length > 0 && hotelData[0]?.destination) {
+        destination = hotelData[0].destination;
+        // Remove destination from data array to avoid duplication
+        hotelData = hotelData.map(item => {
+          const { destination: _, ...rest } = item;
+          return rest;
+        });
+        formData.data = hotelData;
+      }
+      // Priority 2: Check tourDetails
+      else if (root.hotels?.tourdetails?.destination) {
+        const tourDest = root.hotels.tourdetails.destination;
+        destination = Array.isArray(tourDest) ? tourDest.join(", ") : tourDest;
+      }
+      // Priority 3: Check enquiry state
+      else if (root.enquiry?.destination) {
+        const enquiryDest = root.enquiry.destination;
+        destination = Array.isArray(enquiryDest) ? enquiryDest.join(", ") : enquiryDest;
+      }
+      // Priority 4: Use bookings.searchLocation (convert codes to names)
+      else if (bookings.searchLocation) {
         const searchLocation = bookings.searchLocation || [];
-        const destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
+        destination = (Array.isArray(searchLocation) ? searchLocation : [searchLocation])
           .map((loc) => countryCodeToName[loc] || loc)
           .join(", ");
+      }
+      // Priority 5: Check searchState location
+      else if (root.hotels?.searchState?.location) {
+        const searchStateLoc = root.hotels.searchState.location;
+        destination = Array.isArray(searchStateLoc) ? searchStateLoc.join(", ") : searchStateLoc;
+      }
+
+      // Add destination at root level if we found one
+      if (destination) {
+        formData.destination = destination;
+      }
+
+      // Only include other tour meta if we don't have a tour_id yet
+      if (!hasTourId) {
         const check_in = bookings.checkIn || "";
         const check_out = bookings.checkOut || "";
         const bGuests = bookings.guests || {};
@@ -185,7 +223,6 @@ export const hottelBookingDataSubmit = createAsyncThunk(
         const children_ages = (bGuests.childrenAges || []).join(", ");
 
         // Add tour meta to formData
-        formData.destination = destination;
         formData.check_in = check_in;
         formData.check_out = check_out;
         formData.adult = adult;
@@ -301,6 +338,7 @@ const hotelSlice = createSlice({
     setHotelBooking: (state, action) => {
       state.submitHotels = action.payload || [];
       // console.log("hotell", state.submitHotels);
+      
     },
     setHotelService: (state, action) => {
       state.hotelService = action.payload || [];

@@ -131,6 +131,62 @@ export default function Index2() {
   // Add PriceHide selector
   const PriceHide = useSelector((state) => state.auth.PriceHide);
 
+  // Get destination from multiple possible sources (for second booking when tour_id exists)
+  // This is needed because hottelBookingDataSubmit only adds destination when !hasTourId
+  const destinationFromBookings = useSelector((state) => state.bookings?.searchLocation);
+  const destinationFromEnquiry = useSelector((state) => state.enquiry?.destination);
+  const destinationFromTour = tourdetails?.destination;
+  const destinationFromSearchState = bookingDates?.location;
+  const auth = useSelector((state) => state.auth);
+
+  // Determine destination - same logic as hotelSlice.js (lines 173-176)
+  const getDestination = () => {
+    // Priority 1: tourDetails.destination
+    if (destinationFromTour) {
+      return Array.isArray(destinationFromTour) ? destinationFromTour.join(", ") : destinationFromTour;
+    }
+    
+    // Priority 2: enquiry.destination
+    if (destinationFromEnquiry) {
+      return Array.isArray(destinationFromEnquiry) ? destinationFromEnquiry.join(", ") : destinationFromEnquiry;
+    }
+    
+    // Priority 3: bookings.searchLocation (convert country codes to names)
+    if (destinationFromBookings) {
+      // Create country code to name mapping (same as hotelSlice.js)
+      const countryCodeToName = {};
+      if (auth?.user_country && Array.isArray(auth.user_country)) {
+        auth.user_country.forEach((country) => {
+          if (country && country.name && country.code) {
+            countryCodeToName[country.code] = country.name;
+            countryCodeToName[country.code.toLowerCase()] = country.name;
+          }
+        });
+      }
+      
+      // Convert searchLocation (can be array or single value)
+      const searchLocation = Array.isArray(destinationFromBookings) 
+        ? destinationFromBookings 
+        : [destinationFromBookings];
+      
+      // Map codes to names and join
+      return searchLocation
+        .map((loc) => countryCodeToName[loc] || loc)
+        .join(", ");
+    }
+    
+    // Priority 4: searchState.location
+    if (destinationFromSearchState) {
+      return Array.isArray(destinationFromSearchState) 
+        ? destinationFromSearchState.join(", ") 
+        : destinationFromSearchState;
+    }
+    
+    return "";
+  };
+
+  const destination = getDestination();
+
   // Get data directly from location state (similar to index.jsx)
   const rooms = location.state?.bookingArray || location.state?.rooms || [];
   const totalPrice = location.state?.totalPrice || 0;
@@ -213,13 +269,14 @@ export default function Index2() {
         totalPrice: totalPrice || hotelData?.totalPrice || 0,
         priceMode: priceMode || hotelData?.priceMode || "both",
         priceModeId: priceModeId || "",
+        destination: destination || "", // Add destination at root level (needed when tour_id exists)
 
         hotelDetails: {
           hotel_id: hotelDetails?.hotel_id || "",
           hotel_name: hotelDetails?.hotel_name || "",
           checkInTime: hotelDetails?.check_in_time || "",
           checkOutTime: hotelDetails?.check_out_time || "",
-          location: hotelDetails?.location || "",
+          location: tourdetails?.destination || "",
           image: hotelDetails?.image || "",
           cancellation_charge: hotelDetails?.cancellation_charge || "",
         },
@@ -318,12 +375,13 @@ export default function Index2() {
         // comment: enquiryComment,
         priceMode: priceMode || hotelData?.priceMode || "both",
         priceModeId: priceModeId || "",
+        destination: destination || "", // Add destination at root level (needed when tour_id exists)
         hotelDetails: {
           hotel_id: hotelDetails?.hotel_id || "",
           hotel_name: hotelDetails?.hotel_name || "",
           checkInTime: hotelDetails?.check_in_time || "",
           checkOutTime: hotelDetails?.check_out_time || "",
-          location: hotelDetails?.location || "",
+          location: tourdetails?.destination || "",
           image: hotelDetails?.image || "",
           cancellation_charge: hotelDetails?.cancellation_charge || "",
         },
