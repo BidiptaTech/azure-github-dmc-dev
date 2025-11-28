@@ -297,7 +297,7 @@ const LandingNavbar = () => {
             </IconButton>
 
             {/* Get In Touch Button - Hidden on mobile since it's now in the drawer */}
-            <Button
+            {/* <Button
                   component={RouterLink}
                   to="/register"
                   variant="contained"
@@ -319,7 +319,7 @@ const LandingNavbar = () => {
                   }}
                 >
                   Register as an Agent
-                </Button>
+                </Button> */}
           </Toolbar>
         </Container>
       </AppBar>

@@ -104,7 +104,7 @@ const MainFilterSearchBox = () => {
   const defaultChildren = tourDetails?.child || 0;
 
   const handleSearch = () => {
-    dispatch(setHaveBooking(false));
+    //dispatch(setHaveBooking(false));
     dispatch(setSelectedCity(selectedLocation));
     dispatch(resetHotels());
 

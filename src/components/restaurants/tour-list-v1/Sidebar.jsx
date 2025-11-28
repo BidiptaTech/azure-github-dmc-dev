@@ -183,7 +183,7 @@ const Sidebar = () => {
       </div> */}
 
       {/* Cuisine Filter */}
-      <div className="sidebar__item">
+      <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Cuisine</h5>
         <div className="sidebar-checkbox">
           {cuisines.map((option, index) => (
@@ -231,14 +231,14 @@ const Sidebar = () => {
       </div>
       )}
 
-{haveBooking === false && (
+
 <div className="sidebar__item">
         <h5 className="text-18 fw-500 mb-10">DMC</h5>
         <div className="sidebar-checkbox">
           <DmcFilter />
         </div>
       </div>
-      )}
+      
     </>
   );
 };

@@ -147,6 +147,7 @@ export default function Index2() {
   const pointzoneData = useSelector(selectUserInfo);
   const image = useSelector((state) => state.tourguide.image);
   const guideBookingDetails = useSelector((state) => state.tourguide.details);
+  console.log("guideBookingDetails", guideBookingDetails);
   const entryportBookingDetails = useSelector(
     (state) => state.pickupDrop.details
   );
