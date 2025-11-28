@@ -334,7 +334,7 @@ const Sidebar = () => {
       </div> */}
       {/* End search box */}
       
-      <div className="sidebar__item pr-10">
+      {/* <div className="sidebar__item pr-10">
         <h5 className="text-18 fw-500 mb-10">Price Mode</h5>
         <div className="sidebar-checkbox">
           <PriceModeFilter 
@@ -342,15 +342,15 @@ const Sidebar = () => {
             onChange={handlePriceModeChange}
           />
         </div>
-      </div>
-      {haveBooking === false && (
-      <div className="sidebar__item">
+      </div> */}
+      
+      <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">DMC</h5>
         <div className="sidebar-checkbox">
           <DmcFilter />
         </div>
       </div>
-      )}
+      
       {/* End price mode filter */}
 
       {/* <div className="sidebar__item">

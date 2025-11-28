@@ -37,16 +37,28 @@ const PriceSlider = ({ hourlyPrices = [], priceRange, setPriceRange }) => {
   };
 
   return (
-    <div>
-      <h4>Filter by Price</h4>
+    <div style={{  padding: '16px', borderRadius: '10px' }}>
+      
       <Slider
         value={[safePriceRange.min, safePriceRange.max]}
         onChange={handleChange}
         valueLabelDisplay="auto"
         min={minPrice}
         max={maxPrice}
+        size="small"
+        sx={{
+          height: 4,
+          '& .MuiSlider-thumb': {
+            width: 16,
+            height: 16,
+          },
+          '& .MuiSlider-valueLabel': {
+            fontSize: '0.75rem',
+            padding: '2px 6px',
+          },
+        }}
       />
-      <p>
+      <p style={{ fontSize: '0.75rem', marginTop: '8px', marginBottom: 0 }}>
         Price Range: {currencySymbol}
         {Math.ceil(safePriceRange.min * exchangeRate)} - {currencySymbol}
         {Math.ceil(safePriceRange.max * exchangeRate)}
