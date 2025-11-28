@@ -832,7 +832,10 @@
                                         }
                                     }
                                     $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-                                    $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
+                                    $enquiry_amount = $enquiry->amount ?? 0;
+                                    $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
+                                    $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
+                                    $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
                                     
                                     // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
                                     $baseAmount = round($tourTotalPrice) - $discountAmount;
@@ -3515,7 +3518,10 @@
             }
         }
         $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->where('status', 2)->first();
-        $discountAmount = $enquiry ? ($enquiry->actual_amount - $enquiry->amount) : 0;
+        $enquiry_amount = $enquiry->amount ?? 0;
+        $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
+        $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
+        $discountAmount = $frstenquiry ? ($frstenquiry->actual_amount - $enquiry_amount) : 0;
         
         // Calculate base amount before tax (round up if decimal > 0.5, round down if < 0.5)
         $baseAmount = round($tourTotalPrice) - $discountAmount;
