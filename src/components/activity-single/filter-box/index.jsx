@@ -47,6 +47,7 @@ const Index = () => {
   const selectedDate = useSelector((state) => state.tourguide.pickupdate);
   const PickupPlaceid = useSelector((state) => state.tourguide.PickupPlaceid);
   const DropoffPlaceid = useSelector((state) => state.tourguide.DropoffPlaceid);
+  const country = useSelector((state) => state.hotels.tourdetails.destination);
   const statemode = useSelector((state) => state.tourguide.mode);
   const dispatch = useDispatch();
   const location = useLocation();
@@ -358,8 +359,10 @@ const Index = () => {
       Tax: guide.guide.tax_percentage,
       Night_Start_Time: guide.guide.night_start_time,
       Night_End_Time: guide.guide.night_end_time,
+      city: pickUpLocation,
+      country: country,
     };
-
+    console.log("guide details", details);
     dispatch(setData(details));
     navigate(`/dashboard/db-dashboard/CheckOut`, {
       state: { guide: guide },

@@ -26,6 +26,7 @@ import { resetVehicles1 } from '@/slice/localtour/Localslice';
 const DmcFilter = () => {
   const dispatch = useDispatch();
   const step = useSelector((state) => state.steps.localStepStatus);
+  const haveBooking = useSelector((state) => state.common.haveBooking);
   console.log(step, "step");
   // Get destination from bookings slice with proper null checking
   const destination = useSelector((state) => {
@@ -61,11 +62,17 @@ const DmcFilter = () => {
   const loading = useSelector((state) => state.dmc?.loading);
   const error = useSelector((state) => state.dmc?.error);
   
+  // Get selected DMC data from Redux (for when haveBooking is true)
+  const selectedDmcId = useSelector((state) => state.dmc?.dmcId);
+  const selectedDmcData = useSelector((state) => state.dmc?.selectedDmcData);
+  const selectedDmcLogo = useSelector((state) => state.dmc?.selectedDmcLogo);
+  const selectedDmcCompanyName = useSelector((state) => state.dmc?.selectedDmcCompanyName);
+  
   const [localSelectedDmc, setLocalSelectedDmc] = useState('');
 
-  // Fetch DMCs when destination changes
+  // Fetch DMCs when destination changes (skip if haveBooking is true)
   useEffect(() => {
-    if (destination) {
+    if (destination && !haveBooking) {
       console.log('🔍 DMC Filter - Fetching DMCs for destination:', destination);
       
       // Dispatch the API call with destination array
@@ -78,11 +85,18 @@ const DmcFilter = () => {
           console.error('❌ DMC Filter - Error fetching DMCs:', err);
         });
     }
-  }, [destination, dispatch]);
+  }, [destination, dispatch, haveBooking]);
 
-  // Auto-select first DMC when dmcs are loaded
+  // Initialize selected DMC when haveBooking is true
   useEffect(() => {
-    if (dmcs?.data && dmcs.data.length > 0 && dmc_id && !localSelectedDmc) {
+    if (haveBooking && selectedDmcId && !localSelectedDmc) {
+      setLocalSelectedDmc(selectedDmcId.toString());
+    }
+  }, [haveBooking, selectedDmcId, localSelectedDmc]);
+
+  // Auto-select first DMC when dmcs are loaded (skip if haveBooking is true)
+  useEffect(() => {
+    if (!haveBooking && dmcs?.data && dmcs.data.length > 0 && dmc_id && !localSelectedDmc) {
       const firstDmc = dmcs.data[0];
       const firstDmcId = firstDmc.userId;
       
@@ -120,10 +134,15 @@ const DmcFilter = () => {
       setLocalSelectedDmc(firstDmcId);
       dispatch(setSelectedDmcId({ dmcId: parseInt(firstDmcId), dmcData }));
     }
-  }, [dmcs, destination, dispatch, dmc_id, localSelectedDmc]);
+  }, [dmcs, destination, dispatch, dmc_id, localSelectedDmc, haveBooking]);
 
   // Handle DMC selection change
   const handleDmcChange = (event) => {
+    // Don't allow changes when haveBooking is true
+    if (haveBooking) {
+      return;
+    }
+    
     const dmcId = event.target.value;
     setLocalSelectedDmc(dmcId);
     
@@ -242,8 +261,22 @@ const DmcFilter = () => {
   // Check if we have DMC data
   const dmcList = dmcs?.data || [];
   
+  // When haveBooking is true, show only the selected DMC
+  // When haveBooking is false, show all DMCs
+  const displayDmcList = haveBooking && selectedDmcData 
+    ? [{
+        userId: selectedDmcId,
+        company_name: selectedDmcCompanyName || selectedDmcData?.name,
+        name: selectedDmcData?.name,
+        logo: selectedDmcLogo || selectedDmcData?.logo,
+        country: selectedDmcData?.location,
+        price_hide: selectedDmcData?.originalData?.price_hide || 0,
+        zone_on: selectedDmcData?.originalData?.zone_on || 0
+      }]
+    : dmcList;
+  
   // Don't show filter if no DMCs available
-  if (dmcList.length === 0) {
+  if (displayDmcList.length === 0) {
     return null;
   }
 
@@ -261,6 +294,7 @@ const DmcFilter = () => {
           <RadioGroup
             value={localSelectedDmc}
             onChange={handleDmcChange}
+            disabled={haveBooking}
           >
             {/* "All DMCs" option */}
             {/* <FormControlLabel
@@ -284,7 +318,7 @@ const DmcFilter = () => {
             /> */}
             
             {/* Individual DMC options */}
-            {dmcList.map((dmc) => (
+            {displayDmcList.map((dmc) => (
               <FormControlLabel
                 key={dmc.userId}
                 value={dmc.userId}

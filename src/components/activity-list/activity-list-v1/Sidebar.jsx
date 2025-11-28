@@ -5,12 +5,21 @@ import Languages from "../sidebar/Languages";
 import PriceSlider from "../sidebar/PirceSlider"; // Fixed typo
 import PopularAttractions from "../sidebar/PopularAttractions";
 import PriceModeFilter from "../sidebar/PriceModeFilter";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from "react";
 import DmcFilter from "../../hotel-list/sidebar/dmcFilter";
-
+import { setPriceMode } from "@/slice/port/pickupDropSlice";
+import { setPriceMode1 } from "@/slice/localtour/Localslice";
+import { setPriceMode2 } from "@/slice/tourguide/guideslice";
 const Sidebar = ({ hourlyPrices, priceRange, setPriceRange }) => {
   const PriceHide = useSelector((state) => state.auth.PriceHide);
-  const haveBooking = useSelector((state) => state.common.haveBooking);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    dispatch(setPriceMode("checked"));
+    dispatch(setPriceMode1("checked"));
+    dispatch(setPriceMode2("checked"));
+  }, [dispatch]);
   return (
     <>
       {/* <div className="sidebar__item -no-border">
@@ -27,14 +36,14 @@ const Sidebar = ({ hourlyPrices, priceRange, setPriceRange }) => {
         </div>
       </div> */}
 
-      <div className="sidebar__item -no-border">
+      {/* <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Mode</h5>
         <div className="sidebar-checkbox">
           <PriceModeFilter />
         </div>
-      </div>
+      </div> */}
 
-      <div className="sidebar__item ">
+      <div className="sidebar__item -no-border">
         {PriceHide === "0" && (
           <>
             <h5 className="text-18 fw-500 mb-10">Price</h5>
@@ -50,14 +59,12 @@ const Sidebar = ({ hourlyPrices, priceRange, setPriceRange }) => {
           </>
         )}
       </div>
-      {haveBooking === false && (
       <div className="sidebar__item">
         <h5 className="text-18 fw-500 mb-10">DMC</h5>
         <div className="sidebar-checkbox">
           <DmcFilter />
         </div>
       </div>
-      )}
       {/* <div className="sidebar__item">
         <h5 className="text-18 fw-500 mb-10">Duration</h5>
         <div className="sidebar-checkbox">

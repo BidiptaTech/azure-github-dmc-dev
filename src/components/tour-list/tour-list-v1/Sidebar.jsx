@@ -112,7 +112,7 @@ const Sidebar = () => {
       </div> */}
 
       {/* Price Mode with Single Checkbox */}
-      <div className="sidebar__item -no-border">
+      {/* <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Price Mode</h5>
         <div className="sidebar-checkbox">
           <div className="row y-gap-10 items-center justify-between">
@@ -145,10 +145,10 @@ const Sidebar = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Time of Day */}
-      <div className="sidebar__item">
+      <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">Time of Day</h5>
         <div className="sidebar-checkbox">
           {timeOfDayOptions.map((option, index) => {
@@ -205,14 +205,14 @@ const Sidebar = () => {
         </div>
       </div>
       )}
-      {haveBooking === false && (
+      
       <div className="sidebar__item">
         <h5 className="text-18 fw-500 mb-10">DMC</h5>
         <div className="sidebar-checkbox">
           <DmcFilter />
         </div>
       </div>
-      )}
+      
     </>
   );
 };
