@@ -636,7 +636,7 @@ function Login() {
                     </Fade>
 
                     {/* Sign Up Section */}
-                    <Fade in timeout={1800}>
+                    {/* <Fade in timeout={1800}>
                       <Box sx={{ textAlign: "center", mt: 2 }}>
                         <Typography 
                           variant="body2" 
@@ -686,7 +686,7 @@ function Login() {
                           Sign Up
                         </Button>
                       </Box>
-                    </Fade>
+                    </Fade> */}
 
                     {loginError && (
                       <Fade in timeout={300}>

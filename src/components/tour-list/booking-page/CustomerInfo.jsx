@@ -30,15 +30,7 @@ import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { setBookingType, setBookingMode, setIsNavigating, setHaveBooking } from '../../../slice/common/commonSlice';
 
-// Add this near the top with other constants
-const countryCodes = [
-  { code: "US", name: "United States", dialCode: "+1" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44" },
-  { code: "IN", name: "India", dialCode: "+91" },
-  { code: "AU", name: "Australia", dialCode: "+61" },
-  { code: "SG", name: "Singapore", dialCode: "+65" },
-  // Add more country codes as needed
-];
+
 
 const CustomerInfo = forwardRef((props, ref) => {
   const dispatch = useDispatch();
