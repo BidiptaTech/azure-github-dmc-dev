@@ -444,6 +444,9 @@ class EditTourController extends Controller
                     }
                     unset($room); // Break reference
                     
+                    // Get requested number of rooms
+                    $requestedNumberOfRooms = isset($validated['number_of_rooms']) ? (int)$validated['number_of_rooms'] : count($rooms);
+                    
                     // Remove duplicate rooms based on room_id and bed_id combination
                     $uniqueRooms = [];
                     $seenRooms = [];
@@ -466,6 +469,20 @@ class EditTourController extends Controller
                             $uniqueRooms[] = $room;
                             $seenRooms[$uniqueKey] = true;
                         }
+                    }
+                    
+                    // If requested number of rooms is greater than unique rooms, duplicate the first room
+                    if ($requestedNumberOfRooms > count($uniqueRooms) && !empty($uniqueRooms)) {
+                        $firstRoom = $uniqueRooms[0];
+                        $roomsToAdd = $requestedNumberOfRooms - count($uniqueRooms);
+                        for ($i = 0; $i < $roomsToAdd; $i++) {
+                            // Deep copy the first room
+                            $duplicatedRoom = json_decode(json_encode($firstRoom), true);
+                            $uniqueRooms[] = $duplicatedRoom;
+                        }
+                    } elseif ($requestedNumberOfRooms > 0 && $requestedNumberOfRooms < count($uniqueRooms)) {
+                        // If requested is less, trim to requested count
+                        $uniqueRooms = array_slice($uniqueRooms, 0, $requestedNumberOfRooms);
                     }
                     
                     $currentPayload['rooms'] = $uniqueRooms;

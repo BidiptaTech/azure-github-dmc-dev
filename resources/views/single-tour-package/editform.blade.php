@@ -1755,14 +1755,6 @@
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-hourglass-line me-1 text-info"></i>Hours</label>
                                                             <input type="number" class="form-control border-2" name="selected_hours" min="1" value="{{ $selectedHours }}" placeholder="e.g. 4">
                                                         </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
-                                                        </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
                                                         <div class="text-muted small" id="transport_feedback_{{ $order->booking_id }}_travel_hourly"></div>
@@ -1904,14 +1896,6 @@
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2" name="total_price" step="0.01" min="0" value="{{ number_format((float) $totalPrice, 2, '.', '') }}" placeholder="0.00">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
                                                         </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -2155,14 +2139,6 @@
                                                                 <option value="Private" {{ strtolower($vehicleType) === 'private' ? 'selected' : '' }}>Private</option>
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-line me-1 text-secondary"></i>Adults</label>
-                                                            <input type="number" class="form-control border-2" name="adult_count" min="0" value="{{ $adultCount }}">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label fw-semibold text-muted mb-1"><i class="ri-user-smile-line me-1 text-secondary"></i>Children</label>
-                                                            <input type="number" class="form-control border-2" name="child_count" min="0" value="{{ $childCount }}">
                                                         </div>
                                                     </div>
                                                     <div class="d-flex justify-content-end align-items-center gap-3 mt-3">
@@ -12866,6 +12842,13 @@
         if (totalPriceInput) {
             const priceValue = totalPriceInput.value || '0';
             formData.set('total_price', priceValue);
+        }
+        
+        // Explicitly ensure number_of_rooms is captured with its current value
+        const numberOfRoomsInput = formDiv.querySelector('input[name="number_of_rooms"]');
+        if (numberOfRoomsInput) {
+            const roomsValue = numberOfRoomsInput.value || '1';
+            formData.set('number_of_rooms', roomsValue);
         }
         
         // Add rooms_json to form data
