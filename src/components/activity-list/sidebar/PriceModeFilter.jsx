@@ -8,16 +8,16 @@ import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "@/slice/dmc
 
 const PriceModeFilter = () => {
   const dispatch = useDispatch();
-  const [isChecked, setIsChecked] = useState(false); // Local state for checkbox
+  const [isChecked, setIsChecked] = useState(true); // Local state for checkbox
   const DmcName = useSelector(selectSelectedDmcCompanyName);
   const DmcLogo = useSelector(selectSelectedDmcLogo);
   console.log("DmcName1", DmcName);
   console.log("DmcLogo1", DmcLogo);
   // Dispatch default value "non-checked" when component mounts
   useEffect(() => {
-    dispatch(setPriceMode("non-checked"));
-    dispatch(setPriceMode1("non-checked"));
-    dispatch(setPriceMode2("non-checked"));
+    dispatch(setPriceMode("checked"));
+    dispatch(setPriceMode1("checked"));
+    dispatch(setPriceMode2("checked"));
   }, [dispatch]);
 
   const handleChange = (event) => {

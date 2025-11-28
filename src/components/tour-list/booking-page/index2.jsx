@@ -128,6 +128,37 @@ export default function Index2() {
   const dmcLogo = useSelector(selectSelectedDmcLogo);
   const dmcCompanyName = useSelector(selectSelectedDmcCompanyName) || "DMC";
   const bookingType = useSelector((state) => state.common.bookingType);
+  
+  // Get searchLocation and user_country for destination
+  const searchLocation = useSelector((state) => state.bookings.searchLocation || []);
+  const user_country = useSelector((state) => state.auth?.user_country || []);
+  const bookings = useSelector((state) => state.bookings || {});
+  
+  // Helper function to build destination from searchLocation
+  const buildDestination = () => {
+    if (!searchLocation || (Array.isArray(searchLocation) && searchLocation.length === 0)) {
+      return "";
+    }
+    
+    // Build country code to name mapping
+    const countryCodeToName = {};
+    if (user_country && Array.isArray(user_country)) {
+      user_country.forEach((country) => {
+        if (country && country.name && country.code) {
+          countryCodeToName[country.code] = country.name;
+          countryCodeToName[country.code.toLowerCase()] = country.name;
+        }
+      });
+    }
+    
+    // Convert searchLocation to destination string
+    const locationArray = Array.isArray(searchLocation) ? searchLocation : [searchLocation];
+    const destination = locationArray
+      .map((loc) => countryCodeToName[loc] || loc)
+      .join(", ");
+    
+    return destination;
+  };
 
   // console.log('dmcLogo, dmcCompanyName in index2:', { dmcLogo, dmcCompanyName });
 
@@ -233,7 +264,11 @@ export default function Index2() {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
-   
+      // Get bookings state for tour meta
+      const bGuests = bookings.guests || {};
+      
+      // Build destination
+      const destination = buildDestination();
       
       // Get package details if it's a package booking
       const packageDetails = isPackageBooking ? {
@@ -246,6 +281,9 @@ export default function Index2() {
         package_senior_price: attractionBookings?.[0]?.data?.[0]?.dmc_senior_price || 0,
         package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
       } : null;
+      
+      const tourId = parseInt(tourdetails?.tour_id, 10) || 0;
+      const hasTourId = tourId > 0;
       
       const bookingDetails = {
         agent_id: Cookies.get("AgentId") || "0",
@@ -298,14 +336,25 @@ export default function Index2() {
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],
-        tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        tour_id: tourId,
         type: isPackageBooking ? "attraction_package" : "attraction",
-        // type: isPackageBooking ? "attraction_package" : "attraction",
-        // type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "booking",
         // Add a source flag to track which component sent the request
         requestSource: "index2",
       };
+      
+      // Add tour meta fields when no tour_id exists (same as attractionSlice.js)
+      if (!hasTourId && destination) {
+        bookingDetails.destination = destination;
+        bookingDetails.check_in = bookings.checkIn || "";
+        bookingDetails.check_out = bookings.checkOut || "";
+        bookingDetails.adult = bGuests.adults ?? attractionBookings?.[0]?.data?.[0]?.adultCount ?? 1;
+        bookingDetails.child = bGuests.children ?? attractionBookings?.[0]?.data?.[0]?.childCount ?? 0;
+        bookingDetails.infant = bGuests.infant ?? 0;
+        bookingDetails.male = bGuests.maleCount ?? 0;
+        bookingDetails.female = bGuests.femaleCount ?? 0;
+        bookingDetails.children_ages = (bGuests.childrenAges || []).join(", ");
+      }
 
       // Force a direct field for PHP's $price variable
       bookingDetails.price = bookingDetails.data[0].totalPrice;
@@ -434,6 +483,12 @@ export default function Index2() {
 
       const isPackageBooking = attractionBookings?.[0]?.data?.[0]?.package_type === 1;
       
+      // Get bookings state for tour meta
+      const bGuests = bookings.guests || {};
+      
+      // Build destination
+      const destination = buildDestination();
+      
       // Get package details if it's a package booking
       const packageDetails = isPackageBooking ? {
         package_id: attractionBookings?.[0]?.data?.[0]?.package_attraction_id,
@@ -445,6 +500,9 @@ export default function Index2() {
         package_senior_price: attractionBookings?.[0]?.data?.[0]?.dmc_senior_price || 0,
         package_total_attractions: attractionBookings?.[0]?.data?.[0]?.packageDetails?.attractions?.length || 0
       } : null;
+      
+      const tourId = parseInt(tourdetails?.tour_id, 10) || 0;
+      const hasTourId = tourId > 0;
       
       const enquiryDetails = {
         agent_id: Cookies.get("AgentId") || "0",
@@ -497,12 +555,23 @@ export default function Index2() {
             ...(isPackageBooking && packageDetails && { package_details: packageDetails })
           },
         ],
-        tour_id: parseInt(tourdetails?.tour_id, 10) || 0,
+        tour_id: tourId,
         type: isPackageBooking ? "attraction_package" : "attraction",
-        // type: isPackageBooking ? "attraction_package" : "attraction",
-        // type: isPackageBooking ? "attraction_package" : "attraction",
         bookingType: "enquiry",
       };
+      
+      // Add tour meta fields when no tour_id exists (same as attractionSlice.js)
+      if (!hasTourId && destination) {
+        enquiryDetails.destination = destination;
+        enquiryDetails.check_in = bookings.checkIn || "";
+        enquiryDetails.check_out = bookings.checkOut || "";
+        enquiryDetails.adult = bGuests.adults ?? attractionBookings?.[0]?.data?.[0]?.adultCount ?? 1;
+        enquiryDetails.child = bGuests.children ?? attractionBookings?.[0]?.data?.[0]?.childCount ?? 0;
+        enquiryDetails.infant = bGuests.infant ?? 0;
+        enquiryDetails.male = bGuests.maleCount ?? 0;
+        enquiryDetails.female = bGuests.femaleCount ?? 0;
+        enquiryDetails.children_ages = (bGuests.childrenAges || []).join(", ");
+      }
 
       // Force a direct field for PHP's $price variable
       enquiryDetails.price = enquiryDetails.data[0].totalPrice;

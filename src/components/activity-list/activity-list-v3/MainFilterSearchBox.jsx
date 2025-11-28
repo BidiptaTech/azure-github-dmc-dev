@@ -34,6 +34,7 @@ import { useSelector } from "react-redux";
 import SearchZone from "./LocationZoneSearch";
 import Pickuptimezone from "./Pickuptimezone";
 import DateSearchZone from "./DateSearchZone";
+import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
@@ -153,6 +154,18 @@ const MainFilterSearchBox = ({ Location }) => {
       }
     }
   };
+
+  // Listen for triggerSearch from Redux and call buttonsearch when travel step is triggered
+  const searchTrigger = useSelector((state) => state.steps.triggerSearch);
+  
+  useEffect(() => {
+    if (searchTrigger === 'travel') {
+      console.log('🔍 Travel MainFilterSearchBox - Trigger search received, calling buttonsearch');
+      buttonsearch();
+      // Clear the trigger after handling
+      dispatch(clearTriggerSearch());
+    }
+  }, [searchTrigger, dispatch]);
 
   return (
     <>
