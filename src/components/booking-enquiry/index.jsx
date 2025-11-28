@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { addCurrentTab } from "../../features/hero/findPlaceSlice";
+import { useSelector } from "react-redux";
 import MainFilterSearchBox from "../hero/hero-2/MainFilterSearchBox";
 import BookingEnquiries from "./BookingEnquiries";
 import ConfirmDetails from "./ConfirmDetails";
@@ -11,8 +10,6 @@ const Index = () => {
   // Get enquiry state from Redux
   const enquiryState = useSelector((state) => state.enquiry);
   const { enquiryId, multiEnqId, tourId, id } = enquiryState;
-  
-  const dispatch = useDispatch();
   
   // Scroll to top when component mounts
   useEffect(() => {
