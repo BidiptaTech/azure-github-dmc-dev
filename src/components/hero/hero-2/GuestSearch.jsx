@@ -208,7 +208,7 @@ const Counter = ({
                     textAlign: 'center',
                     fontSize: { xs: '0.75rem', sm: '0.875rem' }
                   }}>
-                    {maleCount}
+                    {maleCount > 0 ? maleCount : ''}
                   </Typography>
                   <Button 
                     variant="outlined" 
@@ -272,7 +272,7 @@ const Counter = ({
                     textAlign: 'center',
                     fontSize: { xs: '0.75rem', sm: '0.875rem' }
                   }}>
-                    {femaleCount}
+                    {femaleCount > 0 ? femaleCount : ''}
                   </Typography>
                   <Button 
                     variant="outlined" 
@@ -553,7 +553,9 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
         sx={{
           opacity: disabled ? 0.6 : 1,
           cursor: disabled ? 'not-allowed' : 'pointer',
-          pointerEvents: disabled ? 'none' : 'auto'
+          pointerEvents: disabled ? 'none' : 'auto',
+          maxWidth: { xs: '120px', sm: '160px' },
+          width: { xs: '120px', sm: '160px' }
         }}
       >
         
@@ -563,17 +565,40 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
           sx={{
             fontSize: { xs: '0.75rem', sm: '0.875rem' },
             lineHeight: { xs: 1.2, sm: 1.4 },
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '100%'
+            maxWidth: { xs: '120px', sm: '160px' },
+            width: { xs: '120px', sm: '160px' },
+            minWidth: { xs: '120px', sm: '160px' }
           }}
         >
-          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-            {guestCounts.Adults} adults ({guestCounts.maleCount || 0} male, {guestCounts.femaleCount || 0} female) - {guestCounts.Children} children - {guestCounts.Infants} infants
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Box component="span" sx={{ display: 'block' }}>
+              {guestCounts.Adults} adults
+              {((guestCounts.maleCount || 0) > 0 || (guestCounts.femaleCount || 0) > 0) && (
+                <> ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F)</>
+              )}
+            </Box>
+            {((guestCounts.Children || 0) > 0 || (guestCounts.Infants || 0) > 0) && (
+              <Box component="span" sx={{ display: 'block' }}>
+                {(guestCounts.Children || 0) > 0 && <>{guestCounts.Children}Children</>}
+                {(guestCounts.Children || 0) > 0 && (guestCounts.Infants || 0) > 0 && <> - </>}
+                {(guestCounts.Infants || 0) > 0 && <>{guestCounts.Infants}Infants</>}
+              </Box>
+            )}
           </Box>
-          <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-            {guestCounts.Adults}A ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F) - {guestCounts.Children}C - {guestCounts.Infants}I
+          <Box component="span" sx={{ display: { xs: 'block', sm: 'none' } }}>
+            <Box component="span" sx={{ display: 'block' }}>
+              {guestCounts.Adults}A
+              {((guestCounts.maleCount || 0) > 0 || (guestCounts.femaleCount || 0) > 0) && (
+                <> ({guestCounts.maleCount || 0}M, {guestCounts.femaleCount || 0}F)</>
+              )}
+            </Box>
+            {((guestCounts.Children || 0) > 0 || (guestCounts.Infants || 0) > 0) && (
+              <Box component="span" sx={{ display: 'block' }}>
+                {(guestCounts.Children || 0) > 0 && <>{guestCounts.Children}Children</>}
+                {(guestCounts.Children || 0) > 0 && (guestCounts.Infants || 0) > 0 && <> - </>}
+                {(guestCounts.Infants || 0) > 0 && <>{guestCounts.Infants}Infants</>}
+              </Box>
+            )}
           </Box>
         </Typography>
       </Box>
