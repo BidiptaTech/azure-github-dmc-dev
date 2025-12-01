@@ -3607,6 +3607,60 @@ class SingleTourPackageController extends Controller
         }
     }
 
+    /** All Add more services modal submission handling from below */
+    public function orderSelectHotel(Request $request)
+    {
+        $bookingData = json_decode($request->input('booking_data'), true);
+        $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
+        
+        // Generate a unique booking ID
+        $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
+        $bookingId = \App\Helpers\CommonHelper::createId($max_book_id);
+        while (\App\Models\Order::where('booking_id', $bookingId)->exists()) {
+            $bookingId = \App\Helpers\CommonHelper::createId($bookingId);
+        }
+        
+        $order = \App\Models\Order::create([
+            'booking_id' => $bookingId,
+            'agent_id' => $agentId,
+            'tour_id' => $tourId,
+            'data' => [$bookingData],
+            'type' => 'hotel',
+            'bookingType' => $bookingType,
+            'discount' => 0,
+            'markup_percentage' => 0,
+            'status' => 1,
+        ]);
+        
+        // Update tour destination with hotel location if location is provided
+        if (!empty($bookingData['hotelDetails']['location'])) {
+            $tour->destination = $bookingData['hotelDetails']['location'];
+            $tour->save();
+            \Log::info('Tour destination updated with hotel location', [
+                'tour_id' => $tourId,
+                'destination' => $bookingData['hotelDetails']['location']
+            ]);
+        }
+        
+        return back()->with('success', 'Hotel selected successfully');
+    }
+
     public function orderSelectGuide(Request $request)
     {
         $request->validate([
@@ -3620,11 +3674,25 @@ class SingleTourPackageController extends Controller
         $customHours = $request->input('custom_hours');
         $pickupTime = $request->input('pickup_time');
         $tourId = $request->input('tour_id');
-        $agentId = $request->input('agent_id');
         $dmcId = $request->input('dmc_id');
         $commission = $request->input('commission');
         $markup_percentage = $request->input('markup_percentage');
 
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
 
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
@@ -3638,7 +3706,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'guide',
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => $commission,
             'markup_percentage' => $markup_percentage,
             'status' => 1,
@@ -3650,7 +3718,6 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'booking_data' => 'required|json',
-            'agent_id' => 'required',
             'tour_id' => 'required',
             'restaurant_id' => 'required',
             'meal_type' => 'required',
@@ -3667,8 +3734,23 @@ class SingleTourPackageController extends Controller
         ]);
 
         $bookingData = json_decode($request->input('booking_data'), true);
-        $agentId = $request->input('agent_id');
         $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
        
         // Generate unique booking ID
         $max_book_id = Order::max('booking_id') ?? 0;
@@ -3683,7 +3765,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'restaurant',
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3696,15 +3778,29 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'booking_data' => 'required|json',
-            'agent_id' => 'required',
             'tour_id' => 'required',
             'attraction_id' => 'required',
             'time_slot' => 'required',
         ]);
 
         $bookingData = json_decode($request->input('booking_data'), true);
-        $agentId = $request->input('agent_id');
         $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -3720,7 +3816,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $bookingData,
             'type' => 'attraction',
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3733,7 +3829,6 @@ class SingleTourPackageController extends Controller
     {
         $request->validate([
             'transport_data' => 'required|json',
-            'agent_id' => 'required',
             'tour_id' => 'required',
             'pickup_zone_id' => 'required',
             'dropoff_zone_id' => 'required',
@@ -3742,8 +3837,23 @@ class SingleTourPackageController extends Controller
         ]);
 
         $transportData = json_decode($request->input('transport_data'), true);
-        $agentId = $request->input('agent_id');
         $tourId = $request->input('tour_id');
+        
+        // Fetch tour from database to get agent_id and tour_status
+        $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return back()->with('error', 'Tour not found');
+        }
+        
+        // Get agent_id from tour table
+        $agentId = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
         
         // Generate a unique booking ID
         $max_book_id = \App\Models\Order::max('booking_id') ?? 0;
@@ -3780,7 +3890,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $request->input('type'),
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
@@ -3800,8 +3910,25 @@ class SingleTourPackageController extends Controller
         $transportData = json_decode($request->input('booking_data'), true);
         $serviceType = $request->input('type');
         $tourId = $transportData[0]['tour_id'];
+        
+        // Fetch tour from database to get agent_id and tour_status
         $tour = Tour::where('tour_id', $tourId)->first();
+        
+        if (!$tour) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tour not found'
+            ], 404);
+        }
+        
+        // Get agent_id from tour table
         $agent_id = $tour->agent_id;
+        
+        // Determine bookingType based on tour_status
+        $bookingType = 'booking';
+        if (in_array($tour->tour_status, ['New Enquiry', 'Prospect', 'Tentative'])) {
+            $bookingType = 'enquiry';
+        }
 
         $max_book_id = Order::max('booking_id') ?? 0;
         $bookingId = CommonHelper::createId($max_book_id);
@@ -3823,7 +3950,7 @@ class SingleTourPackageController extends Controller
             'tour_id' => $tourId,
             'data' => $transportData,
             'type' => $orderType,
-            'bookingType' => 'booking',
+            'bookingType' => $bookingType,
             'discount' => 0,
             'markup_percentage' => 0,
             'status' => 1,
