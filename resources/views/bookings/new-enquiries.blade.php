@@ -519,7 +519,7 @@
                                     type="button"
                                     class="btn btn-sm btn-warning"
                                     data-tour-id="{{ $tour->tour_id }}"
-                                    data-enquiry-id="{{ $enquiry->id ?? '' }}"
+                                    data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
                                     data-price="{{ $settlementAmount }}"
                                     data-actual="{{ $currentActualAmount }}"
                                     data-discount="{{ $discount }}"
