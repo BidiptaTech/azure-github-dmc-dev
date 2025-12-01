@@ -449,8 +449,47 @@
                                 $latestAgentComment = $tourEnquiries->first(function ($comment) {
                                     return strtolower($comment->sender_type ?? '') === 'agent';
                                 });
-                                $currentActualAmount = $latestComment->actual_amount ?? ($latestAgentComment->actual_amount ?? $ordersTotalAmount);
-                                $lastAgentAmount = $latestAgentComment->amount ?? null;
+                                
+                                // Get enquiry details from Enquiry table
+                                $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
+                                $enquiry_status = '';
+                                $edit_off = 0;
+                                if ($enquiry) {
+                                    $enquiry_status = $enquiry->status;
+                                    $edit_off = 1;
+                                }
+                                
+                                // Get first enquiry for discount calculation
+                                $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
+                                $first_enquiry_actual_amount = $frstenquiry->actual_amount ?? 0;
+                                
+                                // Calculate total tour price from ALL bookings with status 1 or 3
+                                $tourTotalPrice = 0;
+                                foreach ($tour->booking as $booking) {
+                                    if (in_array($booking->status, [1, 3])) {
+                                        $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
+                                        if (is_array($data)) {
+                                            foreach ($data as $item) {
+                                                if (isset($item['totalPrice'])) {
+                                                    $tourTotalPrice += (float) $item['totalPrice'];
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Calculate discount from enquiry
+                                $enquiry_amount = $enquiry->amount ?? 0;
+                                $discount = $first_enquiry_actual_amount - $enquiry_amount;
+                                
+                                // Actual Amount = Total of all booking prices (updates when service added)
+                                $currentActualAmount = ceil($tourTotalPrice);
+                                
+                                // Negotiated Amount = Total booking prices - discount
+                                $settlementAmount = ceil($tourTotalPrice) - $discount;
+                                $baseAmount = ceil($tourTotalPrice) - $discount;
+                                
+                                $lastAgentAmount = $settlementAmount;
                                 $lastAgentRemark = $latestAgentComment->comment ?? '';
                                 $canCheckNegotiation = $latestAgentComment !== null;
                             @endphp
@@ -480,10 +519,11 @@
                                     type="button"
                                     class="btn btn-sm btn-warning"
                                     data-tour-id="{{ $tour->tour_id }}"
-                                    data-enquiry-id="{{ $latestAgentComment->enquiry_id ?? '' }}"
-                                    data-price="{{ $latestAgentComment->amount ?? 0 }}"
-                                    data-actual="{{ $latestAgentComment->actual_amount ?? $currentActualAmount ?? 0 }}"
-                                    data-comment="{{ e($latestAgentComment->comment ?? '') }}"
+                                    data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
+                                    data-price="{{ $settlementAmount }}"
+                                    data-actual="{{ $currentActualAmount }}"
+                                    data-discount="{{ $discount }}"
+                                    data-comment="{{ e($lastAgentRemark) }}"
                                     onclick="openNewEnquiryModal(this, '{{ route('update-price-comment') }}')"
                                     {{ $canCheckNegotiation ? '' : 'disabled' }}
                                 >
@@ -592,13 +632,17 @@
                         <!-- Current details display -->
                         <div class="border rounded p-3 bg-light mb-3">
                             <div class="row g-3">
-                                <div class="col-6">
+                                <div class="col-4">
                                     <small class="text-muted d-block">Actual Amount</small>
                                     <div class="fw-semibold" id="new_enquiry_display_actual">—</div>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Discount</small>
+                                    <div class="fw-semibold text-danger" id="new_enquiry_display_discount">—</div>
+                                </div>
+                                <div class="col-4">
                                     <small class="text-muted d-block">Previous Negotiated Amount</small>
-                                    <div class="fw-semibold" id="new_enquiry_display_price">—</div>
+                                    <div class="fw-semibold text-success" id="new_enquiry_display_price">—</div>
                                 </div>
                                 <div class="col-12">
                                     <small class="text-muted d-block">Last Comment</small>
@@ -4142,16 +4186,19 @@ function testServices() {
             var idInput = document.getElementById('new_enquiry_modal_enquiry_id');
             var displayActual = document.getElementById('new_enquiry_display_actual');
             var displayPrice = document.getElementById('new_enquiry_display_price');
+            var displayDiscount = document.getElementById('new_enquiry_display_discount');
             var displayComment = document.getElementById('new_enquiry_display_comment');
 
             form.action = route || '';
             idInput.value = button.getAttribute('data-enquiry-id') || '';
             var actual = button.getAttribute('data-actual') || '';
             var prevPrice = button.getAttribute('data-price') || '';
+            var discount = button.getAttribute('data-discount') || '';
             var prevComment = button.getAttribute('data-comment') || '';
 
             // Set displays
             displayActual.textContent = actual !== '' ? actual : '—';
+            displayDiscount.textContent = discount !== '' ? discount : '—';
             displayPrice.textContent = prevPrice !== '' ? prevPrice : '—';
             displayComment.textContent = prevComment !== '' ? prevComment : '—';
 

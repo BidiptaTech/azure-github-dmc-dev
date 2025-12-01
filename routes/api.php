@@ -63,7 +63,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/tour-list', 'App\Http\Controllers\Api\TourController@tourlists');
     Route::post('/tour-status', 'App\Http\Controllers\Api\TourController@TourStatus');
     Route::get('/restaurant', 'App\Http\Controllers\Api\RestaurantController@index');
-    Route::get('/restaurant-details', 'App\Http\Controllers\Api\RestaurantController@restaurantDetails');
+    Route::get('/restaurant-details', 'App\Http\Controllers\Api\RestaurantController@restaurantDetails')
+        ->name('api.restaurant.details');
     Route::get('/attraction', 'App\Http\Controllers\Api\HomeController@attractionListing');
     Route::get('/attraction-details', 'App\Http\Controllers\Api\HomeController@attractionDetails');
     Route::get('/guide', 'App\Http\Controllers\Api\GuideController@index');

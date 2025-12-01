@@ -497,9 +497,41 @@
                                 $latestCommentAmount = $tour->enquiry_comment_amount ?? null;
                                 $latestCommentRemark = $tour->enquiry_comment ?? '';
                                 $hasAgentComment = $tour->enquiry_comment && strtolower($tour->enquiry_comment_sender_type ?? '') === 'agent';
-                                $currentActualAmount = $tour->actual_amount ?? ($latestCommentAmount ?? $ordersTotalAmount);
-                                $lastAgentAmount = $hasAgentComment ? $latestCommentAmount : null;
-                                $lastOfferAmount = $lastAgentAmount ?? $latestCommentAmount;
+                                
+                                // Get first enquiry for discount calculation
+                                $frstenquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->first();
+                                $first_enquiry_actual_amount = $frstenquiry->actual_amount ?? 0;
+                                
+                                // Get latest enquiry
+                                $enquiry = \App\Models\Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
+                                
+                                // Calculate total tour price from ALL bookings with status 1 or 3
+                                $tourTotalPrice = 0;
+                                foreach ($tour->booking as $booking) {
+                                    if (in_array($booking->status, [1, 3])) {
+                                        $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
+                                        if (is_array($data)) {
+                                            foreach ($data as $item) {
+                                                if (isset($item['totalPrice'])) {
+                                                    $tourTotalPrice += (float) $item['totalPrice'];
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Calculate discount from enquiry
+                                $enquiry_amount = $enquiry->amount ?? 0;
+                                $discount = $first_enquiry_actual_amount - $enquiry_amount;
+                                
+                                // Actual Amount = Total of all booking prices (updates when service added)
+                                $currentActualAmount = ceil($tourTotalPrice);
+                                
+                                // Negotiated Amount = Total booking prices - discount
+                                $settlementAmount = ceil($tourTotalPrice) - $discount;
+                                
+                                $lastAgentAmount = $hasAgentComment ? $settlementAmount : null;
+                                $lastOfferAmount = $lastAgentAmount ?? $settlementAmount;
                                 $lastOfferRemark = $latestCommentRemark;
                             @endphp
                             @if(in_array(auth()->user()->role_id, $role))
@@ -526,9 +558,10 @@
                                         type="button"
                                         class="btn btn-sm btn-warning"
                                         data-tour-id="{{ $tour->tour_id }}"
-                                        data-enquiry-id="{{ $tour->enquiry_id ?? '' }}"
-                                        data-price="{{ $tour->enquiry_comment_amount ?? 0 }}"
-                                        data-actual="{{ $currentActualAmount ?? 0 }}"
+                                        data-enquiry-id="{{ $enquiry->enquiry_id ?? '' }}"
+                                        data-price="{{ $settlementAmount }}"
+                                        data-actual="{{ $currentActualAmount }}"
+                                        data-discount="{{ $discount }}"
                                         data-comment="{{ e($tour->enquiry_comment ?? '') }}"
                                         onclick="openFollowupModal(this, '{{ route('update-price-comment') }}')"
                                     >
@@ -686,13 +719,17 @@
                         <!-- Current details display -->
                         <div class="border rounded p-3 bg-light mb-3">
                             <div class="row g-3">
-                                <div class="col-6">
+                                <div class="col-4">
                                     <small class="text-muted d-block">Actual Amount</small>
                                     <div class="fw-semibold" id="followup_display_actual">—</div>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">Discount</small>
+                                    <div class="fw-semibold text-danger" id="followup_display_discount">—</div>
+                                </div>
+                                <div class="col-4">
                                     <small class="text-muted d-block">Previous Negotiated Amount</small>
-                                    <div class="fw-semibold" id="followup_display_price">—</div>
+                                    <div class="fw-semibold text-success" id="followup_display_price">—</div>
                                 </div>
                                 <div class="col-12">
                                     <small class="text-muted d-block">Last Comment</small>
@@ -4277,16 +4314,19 @@ function showFilterResetMessage() {
             var idInput = document.getElementById('followup_modal_enquiry_id');
             var displayActual = document.getElementById('followup_display_actual');
             var displayPrice = document.getElementById('followup_display_price');
+            var displayDiscount = document.getElementById('followup_display_discount');
             var displayComment = document.getElementById('followup_display_comment');
 
             form.action = route || '';
             idInput.value = button.getAttribute('data-enquiry-id') || '';
             var actual = button.getAttribute('data-actual') || '';
             var prevPrice = button.getAttribute('data-price') || '';
+            var discount = button.getAttribute('data-discount') || '';
             var prevComment = button.getAttribute('data-comment') || '';
 
             // Set displays
             displayActual.textContent = actual !== '' ? actual : '—';
+            displayDiscount.textContent = discount !== '' ? discount : '—';
             displayPrice.textContent = prevPrice !== '' ? prevPrice : '—';
             displayComment.textContent = prevComment !== '' ? prevComment : '—';
 
