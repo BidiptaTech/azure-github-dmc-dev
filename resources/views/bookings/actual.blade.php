@@ -3780,7 +3780,7 @@
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Discount</small>
-                                        <div class="fw-bold text-success">- {{ number_format($discountAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-success">- {{ number_format(round($discountAmount), 2) }} SGD</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
@@ -3788,7 +3788,7 @@
                                 <div class="row text-center mb-2">
                                     <div class="col-4">
                                         <small class="text-muted">Base Amount</small>
-                                        <div class="fw-bold text-dark">{{ number_format($baseAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} SGD</div>
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted" 
@@ -3797,29 +3797,29 @@
                                             @endif>
                                             Tax @if(!empty($taxBreakdown))({{ count($taxBreakdown) }})@endif
                                         </small>
-                                        <div class="fw-bold text-warning">{{ number_format($taxAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} SGD</div>
                                         @if(!empty($taxBreakdown) && count($taxBreakdown) > 0)
                                             <div style="font-size: 0.7rem; margin-top: 2px;">
                                                 @foreach($taxBreakdown as $taxName => $taxVal)
-                                                    <div>{{ $taxName }}: {{ number_format($taxVal, 2) }}</div>
+                                                    <div>{{ $taxName }}: {{ number_format(round($taxVal), 2) }}</div>
                                                 @endforeach
                                             </div>
                                         @endif
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format($finalAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} SGD</div>
                                     </div>
                                 </div>
                                 <hr class="my-2">
                                 <div class="row text-center">
                                     <div class="col-6">
                                         <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format($totalPaid, 2) }} SGD</div>
+                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} SGD</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format($remainingAmount, 2) }} SGD</div>
+                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} SGD</div>
                                     </div>
                                 </div>
                             </div>
@@ -3893,7 +3893,7 @@
                             <div class="mt-2" id="conversionInfoContainer{{ $tour->tour_id }}" style="display: none;">
                                 <small class="text-info" id="conversionInfo{{ $tour->tour_id }}">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Amount in SGD: {{ number_format($remainingAmount, 2) }}
+                                    Amount in SGD: {{ number_format(round($remainingAmount), 2) }}
                                 </small>
                             </div>
                             <div class="mt-1">
