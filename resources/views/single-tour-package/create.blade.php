@@ -290,7 +290,6 @@
                                     <input type="hidden" name="country_id" id="country_id">
                                 </div>
 
-
                                 <!-- Travel Dates -->
                                 <div class="col-md-3">
                                     <label for="travel_dates" class="form-label fw-semibold">
@@ -4937,11 +4936,54 @@
             
             // Transport city selects
             $('.transport-city-select:not(.select2-hidden-accessible)').each(function() {
-                $(this).select2({
+                const $select = $(this);
+                $select.select2({
                     placeholder: "Select City",
                     allowClear: true,
                     width: '100%'
                 });
+                
+                // Attach validation for point-to-point fields
+                // Extract day and index from the select ID
+                const selectId = this.id;
+                if (selectId && selectId.includes('transport_city')) {
+                    const dayMatch = selectId.match(/day(\d+)_transport_city/);
+                    if (dayMatch) {
+                        const day = parseInt(dayMatch[1]);
+                        // Check if it's initial transport (index 0) or dynamic
+                        let index;
+                        if (selectId.match(/day\d+_transport_city_0$/)) {
+                            index = 0;
+                        } else {
+                            const indexMatch = selectId.match(/day\d+_transport_city_(\d+)$/);
+                            if (indexMatch) {
+                                index = parseInt(indexMatch[1]);
+                            }
+                        }
+                        
+                        if (typeof index !== 'undefined') {
+                            // Attach Select2 events for validation
+                            $select.on('select2:select.pointToPoint', function() {
+                                if (typeof enableSearchButton === 'function') {
+                                    const section = index === 0 ? 'transport_additional' : `transport_${index}_additional`;
+                                    setTimeout(() => enableSearchButton(day, section, index === 0 ? 0 : index), 50);
+                                }
+                            });
+                            $select.on('select2:unselect.pointToPoint', function() {
+                                if (typeof enableSearchButton === 'function') {
+                                    const section = index === 0 ? 'transport_additional' : `transport_${index}_additional`;
+                                    setTimeout(() => enableSearchButton(day, section, index === 0 ? 0 : index), 50);
+                                }
+                            });
+                            $select.on('change.pointToPoint', function() {
+                                if (typeof enableSearchButton === 'function') {
+                                    const section = index === 0 ? 'transport_additional' : `transport_${index}_additional`;
+                                    setTimeout(() => enableSearchButton(day, section, index === 0 ? 0 : index), 50);
+                                }
+                            });
+                        }
+                    }
+                }
             });
             
             // Pickup zone selects
@@ -6185,8 +6227,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const match = selectId.match(/day(\d+)_transport_city_(\d+)/);
             if (match) {
                 const day = match[1];
-                const index = match[2];
+                const index = parseInt(match[2]);
                 loadTransportZonesForCity(day, selectedCity, index);
+                
+                // Validate point-to-point search button if point-to-point is selected
+                const pointToPointRadio = document.querySelector(`input[name="day${day}_transport_${index === 0 ? '' : index + '_'}service_type"][value="point_to_point"]`);
+                if (pointToPointRadio && pointToPointRadio.checked) {
+                    const section = index === 0 ? 'transport_additional' : `transport_${index}_additional`;
+                    setTimeout(() => enableSearchButton(parseInt(day), section, index === 0 ? 0 : index), 50);
+                }
             }
         }
     });
@@ -9332,13 +9381,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-2">
+                                     <div class="col-md-3">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_entry_pickup_time" style="padding-left: 45px;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
+                                                 <select class="form-select border-1" name="day${day}_entry_pickup_time" style="padding-left: 35px;" id="day${day}_entry_pickup_time" onchange="enableSearchButton(1, 'entry')">
                                                      <option value="">Select The Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -9554,13 +9603,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-2">
+                                     <div class="col-md-3">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-time-line text-warning me-2"></i>Exit Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_exit_time" style="padding-left: 45px;" onchange="enableSearchButton(${day}, 'exit')">
+                                                 <select class="form-select border-1" name="day${day}_exit_time" style="padding-left: 35px;" onchange="enableSearchButton(${day}, 'exit')">
                                                      <option value="">Select The Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -10170,13 +10219,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-2 local-transfer-field" style="display: none;">
+                                     <div class="col-md-3 local-transfer-field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_transport_pickup_time" style="padding-left: 45px;">
+                                                 <select class="form-select border-1" name="day${day}_transport_pickup_time" style="padding-left: 35px;">
                                                      <option value="">Select The Time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -10242,13 +10291,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                                     <div class="col-md-2 point-to-point-field" id="day${day}_transport_additional_time_field" style="display: none;">
+                                     <div class="col-md-3 point-to-point-field" id="day${day}_transport_additional_time_field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_transport_additional_pickup_time" style="padding-left: 45px;">
+                                                 <select class="form-select border-1" name="day${day}_transport_additional_pickup_time" style="padding-left: 35px;">
                                                      <option value="">Select time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -10281,7 +10330,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      </div>
                                      
                                      <div class="col-md-2 point-to-point-field" id="day${day}_transport_additional_search_field" style="display: none;">
-                                         <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_additional', 0)" id="day${day}_transport_additional_search_btn">
+                                         <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_additional', 0)" id="day${day}_transport_additional_search_btn" disabled>
                                              <i class="ri-search-line me-2"></i>Search
                                          </button>
                                      </div>
@@ -10307,7 +10356,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                  <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_transport_hourly_pickup_time" style="padding-left: 45px;">
+                                                 <select class="form-select border-1" name="day${day}_transport_hourly_pickup_time" style="padding-left: 35px;">
                                                      <option value="">Select time</option>
                                                      <option value="12:00 AM">12:00 AM</option>
                                                      <option value="01:00 AM">01:00 AM</option>
@@ -10339,13 +10388,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      
-                                     <div class="col-md-2 hourly-field" id="day${day}_transport_hourly_hours_field" style="display: none;">
+                                     <div class="col-md-3 hourly-field" id="day${day}_transport_hourly_hours_field" style="display: none;">
                                          <div class="form-group">
                                              <label class="form-label fw-semibold text-muted mb-2">
                                                  <i class="ri-time-line text-primary me-2"></i>Number of Hours
                                              </label>
                                              <div class="position-relative">
-                                                 <select class="form-select border-2" name="day${day}_transport_hourly_selected_hours" style="padding-left: 45px;">
+                                                 <select class="form-select border-1" name="day${day}_transport_hourly_selected_hours" style="padding-left: 35px;">
                                                      <option value="">Select hours</option>
                                                      <option value="1">1 Hour</option>
                                                      <option value="2">2 Hours</option>
@@ -10366,7 +10415,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                          </div>
                                      </div>
                                      
-                                     <div class="col-md-1 hourly-field" id="day${day}_transport_hourly_search_field" style="display: none;">
+                                     <div class="col-md-2 hourly-field" id="day${day}_transport_hourly_search_field" style="display: none;">
                                          <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_hourly', 0)" id="day${day}_transport_hourly_search_btn">
                                              <i class="ri-search-line me-2"></i>Search
                                          </button>
@@ -10525,6 +10574,107 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         }, 500);
+        
+        // Setup event listeners for static point-to-point fields
+        setTimeout(() => {
+            for (let day = 1; day <= 7; day++) {
+                // City select
+                const citySelect = document.getElementById(`day${day}_transport_city_0`);
+                if (citySelect) {
+                    const validatePointToPoint = () => {
+                        setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
+                    };
+                    citySelect.addEventListener('change', validatePointToPoint);
+                    // Handle Select2 events - check after a delay to allow Select2 to initialize
+                    setTimeout(() => {
+                        if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                            jQuery(citySelect).off('select2:select.pointToPoint').on('select2:select.pointToPoint', validatePointToPoint);
+                            jQuery(citySelect).off('select2:unselect.pointToPoint').on('select2:unselect.pointToPoint', validatePointToPoint);
+                        }
+                    }, 500);
+                }
+                
+                // Pickup location input
+                const pickupLocationInput = document.getElementById(`day${day}_transport_pickup_location`);
+                if (pickupLocationInput) {
+                    const validatePointToPoint = () => {
+                        const pickupLatField = document.getElementById(`day${day}_transport_pickup_lat`);
+                        const pickupLngField = document.getElementById(`day${day}_transport_pickup_lng`);
+                        if (!pickupLocationInput.value || pickupLocationInput.value.trim() === '') {
+                            if (pickupLatField) pickupLatField.value = '';
+                            if (pickupLngField) pickupLngField.value = '';
+                        }
+                        setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
+                    };
+                    pickupLocationInput.addEventListener('input', validatePointToPoint);
+                    pickupLocationInput.addEventListener('change', validatePointToPoint);
+                    pickupLocationInput.addEventListener('blur', validatePointToPoint);
+                }
+                
+                // Dropoff location input
+                const dropoffLocationInput = document.getElementById(`day${day}_transport_dropoff_location`);
+                if (dropoffLocationInput) {
+                    const validatePointToPoint = () => {
+                        const dropoffLatField = document.getElementById(`day${day}_transport_dropoff_lat`);
+                        const dropoffLngField = document.getElementById(`day${day}_transport_dropoff_lng`);
+                        if (!dropoffLocationInput.value || dropoffLocationInput.value.trim() === '') {
+                            if (dropoffLatField) dropoffLatField.value = '';
+                            if (dropoffLngField) dropoffLngField.value = '';
+                        }
+                        setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
+                    };
+                    dropoffLocationInput.addEventListener('input', validatePointToPoint);
+                    dropoffLocationInput.addEventListener('change', validatePointToPoint);
+                    dropoffLocationInput.addEventListener('blur', validatePointToPoint);
+                }
+                
+                // Hidden lat/lng fields (polling for programmatic changes)
+                const latLngFields = [
+                    document.getElementById(`day${day}_transport_pickup_lat`),
+                    document.getElementById(`day${day}_transport_pickup_lng`),
+                    document.getElementById(`day${day}_transport_dropoff_lat`),
+                    document.getElementById(`day${day}_transport_dropoff_lng`)
+                ];
+                latLngFields.forEach(field => {
+                    if (field) {
+                        const validatePointToPoint = () => {
+                            setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
+                        };
+                        field.addEventListener('change', validatePointToPoint);
+                        
+                        // Polling for programmatic changes
+                        let lastValue = field.value || '';
+                        const checkValue = setInterval(() => {
+                            const currentValue = field.value || '';
+                            if (currentValue !== lastValue) {
+                                lastValue = currentValue;
+                                validatePointToPoint();
+                            }
+                        }, 150);
+                        
+                        // Store interval ID for cleanup if needed
+                        field.setAttribute('data-validation-interval-id', checkValue);
+                    }
+                });
+                
+                // Pickup time select (uses name attribute, not id)
+                const pickupTimeSelect = document.querySelector(`select[name="day${day}_transport_additional_pickup_time"]`);
+                if (pickupTimeSelect) {
+                    const validatePointToPoint = () => {
+                        setTimeout(() => enableSearchButton(day, 'transport_additional', 0), 50);
+                    };
+                    pickupTimeSelect.addEventListener('change', validatePointToPoint);
+                    pickupTimeSelect.addEventListener('input', validatePointToPoint);
+                    // Also check if Select2 is initialized
+                    setTimeout(() => {
+                        if (typeof jQuery !== 'undefined' && jQuery(pickupTimeSelect).data('select2')) {
+                            jQuery(pickupTimeSelect).off('select2:select.pointToPoint').on('select2:select.pointToPoint', validatePointToPoint);
+                            jQuery(pickupTimeSelect).off('select2:unselect.pointToPoint').on('select2:unselect.pointToPoint', validatePointToPoint);
+                        }
+                    }, 500);
+                }
+            }
+        }, 1000);
         
         // Load restaurants for all restaurant dropdowns
         loadRestaurantsForAllDays();
@@ -13082,13 +13232,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                              </div>
                          </div>
-                         <div class="col-md-2 local-transfer-field" style="display: none;">
+                         <div class="col-md-3 local-transfer-field" style="display: none;">
                              <div class="form-group">
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
                                  <div class="position-relative">
-                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_pickup_time" style="padding-left: 45px;">
+                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_pickup_time" style="padding-left: 35px;">
                                          <option value="">Select The Time</option>
                                          ${generateTimeOptions()}
                                      </select>
@@ -13131,13 +13281,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                              </div>
                                          </div>
                                      </div>
-                         <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_time_field" style="display: none;">
+                         <div class="col-md-3 point-to-point-field" id="day${day}_transport_${newIndex}_additional_time_field" style="display: none;">
                              <div class="form-group">
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
                                  <div class="position-relative">
-                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 45px;" >
+                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_additional_pickup_time" style="padding-left: 35px;" >
                                          <option value="">Select time</option>
                                          ${generateTimeOptions()}
                                      </select>
@@ -13147,7 +13297,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          </div>
                         
                          <div class="col-md-2 point-to-point-field" id="day${day}_transport_${newIndex}_additional_search_field" style="display: none;">
-                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional',${newIndex})" id="day${day}_transport_${newIndex}_additional_search_btn">
+                             <button type="button" class="btn btn-danger w-100 py-2" onclick="searchVehicles(${day}, 'transport_${newIndex}_additional',${newIndex})" id="day${day}_transport_${newIndex}_additional_search_btn" disabled>
                                  <i class="ri-search-line me-2"></i>Search
                              </button>
                          </div>
@@ -13173,7 +13323,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                      <i class="ri-time-line text-warning me-2"></i>Pick Up Time
                                  </label>
                                  <div class="position-relative">
-                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_hourly_pickup_time" style="padding-left: 45px;">
+                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_hourly_pickup_time" style="padding-left: 35px;">
                                          <option value="">Select time</option>
                                          ${generateTimeOptions()}
                                      </select>
@@ -13181,13 +13331,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                  </div>
                              </div>
                          </div>
-                         <div class="col-md-2 hourly-field" id="day${day}_transport_${newIndex}_hourly_hours_field" style="display: none;">
+                         <div class="col-md-3 hourly-field" id="day${day}_transport_${newIndex}_hourly_hours_field" style="display: none;">
                              <div class="form-group">
                                  <label class="form-label fw-semibold text-muted mb-2">
                                      <i class="ri-time-line text-primary me-2"></i>Number of Hours
                                  </label>
                                  <div class="position-relative">
-                                     <select class="form-select border-2" name="day${day}_transport_${newIndex}_hourly_selected_hours" style="padding-left: 45px;">
+                                     <select class="form-select border-1" name="day${day}_transport_${newIndex}_hourly_selected_hours" style="padding-left: 35px;">
                                          <option value="">Select hours</option>
                                          <option value="1">1 Hour</option>
                                          <option value="2">2 Hours</option>
@@ -13453,7 +13603,89 @@ document.addEventListener('DOMContentLoaded', function() {
              });
          }
          
-         // Add event listeners for Point To Point and Hourly pickup time changes
+         // Add event listeners for Point To Point fields
+         // City select (with Select2 support)
+         const citySelect = document.getElementById(`day${day}_transport_city_${newIndex}`);
+         if (citySelect) {
+             const validatePointToPoint = () => {
+                 setTimeout(() => enableSearchButton(day, `transport_${newIndex}_additional`, newIndex), 50);
+             };
+             citySelect.addEventListener('change', validatePointToPoint);
+             // Handle Select2 events - check after a delay to allow Select2 to initialize
+             setTimeout(() => {
+                 if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                     jQuery(citySelect).off('select2:select.pointToPoint').on('select2:select.pointToPoint', validatePointToPoint);
+                     jQuery(citySelect).off('select2:unselect.pointToPoint').on('select2:unselect.pointToPoint', validatePointToPoint);
+                 }
+             }, 500);
+         }
+         
+         // Pickup location input
+         const pickupLocationInput = document.getElementById(`day${day}_transport_${newIndex}_pickup_location`);
+         if (pickupLocationInput) {
+             const validatePointToPoint = () => {
+                 // Clear coordinates if location text is cleared
+                 const pickupLatField = document.getElementById(`day${day}_transport_${newIndex}_pickup_lat`);
+                 const pickupLngField = document.getElementById(`day${day}_transport_${newIndex}_pickup_lng`);
+                 if (!pickupLocationInput.value || pickupLocationInput.value.trim() === '') {
+                     if (pickupLatField) pickupLatField.value = '';
+                     if (pickupLngField) pickupLngField.value = '';
+                 }
+                 setTimeout(() => enableSearchButton(day, `transport_${newIndex}_additional`, newIndex), 50);
+             };
+             pickupLocationInput.addEventListener('input', validatePointToPoint);
+             pickupLocationInput.addEventListener('change', validatePointToPoint);
+             pickupLocationInput.addEventListener('blur', validatePointToPoint);
+         }
+         
+         // Dropoff location input
+         const dropoffLocationInput = document.getElementById(`day${day}_transport_${newIndex}_dropoff_location`);
+         if (dropoffLocationInput) {
+             const validatePointToPoint = () => {
+                 // Clear coordinates if location text is cleared
+                 const dropoffLatField = document.getElementById(`day${day}_transport_${newIndex}_dropoff_lat`);
+                 const dropoffLngField = document.getElementById(`day${day}_transport_${newIndex}_dropoff_lng`);
+                 if (!dropoffLocationInput.value || dropoffLocationInput.value.trim() === '') {
+                     if (dropoffLatField) dropoffLatField.value = '';
+                     if (dropoffLngField) dropoffLngField.value = '';
+                 }
+                 setTimeout(() => enableSearchButton(day, `transport_${newIndex}_additional`, newIndex), 50);
+             };
+             dropoffLocationInput.addEventListener('input', validatePointToPoint);
+             dropoffLocationInput.addEventListener('change', validatePointToPoint);
+             dropoffLocationInput.addEventListener('blur', validatePointToPoint);
+         }
+         
+         // Hidden lat/lng fields (polling for programmatic changes)
+         const latLngFields = [
+             document.getElementById(`day${day}_transport_${newIndex}_pickup_lat`),
+             document.getElementById(`day${day}_transport_${newIndex}_pickup_lng`),
+             document.getElementById(`day${day}_transport_${newIndex}_dropoff_lat`),
+             document.getElementById(`day${day}_transport_${newIndex}_dropoff_lng`)
+         ];
+         latLngFields.forEach(field => {
+             if (field) {
+                 const validatePointToPoint = () => {
+                     setTimeout(() => enableSearchButton(day, `transport_${newIndex}_additional`, newIndex), 50);
+                 };
+                 field.addEventListener('change', validatePointToPoint);
+                 
+                 // Polling for programmatic changes
+                 let lastValue = field.value || '';
+                 const checkValue = setInterval(() => {
+                     const currentValue = field.value || '';
+                     if (currentValue !== lastValue) {
+                         lastValue = currentValue;
+                         validatePointToPoint();
+                     }
+                 }, 150);
+                 
+                 // Store interval ID for cleanup if needed
+                 field.setAttribute('data-validation-interval-id', checkValue);
+             }
+         });
+         
+         // Pickup time select
          const additionalPickupTimeSelect = container.querySelector(`select[name="day${day}_transport_${newIndex}_additional_pickup_time"]`);
          if (additionalPickupTimeSelect) {
              additionalPickupTimeSelect.addEventListener('change', function() {
@@ -14866,23 +15098,37 @@ function enableSearchButton(day, section, index=null) {
         return;
     }
     
-    // Normalize section name for transport type detection
-    let baseSection = section;
-    if (section === 'transport_additional' || section === 'transport_hourly') {
-        baseSection = 'transport';
-    } else if (section.match(/^transport_\d+_(additional|hourly)$/)) {
-        // Extract the index from section names like 'transport_2_additional' or 'transport_2_hourly'
-        const match = section.match(/^transport_(\d+)_(additional|hourly)$/);
-        if (match) {
-            const index = match[1];
-            baseSection = `transport_${index}`;
-        }
-    }
+     // Normalize section name for transport type detection
+     let baseSection = section;
+     let transportIndex = index;
+     
+     if (section === 'transport_additional' || section === 'transport_hourly') {
+         baseSection = 'transport';
+         // For transport_additional, index should be 0 for initial transport
+         if (transportIndex === null || transportIndex === undefined) {
+             transportIndex = 0;
+         }
+     } else if (section.match(/^transport_\d+_(additional|hourly)$/)) {
+         // Extract the index from section names like 'transport_2_additional' or 'transport_2_hourly'
+         const match = section.match(/^transport_(\d+)_(additional|hourly)$/);
+         if (match) {
+             transportIndex = parseInt(match[1]);
+             baseSection = `transport_${transportIndex}`;
+         }
+     }
      
      // Check transport type to determine enablement criteria
-     const pointToPointRadio = document.querySelector(`input[name="day${day}_${baseSection}_service_type"][value="point_to_point"]`);
-     const hourlyRadio = document.querySelector(`input[name="day${day}_${baseSection}_service_type"][value="hourly"]`);
-     const localTransferRadio = document.querySelector(`input[name="day${day}_${baseSection}_service_type"][value="local_transfer"]`);
+     // For initial transport (index 0), the service type radio name doesn't have an index
+     let pointToPointRadio, hourlyRadio, localTransferRadio;
+     if (transportIndex === 0 || transportIndex === null) {
+         pointToPointRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="point_to_point"]`);
+         hourlyRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="hourly"]`);
+         localTransferRadio = document.querySelector(`input[name="day${day}_transport_service_type"][value="local_transfer"]`);
+     } else {
+         pointToPointRadio = document.querySelector(`input[name="day${day}_transport_${transportIndex}_service_type"][value="point_to_point"]`);
+         hourlyRadio = document.querySelector(`input[name="day${day}_transport_${transportIndex}_service_type"][value="hourly"]`);
+         localTransferRadio = document.querySelector(`input[name="day${day}_transport_${transportIndex}_service_type"][value="local_transfer"]`);
+     }
      
      let transportType = null;
      if (pointToPointRadio && pointToPointRadio.checked) {
@@ -14897,25 +15143,276 @@ function enableSearchButton(day, section, index=null) {
          day: day,
          section: section,
          baseSection: baseSection,
+         transportIndex: transportIndex,
          transportType: transportType,
          buttonExists: !!searchBtn
      });
      
-         // For point_to_point, only need city (pickup time is optional)
+         // For point_to_point, need all fields: city, pickup location (with coordinates), dropoff location (with coordinates), and pickup time
     if (transportType === 'point_to_point') {
-        console.log('Point to point transport type detected', index);
-        const citySelect = document.getElementById(`day${day}_transport_city_${index}`);
+        console.log('Point to point transport type detected', transportIndex);
         
-        if (citySelect && citySelect.value) {
+        // Use transportIndex instead of index (which might be null/undefined)
+        const fieldIndex = (transportIndex === null || transportIndex === undefined) ? 0 : transportIndex;
+        
+        // Determine field IDs based on fieldIndex
+        let cityId, pickupLocationId, dropoffLocationId, pickupLatId, pickupLngId, dropoffLatId, dropoffLngId, pickupTimeName;
+        
+        if (fieldIndex === 0) {
+            // Initial transport (index 0)
+            cityId = `day${day}_transport_city_0`;
+            pickupLocationId = `day${day}_transport_pickup_location`;
+            dropoffLocationId = `day${day}_transport_dropoff_location`;
+            pickupLatId = `day${day}_transport_pickup_lat`;
+            pickupLngId = `day${day}_transport_pickup_lng`;
+            dropoffLatId = `day${day}_transport_dropoff_lat`;
+            dropoffLngId = `day${day}_transport_dropoff_lng`;
+            pickupTimeName = `day${day}_transport_additional_pickup_time`;
+        } else {
+            // Dynamic transport (index > 0)
+            cityId = `day${day}_transport_city_${fieldIndex}`;
+            pickupLocationId = `day${day}_transport_${fieldIndex}_pickup_location`;
+            dropoffLocationId = `day${day}_transport_${fieldIndex}_dropoff_location`;
+            pickupLatId = `day${day}_transport_${fieldIndex}_pickup_lat`;
+            pickupLngId = `day${day}_transport_${fieldIndex}_pickup_lng`;
+            dropoffLatId = `day${day}_transport_${fieldIndex}_dropoff_lat`;
+            dropoffLngId = `day${day}_transport_${fieldIndex}_dropoff_lng`;
+            pickupTimeName = `day${day}_transport_${fieldIndex}_additional_pickup_time`;
+        }
+        
+        // Get all field elements
+        const cityField = document.getElementById(cityId);
+        const pickupLocationField = document.getElementById(pickupLocationId);
+        const dropoffLocationField = document.getElementById(dropoffLocationId);
+        const pickupLatField = document.getElementById(pickupLatId);
+        const pickupLngField = document.getElementById(pickupLngId);
+        const dropoffLatField = document.getElementById(dropoffLatId);
+        const dropoffLngField = document.getElementById(dropoffLngId);
+        // Find the transport container to search within it
+        let transportContainer = null;
+        if (fieldIndex === 0) {
+            // For initial transport, find container with data-transport-index="1"
+            transportContainer = document.querySelector(`[data-transport-index="1"]`);
+        } else {
+            // For dynamic transports, find container with data-transport-index matching fieldIndex
+            transportContainer = document.querySelector(`[data-transport-index="${fieldIndex}"]`);
+        }
+        
+        // Pickup time field uses name attribute, not id - use querySelector
+        // Try to find it within the visible point-to-point container first
+        let pickupTimeField = null;
+        
+        // First, try to find it within the visible point-to-point time field container
+        const timeFieldContainer = document.getElementById(fieldIndex === 0 ? `day${day}_transport_additional_time_field` : `day${day}_transport_${fieldIndex}_additional_time_field`);
+        if (timeFieldContainer) {
+            const computedStyle = window.getComputedStyle(timeFieldContainer);
+            if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden') {
+                pickupTimeField = timeFieldContainer.querySelector(`select[name="${pickupTimeName}"]`);
+            }
+        }
+        
+        // If not found, try within transport container
+        if (!pickupTimeField && transportContainer) {
+            pickupTimeField = transportContainer.querySelector(`select[name="${pickupTimeName}"]`);
+        }
+        
+        // If still not found, search globally
+        if (!pickupTimeField) {
+            pickupTimeField = document.querySelector(`select[name="${pickupTimeName}"]`);
+        }
+        
+        // Check if point-to-point fields are visible
+        let pointToPointVisible = false;
+        if (pickupLocationField) {
+            const pickupContainer = pickupLocationField.closest('.point-to-point-field');
+            if (pickupContainer) {
+                const computedStyle = window.getComputedStyle(pickupContainer);
+                pointToPointVisible = computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
+            }
+        }
+        
+        // If point-to-point fields are not visible, disable button and return early
+        if (!pointToPointVisible) {
+            searchBtn.disabled = true;
+            return;
+        }
+        
+        // Check if all required fields are filled
+        const cityFilled = cityField && cityField.value && String(cityField.value).trim() !== '';
+        const pickupLocationFilled = pickupLocationField && pickupLocationField.value && String(pickupLocationField.value).trim() !== '';
+        const pickupCoordinatesFilled = pickupLatField && pickupLngField && 
+                                        pickupLatField.value && pickupLngField.value && 
+                                        String(pickupLatField.value).trim() !== '' && String(pickupLngField.value).trim() !== '';
+        const dropoffLocationFilled = dropoffLocationField && dropoffLocationField.value && String(dropoffLocationField.value).trim() !== '';
+        const dropoffCoordinatesFilled = dropoffLatField && dropoffLngField && 
+                                         dropoffLatField.value && dropoffLngField.value && 
+                                         String(dropoffLatField.value).trim() !== '' && String(dropoffLngField.value).trim() !== '';
+        
+        // For pickup time, check if field exists and has a value
+        // Try multiple methods to get the value
+        let pickupTimeFilled = false;
+        if (pickupTimeField) {
+            let timeValue = '';
+            
+            // Method 1: Check the actual displayed text in the UI and match it to option values
+            // This handles cases where the native select value isn't synced but the UI shows a value
+            const fieldContainer = pickupTimeField.closest('.position-relative') || pickupTimeField.parentElement;
+            if (fieldContainer) {
+                // Check if there's a Select2 container showing the value
+                const select2Container = fieldContainer.querySelector('.select2-container');
+                if (select2Container) {
+                    const select2Selection = select2Container.querySelector('.select2-selection__rendered');
+                    if (select2Selection) {
+                        const displayedText = select2Selection.textContent.trim();
+                        // Match displayed text to option values
+                        if (displayedText && displayedText !== 'Select time' && displayedText !== 'Select The Time' && displayedText !== '') {
+                            for (let i = 0; i < pickupTimeField.options.length; i++) {
+                                if (pickupTimeField.options[i].text.trim() === displayedText) {
+                                    timeValue = pickupTimeField.options[i].value;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Also check the select element's displayed text directly (for non-Select2 selects)
+                if ((!timeValue || timeValue === '') && pickupTimeField.selectedIndex >= 0) {
+                    const selectedOption = pickupTimeField.options[pickupTimeField.selectedIndex];
+                    if (selectedOption) {
+                        const optionText = selectedOption.text.trim();
+                        // If the displayed text is not a placeholder, use the option's value
+                        if (optionText && optionText !== 'Select time' && optionText !== 'Select The Time' && optionText !== '') {
+                            // Check if this option has a value (not the placeholder)
+                            if (selectedOption.value && selectedOption.value.trim() !== '') {
+                                timeValue = selectedOption.value;
+                            } else {
+                                // Option text is displayed but value is empty - find matching option by text
+                                for (let i = 0; i < pickupTimeField.options.length; i++) {
+                                    if (pickupTimeField.options[i].text.trim() === optionText && pickupTimeField.options[i].value) {
+                                        timeValue = pickupTimeField.options[i].value;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Method 2: Check if Select2 is initialized and get value from Select2
+            if ((!timeValue || timeValue === '') && typeof jQuery !== 'undefined') {
+                try {
+                    const $select = jQuery(pickupTimeField);
+                    if ($select.data('select2')) {
+                        // Select2 is initialized - get value from Select2
+                        const select2Val = $select.val();
+                        if (select2Val && select2Val !== '' && select2Val !== null) {
+                            timeValue = Array.isArray(select2Val) ? select2Val[0] : String(select2Val);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Error reading Select2 value:', e);
+                }
+            }
+            
+            // Method 3: Direct value property (if previous methods didn't provide a value)
+            if (!timeValue || timeValue === '') {
+                timeValue = pickupTimeField.value || '';
+            }
+            
+            // Method 4: Check selected option by index (skip index 0 as it's usually the placeholder)
+            if ((!timeValue || timeValue === '') && pickupTimeField.selectedIndex > 0) {
+                const selectedOption = pickupTimeField.options[pickupTimeField.selectedIndex];
+                if (selectedOption && selectedOption.value && selectedOption.value.trim() !== '') {
+                    timeValue = selectedOption.value;
+                }
+            }
+            
+            // Method 5: Check all options to find selected one (most reliable fallback)
+            // This checks the 'selected' attribute which might be set even if selectedIndex is wrong
+            if (!timeValue || timeValue === '') {
+                for (let i = 1; i < pickupTimeField.options.length; i++) { // Start from 1 to skip placeholder
+                    const option = pickupTimeField.options[i];
+                    if (option.selected && option.value && option.value.trim() !== '') {
+                        timeValue = option.value;
+                        break;
+                    }
+                }
+            }
+            
+            // Method 6: Force check - if the field is visible and has options, check what's actually displayed
+            // Sometimes the value is set but selectedIndex isn't updated
+            if (!timeValue || timeValue === '') {
+                // Try to find the option that matches any visible indication
+                const computedStyle = window.getComputedStyle(pickupTimeField);
+                if (computedStyle.display !== 'none') {
+                    // Field is visible - try to read the actual displayed value
+                    // Check if there's a selected option that might not be at index 0
+                    for (let i = 1; i < pickupTimeField.options.length; i++) {
+                        const option = pickupTimeField.options[i];
+                        // Check if option has selected attribute or is the default selected
+                        if ((option.hasAttribute('selected') || option.selected) && option.value && option.value.trim() !== '') {
+                            timeValue = option.value;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            pickupTimeFilled = String(timeValue).trim() !== '' && timeValue !== '';
+            
+            console.log('Pickup time validation:', {
+                fieldFound: !!pickupTimeField,
+                fieldName: pickupTimeName,
+                fieldId: pickupTimeField.id || 'no id',
+                directValue: pickupTimeField.value,
+                selectedIndex: pickupTimeField.selectedIndex,
+                selectedOptionValue: pickupTimeField.selectedIndex >= 0 && pickupTimeField.options[pickupTimeField.selectedIndex] ? pickupTimeField.options[pickupTimeField.selectedIndex].value : null,
+                selectedOptionText: pickupTimeField.selectedIndex >= 0 && pickupTimeField.options[pickupTimeField.selectedIndex] ? pickupTimeField.options[pickupTimeField.selectedIndex].text : null,
+                hasSelect2: typeof jQuery !== 'undefined' && jQuery(pickupTimeField).data('select2') ? 'yes' : 'no',
+                select2Value: typeof jQuery !== 'undefined' && jQuery(pickupTimeField).data('select2') ? jQuery(pickupTimeField).val() : 'N/A',
+                finalTimeValue: timeValue,
+                pickupTimeFilled: pickupTimeFilled,
+                isVisible: window.getComputedStyle(pickupTimeField).display !== 'none',
+                containerVisible: transportContainer ? window.getComputedStyle(transportContainer).display !== 'none' : 'no container'
+            });
+        } else {
+            console.warn(`Pickup time field not found for day ${day}, fieldIndex ${fieldIndex}. Tried: select[name="${pickupTimeName}"]`, {
+                transportContainerFound: !!transportContainer,
+                searchedInContainer: transportContainer ? 'yes' : 'no'
+            });
+        }
+        
+        // All fields must be filled
+        const allFieldsFilled = cityFilled && 
+                               pickupLocationFilled && 
+                               pickupCoordinatesFilled && 
+                               dropoffLocationFilled && 
+                               dropoffCoordinatesFilled && 
+                               pickupTimeFilled;
+        
+        if (allFieldsFilled) {
             searchBtn.disabled = false;
             searchBtn.classList.remove('btn-secondary');
             searchBtn.classList.add('btn-primary');
-            console.log('Search button enabled for point_to_point');
+            console.log('Search button enabled for point_to_point - all fields filled');
         } else {
             searchBtn.disabled = true;
             searchBtn.classList.remove('btn-primary');
             searchBtn.classList.add('btn-secondary');
-            console.log('Search button disabled for point_to_point - missing city');
+            console.log('Search button disabled for point_to_point - missing fields:', {
+                cityFilled,
+                pickupLocationFilled,
+                pickupCoordinatesFilled,
+                dropoffLocationFilled,
+                dropoffCoordinatesFilled,
+                pickupTimeFilled,
+                pickupTimeField: pickupTimeField ? 'found' : 'not found',
+                pickupTimeValue: pickupTimeField ? pickupTimeField.value : 'N/A',
+                pickupTimeName: pickupTimeName,
+                fieldIndex: fieldIndex
+            });
         }
     } else if (transportType === 'hourly') {
         console.log('Hourly transport type detected', index);
@@ -20283,6 +20780,30 @@ window.saveService = function(day, type) {
                                  
                                  // Update input value with formatted address
                                  input.value = place.formatted_address || place.name || input.value;
+                                 
+                                 // Validate point-to-point search button after Google Maps autocomplete selection
+                                 if (inputId && inputId.includes('transport') && (inputId.includes('pickup_location') || inputId.includes('dropoff_location'))) {
+                                     const dayMatch = inputId.match(/day(\d+)_transport/);
+                                     if (dayMatch) {
+                                         const day = parseInt(dayMatch[1]);
+                                         // Check if it's the initial transport (no index in field name) or dynamic transport
+                                         if (inputId.match(/day\d+_transport_(pickup|dropoff)_location$/)) {
+                                             // Initial transport (index 0) - pattern: dayX_transport_pickup_location or dayX_transport_dropoff_location
+                                             setTimeout(() => {
+                                                 enableSearchButton(day, 'transport_additional', 0);
+                                             }, 50);
+                                         } else {
+                                             // Dynamic transport - extract index from pattern: dayX_transport_Y_pickup_location
+                                             const indexMatch = inputId.match(/day\d+_transport_(\d+)_(pickup|dropoff)_location/);
+                                             if (indexMatch) {
+                                                 const index = parseInt(indexMatch[1]);
+                                                 setTimeout(() => {
+                                                     enableSearchButton(day, `transport_${index}_additional`, index);
+                                                 }, 50);
+                                             }
+                                         }
+                                     }
+                                 }
                              });
                              
                              // Mark as initialized
