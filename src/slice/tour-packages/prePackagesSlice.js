@@ -322,6 +322,11 @@ const prePackagesSlice = createSlice({
       state.error = null;
       state.searchParams = null;
     },
+    clearPackages: (state) => {
+      // Clear packages array and error, but keep searchParams
+      state.packages = [];
+      state.error = null;
+    },
     resetPackageDetails: (state) => {
       state.packageDetails = null;
       state.errorDetails = null;
@@ -561,6 +566,7 @@ const prePackagesSlice = createSlice({
 export const { 
   setSearchParams, 
   resetPackages, 
+  clearPackages,
   resetPackageDetails, 
   resetBookingStatus, 
   resetBookingLists,

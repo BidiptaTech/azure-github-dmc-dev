@@ -466,8 +466,8 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
   // Get display text for guests
   const getGuestsDisplayText = () => {
     const adultText = `${guestCounts.Adults} ${guestCounts.Adults === 1 ? 'adult' : 'adults'}`;
-    const maleText = `${guestCounts.maleCount || 0}M`;
-    const femaleText = `${guestCounts.femaleCount || 0}F`;
+    const maleText = `${guestCounts.maleCount || 0} M`;
+    const femaleText = `${guestCounts.femaleCount || 0} F`;
     const childText = guestCounts.Children > 0 ? `${guestCounts.Children} ${guestCounts.Children === 1 ? 'child' : 'children'}` : '';
     const infantText = guestCounts.Infants > 0 ? `${guestCounts.Infants} ${guestCounts.Infants === 1 ? 'infant' : 'infants'}` : '';
     
@@ -492,8 +492,8 @@ const GuestSearch = ({ onGuestChange, guestCounts: propGuestCounts }) => {
         onClick={toggleDropdown}
         style={{ cursor: 'pointer' }}
       >
-        <h4 className="text-15 fw-500 ls-2 lh-16">Guest</h4>
-        <div className="text-15 text-light-1 ls-2 lh-16">
+        {/* <h4 className="text-15 fw-500 ls-2 lh-16">Guest</h4> */}
+        <div className="text-12 text-light-1 ls-2 lh-16">
           {getGuestsDisplayText()}
         </div>
       </div>
